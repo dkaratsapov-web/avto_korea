@@ -41,6 +41,7 @@ jobs:
         env:
           GH_PAGES: "true"
           NEXT_PUBLIC_DEMO: "true"
+          NEXT_PUBLIC_BASE_PATH: /avto_korea
           NEXT_PUBLIC_SITE_URL: https://dkaratsapov-web.github.io/avto_korea
           NEXT_TELEMETRY_DISABLED: "1"
 
