@@ -1,0 +1,10 @@
+# Конфигурация Cloudflare Pages (через @cloudflare/next-on-pages).
+# Деплой: Workers & Pages → Pages → Connect to Git → этот репозиторий.
+name = "diauto69"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+# Переменные окружения задаются в дашборде Cloudflare Pages
+# (Settings → Environment variables), а не здесь — секреты не коммитим:
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, NEXT_PUBLIC_SITE_URL

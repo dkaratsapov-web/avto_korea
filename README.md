@@ -8,7 +8,7 @@
 
 ## Стек
 
-- **Next.js 14** (App Router) + **React 18** + **TypeScript**
+- **Next.js 15** (App Router) + **React 19** + **TypeScript**
 - **Tailwind CSS 3** с кастомными токенами (`tailwind.config.ts`)
 - Шрифты через `next/font` (Google): **Saira Condensed** (заголовки), **Saira** (цены/числа), **Manrope** (текст)
 - Иконки — **lucide-react**
@@ -82,11 +82,39 @@ lib/
 > **TODO заказчику:** прислать реальные фото и актуальное наличие; реальный
 > телефон/адрес/реквизиты для футера; отзывы и кейсы; токены Telegram.
 
-## Деплой на Vercel
+## Деплой
+
+### Vercel
 
 Проект готов к zero-config деплою на Vercel (`vercel.json` указывает фреймворк
 и регион). Добавьте переменные окружения в настройках проекта Vercel и
 подключите репозиторий — сборка `next build` запустится автоматически.
+
+### Cloudflare Pages
+
+Настроен адаптер [`@cloudflare/next-on-pages`](https://github.com/cloudflare/next-on-pages):
+серверный роут `/api/lead` выполняется на Edge (`export const runtime = "edge"`).
+
+Через дашборд (рекомендуется):
+
+1. **Workers & Pages → Create → Pages → Connect to Git** → выберите репозиторий.
+2. Framework preset: **Next.js**. Параметры сборки:
+   - Build command: `npx @cloudflare/next-on-pages`
+   - Build output directory: `.vercel/output/static`
+3. Settings → переменные окружения (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`,
+   `NEXT_PUBLIC_SITE_URL`). Флаг совместимости `nodejs_compat` уже задан в `wrangler.toml`.
+4. Deploy → Cloudflare выдаст домен `*.pages.dev` и preview-URL на каждую ветку/PR.
+
+Локально:
+
+```bash
+npm run pages:build     # сборка для Cloudflare (npx @cloudflare/next-on-pages)
+npm run pages:preview   # локальный предпросмотр через wrangler
+npm run pages:deploy    # деплой через wrangler (нужен Cloudflare API-токен)
+```
+
+> `.npmrc` содержит `legacy-peer-deps=true` — адаптер держит устаревший потолок
+> peer-зависимости на Next, хотя совместим с актуальной 15.5.x.
 
 ## Доступность и SEO
 

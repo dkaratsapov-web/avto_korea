@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+// Cloudflare Pages (@cloudflare/next-on-pages) выполняет серверные роуты на Edge.
+export const runtime = "edge";
+
 type LeadPayload = {
   phone?: string;
   car?: string;

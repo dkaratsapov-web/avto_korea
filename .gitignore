@@ -27,5 +27,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# vercel
+# vercel / cloudflare pages build output
 .vercel
+.wrangler
