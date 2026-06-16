@@ -1,0 +1,156 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --graphite: #11151a;
+  --graphite-2: #1b222b;
+  --graphite-3: #232c36;
+  --bordeaux: #7a1410;
+  --bordeaux-deep: #530700;
+  --bordeaux-bright: #9c1a12;
+  --steel: #5c6d76;
+  --chrome: #aebac2;
+  --chrome-lt: #e6eaed;
+  --white: #ffffff;
+  --paper: #f5f6f8;
+  --ink: #171a1e;
+  --ink-2: #5b6470;
+  --line: #e6e8ec;
+  --line-d: rgba(255, 255, 255, 0.09);
+  --success: #2ecc71;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* sticky-хедер 72px — чтобы якоря не уезжали под шапку */
+    scroll-padding-top: 80px;
+  }
+  body {
+    @apply bg-paper font-body text-ink antialiased;
+    line-height: 1.5;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display font-extrabold uppercase;
+    line-height: 0.98;
+    letter-spacing: 0.01em;
+  }
+  ::selection {
+    background: var(--bordeaux-bright);
+    color: #fff;
+  }
+  :focus-visible {
+    outline: 2px solid var(--bordeaux-bright);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .wrap {
+    @apply mx-auto w-full max-w-container px-6;
+  }
+
+  /* chrome hairline + red slash signature */
+  .chrome-line {
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--steel),
+      var(--chrome),
+      var(--steel),
+      transparent
+    );
+  }
+  .slash {
+    @apply inline-block;
+    width: 46px;
+    height: 7px;
+    border-radius: 2px;
+    background: linear-gradient(
+      90deg,
+      var(--bordeaux-deep),
+      var(--bordeaux-bright)
+    );
+    transform: skewX(-22deg);
+  }
+
+  /* buttons */
+  .btn {
+    @apply inline-flex min-h-[48px] cursor-pointer items-center justify-center gap-[9px] whitespace-nowrap rounded-btn font-body text-[15px] font-extrabold transition-[0.18s];
+    padding: 14px 22px;
+    border: 0;
+  }
+  .btn-primary {
+    background: linear-gradient(
+      180deg,
+      var(--bordeaux-bright),
+      var(--bordeaux)
+    );
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(122, 20, 16, 0.35);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: #fff;
+    border: 1.5px solid rgba(174, 186, 194, 0.45);
+  }
+  .btn-ghost:hover {
+    border-color: var(--chrome);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .btn-ghost-light {
+    color: var(--ink);
+    border-color: var(--line);
+  }
+  .btn-ghost-light:hover {
+    border-color: var(--steel);
+    background: rgba(17, 21, 26, 0.03);
+  }
+
+  /* form fields on dark */
+  .field-dark {
+    @apply h-12 w-full rounded-[11px] px-[15px] font-body text-[15px] text-white outline-none transition-[0.15s];
+    border: 1px solid rgba(174, 186, 194, 0.25);
+    background: rgba(13, 17, 21, 0.55);
+  }
+  .field-dark::placeholder {
+    color: #8c97a1;
+  }
+  .field-dark:focus {
+    border-color: var(--bordeaux-bright);
+    box-shadow: 0 0 0 3px rgba(156, 26, 18, 0.25);
+  }
+
+  /* form fields on light */
+  .field-light {
+    @apply h-12 w-full rounded-[11px] bg-white px-[15px] font-body text-[15px] text-ink outline-none transition-[0.15s];
+    border: 1px solid var(--line);
+  }
+  .field-light::placeholder {
+    color: #9aa3ad;
+  }
+  .field-light:focus {
+    border-color: var(--bordeaux-bright);
+    box-shadow: 0 0 0 3px rgba(156, 26, 18, 0.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
