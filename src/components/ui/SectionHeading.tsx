@@ -10,6 +10,7 @@ export function SectionHeading({
   description,
   tone = "dark",
   align = "left",
+  shine = false,
   className = "",
 }: {
   eyebrow: string;
@@ -17,10 +18,15 @@ export function SectionHeading({
   description?: ReactNode;
   tone?: "light" | "dark";
   align?: "left" | "center";
+  shine?: boolean;
   className?: string;
 }) {
   const eyebrowColor = tone === "light" ? "text-chrome" : "text-bordeaux";
-  const titleColor = tone === "light" ? "text-white" : "text-ink";
+  const titleColor = shine
+    ? "text-shine"
+    : tone === "light"
+      ? "text-white"
+      : "text-ink";
   const descColor = tone === "light" ? "text-chrome" : "text-ink-2";
 
   return (

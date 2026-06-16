@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import {
   Calculator,
   ShieldCheck,
@@ -7,6 +8,8 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { Reveal } from "@/components/ui/Reveal";
+import { useTilt } from "@/lib/useTilt";
 
 const items = [
   {
@@ -41,29 +44,52 @@ const items = [
   },
 ];
 
+function AdvantageCard({
+  icon: Icon,
+  title,
+  text,
+}: {
+  icon: LucideIcon;
+  title: string;
+  text: string;
+}) {
+  const tilt = useTilt(6);
+  return (
+    <div
+      ref={tilt.ref}
+      onPointerMove={tilt.onMove}
+      onPointerLeave={tilt.onLeave}
+      className="group relative h-full overflow-hidden rounded-card border border-line bg-paper p-6 transition-[transform,box-shadow,border-color] duration-300 [transform-style:preserve-3d] hover:border-[#d4d8de] hover:shadow-card"
+    >
+      {/* верхняя градиентная линия-акцент */}
+      <span className="absolute inset-x-0 top-0 h-[2px] scale-x-0 bg-gradient-to-r from-bordeaux-deep via-bordeaux-bright to-chrome transition-transform duration-300 group-hover:scale-x-100" />
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-graphite text-chrome transition-all duration-300 group-hover:-rotate-6 group-hover:bg-bordeaux group-hover:text-white">
+        <Icon className="h-6 w-6" />
+      </div>
+      <h3 className="mb-2 text-[20px] normal-case tracking-[0.01em] text-ink">
+        {title}
+      </h3>
+      <p className="text-[15px] leading-relaxed text-ink-2">{text}</p>
+    </div>
+  );
+}
+
 export function Advantages() {
   return (
-    <section className="bg-white py-[78px]">
+    <section className="bg-white py-[88px]">
       <div className="wrap">
-        <SectionHeading
-          eyebrow="Почему мы"
-          title="Премиальный импорт без сюрпризов"
-          description="Доверие и прозрачность на каждом шаге — от первого расчёта до выдачи авто."
-        />
+        <Reveal>
+          <SectionHeading
+            eyebrow="Почему мы"
+            title="Премиальный импорт без сюрпризов"
+            description="Доверие и прозрачность на каждом шаге — от первого расчёта до выдачи авто."
+          />
+        </Reveal>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map(({ icon: Icon, title, text }) => (
-            <div
-              key={title}
-              className="group rounded-card border border-line bg-paper p-6 transition-[0.2s] hover:-translate-y-1 hover:border-[#d4d8de] hover:bg-white hover:shadow-card"
-            >
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-graphite text-chrome transition-colors group-hover:bg-bordeaux group-hover:text-white">
-                <Icon className="h-6 w-6" />
-              </div>
-              <h3 className="mb-2 text-[20px] normal-case tracking-[0.01em] text-ink">
-                {title}
-              </h3>
-              <p className="text-[15px] leading-relaxed text-ink-2">{text}</p>
-            </div>
+          {items.map((item, i) => (
+            <Reveal key={item.title} direction="up" delay={(i % 3) * 90}>
+              <AdvantageCard {...item} />
+            </Reveal>
           ))}
         </div>
       </div>

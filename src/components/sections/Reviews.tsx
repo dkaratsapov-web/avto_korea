@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { ChevronLeft, ChevronRight, CheckCircle2, Quote } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { Reveal } from "@/components/ui/Reveal";
 import { countries } from "@/lib/site";
 
 type Review = {
@@ -63,9 +64,9 @@ export function Reviews() {
   }
 
   return (
-    <section id="reviews" className="scroll-mt-20 bg-paper py-[78px]">
+    <section id="reviews" className="scroll-mt-20 bg-paper py-[88px]">
       <div className="wrap">
-        <div className="flex items-end justify-between gap-6">
+        <Reveal className="flex items-end justify-between gap-6">
           <SectionHeading
             eyebrow="Отзывы · Доставили"
             title="Реальные кейсы клиентов"
@@ -75,7 +76,7 @@ export function Reviews() {
             <CarouselBtn dir={-1} onClick={() => scrollBy(-1)} />
             <CarouselBtn dir={1} onClick={() => scrollBy(1)} />
           </div>
-        </div>
+        </Reveal>
 
         <div
           ref={track}

@@ -24,21 +24,53 @@ const config: Config = {
         btn: "12px",
       },
       maxWidth: {
-        container: "1240px",
+        container: "1400px",
       },
       boxShadow: {
         card: "0 22px 44px rgba(20,25,33,.14)",
         btn: "0 6px 18px rgba(122,20,16,.35)",
         chip: "0 18px 40px rgba(0,0,0,.4)",
+        glow: "0 0 0 1px rgba(174,186,194,.12), 0 30px 60px -20px rgba(0,0,0,.6)",
       },
       keyframes: {
         "fade-up": {
           "0%": { opacity: "0", transform: "translateY(16px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        marquee: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
+        shine: {
+          "0%": { backgroundPosition: "200% center" },
+          "100%": { backgroundPosition: "-200% center" },
+        },
+        float: {
+          "0%,100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        "glow-pan": {
+          "0%,100%": { transform: "translate(-8%, -4%) scale(1)", opacity: ".55" },
+          "50%": { transform: "translate(8%, 6%) scale(1.15)", opacity: ".85" },
+        },
+        "scroll-cue": {
+          "0%": { transform: "translateY(0)", opacity: "0" },
+          "40%": { opacity: "1" },
+          "80%,100%": { transform: "translateY(14px)", opacity: "0" },
+        },
+        "spin-slow": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
+        },
       },
       animation: {
         "fade-up": "fade-up .5s ease both",
+        marquee: "marquee var(--marquee-duration, 28s) linear infinite",
+        shine: "shine 6s linear infinite",
+        float: "float 6s ease-in-out infinite",
+        "glow-pan": "glow-pan 14s ease-in-out infinite",
+        "scroll-cue": "scroll-cue 1.8s ease-in-out infinite",
+        "spin-slow": "spin-slow 22s linear infinite",
       },
     },
   },

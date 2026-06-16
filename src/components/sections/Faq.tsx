@@ -1,5 +1,6 @@
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Accordion, type AccordionItem } from "@/components/ui/Accordion";
+import { Reveal } from "@/components/ui/Reveal";
 
 const items: AccordionItem[] = [
   {
@@ -34,17 +35,19 @@ const items: AccordionItem[] = [
 
 export function Faq() {
   return (
-    <section className="bg-white py-[78px]">
+    <section className="bg-white py-[88px]">
       <div className="wrap max-w-3xl">
-        <SectionHeading
-          eyebrow="Вопросы и ответы"
-          title="Коротко о главном"
-          description="Собрали то, что спрашивают чаще всего. Не нашли ответ — напишите нам."
-          align="center"
-        />
-        <div className="mt-10">
+        <Reveal>
+          <SectionHeading
+            eyebrow="Вопросы и ответы"
+            title="Коротко о главном"
+            description="Собрали то, что спрашивают чаще всего. Не нашли ответ — напишите нам."
+            align="center"
+          />
+        </Reveal>
+        <Reveal delay={120} className="mt-10">
           <Accordion items={items} />
-        </div>
+        </Reveal>
       </div>
     </section>
   );

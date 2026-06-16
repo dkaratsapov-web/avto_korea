@@ -9,6 +9,7 @@ import {
 import { type Car, statusLabels, formatPrice } from "@/data/cars";
 import { countries } from "@/lib/site";
 import { showToast } from "@/lib/toast";
+import { useTilt } from "@/lib/useTilt";
 
 const statusStyle: Record<Car["status"], string> = {
   in_stock:
@@ -21,10 +22,18 @@ const statusStyle: Record<Car["status"], string> = {
 
 export function CarCard({ car }: { car: Car }) {
   const country = countries[car.country];
+  const tilt = useTilt(5);
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-card border border-line bg-white transition-[0.2s] hover:-translate-y-[5px] hover:border-[#d4d8de] hover:shadow-card">
-      <div className="relative flex aspect-[16/10] items-center bg-[radial-gradient(420px_200px_at_70%_30%,#2b3640_0,#1b222b_60%,#11151a_100%)] px-[18px] pb-[14px] pt-[26px]">
+    <article
+      ref={tilt.ref}
+      onPointerMove={tilt.onMove}
+      onPointerLeave={tilt.onLeave}
+      className="group flex h-full flex-col overflow-hidden rounded-card border border-line bg-white transition-[transform,box-shadow,border-color] duration-300 [transform-style:preserve-3d] hover:border-[#d4d8de] hover:shadow-card"
+    >
+      <div className="relative flex aspect-[16/10] items-center overflow-hidden bg-[radial-gradient(420px_200px_at_70%_30%,#2b3640_0,#1b222b_60%,#11151a_100%)] px-[18px] pb-[14px] pt-[26px]">
+        {/* блик по фото при наведении */}
+        <span className="pointer-events-none absolute inset-0 z-10 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
         <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-white/[0.92] px-[11px] py-[5px] text-[13px] font-bold text-ink">
           <span className="text-[15px]">{country.flag}</span>
           {country.label}

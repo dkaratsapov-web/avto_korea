@@ -1,26 +1,98 @@
+import { useEffect, useRef, useState } from "react";
 import { Car, Ship, Landmark, Wrench, Equal } from "lucide-react";
 import { LeadForm } from "@/components/LeadForm";
+import { Reveal } from "@/components/ui/Reveal";
 
 const breakdown = [
-  { icon: Car, label: "Цена в стране", note: "реальная стоимость авто на аукционе/у дилера" },
-  { icon: Ship, label: "Логистика", note: "доставка до РФ выбранным маршрутом" },
-  { icon: Landmark, label: "Таможня", note: "пошлины, утильсбор, оформление" },
-  { icon: Wrench, label: "Наши услуги", note: "подбор, проверка, сопровождение" },
+  {
+    icon: Car,
+    label: "Цена в стране",
+    note: "реальная стоимость авто на аукционе/у дилера",
+    pct: 62,
+    color: "#AEBAC2",
+  },
+  {
+    icon: Ship,
+    label: "Логистика",
+    note: "доставка до РФ выбранным маршрутом",
+    pct: 12,
+    color: "#5C6D76",
+  },
+  {
+    icon: Landmark,
+    label: "Таможня",
+    note: "пошлины, утильсбор, оформление",
+    pct: 18,
+    color: "#9C1A12",
+  },
+  {
+    icon: Wrench,
+    label: "Наши услуги",
+    note: "подбор, проверка, сопровождение",
+    pct: 8,
+    color: "#530700",
+  },
 ];
+
+function CostBar() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setShown(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.5 },
+    );
+    if (reduce) setShown(true);
+    else obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className="mt-7">
+      <div className="mb-2 flex justify-between text-[12px] font-semibold uppercase tracking-[0.1em] text-[#9AA4B2]">
+        <span>Из чего складывается цена</span>
+        <span className="text-chrome">= 100% под ключ</span>
+      </div>
+      <div className="flex h-4 w-full overflow-hidden rounded-full border border-line-dark bg-graphite-3">
+        {breakdown.map((b) => (
+          <div
+            key={b.label}
+            className="h-full transition-[width] duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            style={{
+              width: shown ? `${b.pct}%` : "0%",
+              background: b.color,
+            }}
+            title={`${b.label} — ${b.pct}%`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function Calculator() {
   return (
     <section
       id="calc"
-      className="relative scroll-mt-20 overflow-hidden bg-graphite py-[78px] text-white"
+      className="grain relative scroll-mt-20 overflow-hidden bg-graphite py-[88px] text-white"
     >
       <div className="chrome-line absolute inset-x-0 top-0" />
-      <div className="wrap grid items-start gap-12 lg:grid-cols-2">
-        <div>
+      <div className="glow-blob right-[6%] top-[8%] h-72 w-72 animate-glow-pan bg-bordeaux/25" aria-hidden />
+      <div className="wrap relative grid items-start gap-12 lg:grid-cols-2">
+        <Reveal direction="right">
           <div className="mb-3 flex items-center gap-3 text-[13px] font-extrabold uppercase tracking-[0.16em] text-chrome">
             <span className="slash" aria-hidden /> Расчёт под ключ
           </div>
-          <h2 className="text-[clamp(30px,4vw,48px)] text-white">
+          <h2 className="text-[clamp(30px,4vw,48px)] text-shine">
             Рассчитайте стоимость вашего авто
           </h2>
           <p className="mt-3 max-w-md text-[16px] text-[#C7CFD6]">
@@ -28,17 +100,27 @@ export function Calculator() {
             составляющие, чтобы вы видели, за что платите.
           </p>
 
-          <div className="mt-8 space-y-3">
-            {breakdown.map(({ icon: Icon, label, note }) => (
+          <CostBar />
+
+          <div className="mt-6 space-y-3">
+            {breakdown.map(({ icon: Icon, label, note, pct, color }) => (
               <div
                 key={label}
-                className="flex items-center gap-4 rounded-card border border-line-dark bg-white/[0.03] p-4"
+                className="flex items-center gap-4 rounded-card border border-line-dark bg-white/[0.03] p-4 transition-colors hover:bg-white/[0.06]"
               >
-                <div className="flex h-11 w-11 flex-none items-center justify-center rounded-[12px] bg-graphite-3 text-chrome">
+                <div
+                  className="flex h-11 w-11 flex-none items-center justify-center rounded-[12px] text-white"
+                  style={{ background: color }}
+                >
                   <Icon className="h-5 w-5" />
                 </div>
-                <div>
-                  <div className="font-bold text-white">{label}</div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-bold text-white">{label}</div>
+                    <div className="font-num text-[15px] font-bold text-chrome">
+                      ~{pct}%
+                    </div>
+                  </div>
                   <div className="text-[13.5px] text-[#9AA4B2]">{note}</div>
                 </div>
               </div>
@@ -52,21 +134,23 @@ export function Calculator() {
               </div>
             </div>
           </div>
-        </div>
+        </Reveal>
 
-        <div className="rounded-card border border-line-dark bg-white/[0.04] p-6 sm:p-8">
-          <h3 className="mb-1 text-[22px] text-white">Заявка на расчёт</h3>
-          <p className="mb-6 text-[14px] text-[#9AA4B2]">
-            Заполните, что знаете — остальное уточним. Перезвоним в течение 15
-            минут.
-          </p>
-          <LeadForm
-            layout="full"
-            tone="dark"
-            source="Калькулятор — форма расчёта"
-            submitLabel="Получить честный расчёт"
-          />
-        </div>
+        <Reveal direction="left" delay={120}>
+          <div className="glass rounded-card p-6 shadow-glow sm:p-8">
+            <h3 className="mb-1 text-[22px] text-white">Заявка на расчёт</h3>
+            <p className="mb-6 text-[14px] text-[#9AA4B2]">
+              Заполните, что знаете — остальное уточним. Перезвоним в течение 15
+              минут.
+            </p>
+            <LeadForm
+              layout="full"
+              tone="dark"
+              source="Калькулятор — форма расчёта"
+              submitLabel="Получить честный расчёт"
+            />
+          </div>
+        </Reveal>
       </div>
     </section>
   );

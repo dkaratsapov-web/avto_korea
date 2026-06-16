@@ -1,4 +1,5 @@
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { Reveal } from "@/components/ui/Reveal";
 import { countries } from "@/lib/site";
 
 const routes = [
@@ -26,20 +27,24 @@ const routes = [
 
 export function Geography() {
   return (
-    <section className="bg-white py-[78px]">
+    <section className="bg-white py-[88px]">
       <div className="wrap">
-        <SectionHeading
-          eyebrow="География и сроки"
-          title="Возим из четырёх направлений"
-          description="Подбираем страну под задачу: где-то выгоднее цена, где-то — свежесть или премиум."
-        />
+        <Reveal>
+          <SectionHeading
+            eyebrow="География и сроки"
+            title="Возим из четырёх направлений"
+            description="Подбираем страну под задачу: где-то выгоднее цена, где-то — свежесть или премиум."
+          />
+        </Reveal>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {routes.map((r) => {
+          {routes.map((r, i) => {
             const c = countries[r.code];
             return (
-              <div
+              <Reveal
                 key={r.code}
-                className="flex flex-col rounded-card border border-line bg-paper p-6 transition-[0.2s] hover:-translate-y-1 hover:border-[#d4d8de] hover:bg-white hover:shadow-card"
+                direction="up"
+                delay={i * 80}
+                className="flex h-full flex-col rounded-card border border-line bg-paper p-6 transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:border-[#d4d8de] hover:bg-white hover:shadow-card"
               >
                 <div className="mb-4 flex items-center gap-3">
                   <span className="text-[34px] leading-none">{c.flag}</span>
@@ -58,7 +63,7 @@ export function Geography() {
                 <p className="text-[14.5px] leading-relaxed text-ink-2">
                   {r.perk}
                 </p>
-              </div>
+              </Reveal>
             );
           })}
         </div>

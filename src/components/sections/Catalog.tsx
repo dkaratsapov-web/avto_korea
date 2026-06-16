@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CarCard } from "@/components/CarCard";
 import { Button } from "@/components/ui/Button";
+import { Reveal } from "@/components/ui/Reveal";
 import { cars } from "@/data/cars";
 import { countries, type CountryCode } from "@/lib/site";
 
@@ -74,8 +75,10 @@ export function Catalog() {
 
         {visible.length > 0 ? (
           <div className="grid grid-cols-3 gap-[22px] max-[600px]:grid-cols-1 max-[920px]:grid-cols-2">
-            {visible.map((car) => (
-              <CarCard key={car.id} car={car} />
+            {visible.map((car, i) => (
+              <Reveal key={car.id} direction="up" delay={(i % 3) * 80}>
+                <CarCard car={car} />
+              </Reveal>
             ))}
           </div>
         ) : (

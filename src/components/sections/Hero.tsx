@@ -37,6 +37,11 @@ export function Hero() {
         <div className="absolute inset-0 bg-gradient-to-r from-graphite via-graphite/85 to-graphite/45" />
         {/* блендинг сверху и снизу */}
         <div className="absolute inset-0 bg-gradient-to-t from-graphite via-transparent to-graphite/60" />
+        {/* движущиеся световые блики */}
+        <div className="glow-blob right-[8%] top-[10%] h-80 w-80 animate-glow-pan bg-bordeaux/30" aria-hidden />
+        <div className="glow-blob left-[2%] bottom-[6%] h-72 w-72 animate-glow-pan bg-steel/20 [animation-delay:-6s]" aria-hidden />
+        {/* зернистость */}
+        <div className="grain absolute inset-0" aria-hidden />
       </div>
 
       <div className="wrap grid items-center gap-10 py-[60px] max-md:gap-[18px] max-md:py-[48px] md:grid-cols-[1.05fr_0.95fr] md:py-[80px] md:pb-[96px]">
@@ -85,12 +90,13 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Плавающий прайс-чип поверх фото */}
+        {/* Плавающие чипы поверх фото */}
         <div className="relative hidden min-h-[320px] items-center justify-center md:flex">
           <div className="relative w-full max-w-[520px]">
-            {/* хром-овал — фирменный акцент */}
-            <div className="absolute left-1/2 top-1/2 h-[260px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-chrome/20 bg-chrome/[0.03]" />
-            <div className="absolute right-[4%] top-[12%] rotate-[1deg] rounded-[14px] bg-white px-4 py-3 text-ink shadow-chip">
+            {/* вращающиеся хром-кольца — фирменный акцент */}
+            <div className="absolute left-1/2 top-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 animate-spin-slow rounded-full border border-chrome/15 [border-style:dashed]" />
+            <div className="absolute left-1/2 top-1/2 h-[230px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-chrome/20 bg-chrome/[0.03]" />
+            <div className="absolute right-[4%] top-[10%] animate-float rotate-[1deg] rounded-[14px] bg-white px-4 py-3 text-ink shadow-chip">
               <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-2">
                 под ключ от
               </div>
@@ -98,7 +104,7 @@ export function Hero() {
                 2 190 000 ₽
               </div>
             </div>
-            <div className="absolute bottom-[14%] left-[2%] rotate-[-1deg] rounded-[14px] border border-line-dark bg-graphite-2/80 px-4 py-3 backdrop-blur-md">
+            <div className="glass absolute bottom-[12%] left-[2%] animate-float rounded-[14px] px-4 py-3 [animation-delay:-3s]">
               <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-chrome">
                 расчёт
               </div>
@@ -107,6 +113,13 @@ export function Hero() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* индикатор прокрутки */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-5 z-10 hidden justify-center md:flex">
+        <div className="flex h-9 w-6 items-start justify-center rounded-full border border-chrome/40 p-1.5">
+          <span className="h-2 w-1 animate-scroll-cue rounded-full bg-chrome" />
         </div>
       </div>
     </section>

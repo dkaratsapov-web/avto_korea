@@ -149,6 +149,87 @@
   }
 }
 
+@layer components {
+  /* металлический «хром-шайн» по тексту */
+  .text-shine {
+    background: linear-gradient(
+      100deg,
+      #5c6d76 0%,
+      #aebac2 18%,
+      #e6eaed 32%,
+      #ffffff 46%,
+      #e6eaed 60%,
+      #aebac2 74%,
+      #5c6d76 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    @apply animate-shine;
+  }
+
+  /* стеклянная панель */
+  .glass {
+    background: rgba(27, 34, 43, 0.55);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--line-d);
+  }
+
+  /* премиальная градиентная рамка-обводка */
+  .ring-chrome {
+    box-shadow:
+      inset 0 0 0 1px rgba(174, 186, 194, 0.16),
+      0 1px 0 0 rgba(255, 255, 255, 0.04);
+  }
+}
+
+@layer utilities {
+  /* зернистость поверх тёмных секций */
+  .grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* размытый световой «глоу-блоб» */
+  .glow-blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(70px);
+    pointer-events: none;
+  }
+}
+
+/* блик-проводка по primary-кнопке */
+.btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    115deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.38) 50%,
+    transparent 80%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.6s ease;
+}
+.btn-primary:hover::after {
+  transform: translateX(130%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
