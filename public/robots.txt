@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://diauto69.ru/sitemap.xml

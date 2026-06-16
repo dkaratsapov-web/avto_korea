@@ -1,32 +1,23 @@
 # dependencies
 /node_modules
-/.pnp
-.pnp.js
 
-# next.js
-/.next/
-/out/
+# build output
+/dist
 
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
+# logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# local env files
+# editor / os
+.DS_Store
+*.local
+
+# env
 .env
-.env*.local
+.env.*
+!.env.example
 
-# typescript
+# misc
 *.tsbuildinfo
-next-env.d.ts
-
-# vercel / cloudflare pages build output
-.vercel
-.wrangler

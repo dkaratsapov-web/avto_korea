@@ -3,63 +3,63 @@
 Лендинг импорта авто из 🇰🇷 Кореи, 🇨🇳 Китая, 🇯🇵 Японии и 🇪🇺 ЕС «под ключ».
 Главное действие — **заявка на расчёт стоимости**. Бренд: бордо + хром + графит.
 
-Построен на **Next.js (App Router) + TypeScript + Tailwind CSS**.
-Визуал перенесён 1:1 из макета `diauto69_site.html`, структура — по `ТЗ_DI_AUTO_69_сайт.md`.
+Чистый **React (SPA) + TypeScript**, сборка на **Vite**, стили — **Tailwind CSS**.
+Визуал перенесён 1:1 из макета `docs/diauto69_site.html`, структура — по `docs/ТЗ_DI_AUTO_69_сайт.md`.
 
 ## Стек
 
-- **Next.js 15** (App Router) + **React 19** + **TypeScript**
+- **React 19** + **TypeScript**, бандлер **Vite 5**
 - **Tailwind CSS 3** с кастомными токенами (`tailwind.config.ts`)
-- Шрифты через `next/font` (Google): **Saira Condensed** (заголовки), **Saira** (цены/числа), **Manrope** (текст)
+- Шрифты — Google Fonts (`index.html`): **Saira Condensed** (заголовки), **Saira** (цены/числа), **Manrope** (текст)
 - Иконки — **lucide-react**
 
 ## Запуск
 
 ```bash
 npm install      # установить зависимости
-npm run dev      # дев-сервер на http://localhost:3000
-npm run build    # продакшен-сборка
-npm run start    # запуск собранного приложения
-npm run lint     # проверка ESLint
+npm run dev      # дев-сервер (Vite) на http://localhost:5173
+npm run build    # типизация (tsc) + продакшен-сборка в dist/
+npm run preview  # локальный предпросмотр собранного dist/
 ```
 
 ## Переменные окружения
 
-Скопируйте `.env.example` → `.env.local` и заполните значениями.
+Скопируйте `.env.example` → `.env.local`. Префикс `VITE_` обязателен (иначе
+переменная не попадёт в клиентский бандл). Файлы `.env*` не коммитим.
 
-| Переменная             | Назначение                                                        |
-| ---------------------- | ----------------------------------------------------------------- |
-| `TELEGRAM_BOT_TOKEN`   | Токен бота из @BotFather — отправка заявок менеджеру               |
-| `TELEGRAM_CHAT_ID`     | ID чата/канала, куда падают заявки                                 |
-| `NEXT_PUBLIC_SITE_URL` | Публичный адрес сайта (для `sitemap`/`robots`/OG). Дефолт — прод.  |
+| Переменная           | Назначение                                                              |
+| -------------------- | ---------------------------------------------------------------------- |
+| `VITE_SITE_URL`      | Публичный адрес сайта (метаданные). Дефолт — прод-домен.                |
+| `VITE_LEAD_ENDPOINT` | Эндпоинт приёма заявок. Не задан — формы в демо-режиме (успех без отправки). |
+| `VITE_BASE`          | base-путь для деплоя под подпапкой (напр. `/avto_korea/` на GitHub Pages). |
 
-> Пока `TELEGRAM_*` не заданы, форма работает в режиме заглушки: заявка
-> логируется в консоль сервера, а пользователю показывается успех-тост.
-> **Токены не коммитим** (`.env*` в `.gitignore`). Запросите значения у заказчика.
+> Форма заявки шлёт `POST` на `VITE_LEAD_ENDPOINT`. Пока он не задан —
+> показывается успех-тост без реальной отправки. Когда определимся, как
+> принимать лиды (Telegram-бот / e-mail / CRM) — подключим эндпоинт.
 
 ## Структура
 
 ```
-app/
-  layout.tsx          # шрифты, SEO-метаданные, OG
-  page.tsx            # сборка всех секций + JSON-LD
-  globals.css         # токены + фирменные классы (btn, slash, chrome-line)
-  api/lead/route.ts   # приём заявки → Telegram (с заглушкой)
-  sitemap.ts          # /sitemap.xml
-  robots.ts           # /robots.txt
-components/
-  sections/           # Header, Hero, Advantages, HowItWorks, Catalog,
-                      # Calculator, Geography, Reviews, Faq, FinalCta, Footer
-  ui/                 # Button, SectionHeading, Accordion, Logo, Toaster
-  icons/              # CarSilhouette (SVG из макета), SpecIcons
-  CarCard.tsx         # переиспользуемая карточка авто
-  LeadForm.tsx        # переиспользуемая форма заявки (compact / full)
-  FloatingTelegram.tsx
-data/
-  cars.ts             # модель Car + демо-витрина + formatPrice
-lib/
-  site.ts             # контакты, навигация, страны (контакты — плейсхолдеры с TODO)
-  toast.ts            # шина тостов
+index.html              # точка входа: <head> (мета, OG, шрифты, JSON-LD), #root
+vite.config.ts          # React-плагин, alias @ -> src, base из VITE_BASE
+src/
+  main.tsx              # монтирование React в #root
+  App.tsx              # сборка всех секций + Toaster + плавающая кнопка
+  index.css            # токены + фирменные классы (btn, slash, chrome-line)
+  components/
+    sections/          # Header, Hero, Advantages, HowItWorks, Catalog,
+                       # Calculator, Geography, Reviews, Faq, FinalCta, Footer
+    ui/                # Button, SectionHeading, Accordion, Logo, Toaster
+    icons/             # CarSilhouette (SVG из макета), SpecIcons
+    CarCard.tsx        # переиспользуемая карточка авто
+    LeadForm.tsx       # переиспользуемая форма заявки (compact / full)
+    FloatingTelegram.tsx
+  data/cars.ts         # модель Car + демо-витрина + formatPrice
+  lib/
+    site.ts            # контакты, навигация, страны (контакты — плейсхолдеры с TODO)
+    toast.ts           # шина тостов
+public/                # hero-bg.jpg, robots.txt, sitemap.xml (копируются в dist как есть)
+docs/                  # исходное ТЗ и эталонный макет
 ```
 
 ## Дизайн-токены
@@ -70,54 +70,35 @@ lib/
 - **Шрифты:** `font-display` / `font-num` / `font-body`
 - **Радиусы:** `rounded-card` (16px), `rounded-btn` (12px)
 
-Фирменные элементы (`globals.css`): красный «росчерк» `.slash`, хром-хейрлайн
+Фирменные элементы (`src/index.css`): красный «росчерк» `.slash`, хром-хейрлайн
 `.chrome-line`, кнопки `.btn-primary` / `.btn-ghost`.
 
 ## Каталог авто
 
-Данные — в `data/cars.ts` (тип `Car`). Сейчас демо-витрина из макета.
+Данные — в `src/data/cars.ts` (тип `Car`). Сейчас демо-витрина из макета.
 Если у авто нет `image`, рисуется SVG-силуэт. Фильтр по странам и «показать ещё» —
-в `components/sections/Catalog.tsx`.
+в `src/components/sections/Catalog.tsx`.
 
-> **TODO заказчику:** прислать реальные фото и актуальное наличие; реальный
-> телефон/адрес/реквизиты для футера; отзывы и кейсы; токены Telegram.
+> **TODO заказчику:** реальные фото и актуальное наличие; телефон/адрес/реквизиты
+> для футера; отзывы и кейсы; способ приёма заявок (`VITE_LEAD_ENDPOINT`).
 
 ## Деплой
 
-### Vercel
+Сборка — статика в `dist/`, разворачивается на любом статик-хостинге
+(GitHub Pages, Vercel, Cloudflare Pages, Netlify, S3 и т.д.).
 
-Проект готов к zero-config деплою на Vercel (`vercel.json` указывает фреймворк
-и регион). Добавьте переменные окружения в настройках проекта Vercel и
-подключите репозиторий — сборка `next build` запустится автоматически.
-
-### Cloudflare Pages
-
-Настроен адаптер [`@cloudflare/next-on-pages`](https://github.com/cloudflare/next-on-pages):
-серверный роут `/api/lead` выполняется на Edge (`export const runtime = "edge"`).
-
-Через дашборд (рекомендуется):
-
-1. **Workers & Pages → Create → Pages → Connect to Git** → выберите репозиторий.
-2. Framework preset: **Next.js**. Параметры сборки:
-   - Build command: `npx @cloudflare/next-on-pages`
-   - Build output directory: `.vercel/output/static`
-3. Settings → переменные окружения (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`,
-   `NEXT_PUBLIC_SITE_URL`). Флаг совместимости `nodejs_compat` уже задан в `wrangler.toml`.
-4. Deploy → Cloudflare выдаст домен `*.pages.dev` и preview-URL на каждую ветку/PR.
-
-Локально:
-
-```bash
-npm run pages:build     # сборка для Cloudflare (npx @cloudflare/next-on-pages)
-npm run pages:preview   # локальный предпросмотр через wrangler
-npm run pages:deploy    # деплой через wrangler (нужен Cloudflare API-токен)
-```
-
-> `.npmrc` содержит `legacy-peer-deps=true` — адаптер держит устаревший потолок
-> peer-зависимости на Next, хотя совместим с актуальной 15.5.x.
+- **GitHub Pages** (превью): workflow `.github/workflows/deploy-pages.yml` собирает
+  с `VITE_BASE=/avto_korea/` и публикует `dist/`. Для SPA добавляется `404.html`
+  (копия `index.html`), чтобы прямые ссылки не давали 404.
+- **Корневой домен:** соберите `npm run build` (без `VITE_BASE`) и отдайте `dist/`.
 
 ## Доступность и SEO
 
 - Один `H1`, осмысленные `H2`, семантические секции, `alt`/`aria` у графики
 - Кликабельные зоны ≥ 48px, видимый focus, уважается `prefers-reduced-motion`
-- `metadata` (title/description/OG/Twitter), `sitemap.ts`, `robots.ts`, JSON-LD (`AutoDealer`)
+- `title`/`description`/OG/Twitter и JSON-LD (`AutoDealer`) в `index.html`,
+  `robots.txt` и `sitemap.xml` в `public/`
+
+> Примечание: это клиентский SPA — контент рендерится в браузере. Базовые мета-теги
+> в `index.html` присутствуют; для максимального SEO лендинга при необходимости можно
+> добавить пререндер (vite-plugin-ssg / prerender) — обсуждаемо.

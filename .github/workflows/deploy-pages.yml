@@ -1,8 +1,7 @@
 name: Deploy preview to GitHub Pages
 
-# Превью-витрина «ДиАвто69» на GitHub Pages.
-# Статический экспорт Next.js (без серверного /api/lead — на статике он не нужен,
-# форма работает в демо-режиме). Боевой деплой — Cloudflare Pages / Vercel.
+# Превью-витрина «ДиАвто69» (React + Vite) на GitHub Pages.
+# Статическая SPA-сборка. Формы — в демо-режиме (без бэкенда).
 
 on:
   push:
@@ -31,30 +30,22 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
-      - name: Remove server route (not supported in static export)
-        run: rm -rf app/api
-
-      - name: Build static export
+      - name: Build (Vite)
         run: npm run build
         env:
-          GH_PAGES: "true"
-          NEXT_PUBLIC_DEMO: "true"
-          NEXT_PUBLIC_BASE_PATH: /avto_korea
-          NEXT_PUBLIC_SITE_URL: https://dkaratsapov-web.github.io/avto_korea
-          NEXT_TELEMETRY_DISABLED: "1"
+          VITE_BASE: /avto_korea/
+          VITE_SITE_URL: https://dkaratsapov-web.github.io/avto_korea
 
-      - name: Disable Jekyll (keep _next assets)
-        run: touch out/.nojekyll
+      - name: SPA fallback (404 -> index)
+        run: cp dist/index.html dist/404.html
 
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ./out
+          path: ./dist
 
   deploy:
     needs: build
