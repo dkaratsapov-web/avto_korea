@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Menu, X, Send, Phone, MessageCircle, ArrowRight } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
+import { Magnetic } from "@/components/ui/Magnetic";
 import { nav, site } from "@/lib/site";
 
 const capsule =
@@ -110,14 +111,16 @@ export function Header() {
           >
             <Send className="h-[18px] w-[18px]" />
           </a>
-          <Button
-            href="#hero-form"
-            variant="primary"
-            className="!min-h-0 h-9 rounded-full !px-4 !py-0 text-[14px] max-sm:!px-3"
-          >
-            <span className="max-sm:hidden">Рассчитать</span>
-            <ArrowRight className="h-[16px] w-[16px]" />
-          </Button>
+          <Magnetic strength={0.4}>
+            <Button
+              href="#hero-form"
+              variant="primary"
+              className="!min-h-0 h-9 rounded-full !px-4 !py-0 text-[14px] max-sm:!px-3"
+            >
+              <span className="max-sm:hidden">Рассчитать</span>
+              <ArrowRight className="h-[16px] w-[16px]" />
+            </Button>
+          </Magnetic>
           <button
             type="button"
             aria-label={open ? "Закрыть меню" : "Открыть меню"}

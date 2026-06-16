@@ -14,10 +14,12 @@ import { Footer } from "@/components/sections/Footer";
 import { FloatingTelegram } from "@/components/FloatingTelegram";
 import { Toaster } from "@/components/ui/Toaster";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
+import { CursorGlow } from "@/components/ui/CursorGlow";
 
 export function App() {
   return (
     <>
+      <CursorGlow />
       <ScrollProgress />
       <Header />
       <main>

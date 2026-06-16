@@ -1,5 +1,6 @@
 import { useRef, useState, type PointerEvent } from "react";
 import { LeadForm } from "@/components/LeadForm";
+import { useScrollParallax } from "@/lib/useScrollParallax";
 
 const badges = [
   { strong: "15 мин", rest: " — расчёт под ключ" },
@@ -20,6 +21,7 @@ const HERO_IMAGE = `${import.meta.env.BASE_URL}hero-bg.jpg`;
 
 export function Hero() {
   const ref = useRef<HTMLElement | null>(null);
+  const giantRef = useScrollParallax<HTMLSpanElement>(0.12);
   const [pointer, setPointer] = useState({ x: 0.5, y: 0.5, active: false });
 
   function onMove(e: PointerEvent<HTMLElement>) {
@@ -76,12 +78,10 @@ export function Hero() {
 
       {/* Гигантская контурная типографика — глубина и характер */}
       <span
+        ref={giantRef}
         aria-hidden
-        className="pointer-events-none absolute -right-[3%] top-[14%] z-0 select-none font-display text-[clamp(120px,20vw,320px)] font-extrabold uppercase leading-none tracking-tight text-transparent"
-        style={{
-          WebkitTextStroke: "1.5px rgba(174,186,194,.10)",
-          transform: `translateX(${px * 18}px)`,
-        }}
+        className="pointer-events-none absolute -right-[3%] top-[12%] z-0 select-none font-display text-[clamp(120px,20vw,320px)] font-extrabold uppercase leading-none tracking-tight text-transparent"
+        style={{ WebkitTextStroke: "1.5px rgba(174,186,194,.10)" }}
       >
         под&nbsp;ключ
       </span>

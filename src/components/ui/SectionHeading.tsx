@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { RevealWords } from "@/components/ui/RevealWords";
 
 /**
  * Заголовок секции с фирменным «росчерком» (slash) в надзаголовке.
@@ -41,10 +42,12 @@ export function SectionHeading({
         <span className="slash" aria-hidden />
         {eyebrow}
       </div>
-      <h2
-        className={`text-[clamp(30px,4vw,48px)] ${titleColor}`}
-      >
-        {title}
+      <h2 className={`text-[clamp(30px,4vw,48px)] ${titleColor}`}>
+        {typeof title === "string" && !shine ? (
+          <RevealWords text={title} />
+        ) : (
+          title
+        )}
       </h2>
       {description ? (
         <p
