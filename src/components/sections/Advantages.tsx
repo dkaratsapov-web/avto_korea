@@ -8,7 +8,7 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { Reveal } from "@/components/ui/Reveal";
+import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import { useTilt } from "@/lib/useTilt";
 
 const items = [
@@ -63,9 +63,9 @@ function AdvantageCard({
         ref={tilt.ref}
         onPointerMove={tilt.onMove}
         onPointerLeave={tilt.onLeave}
-        className="grain group relative flex h-full flex-col justify-between overflow-hidden rounded-card border border-line-dark bg-graphite p-7 text-white transition-[transform,box-shadow] duration-300 [transform-style:preserve-3d] hover:shadow-glow"
+        className="group relative flex h-full flex-col justify-between overflow-hidden rounded-card border border-bordeaux-bright/30 bg-[linear-gradient(135deg,#3a0f0c_0%,#1B222B_55%)] p-7 text-white transition-[transform,box-shadow] duration-300 [transform-style:preserve-3d] hover:shadow-glow"
       >
-        <div className="glow-blob -right-6 -top-6 h-44 w-44 animate-glow-pan bg-bordeaux/25" aria-hidden />
+        <div className="glow-blob -right-6 -top-6 h-44 w-44 animate-glow-pan bg-bordeaux/30" aria-hidden />
         <span className="pointer-events-none absolute inset-0 z-10 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
         <div className="relative mb-10 flex h-14 w-14 items-center justify-center rounded-[16px] bg-bordeaux text-white transition-transform duration-300 group-hover:-rotate-6">
           <Icon className="h-7 w-7" />
@@ -74,7 +74,7 @@ function AdvantageCard({
           <h3 className="mb-2 text-[24px] normal-case tracking-[0.01em] text-shine">
             {title}
           </h3>
-          <p className="max-w-md text-[15px] leading-relaxed text-[#AEB7BE]">
+          <p className="max-w-md text-[15px] leading-relaxed text-[#C7CFD6]">
             {text}
           </p>
         </div>
@@ -103,30 +103,32 @@ function AdvantageCard({
 
 export function Advantages() {
   return (
-    <section className="bg-white py-[88px]">
+    <section className="overflow-hidden bg-white py-[72px]">
       <div className="wrap">
-        <Reveal>
-          <SectionHeading
-            eyebrow="Почему мы"
-            title="Премиальный импорт без сюрпризов"
-            description="Доверие и прозрачность на каждом шаге — от первого расчёта до выдачи авто."
-          />
-        </Reveal>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {items.map((item, i) => {
-            const featured = i === 0 || i === 5;
-            return (
-              <Reveal
-                key={item.title}
-                direction="up"
-                delay={(i % 3) * 90}
-                className={featured ? "sm:col-span-2 lg:col-span-2" : ""}
-              >
-                <AdvantageCard {...item} featured={featured} />
-              </Reveal>
-            );
-          })}
-        </div>
+        <ContainerScroll
+          titleComponent={
+            <SectionHeading
+              eyebrow="Почему мы"
+              title="Премиальный импорт без сюрпризов"
+              description="Доверие и прозрачность на каждом шаге — от первого расчёта до выдачи авто."
+              align="center"
+            />
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {items.map((item, i) => {
+              const featured = i === 0 || i === 5;
+              return (
+                <div
+                  key={item.title}
+                  className={featured ? "sm:col-span-2 lg:col-span-2" : ""}
+                >
+                  <AdvantageCard {...item} featured={featured} />
+                </div>
+              );
+            })}
+          </div>
+        </ContainerScroll>
       </div>
     </section>
   );
