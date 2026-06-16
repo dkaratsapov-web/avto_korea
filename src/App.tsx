@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Header } from "@/components/sections/Header";
 import { Hero } from "@/components/sections/Hero";
 import { BrandTicker } from "@/components/sections/BrandTicker";
@@ -15,10 +16,26 @@ import { FloatingTelegram } from "@/components/FloatingTelegram";
 import { Toaster } from "@/components/ui/Toaster";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { CursorGlow } from "@/components/ui/CursorGlow";
+import { Preloader } from "@/components/Preloader";
 
 export function App() {
+  const [intro, setIntro] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+
+  useEffect(() => {
+    if (!intro) return;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [intro]);
+
   return (
     <>
+      {intro ? <Preloader onDone={() => setIntro(false)} /> : null}
       <CursorGlow />
       <ScrollProgress />
       <Header />

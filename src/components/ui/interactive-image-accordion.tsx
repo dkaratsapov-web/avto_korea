@@ -63,9 +63,9 @@ function Panel({
         <Icon className="h-6 w-6" />
       </span>
 
-      {/* свёрнутый заголовок — вертикально */}
+      {/* свёрнутый заголовок — вертикально, по центру панели */}
       <span
-        className={`absolute bottom-16 left-1/2 origin-center -translate-x-1/2 rotate-90 whitespace-nowrap font-display text-[18px] font-extrabold uppercase tracking-[0.04em] text-chrome transition-opacity duration-300 ${
+        className={`absolute left-1/2 top-1/2 origin-center -translate-x-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap font-display text-[15px] font-extrabold uppercase tracking-[0.06em] text-chrome transition-opacity duration-300 ${
           isActive ? "opacity-0" : "opacity-100"
         }`}
         aria-hidden={isActive}

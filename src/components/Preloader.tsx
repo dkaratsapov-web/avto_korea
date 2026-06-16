@@ -1,0 +1,296 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  geoOrthographic,
+  geoPath,
+  geoGraticule,
+  geoDistance,
+  geoInterpolate,
+  geoBounds,
+} from "d3-geo";
+import { timer } from "d3-timer";
+import { Logo } from "@/components/ui/Logo";
+
+const TOKYO: [number, number] = [139.69, 35.69];
+const MOSCOW: [number, number] = [37.62, 55.75];
+const LAND_URL =
+  "https://raw.githubusercontent.com/martynafford/natural-earth-geojson/refs/heads/master/110m/physical/ne_110m_land.json";
+
+type Ring = number[][];
+
+function pointInPolygon(point: [number, number], polygon: Ring): boolean {
+  const [x, y] = point;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function pointInFeature(point: [number, number], feature: any): boolean {
+  const g = feature.geometry;
+  if (g.type === "Polygon") {
+    if (!pointInPolygon(point, g.coordinates[0])) return false;
+    for (let i = 1; i < g.coordinates.length; i++) {
+      if (pointInPolygon(point, g.coordinates[i])) return false;
+    }
+    return true;
+  }
+  if (g.type === "MultiPolygon") {
+    for (const poly of g.coordinates) {
+      if (pointInPolygon(point, poly[0])) {
+        let inHole = false;
+        for (let i = 1; i < poly.length; i++) {
+          if (pointInPolygon(point, poly[i])) {
+            inHole = true;
+            break;
+          }
+        }
+        if (!inHole) return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function Preloader({ onDone }: { onDone: () => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [leaving, setLeaving] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLeaving(true), 4200);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (!leaving) return;
+    const t = setTimeout(onDone, 700);
+    return () => clearTimeout(t);
+  }, [leaving, onDone]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const size = Math.min(
+      460,
+      window.innerWidth - 48,
+      window.innerHeight - 240,
+    );
+    const radius = size / 2.25;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = `${size}px`;
+    canvas.style.height = `${size}px`;
+    ctx.scale(dpr, dpr);
+
+    const projection = geoOrthographic()
+      .scale(radius)
+      .translate([size / 2, size / 2])
+      .clipAngle(90)
+      .rotate([-90, -48]);
+    const path = geoPath(projection, ctx as unknown as CanvasRenderingContext2D);
+    const graticule = geoGraticule();
+
+    let land: any = null;
+    const dots: [number, number][] = [];
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const isVisible = (p: [number, number]) => {
+      const r = projection.rotate();
+      return geoDistance(p, [-r[0], -r[1]]) < Math.PI / 2 - 0.02;
+    };
+
+    const drawPoint = (
+      p: [number, number],
+      label: string,
+      pulse: number,
+      side: "left" | "right",
+    ) => {
+      if (!isVisible(p)) return;
+      const pt = projection(p);
+      if (!pt) return;
+      ctx.beginPath();
+      ctx.arc(pt[0], pt[1], pulse + 3, 0, 2 * Math.PI);
+      ctx.strokeStyle = "rgba(156,26,18,.35)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(pt[0], pt[1], 3.4, 0, 2 * Math.PI);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(pt[0], pt[1], 1.7, 0, 2 * Math.PI);
+      ctx.fillStyle = "#9C1A12";
+      ctx.fill();
+      ctx.font = "700 13px 'Saira Condensed', system-ui, sans-serif";
+      ctx.fillStyle = "#E6EAED";
+      ctx.textBaseline = "middle";
+      if (side === "left") {
+        ctx.textAlign = "left";
+        ctx.fillText(label, pt[0] + 12, pt[1]);
+      } else {
+        ctx.textAlign = "right";
+        ctx.fillText(label, pt[0] - 12, pt[1]);
+      }
+    };
+
+    const drawArc = (elapsed: number) => {
+      const interp = geoInterpolate(TOKYO, MOSCOW);
+      const N = 80;
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "#9C1A12";
+      ctx.shadowColor = "rgba(156,26,18,.85)";
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      let drawing = false;
+      for (let i = 0; i <= N; i++) {
+        const p = interp(i / N) as [number, number];
+        if (isVisible(p)) {
+          const pt = projection(p);
+          if (!pt) continue;
+          if (!drawing) {
+            ctx.moveTo(pt[0], pt[1]);
+            drawing = true;
+          } else {
+            ctx.lineTo(pt[0], pt[1]);
+          }
+        } else {
+          drawing = false;
+        }
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      if (isVisible(MOSCOW)) {
+        const pEnd = projection(MOSCOW);
+        const pPrev = projection(interp(0.94) as [number, number]);
+        if (pEnd && pPrev) {
+          const ang = Math.atan2(pEnd[1] - pPrev[1], pEnd[0] - pPrev[0]);
+          const len = 11;
+          ctx.fillStyle = "#9C1A12";
+          ctx.beginPath();
+          ctx.moveTo(pEnd[0], pEnd[1]);
+          ctx.lineTo(
+            pEnd[0] - len * Math.cos(ang - 0.4),
+            pEnd[1] - len * Math.sin(ang - 0.4),
+          );
+          ctx.lineTo(
+            pEnd[0] - len * Math.cos(ang + 0.4),
+            pEnd[1] - len * Math.sin(ang + 0.4),
+          );
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      const pulse = 3 + Math.sin(elapsed / 280) * 1.6;
+      drawPoint(TOKYO, "ЯПОНИЯ", pulse, "left");
+      drawPoint(MOSCOW, "РОССИЯ", pulse, "right");
+    };
+
+    const render = (elapsed: number) => {
+      ctx.clearRect(0, 0, size, size);
+
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = "#0c1014";
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "rgba(174,186,194,.5)";
+      ctx.stroke();
+
+      ctx.beginPath();
+      path(graticule());
+      ctx.lineWidth = 0.6;
+      ctx.strokeStyle = "rgba(174,186,194,.14)";
+      ctx.stroke();
+
+      if (land) {
+        ctx.beginPath();
+        path(land);
+        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = "rgba(174,186,194,.45)";
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(92,109,118,.85)";
+        for (const d of dots) {
+          if (!isVisible(d)) continue;
+          const pt = projection(d);
+          if (!pt) continue;
+          ctx.beginPath();
+          ctx.arc(pt[0], pt[1], 1.1, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      }
+
+      drawArc(elapsed);
+    };
+
+    const t = timer((elapsed) => {
+      if (!reduce) projection.rotate([-90 + elapsed * 0.004, -48]);
+      render(elapsed);
+    });
+
+    fetch(LAND_URL)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((geo: any) => {
+        land = geo;
+        for (const feature of geo.features) {
+          const [[minLng, minLat], [maxLng, maxLat]] = geoBounds(feature);
+          const step = 1.8;
+          for (let lng = minLng; lng <= maxLng; lng += step) {
+            for (let lat = minLat; lat <= maxLat; lat += step) {
+              const p: [number, number] = [lng, lat];
+              if (pointInFeature(p, feature)) dots.push(p);
+            }
+          }
+        }
+      })
+      .catch(() => {
+        /* без суши — глобус с дугой всё равно показывается */
+      });
+
+    return () => t.stop();
+  }, []);
+
+  return (
+    <div
+      className={`grain fixed inset-0 z-[100] flex flex-col items-center justify-center gap-7 overflow-hidden bg-graphite transition-opacity duration-700 ${
+        leaving ? "pointer-events-none opacity-0" : "opacity-100"
+      }`}
+    >
+      <div className="glow-blob left-[15%] top-[15%] h-72 w-72 animate-glow-pan bg-bordeaux/25" aria-hidden />
+      <div className="glow-blob right-[12%] bottom-[12%] h-64 w-64 animate-glow-pan bg-steel/15 [animation-delay:-7s]" aria-hidden />
+
+      <div className="relative animate-fade-up">
+        <Logo />
+      </div>
+
+      <canvas ref={canvasRef} className="relative" />
+
+      <div className="relative text-center">
+        <p className="font-display text-[clamp(18px,3vw,26px)] font-extrabold uppercase tracking-[0.02em] text-shine">
+          Возим из Японии в Россию — под ключ
+        </p>
+        <p className="mt-2 text-[13px] font-semibold uppercase tracking-[0.18em] text-steel">
+          Готовим витрину…
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setLeaving(true)}
+        className="absolute bottom-6 right-6 rounded-full border border-line-dark px-4 py-2 text-[13px] font-semibold text-chrome transition-colors hover:border-chrome hover:text-white"
+      >
+        Пропустить
+      </button>
+    </div>
+  );
+}

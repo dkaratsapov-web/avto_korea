@@ -104,7 +104,7 @@ export function Calculator() {
       className="grain relative scroll-mt-20 overflow-hidden bg-graphite pb-[88px] pt-[120px] text-white [clip-path:polygon(0_3.2rem,100%_0,100%_100%,0_100%)]"
     >
       <div className="glow-blob right-[6%] top-[8%] h-72 w-72 animate-glow-pan bg-bordeaux/25" aria-hidden />
-      <div className="wrap relative grid items-start gap-12 lg:grid-cols-2">
+      <div className="wrap relative grid items-stretch gap-12 lg:grid-cols-2">
         <Reveal direction="right">
           <div className="mb-3 flex items-center gap-3 text-[13px] font-extrabold uppercase tracking-[0.16em] text-chrome">
             <span className="slash" aria-hidden /> Расчёт под ключ
@@ -153,7 +153,7 @@ export function Calculator() {
           </div>
         </Reveal>
 
-        <Reveal direction="left" delay={120} className="flex h-full flex-col gap-4">
+        <Reveal direction="left" delay={120} className="flex h-full flex-col justify-between gap-4">
           <div className="glass rounded-card p-6 shadow-glow sm:p-8">
             <h3 className="mb-1 text-[22px] text-white">Заявка на расчёт</h3>
             <p className="mb-6 text-[14px] text-[#9AA4B2]">
