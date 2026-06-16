@@ -83,9 +83,8 @@ export function Calculator() {
   return (
     <section
       id="calc"
-      className="grain relative scroll-mt-20 overflow-hidden bg-graphite py-[88px] text-white"
+      className="grain relative scroll-mt-20 overflow-hidden bg-graphite pb-[88px] pt-[120px] text-white [clip-path:polygon(0_3.2rem,100%_0,100%_100%,0_100%)]"
     >
-      <div className="chrome-line absolute inset-x-0 top-0" />
       <div className="glow-blob right-[6%] top-[8%] h-72 w-72 animate-glow-pan bg-bordeaux/25" aria-hidden />
       <div className="wrap relative grid items-start gap-12 lg:grid-cols-2">
         <Reveal direction="right">

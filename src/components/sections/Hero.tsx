@@ -1,3 +1,4 @@
+import { useRef, useState, type PointerEvent } from "react";
 import { LeadForm } from "@/components/LeadForm";
 
 const badges = [
@@ -18,35 +19,76 @@ const flags = [
 const HERO_IMAGE = `${import.meta.env.BASE_URL}hero-bg.jpg`;
 
 export function Hero() {
+  const ref = useRef<HTMLElement | null>(null);
+  const [pointer, setPointer] = useState({ x: 0.5, y: 0.5, active: false });
+
+  function onMove(e: PointerEvent<HTMLElement>) {
+    if (e.pointerType !== "mouse") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setPointer({
+      x: (e.clientX - r.left) / r.width,
+      y: (e.clientY - r.top) / r.height,
+      active: true,
+    });
+  }
+
+  const px = (pointer.x - 0.5) * 2; // -1..1
+  const py = (pointer.y - 0.5) * 2;
+
   return (
     <section
       id="top"
+      ref={ref}
+      onPointerMove={onMove}
+      onPointerLeave={() => setPointer((p) => ({ ...p, active: false }))}
       className="relative isolate overflow-hidden bg-graphite text-white after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-[3px] after:bg-[linear-gradient(90deg,transparent,#5C6D76,#AEBAC2,#5C6D76,transparent)] after:content-['']"
     >
-      {/* Фоновое фото + затемняющие слои для читаемости */}
+      {/* Фоновое фото + затемняющие слои + параллакс */}
       <div className="absolute inset-0 -z-10">
         <img
           src={HERO_IMAGE}
           alt=""
           aria-hidden
-          className="absolute inset-0 h-full w-full object-cover object-[50%_58%] brightness-[.82] saturate-[.9]"
+          style={{
+            transform: `translate3d(${px * -16}px, ${py * -12}px, 0) scale(1.08)`,
+          }}
+          className="absolute inset-0 h-full w-full object-cover object-[50%_58%] brightness-[.8] saturate-[.9] transition-transform duration-300 ease-out"
         />
-        {/* общий тон */}
         <div className="absolute inset-0 bg-graphite/45" />
-        {/* затемнение слева под текст */}
         <div className="absolute inset-0 bg-gradient-to-r from-graphite via-graphite/85 to-graphite/45" />
-        {/* блендинг сверху и снизу */}
         <div className="absolute inset-0 bg-gradient-to-t from-graphite via-transparent to-graphite/60" />
-        {/* движущиеся световые блики */}
+        {/* световое пятно-прожектор за курсором */}
+        <div
+          className="absolute inset-0 transition-opacity duration-300"
+          style={{
+            opacity: pointer.active ? 1 : 0,
+            background: `radial-gradient(420px circle at ${pointer.x * 100}% ${pointer.y * 100}%, rgba(174,186,194,.18), transparent 60%)`,
+          }}
+          aria-hidden
+        />
         <div className="glow-blob right-[8%] top-[10%] h-80 w-80 animate-glow-pan bg-bordeaux/30" aria-hidden />
         <div className="glow-blob left-[2%] bottom-[6%] h-72 w-72 animate-glow-pan bg-steel/20 [animation-delay:-6s]" aria-hidden />
-        {/* зернистость */}
         <div className="grain absolute inset-0" aria-hidden />
       </div>
 
-      <div className="wrap grid items-center gap-10 py-[60px] max-md:gap-[18px] max-md:py-[48px] md:grid-cols-[1.05fr_0.95fr] md:py-[80px] md:pb-[96px]">
-        <div className="animate-fade-up">
-          <div className="mb-[22px] flex items-center gap-3 text-[14px] font-bold uppercase tracking-[0.14em] text-chrome">
+      {/* Гигантская контурная типографика — глубина и характер */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -right-[3%] top-[14%] z-0 select-none font-display text-[clamp(120px,20vw,320px)] font-extrabold uppercase leading-none tracking-tight text-transparent"
+        style={{
+          WebkitTextStroke: "1.5px rgba(174,186,194,.10)",
+          transform: `translateX(${px * 18}px)`,
+        }}
+      >
+        под&nbsp;ключ
+      </span>
+
+      <div className="wrap grid items-center gap-10 pb-[64px] pt-[120px] max-md:gap-[18px] max-md:pb-[56px] max-md:pt-[104px] md:grid-cols-[1.05fr_0.95fr] md:pb-[100px] md:pt-[140px]">
+        <div className="relative z-10 animate-fade-up">
+          <div className="mb-[22px] inline-flex items-center gap-3 rounded-full border border-line-dark bg-graphite-2/50 py-2 pl-2 pr-4 text-[13px] font-bold uppercase tracking-[0.14em] text-chrome backdrop-blur-sm">
             <span className="slash" aria-hidden /> Импорт авто под ключ · 69 регион
           </div>
 
@@ -55,7 +97,7 @@ export function Hero() {
             <br />
             Китая и Японии
             <br />
-            <em className="not-italic text-bordeaux-bright">под ключ</em>
+            <em className="not-italic text-shine">под ключ</em>
           </h1>
 
           <p className="mb-[26px] max-w-[520px] text-[19px] text-[#D2D9DF]">
@@ -91,9 +133,11 @@ export function Hero() {
         </div>
 
         {/* Плавающие чипы поверх фото */}
-        <div className="relative hidden min-h-[320px] items-center justify-center md:flex">
-          <div className="relative w-full max-w-[520px]">
-            {/* вращающиеся хром-кольца — фирменный акцент */}
+        <div className="relative z-10 hidden min-h-[320px] items-center justify-center md:flex">
+          <div
+            className="relative w-full max-w-[520px]"
+            style={{ transform: `translate(${px * 10}px, ${py * 8}px)` }}
+          >
             <div className="absolute left-1/2 top-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 animate-spin-slow rounded-full border border-chrome/15 [border-style:dashed]" />
             <div className="absolute left-1/2 top-1/2 h-[230px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-chrome/20 bg-chrome/[0.03]" />
             <div className="absolute right-[4%] top-[10%] animate-float rotate-[1deg] rounded-[14px] bg-white px-4 py-3 text-ink shadow-chip">

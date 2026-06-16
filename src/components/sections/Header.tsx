@@ -1,23 +1,17 @@
 import { useEffect, useState } from "react";
-import {
-  Menu,
-  X,
-  Send,
-  Phone,
-  MessageCircle,
-  Clock,
-  ArrowRight,
-} from "lucide-react";
+import { Menu, X, Send, Phone, MessageCircle, ArrowRight } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
-import { nav, site, countries } from "@/lib/site";
+import { nav, site } from "@/lib/site";
+
+const capsule =
+  "glass rounded-full shadow-[0_12px_34px_rgba(0,0,0,.4)] transition-all duration-300";
 
 export function Header() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState<string>("");
 
-  // Сжатие шапки при скролле
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
     onScroll();
@@ -25,14 +19,12 @@ export function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Подсветка активной секции (scroll-spy)
   useEffect(() => {
     const ids = nav.map((n) => n.href.slice(1));
     const els = ids
       .map((id) => document.getElementById(id))
       .filter((el): el is HTMLElement => el !== null);
     if (els.length === 0) return;
-
     const obs = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
@@ -45,150 +37,104 @@ export function Header() {
     return () => obs.disconnect();
   }, []);
 
-  return (
-    <header className="sticky top-0 z-40">
-      {/* Верхний инфо-бар — схлопывается при скролле */}
-      <div
-        className={`hidden overflow-hidden border-b border-line-dark bg-graphite-2 text-[12.5px] text-[#9AA4B2] transition-all duration-300 md:block ${
-          scrolled ? "max-h-0 opacity-0" : "max-h-10 opacity-100"
-        }`}
-      >
-        <div className="wrap flex h-9 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold uppercase tracking-[0.1em] text-steel">
-              Возим из:
-            </span>
-            <span className="flex items-center gap-2">
-              {Object.values(countries).map((c) => (
-                <span key={c.label} title={c.label} className="text-[14px]">
-                  {c.flag}
-                </span>
-              ))}
-            </span>
-          </div>
-          <div className="flex items-center gap-5">
-            <span className="flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 text-steel" /> Ежедневно 9:00–21:00
-            </span>
-            <a
-              href={site.telegramHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 transition-colors hover:text-white"
-            >
-              <Send className="h-3.5 w-3.5 text-steel" /> Telegram
-            </a>
-            <a
-              href={site.whatsappHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 transition-colors hover:text-white"
-            >
-              <MessageCircle className="h-3.5 w-3.5 text-steel" /> WhatsApp
-            </a>
-          </div>
-        </div>
-      </div>
+  const h = scrolled ? "h-12" : "h-[52px]";
 
-      {/* Основная панель */}
+  return (
+    <header className="fixed inset-x-0 top-0 z-50">
       <div
-        className={`border-b border-line-dark bg-graphite/[0.82] backdrop-blur-[12px] transition-shadow duration-300 ${
-          scrolled ? "shadow-[0_10px_30px_rgba(0,0,0,.35)]" : ""
+        className={`wrap flex items-center gap-3 transition-all duration-300 ${
+          scrolled ? "py-2.5" : "py-3.5"
         }`}
       >
+        {/* Капсула: логотип — с лёгким наклоном (рваный ритм) */}
         <div
-          className={`wrap flex items-center gap-7 transition-[height] duration-300 ${
-            scrolled ? "h-[60px]" : "h-[74px]"
-          }`}
+          className={`${capsule} ${h} flex -rotate-1 items-center px-4 hover:rotate-0 sm:px-5`}
         >
           <Logo />
+        </div>
 
-          <nav
-            className="ml-3 hidden items-center gap-1 lg:flex"
-            aria-label="Основная навигация"
-          >
-            {nav.map((item) => {
-              const isActive = active === item.href.slice(1);
-              return (
+        {/* Капсула: навигация */}
+        <nav
+          className={`${capsule} ${h} mx-auto hidden items-center gap-1 px-2 lg:flex`}
+          aria-label="Основная навигация"
+        >
+          {nav.map((item, i) => {
+            const isActive = active === item.href.slice(1);
+            return (
+              <span key={item.href} className="flex items-center">
+                {i > 0 ? (
+                  <span
+                    className="mx-0.5 h-3.5 w-[5px] -skew-x-[24deg] rounded-[1px] bg-bordeaux-bright/40"
+                    aria-hidden
+                  />
+                ) : null}
                 <a
-                  key={item.href}
                   href={item.href}
                   aria-current={isActive ? "true" : undefined}
-                  className={`group relative px-3 py-2 text-[15px] font-semibold transition-colors ${
-                    isActive ? "text-white" : "text-[#C3CBD2] hover:text-white"
+                  className={`relative rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors ${
+                    isActive
+                      ? "bg-white/[0.08] text-white"
+                      : "text-[#C3CBD2] hover:text-white"
                   }`}
                 >
                   {item.label}
-                  {/* фирменный «росчерк»-индикатор */}
-                  <span
-                    className={`pointer-events-none absolute -bottom-0.5 left-3 h-[3px] -skew-x-12 rounded-sm bg-gradient-to-r from-bordeaux-deep to-bordeaux-bright transition-all duration-200 ${
-                      isActive
-                        ? "w-[calc(100%-1.5rem)] opacity-100"
-                        : "w-0 opacity-0 group-hover:w-[calc(100%-1.5rem)] group-hover:opacity-100"
-                    }`}
-                  />
+                  {isActive ? (
+                    <span
+                      className="absolute -bottom-0.5 left-1/2 h-[3px] w-5 -translate-x-1/2 -skew-x-12 rounded-sm bg-gradient-to-r from-bordeaux-deep to-bordeaux-bright"
+                      aria-hidden
+                    />
+                  ) : null}
                 </a>
-              );
-            })}
-          </nav>
-
-          <div className="ml-auto flex items-center gap-4">
-            {/* Телефон с подписью */}
-            <a
-              href={site.phoneHref}
-              className="hidden flex-col items-end leading-none md:flex"
-            >
-              <span className="flex items-center gap-1.5 font-num text-[17px] font-bold tracking-[0.02em] text-white transition-colors hover:text-chrome">
-                <Phone className="h-3.5 w-3.5 text-bordeaux-bright" />
-                {site.phone}
               </span>
-              <span className="mt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-steel">
-                перезвоним за 15 мин
-              </span>
-            </a>
+            );
+          })}
+        </nav>
 
-            <span className="hidden h-8 w-px bg-line-dark lg:block" aria-hidden />
-
-            <Button
-              href="#hero-form"
-              variant="primary"
-              className="max-sm:hidden"
-            >
-              Рассчитать авто
-              <ArrowRight className="h-[18px] w-[18px]" />
-            </Button>
-
-            <a
-              href={site.telegramHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Написать в Telegram"
-              className="hidden h-11 w-11 items-center justify-center rounded-btn border border-line-dark text-chrome transition-colors hover:border-chrome hover:bg-white/5 hover:text-white sm:flex"
-            >
-              <Send className="h-5 w-5" />
-            </a>
-
-            <button
-              type="button"
-              aria-label={open ? "Закрыть меню" : "Открыть меню"}
-              aria-expanded={open}
-              onClick={() => setOpen((v) => !v)}
-              className="flex h-11 w-11 items-center justify-center text-white lg:hidden"
-            >
-              {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
-          </div>
+        {/* Капсула: действия — наклон в другую сторону */}
+        <div
+          className={`${capsule} ${h} ml-auto flex rotate-1 items-center gap-1 px-2 hover:rotate-0 lg:ml-0`}
+        >
+          <a
+            href={site.phoneHref}
+            className="hidden items-center gap-1.5 px-3 font-num text-[15px] font-bold tracking-[0.02em] text-white transition-colors hover:text-chrome xl:flex"
+          >
+            <Phone className="h-3.5 w-3.5 text-bordeaux-bright" />
+            {site.phone}
+          </a>
+          <a
+            href={site.telegramHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Написать в Telegram"
+            className="hidden h-9 w-9 items-center justify-center rounded-full text-chrome transition-colors hover:bg-white/10 hover:text-white sm:flex"
+          >
+            <Send className="h-[18px] w-[18px]" />
+          </a>
+          <Button
+            href="#hero-form"
+            variant="primary"
+            className="!min-h-0 h-9 rounded-full !px-4 !py-0 text-[14px] max-sm:!px-3"
+          >
+            <span className="max-sm:hidden">Рассчитать</span>
+            <ArrowRight className="h-[16px] w-[16px]" />
+          </Button>
+          <button
+            type="button"
+            aria-label={open ? "Закрыть меню" : "Открыть меню"}
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 lg:hidden"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
-
-        {/* хром-хейрлайн снизу */}
-        <div className="chrome-line opacity-60" />
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — плавающая капсула под шапкой */}
       {open ? (
-        <div className="border-b border-line-dark bg-graphite lg:hidden">
+        <div className="wrap lg:hidden">
           <nav
-            className="wrap flex flex-col gap-1 py-4"
+            className="glass mt-1 flex flex-col gap-1 rounded-[26px] p-3 shadow-[0_18px_40px_rgba(0,0,0,.45)]"
             aria-label="Мобильная навигация"
           >
             {nav.map((item) => {
@@ -198,15 +144,15 @@ export function Header() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setOpen(false)}
-                  className={`flex items-center gap-3 rounded-btn px-3 py-3 text-[16px] font-semibold transition-colors ${
+                  className={`flex items-center gap-3 rounded-full px-4 py-3 text-[16px] font-semibold transition-colors ${
                     isActive
-                      ? "bg-white/5 text-white"
+                      ? "bg-white/[0.08] text-white"
                       : "text-[#C3CBD2] hover:bg-white/5 hover:text-white"
                   }`}
                 >
                   <span
-                    className={`h-4 w-[3px] -skew-x-12 rounded-sm bg-gradient-to-b from-bordeaux-deep to-bordeaux-bright transition-opacity ${
-                      isActive ? "opacity-100" : "opacity-0"
+                    className={`h-4 w-[4px] -skew-x-12 rounded-sm bg-gradient-to-b from-bordeaux-deep to-bordeaux-bright transition-opacity ${
+                      isActive ? "opacity-100" : "opacity-30"
                     }`}
                     aria-hidden
                   />
@@ -214,14 +160,13 @@ export function Header() {
                 </a>
               );
             })}
-
-            <div className="mt-2 flex items-center gap-3 border-t border-line-dark px-3 pt-4">
+            <div className="mt-1 flex items-center gap-2 border-t border-line-dark px-2 pt-3">
               <a
                 href={site.telegramHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Telegram"
-                className="flex h-11 w-11 items-center justify-center rounded-btn border border-line-dark text-chrome transition-colors hover:text-white"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome hover:text-white"
               >
                 <Send className="h-5 w-5" />
               </a>
@@ -230,27 +175,17 @@ export function Header() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="WhatsApp"
-                className="flex h-11 w-11 items-center justify-center rounded-btn border border-line-dark text-chrome transition-colors hover:text-white"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome hover:text-white"
               >
                 <MessageCircle className="h-5 w-5" />
               </a>
               <a
                 href={site.phoneHref}
-                className="font-num text-[17px] font-bold text-white"
+                className="ml-1 font-num text-[16px] font-bold text-white"
               >
                 {site.phone}
               </a>
             </div>
-
-            <Button
-              href="#hero-form"
-              variant="primary"
-              onClick={() => setOpen(false)}
-              className="mt-3 w-full"
-            >
-              Рассчитать авто
-              <ArrowRight className="h-[18px] w-[18px]" />
-            </Button>
           </nav>
         </div>
       ) : null}

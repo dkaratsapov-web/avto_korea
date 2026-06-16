@@ -7,8 +7,7 @@ import { site } from "@/lib/site";
 
 export function FinalCta() {
   return (
-    <section className="grain relative overflow-hidden bg-[radial-gradient(900px_440px_at_20%_20%,#27313d_0%,#11151A_60%)] py-[96px] text-white">
-      <div className="chrome-line absolute inset-x-0 top-0" />
+    <section className="grain relative overflow-hidden bg-[radial-gradient(900px_440px_at_20%_20%,#27313d_0%,#11151A_60%)] pb-[96px] pt-[128px] text-white [clip-path:polygon(0_0,100%_3.2rem,100%_100%,0_100%)]">
       <div className="glow-blob left-[10%] top-[10%] h-80 w-80 animate-glow-pan bg-bordeaux/30" aria-hidden />
       <div className="glow-blob right-[8%] bottom-[6%] h-72 w-72 animate-glow-pan bg-steel/20 [animation-delay:-7s]" aria-hidden />
       <CarSilhouette className="pointer-events-none absolute -bottom-6 right-[-40px] w-[480px] animate-float opacity-[0.06]" />
