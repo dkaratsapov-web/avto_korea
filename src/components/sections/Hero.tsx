@@ -1,7 +1,5 @@
 import { useRef, useState, type PointerEvent } from "react";
 import { LeadForm } from "@/components/LeadForm";
-import { SplineScene } from "@/components/ui/splite";
-import { Logo } from "@/components/ui/Logo";
 import { useScrollParallax } from "@/lib/useScrollParallax";
 
 const badges = [
@@ -134,31 +132,29 @@ export function Hero() {
           </div>
         </div>
 
-        {/* 3D-робот: следит за курсором (поведение встроено в сцену Spline) */}
-        <div className="relative z-10 hidden min-h-[520px] items-center justify-center md:flex">
-          {/* фоновое хром-кольцо */}
-          <div className="pointer-events-none absolute left-1/2 top-1/2 h-[320px] w-[320px] -translate-x-1/2 -translate-y-1/2 animate-spin-slow rounded-full border border-chrome/15 [border-style:dashed]" />
-
-          <SplineScene
-            scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
-            className="!h-[520px] !w-full"
-          />
-
-          {/* прячем вотермарк Spline */}
-          <div className="pointer-events-none absolute bottom-2 right-2 h-9 w-32 rounded-md bg-graphite/90 backdrop-blur-sm" />
-
-          {/* логотип-«шеврон» поверх робота */}
-          <div className="glass pointer-events-none absolute left-1/2 top-[14%] -translate-x-1/2 animate-float rounded-full px-4 py-2">
-            <Logo withIcon className="!text-[18px]" />
-          </div>
-
-          {/* прайс-чип */}
-          <div className="pointer-events-none absolute right-[2%] top-[6%] animate-float rotate-[1deg] rounded-[14px] bg-white px-4 py-3 text-ink shadow-chip [animation-delay:-2s]">
-            <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-2">
-              под ключ от
+        {/* Плавающие чипы поверх фото */}
+        <div className="relative z-10 hidden min-h-[320px] items-center justify-center md:flex">
+          <div
+            className="relative w-full max-w-[520px]"
+            style={{ transform: `translate(${px * 10}px, ${py * 8}px)` }}
+          >
+            <div className="absolute left-1/2 top-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 animate-spin-slow rounded-full border border-chrome/15 [border-style:dashed]" />
+            <div className="absolute left-1/2 top-1/2 h-[230px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-chrome/20 bg-chrome/[0.03]" />
+            <div className="absolute right-[4%] top-[10%] animate-float rotate-[1deg] rounded-[14px] bg-white px-4 py-3 text-ink shadow-chip">
+              <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-2">
+                под ключ от
+              </div>
+              <div className="font-num text-[24px] font-bold text-bordeaux">
+                2 190 000 ₽
+              </div>
             </div>
-            <div className="font-num text-[24px] font-bold text-bordeaux">
-              2 190 000 ₽
+            <div className="glass absolute bottom-[12%] left-[2%] animate-float rounded-[14px] px-4 py-3 [animation-delay:-3s]">
+              <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-chrome">
+                расчёт
+              </div>
+              <div className="font-num text-[20px] font-bold text-white">
+                за 15 минут
+              </div>
             </div>
           </div>
         </div>
