@@ -36,6 +36,14 @@ export function LeadForm({
     const form = e.currentTarget;
     const data = Object.fromEntries(new FormData(form).entries());
 
+    // На статическом превью (GitHub Pages) серверного роута нет —
+    // показываем успех без реальной отправки.
+    if (process.env.NEXT_PUBLIC_DEMO === "true") {
+      form.reset();
+      showToast("Демо-режим: заявка принята. На боевом сайте — звонок за 15 минут.");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/lead", {
