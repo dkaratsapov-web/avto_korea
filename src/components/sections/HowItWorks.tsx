@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
+import { InteractiveStepsAccordion } from "@/components/ui/interactive-image-accordion";
 
 const steps = [
   {
@@ -59,29 +60,12 @@ export function HowItWorks() {
             description="Шесть понятных шагов от заявки до ключей. У каждого — свой срок."
           />
         </Reveal>
-        <div className="relative mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {steps.map(({ icon: Icon, title, term, text }, i) => (
-            <Reveal key={title} direction="up" delay={(i % 3) * 90}>
-              <div className="group relative h-full overflow-hidden rounded-card border border-line bg-white p-6 transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:shadow-card">
-                <span className="pointer-events-none absolute -right-2 -top-4 font-display text-[96px] font-extrabold leading-none text-shine opacity-30 transition-opacity duration-300 group-hover:opacity-70">
-                  {i + 1}
-                </span>
-                <div className="relative mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-graphite text-chrome transition-all duration-300 group-hover:scale-105 group-hover:bg-bordeaux group-hover:text-white">
-                  <Icon className="h-6 w-6" />
-                </div>
-                <h3 className="relative mb-1 text-[20px] normal-case text-ink">
-                  {title}
-                </h3>
-                <span className="relative mb-3 inline-flex rounded-full bg-bordeaux/10 px-2.5 py-1 font-num text-[13px] font-bold text-bordeaux">
-                  {term}
-                </span>
-                <p className="relative text-[15px] leading-relaxed text-ink-2">
-                  {text}
-                </p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
+        <Reveal className="mt-12">
+          <p className="mb-4 hidden text-[13px] font-semibold text-ink-2 md:block">
+            Наведите на шаг, чтобы раскрыть детали →
+          </p>
+          <InteractiveStepsAccordion steps={steps} />
+        </Reveal>
       </div>
     </section>
   );
