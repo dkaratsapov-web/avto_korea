@@ -153,7 +153,7 @@ export function Calculator() {
           </div>
         </Reveal>
 
-        <Reveal direction="left" delay={120} className="flex h-full flex-col justify-between gap-4">
+        <Reveal direction="left" delay={120} className="flex h-full flex-col justify-end gap-4">
           <div className="glass rounded-card p-6 shadow-glow sm:p-8">
             <h3 className="mb-1 text-[22px] text-white">Заявка на расчёт</h3>
             <p className="mb-6 text-[14px] text-[#9AA4B2]">

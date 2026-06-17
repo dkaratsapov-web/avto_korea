@@ -8,14 +8,18 @@ export type Car = {
   year: number;
   country: CountryCode;
   engine: string;
+  trim: string;
   mileage: string;
   gearbox: string;
   drive: string;
-  /** Цена под ключ в рублях. Форматируется как «4 290 000 ₽». */
+  /** Основная цена под ключ (до Твери), ₽. */
   priceRub: number;
+  priceMoscowRub?: number;
+  priceTverRub?: number;
   status: CarStatus;
-  /** Фото авто; если нет — рисуем SVG-силуэт. TODO: заменить на реальные фото заказчика. */
-  image?: string;
+  isNew?: boolean;
+  images: string[];
+  highlights: string[];
 };
 
 export const statusLabels: Record<CarStatus, string> = {
@@ -24,122 +28,61 @@ export const statusLabels: Record<CarStatus, string> = {
   on_order: "Под заказ",
 };
 
-/**
- * Демо-витрина (из макета diauto69_site.html).
- * TODO: заменить на актуальную базу авто заказчика / вынести в CMS.
- */
+// Пути к фото с учётом base (GitHub Pages /avto_korea/).
+const asset = (p: string) => `${import.meta.env.BASE_URL}${p}`;
+
 export const cars: Car[] = [
   {
-    id: "hyundai-palisade-2022",
-    model: "Hyundai Palisade",
-    year: 2022,
-    country: "kr",
-    engine: "3.8 V6 · бензин",
-    mileage: "42 000 км",
-    gearbox: "АКПП",
-    drive: "4WD",
-    priceRub: 4_290_000,
-    status: "in_stock",
-  },
-  {
-    id: "kia-sorento-2023",
-    model: "Kia Sorento",
-    year: 2023,
-    country: "kr",
-    engine: "2.5T · бензин",
-    mileage: "28 000 км",
-    gearbox: "АКПП",
-    drive: "4WD",
-    priceRub: 3_750_000,
-    status: "in_stock",
-  },
-  {
-    id: "zeekr-001-2023",
-    model: "Zeekr 001",
-    year: 2023,
+    id: "vw-tharu-xr",
+    model: "VW Tharu XR",
+    year: 2025,
     country: "cn",
-    engine: "Электро · 100 кВт·ч",
-    mileage: "19 000 км",
-    gearbox: "1-ст.",
-    drive: "AWD",
-    priceRub: 4_950_000,
-    status: "in_transit",
-  },
-  {
-    id: "li-auto-l7-2023",
-    model: "Li Auto L7",
-    year: 2023,
-    country: "cn",
-    engine: "Гибрид · 1.5T",
-    mileage: "24 000 км",
+    engine: "1.5 л · 110 л.с.",
+    trim: "Sharp Edition",
+    mileage: "Новый, 0 км",
     gearbox: "АКПП",
-    drive: "AWD",
-    priceRub: 5_350_000,
-    status: "in_transit",
-  },
-  {
-    id: "toyota-lc-prado-2021",
-    model: "Toyota LC Prado",
-    year: 2021,
-    country: "jp",
-    engine: "2.8 TD · дизель",
-    mileage: "61 000 км",
-    gearbox: "АКПП",
-    drive: "4WD",
-    priceRub: 5_690_000,
+    drive: "Передний",
+    priceRub: 2_070_000,
+    priceMoscowRub: 2_050_000,
+    priceTverRub: 2_070_000,
     status: "in_stock",
+    isNew: true,
+    images: [1, 2, 3, 4, 5, 6].map((n) => asset(`cars/tharu/${n}.jpg`)),
+    highlights: [
+      "Новый автомобиль, 0 км",
+      "Комплектация Sharp Edition",
+      "Двигатель 1.5 л, 110 л.с., АКПП",
+      "Цена до Москвы — 2 050 000 ₽ (с утильсбором и ЭПТС)",
+      "Цена до Твери — 2 070 000 ₽ (с утильсбором и ЭПТС)",
+    ],
   },
   {
-    id: "bmw-x5-xdrive40i-2022",
-    model: "BMW X5 xDrive40i",
-    year: 2022,
-    country: "eu",
-    engine: "3.0 · бензин",
-    mileage: "38 000 км",
-    gearbox: "АКПП",
-    drive: "AWD",
-    priceRub: 7_250_000,
-    status: "on_order",
-  },
-  {
-    id: "genesis-gv80-2023",
-    model: "Genesis GV80",
-    year: 2023,
+    id: "kia-k3-2026",
+    model: "Kia K3",
+    year: 2026,
     country: "kr",
-    engine: "3.5T V6 · бензин",
-    mileage: "21 000 км",
+    engine: "1.5 л · 115 л.с.",
+    trim: "Comfort Edition",
+    mileage: "Новый, 0 км",
     gearbox: "АКПП",
-    drive: "AWD",
-    priceRub: 6_150_000,
-    status: "in_transit",
-  },
-  {
-    id: "byd-tang-2023",
-    model: "BYD Tang",
-    year: 2023,
-    country: "cn",
-    engine: "Электро · 108 кВт·ч",
-    mileage: "15 000 км",
-    gearbox: "1-ст.",
-    drive: "AWD",
-    priceRub: 4_350_000,
-    status: "on_order",
-  },
-  {
-    id: "lexus-rx350-2022",
-    model: "Lexus RX 350",
-    year: 2022,
-    country: "jp",
-    engine: "2.4T · бензин",
-    mileage: "33 000 км",
-    gearbox: "АКПП",
-    drive: "AWD",
-    priceRub: 6_490_000,
+    drive: "Передний",
+    priceRub: 1_800_000,
+    priceMoscowRub: 1_780_000,
+    priceTverRub: 1_800_000,
     status: "in_stock",
+    isNew: true,
+    images: [1, 2, 3, 4, 5, 6, 7].map((n) => asset(`cars/k3/${n}.jpg`)),
+    highlights: [
+      "Новый автомобиль, 2026 года, 0 км",
+      "Комплектация Comfort Edition",
+      "Двигатель 1.5 л, 115 л.с., АКПП",
+      "Цена до Москвы — 1 780 000 ₽ (с утильсбором и ЭПТС)",
+      "Цена до Твери — 1 800 000 ₽ (с утильсбором и ЭПТС)",
+    ],
   },
 ];
 
-/** «4 290 000 ₽» — неразрывные пробелы между разрядами. */
+/** «2 070 000» — формат с разрядами. */
 export function formatPrice(rub: number): string {
-  return new Intl.NumberFormat("ru-RU").format(rub).replace(/\s/g, " ");
+  return new Intl.NumberFormat("ru-RU").format(rub);
 }

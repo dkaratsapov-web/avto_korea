@@ -1,9 +1,18 @@
 import { useEffect, useState } from "react";
-import { Menu, X, Send, Phone, MessageCircle, ArrowRight } from "lucide-react";
+import {
+  Menu,
+  X,
+  Send,
+  Phone,
+  MessageCircle,
+  ArrowRight,
+  Heart,
+} from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
 import { Magnetic } from "@/components/ui/Magnetic";
 import { nav, site } from "@/lib/site";
+import { useUI } from "@/lib/ui";
 
 const capsule =
   "glass rounded-full shadow-[0_12px_34px_rgba(0,0,0,.4)] transition-all duration-300";
@@ -12,6 +21,7 @@ export function Header() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState<string>("");
+  const { openLead, openFavorites, favCount } = useUI();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -102,6 +112,19 @@ export function Header() {
             <Phone className="h-3.5 w-3.5 text-bordeaux-bright" />
             {site.phone}
           </a>
+          <button
+            type="button"
+            onClick={openFavorites}
+            aria-label="Избранное"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full text-chrome transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <Heart className="h-[18px] w-[18px]" />
+            {favCount > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bordeaux px-1 font-num text-[11px] font-bold text-white">
+                {favCount}
+              </span>
+            ) : null}
+          </button>
           <a
             href={site.telegramHref}
             target="_blank"
@@ -113,8 +136,8 @@ export function Header() {
           </a>
           <Magnetic strength={0.4}>
             <Button
-              href="#hero-form"
               variant="primary"
+              onClick={openLead}
               className="!min-h-0 h-9 rounded-full !px-4 !py-0 text-[14px] max-sm:!px-3"
             >
               <span className="max-sm:hidden">Рассчитать</span>

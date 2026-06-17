@@ -43,7 +43,10 @@ export function RevealWords({
   return (
     <span ref={ref} className={className}>
       {words.map((w, i) => (
-        <span key={i} className="inline-block overflow-hidden align-bottom">
+        <span
+          key={i}
+          className="inline-block overflow-hidden align-bottom -mt-[0.3em] pt-[0.3em]"
+        >
           <span
             className={`inline-block ${
               instant

@@ -17,6 +17,7 @@ import { Toaster } from "@/components/ui/Toaster";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { CursorGlow } from "@/components/ui/CursorGlow";
 import { Preloader } from "@/components/Preloader";
+import { ModalHost } from "@/components/ModalHost";
 
 export function App() {
   const [intro, setIntro] = useState(
@@ -55,6 +56,7 @@ export function App() {
       <Footer />
       <FloatingTelegram />
       <Toaster />
+      <ModalHost />
     </>
   );
 }

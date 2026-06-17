@@ -83,7 +83,7 @@ export function Preloader({ onDone }: { onDone: () => void }) {
       window.innerHeight - 240,
     );
     const radius = size / 2.25;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = size * dpr;
     canvas.height = size * dpr;
     canvas.style.width = `${size}px`;
@@ -96,11 +96,23 @@ export function Preloader({ onDone }: { onDone: () => void }) {
       .clipAngle(90)
       .rotate([-90, -48]);
     const path = geoPath(projection, ctx as unknown as CanvasRenderingContext2D);
-    const graticule = geoGraticule();
+    const graticule = geoGraticule().step([20, 20]);
 
+    type Dot = { p: [number, number]; v: [number, number, number] };
     let land: any = null;
-    const dots: [number, number][] = [];
+    const dots: Dot[] = [];
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const toVec = (lng: number, lat: number): [number, number, number] => {
+      const a = (lng * Math.PI) / 180;
+      const b = (lat * Math.PI) / 180;
+      const cb = Math.cos(b);
+      return [cb * Math.cos(a), cb * Math.sin(a), Math.sin(b)];
+    };
+    const viewCenter = (): [number, number, number] => {
+      const r = projection.rotate();
+      return toVec(-r[0], -r[1]);
+    };
 
     const isVisible = (p: [number, number]) => {
       const r = projection.rotate();
@@ -220,9 +232,10 @@ export function Preloader({ onDone }: { onDone: () => void }) {
         ctx.stroke();
 
         ctx.fillStyle = "rgba(92,109,118,.85)";
+        const c = viewCenter();
         for (const d of dots) {
-          if (!isVisible(d)) continue;
-          const pt = projection(d);
+          if (d.v[0] * c[0] + d.v[1] * c[1] + d.v[2] * c[2] <= 0.06) continue;
+          const pt = projection(d.p);
           if (!pt) continue;
           ctx.beginPath();
           ctx.arc(pt[0], pt[1], 1.1, 0, 2 * Math.PI);
@@ -233,8 +246,11 @@ export function Preloader({ onDone }: { onDone: () => void }) {
       drawArc(elapsed);
     };
 
+    let lastRender = -100;
     const t = timer((elapsed) => {
       if (!reduce) projection.rotate([-90 + elapsed * 0.004, -48]);
+      if (elapsed - lastRender < 33) return; // ~30fps
+      lastRender = elapsed;
       render(elapsed);
     });
 
@@ -244,11 +260,11 @@ export function Preloader({ onDone }: { onDone: () => void }) {
         land = geo;
         for (const feature of geo.features) {
           const [[minLng, minLat], [maxLng, maxLat]] = geoBounds(feature);
-          const step = 1.8;
+          const step = 3.2;
           for (let lng = minLng; lng <= maxLng; lng += step) {
             for (let lat = minLat; lat <= maxLat; lat += step) {
               const p: [number, number] = [lng, lat];
-              if (pointInFeature(p, feature)) dots.push(p);
+              if (pointInFeature(p, feature)) dots.push({ p, v: toVec(lng, lat) });
             }
           }
         }

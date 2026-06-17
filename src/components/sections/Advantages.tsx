@@ -103,7 +103,7 @@ function AdvantageCard({
 
 export function Advantages() {
   return (
-    <section className="overflow-hidden bg-white py-[72px]">
+    <section className="overflow-hidden bg-gradient-to-b from-white to-paper pb-[52px] pt-[72px]">
       <div className="wrap">
         <ContainerScroll
           titleComponent={
@@ -129,6 +129,16 @@ export function Advantages() {
             })}
           </div>
         </ContainerScroll>
+
+        {/* мягкий мостик к следующей секции */}
+        <div className="mt-12 flex flex-col items-center gap-3">
+          <span className="text-[12px] font-semibold uppercase tracking-[0.2em] text-ink-2">
+            Как мы работаем
+          </span>
+          <span className="relative h-14 w-px overflow-hidden bg-line">
+            <span className="absolute left-0 top-0 h-5 w-px animate-scroll-cue bg-gradient-to-b from-bordeaux-bright to-transparent" />
+          </span>
+        </div>
       </div>
     </section>
   );

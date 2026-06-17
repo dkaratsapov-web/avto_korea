@@ -51,7 +51,7 @@ const steps = [
 
 export function HowItWorks() {
   return (
-    <section id="how" className="scroll-mt-20 bg-paper py-[88px]">
+    <section id="how" className="scroll-mt-24 bg-paper pb-[88px] pt-[56px]">
       <div className="wrap">
         <Reveal>
           <SectionHeading

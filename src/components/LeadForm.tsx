@@ -7,6 +7,24 @@ import { countries } from "@/lib/site";
 type Layout = "compact" | "full";
 type Tone = "dark" | "light";
 
+// --- фильтры ввода: только цифры ---
+function onlyDigits(e: React.FormEvent<HTMLInputElement>) {
+  const el = e.currentTarget;
+  el.value = el.value.replace(/\D/g, "");
+}
+function onlyDigitsGrouped(e: React.FormEvent<HTMLInputElement>) {
+  const el = e.currentTarget;
+  const digits = el.value.replace(/\D/g, "");
+  el.value = digits ? Number(digits).toLocaleString("ru-RU").replace(/ /g, " ") : "";
+}
+function onlyPhone(e: React.FormEvent<HTMLInputElement>) {
+  const el = e.currentTarget;
+  let v = el.value.replace(/[^\d+]/g, "");
+  // плюс допустим только первым символом
+  v = v.replace(/(?!^)\+/g, "");
+  el.value = v;
+}
+
 export type LeadFormProps = {
   layout?: Layout;
   tone?: Tone;
@@ -91,9 +109,11 @@ export function LeadForm({
           <input
             type="tel"
             name="phone"
+            inputMode="tel"
             placeholder="Ваш телефон"
             aria-label="Телефон"
             required
+            onInput={onlyPhone}
             className={`${fieldClass} min-w-[150px] flex-1`}
           />
           <Button
@@ -151,7 +171,9 @@ export function LeadForm({
           type="text"
           name="year"
           inputMode="numeric"
+          maxLength={4}
           placeholder="2022"
+          onInput={onlyDigits}
           className={fieldClass}
         />
       </label>
@@ -162,7 +184,8 @@ export function LeadForm({
           type="text"
           name="budget"
           inputMode="numeric"
-          placeholder="до 4 000 000"
+          placeholder="4 000 000"
+          onInput={onlyDigitsGrouped}
           className={fieldClass}
         />
       </label>
@@ -172,8 +195,10 @@ export function LeadForm({
         <input
           type="tel"
           name="phone"
+          inputMode="tel"
           placeholder="+7 (___) ___-__-__"
           required
+          onInput={onlyPhone}
           className={fieldClass}
         />
       </label>
