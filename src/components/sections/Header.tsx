@@ -125,15 +125,6 @@ export function Header() {
               </span>
             ) : null}
           </button>
-          <a
-            href={site.telegramHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Написать в Telegram"
-            className="hidden h-9 w-9 items-center justify-center rounded-full text-chrome transition-colors hover:bg-white/10 hover:text-white sm:flex"
-          >
-            <Send className="h-[18px] w-[18px]" />
-          </a>
           <Magnetic strength={0.4}>
             <Button
               variant="primary"
