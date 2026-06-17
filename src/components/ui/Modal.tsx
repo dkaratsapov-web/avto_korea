@@ -23,7 +23,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={label}
-        className={`relative my-0 w-full animate-fade-up rounded-t-[24px] border border-line-dark bg-graphite-2 shadow-[0_30px_80px_rgba(0,0,0,.6)] sm:my-6 sm:rounded-[24px] ${className}`}
+        className={`relative my-0 w-full animate-fade-up overflow-hidden rounded-t-[24px] border border-line-dark bg-graphite-2 shadow-[0_30px_80px_rgba(0,0,0,.6)] sm:my-6 sm:rounded-[24px] ${className}`}
       >
         <button
           type="button"
