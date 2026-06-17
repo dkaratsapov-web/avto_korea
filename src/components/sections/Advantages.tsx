@@ -6,6 +6,7 @@ import {
   Headset,
   FileCheck2,
   BadgeCheck,
+  ArrowRight,
 } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
@@ -104,31 +105,59 @@ function AdvantageCard({
 export function Advantages() {
   return (
     <section className="overflow-x-clip bg-gradient-to-b from-white to-paper pb-10 pt-[72px]">
-      <div className="wrap">
-        <ContainerScroll
-          titleComponent={
-            <SectionHeading
-              eyebrow="Почему мы"
-              title="Премиальный импорт без сюрпризов"
-              description="Доверие и прозрачность на каждом шаге — от первого расчёта до выдачи авто."
-              align="center"
-            />
-          }
-        >
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {items.map((item, i) => {
-              const featured = i === 0 || i === 5;
-              return (
-                <div
-                  key={item.title}
-                  className={featured ? "sm:col-span-2 lg:col-span-2" : ""}
-                >
-                  <AdvantageCard {...item} featured={featured} />
-                </div>
-              );
-            })}
+      {/* Desktop: 3D-карточка с бенто-сеткой */}
+      <div className="hidden md:block">
+        <div className="wrap">
+          <ContainerScroll
+            titleComponent={
+              <SectionHeading
+                eyebrow="Почему мы"
+                title="Премиальный импорт без сюрпризов"
+                description="Доверие и прозрачность на каждом шаге — от первого расчёта до выдачи авто."
+                align="center"
+              />
+            }
+          >
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {items.map((item, i) => {
+                const featured = i === 0 || i === 5;
+                return (
+                  <div
+                    key={item.title}
+                    className={featured ? "sm:col-span-2 lg:col-span-2" : ""}
+                  >
+                    <AdvantageCard {...item} featured={featured} />
+                  </div>
+                );
+              })}
+            </div>
+          </ContainerScroll>
+        </div>
+      </div>
+
+      {/* Mobile: горизонтальный свайп */}
+      <div className="md:hidden">
+        <div className="wrap">
+          <SectionHeading
+            eyebrow="Почему мы"
+            title="Премиальный импорт без сюрпризов"
+            description="Доверие и прозрачность на каждом шаге — от первого расчёта до выдачи авто."
+          />
+          <div className="mb-3 mt-7 flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink-2">
+            Листайте вправо
+            <ArrowRight className="h-4 w-4 text-bordeaux motion-safe:animate-nudge" />
           </div>
-        </ContainerScroll>
+        </div>
+        <div className="-mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {items.map((item, i) => (
+            <div
+              key={item.title}
+              className="h-[360px] w-[80vw] max-w-[320px] flex-none snap-start"
+            >
+              <AdvantageCard {...item} featured={i === 0} />
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

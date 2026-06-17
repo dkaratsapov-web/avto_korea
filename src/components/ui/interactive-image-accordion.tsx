@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { LucideIcon } from "lucide-react";
+import { ArrowRight, type LucideIcon } from "lucide-react";
 
 export type AccordionStep = {
   icon: LucideIcon;
@@ -118,15 +118,20 @@ export function InteractiveStepsAccordion({
         ))}
       </div>
 
-      {/* Mobile: вертикальный список */}
-      <div className="flex flex-col gap-3 md:hidden">
-        {steps.map((step, i) => {
-          const Icon = step.icon;
-          return (
-            <div
-              key={step.title}
-              className="relative overflow-hidden rounded-[18px] border border-line bg-white p-5"
-            >
+      {/* Mobile: горизонтальный свайп */}
+      <div className="md:hidden">
+        <div className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink-2">
+          Листайте вправо
+          <ArrowRight className="h-4 w-4 text-bordeaux motion-safe:animate-nudge" />
+        </div>
+        <div className="-mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {steps.map((step, i) => {
+            const Icon = step.icon;
+            return (
+              <div
+                key={step.title}
+                className="relative w-[80vw] max-w-[320px] flex-none snap-start overflow-hidden rounded-[18px] border border-line bg-white p-5"
+              >
               <span className="pointer-events-none absolute -right-1 -top-3 font-display text-[64px] font-extrabold leading-none text-line/80">
                 {i + 1}
               </span>
@@ -139,12 +144,13 @@ export function InteractiveStepsAccordion({
                   {step.term}
                 </span>
               </div>
-              <p className="relative text-[14px] leading-relaxed text-ink-2">
-                {step.text}
-              </p>
-            </div>
-          );
-        })}
+                <p className="relative text-[14px] leading-relaxed text-ink-2">
+                  {step.text}
+                </p>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </>
   );

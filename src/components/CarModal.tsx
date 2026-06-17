@@ -121,21 +121,21 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
             ))}
           </ul>
 
-          <div className="flex flex-wrap gap-3">
-            <div className="rounded-card border border-line-dark bg-white/[0.03] px-4 py-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="min-w-0 rounded-card border border-line-dark bg-white/[0.03] px-4 py-3">
               <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-2">
                 Под ключ до Твери
               </div>
-              <div className="font-num text-[24px] font-bold text-bordeaux-bright">
+              <div className="font-num text-[20px] font-bold text-bordeaux-bright sm:text-[24px]">
                 {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
               </div>
             </div>
             {car.priceMoscowRub ? (
-              <div className="rounded-card border border-line-dark bg-white/[0.03] px-4 py-3">
+              <div className="min-w-0 rounded-card border border-line-dark bg-white/[0.03] px-4 py-3">
                 <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-2">
                   Под ключ до Москвы
                 </div>
-                <div className="font-num text-[24px] font-bold text-white">
+                <div className="font-num text-[20px] font-bold text-white sm:text-[24px]">
                   {formatPrice(car.priceMoscowRub)} ₽
                 </div>
               </div>

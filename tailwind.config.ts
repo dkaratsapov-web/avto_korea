@@ -58,6 +58,10 @@ const config: Config = {
           "40%": { opacity: "1" },
           "80%,100%": { transform: "translateY(14px)", opacity: "0" },
         },
+        nudge: {
+          "0%,100%": { transform: "translateX(0)" },
+          "50%": { transform: "translateX(6px)" },
+        },
         "spin-slow": {
           "0%": { transform: "rotate(0deg)" },
           "100%": { transform: "rotate(360deg)" },
@@ -70,6 +74,7 @@ const config: Config = {
         float: "float 6s ease-in-out infinite",
         "glow-pan": "glow-pan 14s ease-in-out infinite",
         "scroll-cue": "scroll-cue 1.8s ease-in-out infinite",
+        nudge: "nudge 1.3s ease-in-out infinite",
         "spin-slow": "spin-slow 22s linear infinite",
       },
     },
