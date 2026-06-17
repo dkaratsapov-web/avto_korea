@@ -17,12 +17,26 @@ function onlyDigitsGrouped(e: React.FormEvent<HTMLInputElement>) {
   const digits = el.value.replace(/\D/g, "");
   el.value = digits ? Number(digits).toLocaleString("ru-RU").replace(/ /g, " ") : "";
 }
-function onlyPhone(e: React.FormEvent<HTMLInputElement>) {
+// Маска российского номера: +7 (XXX) XXX-XX-XX
+function maskPhone(e: React.FormEvent<HTMLInputElement>) {
   const el = e.currentTarget;
-  let v = el.value.replace(/[^\d+]/g, "");
-  // плюс допустим только первым символом
-  v = v.replace(/(?!^)\+/g, "");
-  el.value = v;
+  let d = el.value.replace(/\D/g, "");
+  if (d[0] === "8") d = "7" + d.slice(1);
+  else if (d[0] === "9") d = "7" + d;
+  else if (d.length > 0 && d[0] !== "7") d = "7" + d;
+  d = d.slice(0, 11);
+
+  const rest = d.slice(1);
+  if (rest.length === 0) {
+    el.value = d ? "+7" : "";
+    return;
+  }
+  let out = "+7 (" + rest.slice(0, 3);
+  if (rest.length >= 3) out += ")";
+  if (rest.length > 3) out += " " + rest.slice(3, 6);
+  if (rest.length >= 6) out += "-" + rest.slice(6, 8);
+  if (rest.length >= 8) out += "-" + rest.slice(8, 10);
+  el.value = out;
 }
 
 export type LeadFormProps = {
@@ -113,7 +127,7 @@ export function LeadForm({
             placeholder="Ваш телефон"
             aria-label="Телефон"
             required
-            onInput={onlyPhone}
+            onInput={maskPhone}
             className={`${fieldClass} min-w-[150px] flex-1`}
           />
           <Button
@@ -198,7 +212,7 @@ export function LeadForm({
           inputMode="tel"
           placeholder="+7 (___) ___-__-__"
           required
-          onInput={onlyPhone}
+          onInput={maskPhone}
           className={fieldClass}
         />
       </label>
