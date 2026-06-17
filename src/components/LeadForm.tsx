@@ -48,6 +48,8 @@ export type LeadFormProps = {
   className?: string;
   /** Преселект страны для формы-калькулятора. */
   defaultCountry?: keyof typeof countries;
+  /** Первое поле compact-формы: авто/бюджет (по умолчанию) или имя (для карточки авто). */
+  firstField?: "car" | "name";
 };
 
 export function LeadForm({
@@ -57,6 +59,7 @@ export function LeadForm({
   submitLabel = "Получить расчёт",
   className = "",
   defaultCountry,
+  firstField = "car",
 }: LeadFormProps) {
   const [loading, setLoading] = useState(false);
   const fieldClass = tone === "dark" ? "field-dark" : "field-light";
@@ -113,13 +116,23 @@ export function LeadForm({
           onSubmit={handleSubmit}
           className="flex max-w-[560px] flex-wrap items-center gap-[10px] rounded-card border border-line-dark bg-white/[0.04] p-4"
         >
-          <input
-            type="text"
-            name="car"
-            placeholder="Марка и модель или бюджет"
-            aria-label="Авто или бюджет"
-            className={`${fieldClass} min-w-[150px] flex-1`}
-          />
+          {firstField === "name" ? (
+            <input
+              type="text"
+              name="name"
+              placeholder="Ваше имя"
+              aria-label="Имя"
+              className={`${fieldClass} min-w-[150px] flex-1`}
+            />
+          ) : (
+            <input
+              type="text"
+              name="car"
+              placeholder="Марка и модель"
+              aria-label="Авто или бюджет"
+              className={`${fieldClass} min-w-[150px] flex-1`}
+            />
+          )}
           <input
             type="tel"
             name="phone"
