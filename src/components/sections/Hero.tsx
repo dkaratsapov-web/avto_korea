@@ -1,6 +1,9 @@
 import { useRef, useState, type PointerEvent } from "react";
 import { Clock, Truck, Globe2, ArrowRight } from "lucide-react";
 import { LeadForm } from "@/components/LeadForm";
+import { ParticleHeadline } from "@/components/ui/particle-text-effect";
+
+const HEADLINE_LINES = ["Авто из Кореи,", "Китая и Японии", "под ключ"];
 
 const badges = [
   { strong: "15 мин", rest: " — расчёт под ключ" },
@@ -19,9 +22,15 @@ const flags = [
 // TODO: заменить на фото, на которое у заказчика есть права (см. ТЗ).
 const HERO_IMAGE = `${import.meta.env.BASE_URL}hero-bg.jpg`;
 
-export function Hero() {
+export function Hero({ start = true }: { start?: boolean }) {
   const ref = useRef<HTMLElement | null>(null);
   const [pointer, setPointer] = useState({ x: 0.5, y: 0.5, active: false });
+  const [reduced] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  const [assembled, setAssembled] = useState(reduced);
 
   function onMove(e: PointerEvent<HTMLElement>) {
     if (e.pointerType !== "mouse") return;
@@ -81,13 +90,28 @@ export function Hero() {
             <span className="slash" aria-hidden /> Импорт авто под ключ · 69 регион
           </div>
 
-          <h1 className="mb-[18px] text-[clamp(40px,5.4vw,72px)] text-white [text-shadow:0_2px_24px_rgba(0,0,0,.45)]">
-            Авто из Кореи,
-            <br />
-            Китая и Японии
-            <br />
-            <em className="not-italic text-shine">под ключ</em>
-          </h1>
+          <div className="relative mb-[18px]">
+            <h1
+              className={`text-[clamp(40px,5.4vw,72px)] text-white transition-opacity duration-700 [text-shadow:0_2px_24px_rgba(0,0,0,.45)] ${
+                assembled ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              Авто из Кореи,
+              <br />
+              Китая и Японии
+              <br />
+              <em className="not-italic text-shine">под ключ</em>
+            </h1>
+            {!reduced && !assembled ? (
+              <ParticleHeadline
+                className="pointer-events-none absolute inset-0"
+                lines={HEADLINE_LINES}
+                accentIndex={2}
+                start={start}
+                onDone={() => setAssembled(true)}
+              />
+            ) : null}
+          </div>
 
           <p className="mb-[26px] max-w-[520px] text-[19px] text-[#D2D9DF]">
             Считаем честно и показываем реальную цену с доставкой и растаможкой —

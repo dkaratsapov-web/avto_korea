@@ -65,7 +65,7 @@ function Panel({
 
       {/* свёрнутый заголовок — вертикально, по центру панели */}
       <span
-        className={`absolute left-1/2 top-1/2 origin-center -translate-x-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap font-display text-[15px] font-extrabold uppercase tracking-[0.06em] text-chrome transition-opacity duration-[1200ms] ${
+        className={`absolute left-1/2 top-1/2 origin-center -translate-x-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap font-display text-[15px] font-extrabold uppercase tracking-[0.06em] text-chrome transition-opacity duration-200 ${
           isActive ? "opacity-0" : "opacity-100"
         }`}
         aria-hidden={isActive}
@@ -73,12 +73,12 @@ function Panel({
         {step.title}
       </span>
 
-      {/* развёрнутый контент */}
+      {/* развёрнутый контент — фиксированная ширина, чтобы текст не «переливался» при анимации */}
       <span
-        className={`absolute inset-x-0 bottom-0 block bg-gradient-to-t from-graphite via-graphite/70 to-transparent p-6 pt-16 transition-all duration-[2000ms] ${
+        className={`absolute bottom-0 left-0 block w-[360px] max-w-full bg-gradient-to-t from-graphite via-graphite/70 to-transparent p-6 pt-16 transition-[opacity,transform] ${
           isActive
-            ? "translate-y-0 opacity-100"
-            : "pointer-events-none translate-y-3 opacity-0"
+            ? "translate-y-0 opacity-100 delay-[800ms] duration-700"
+            : "pointer-events-none translate-y-2 opacity-0 delay-0 duration-200"
         }`}
         aria-hidden={!isActive}
       >

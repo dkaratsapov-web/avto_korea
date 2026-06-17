@@ -41,12 +41,12 @@ export function App() {
       <ScrollProgress />
       <Header />
       <main>
-        <Hero />
+        <Hero start={!intro} />
         <BrandTicker />
         <Stats />
         <Advantages />
-        <HowItWorks />
         <Catalog />
+        <HowItWorks />
         <Calculator />
         <Geography />
         <Reviews />

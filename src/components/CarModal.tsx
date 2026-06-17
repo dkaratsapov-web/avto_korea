@@ -71,14 +71,14 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
             ) : null}
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 grid grid-cols-5 gap-2 sm:grid-cols-6">
             {car.images.map((src, i) => (
               <button
                 key={src}
                 type="button"
                 onClick={() => setIdx(i)}
                 aria-label={`Фото ${i + 1}`}
-                className={`h-14 w-[18%] min-w-[60px] flex-1 overflow-hidden rounded-[10px] border-2 transition-colors ${
+                className={`aspect-[4/3] w-full overflow-hidden rounded-[10px] border-2 transition-colors ${
                   i === idx
                     ? "border-bordeaux-bright"
                     : "border-transparent opacity-70 hover:opacity-100"
