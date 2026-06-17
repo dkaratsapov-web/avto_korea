@@ -31,10 +31,11 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
 
   return (
     <Modal onClose={onClose} label={car.model} className="max-w-5xl">
-      <div className="grid max-h-[92vh] grid-cols-1 overflow-y-auto lg:max-h-[88vh] lg:grid-cols-2">
+      <div className="flex max-h-[92vh] flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+       <div className="grid grid-cols-1 lg:grid-cols-2">
         {/* Галерея */}
         <div className="relative bg-graphite p-4 sm:p-5">
-          <div className="relative aspect-[4/3] overflow-hidden rounded-[16px] bg-black">
+          <div className="relative aspect-[16/11] overflow-hidden rounded-[16px] bg-black">
             {/* eslint-disable-next-line */}
             <img
               src={car.images[idx]}
@@ -92,10 +93,10 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
           </div>
         </div>
 
-        {/* Инфо + форма */}
-        <div className="flex flex-col gap-5 p-5 text-white sm:p-7">
+        {/* Инфо */}
+        <div className="flex flex-col gap-4 p-5 text-white sm:p-7">
           <div>
-            <div className="mb-1 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-chrome">
+            <div className="mb-1 text-[13px] font-semibold uppercase tracking-[0.12em] text-chrome">
               {car.trim}
             </div>
             <h3 className="text-[28px] font-extrabold uppercase leading-none text-white">
@@ -113,16 +114,16 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
             <Spec icon={<DriveIcon />} text={car.drive} />
           </div>
 
-          <ul className="space-y-2">
+          <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
             {car.highlights.map((h) => (
-              <li key={h} className="flex items-start gap-2.5 text-[14.5px] text-[#C7CFD6]">
-                <Check className="mt-0.5 h-4 w-4 flex-none text-success" />
+              <li key={h} className="flex items-start gap-2 text-[13px] text-[#C7CFD6]">
+                <Check className="mt-0.5 h-3.5 w-3.5 flex-none text-success" />
                 {h}
               </li>
             ))}
           </ul>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="mt-auto grid grid-cols-2 gap-3">
             <div className="min-w-0 rounded-card border border-line-dark bg-white/[0.03] px-4 py-3">
               <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-2">
                 Под ключ до Твери
@@ -143,7 +144,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
             ) : null}
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex gap-3">
             <button
               type="button"
               onClick={() => toggleFav(car.id)}
@@ -169,10 +170,19 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
               В Telegram
             </Button>
           </div>
+        </div>
+       </div>
 
-          <div className="rounded-card border border-line-dark bg-white/[0.03] p-4">
-            <div className="mb-3 text-[15px] font-bold text-white">
-              Запросить расчёт по этому авто
+        {/* Широкая горизонтальная форма снизу */}
+        <div className="border-t border-line-dark bg-graphite-2/50 p-5 sm:px-7 sm:py-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="text-[16px] font-bold text-white">
+                Запросить расчёт по этому авто
+              </div>
+              <div className="text-[13px] text-[#9AA4B2]">
+                Оставьте имя и телефон — перезвоним в течение 15 минут.
+              </div>
             </div>
             <LeadForm
               layout="compact"
@@ -180,6 +190,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
               firstField="name"
               source={`Каталог — ${car.model}`}
               submitLabel="Запросить"
+              className="lg:flex-none"
             />
           </div>
         </div>
