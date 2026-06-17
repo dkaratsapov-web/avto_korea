@@ -1,6 +1,6 @@
 import { useRef, useState, type PointerEvent } from "react";
+import { Clock, Truck, Globe2, ArrowRight } from "lucide-react";
 import { LeadForm } from "@/components/LeadForm";
-import { useScrollParallax } from "@/lib/useScrollParallax";
 
 const badges = [
   { strong: "15 мин", rest: " — расчёт под ключ" },
@@ -21,7 +21,6 @@ const HERO_IMAGE = `${import.meta.env.BASE_URL}hero-bg.jpg`;
 
 export function Hero() {
   const ref = useRef<HTMLElement | null>(null);
-  const giantRef = useScrollParallax<HTMLSpanElement>(0.12);
   const [pointer, setPointer] = useState({ x: 0.5, y: 0.5, active: false });
 
   function onMove(e: PointerEvent<HTMLElement>) {
@@ -57,36 +56,26 @@ export function Hero() {
           style={{
             transform: `translate3d(${px * -16}px, ${py * -12}px, 0) scale(1.08)`,
           }}
-          className="absolute inset-0 h-full w-full object-cover object-[50%_58%] brightness-[.8] saturate-[.9] transition-transform duration-300 ease-out"
+          className="absolute inset-0 h-full w-full object-cover object-[50%_58%] brightness-[.78] saturate-[.9] transition-transform duration-300 ease-out"
         />
-        <div className="absolute inset-0 bg-graphite/45" />
-        <div className="absolute inset-0 bg-gradient-to-r from-graphite via-graphite/85 to-graphite/45" />
+        <div className="absolute inset-0 bg-graphite/50" />
+        <div className="absolute inset-0 bg-gradient-to-r from-graphite via-graphite/80 to-graphite/55" />
         <div className="absolute inset-0 bg-gradient-to-t from-graphite via-transparent to-graphite/60" />
         {/* световое пятно-прожектор за курсором */}
         <div
           className="absolute inset-0 transition-opacity duration-300"
           style={{
             opacity: pointer.active ? 1 : 0,
-            background: `radial-gradient(420px circle at ${pointer.x * 100}% ${pointer.y * 100}%, rgba(174,186,194,.18), transparent 60%)`,
+            background: `radial-gradient(420px circle at ${pointer.x * 100}% ${pointer.y * 100}%, rgba(174,186,194,.16), transparent 60%)`,
           }}
           aria-hidden
         />
-        <div className="glow-blob right-[8%] top-[10%] h-80 w-80 animate-glow-pan bg-bordeaux/30" aria-hidden />
-        <div className="glow-blob left-[2%] bottom-[6%] h-72 w-72 animate-glow-pan bg-steel/20 [animation-delay:-6s]" aria-hidden />
+        <div className="glow-blob right-[12%] top-[12%] h-72 w-72 animate-glow-pan bg-bordeaux/25" aria-hidden />
+        <div className="glow-blob left-[2%] bottom-[6%] h-72 w-72 animate-glow-pan bg-steel/15 [animation-delay:-6s]" aria-hidden />
         <div className="grain absolute inset-0" aria-hidden />
       </div>
 
-      {/* Гигантская контурная типографика — глубина и характер */}
-      <span
-        ref={giantRef}
-        aria-hidden
-        className="pointer-events-none absolute -right-[3%] top-[12%] z-0 select-none font-display text-[clamp(120px,20vw,320px)] font-extrabold uppercase leading-none tracking-tight text-transparent"
-        style={{ WebkitTextStroke: "1.5px rgba(174,186,194,.10)" }}
-      >
-        под&nbsp;ключ
-      </span>
-
-      <div className="wrap grid items-center gap-10 pb-[64px] pt-[120px] max-md:gap-[18px] max-md:pb-[56px] max-md:pt-[104px] md:grid-cols-[1.05fr_0.95fr] md:pb-[100px] md:pt-[140px]">
+      <div className="wrap grid items-center gap-10 pb-[64px] pt-[120px] max-md:gap-[18px] max-md:pb-[56px] max-md:pt-[104px] md:grid-cols-[1.08fr_0.92fr] md:pb-[100px] md:pt-[140px]">
         <div className="relative z-10 animate-fade-up">
           <div className="mb-[22px] inline-flex items-center gap-3 rounded-full border border-line-dark bg-graphite-2/50 py-2 pl-2 pr-4 text-[13px] font-bold uppercase tracking-[0.14em] text-chrome backdrop-blur-sm">
             <span className="slash" aria-hidden /> Импорт авто под ключ · 69 регион
@@ -132,29 +121,50 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Плавающие чипы поверх фото */}
-        <div className="relative z-10 hidden min-h-[320px] items-center justify-center md:flex">
+        {/* Карточка-оффер */}
+        <div className="relative z-10 hidden items-center justify-end md:flex">
           <div
-            className="relative w-full max-w-[520px]"
-            style={{ transform: `translate(${px * 10}px, ${py * 8}px)` }}
+            className="relative w-full max-w-[400px]"
+            style={{ transform: `translate(${px * 6}px, ${py * 5}px)` }}
           >
-            <div className="absolute left-1/2 top-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 animate-spin-slow rounded-full border border-chrome/15 [border-style:dashed]" />
-            <div className="absolute left-1/2 top-1/2 h-[230px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-chrome/20 bg-chrome/[0.03]" />
-            <div className="absolute right-[4%] top-[10%] animate-float rotate-[1deg] rounded-[14px] bg-white px-4 py-3 text-ink shadow-chip">
-              <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-2">
+            {/* фирменный хром-акцент */}
+            <div
+              className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 animate-spin-slow rounded-full border border-chrome/15 [border-style:dashed]"
+              aria-hidden
+            />
+            <div className="glass animate-fade-up rounded-card p-7 shadow-glow">
+              <div className="flex items-center gap-3 text-[12px] font-extrabold uppercase tracking-[0.16em] text-chrome">
+                <span className="slash" aria-hidden /> Цена под ключ
+              </div>
+
+              <div className="mt-5 text-[12px] font-bold uppercase tracking-[0.1em] text-[#9AA4B2]">
                 под ключ от
               </div>
-              <div className="font-num text-[24px] font-bold text-bordeaux">
+              <div className="font-num text-[clamp(34px,4.4vw,46px)] font-bold leading-none text-bordeaux-bright">
                 2 190 000 ₽
               </div>
-            </div>
-            <div className="glass absolute bottom-[12%] left-[2%] animate-float rounded-[14px] px-4 py-3 [animation-delay:-3s]">
-              <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-chrome">
-                расчёт
-              </div>
-              <div className="font-num text-[20px] font-bold text-white">
-                за 15 минут
-              </div>
+
+              <div className="chrome-line my-5 opacity-60" />
+
+              <ul className="space-y-3.5">
+                <OfferRow icon={<Globe2 className="h-5 w-5" />}>
+                  Корея · Китай · Япония · ЕС
+                </OfferRow>
+                <OfferRow icon={<Clock className="h-5 w-5" />}>
+                  Честный расчёт за 15 минут
+                </OfferRow>
+                <OfferRow icon={<Truck className="h-5 w-5" />}>
+                  Доставка 30–45 дней, с растаможкой
+                </OfferRow>
+              </ul>
+
+              <a
+                href="#catalog"
+                className="btn btn-primary mt-6 w-full"
+              >
+                Смотреть наличие
+                <ArrowRight className="h-[18px] w-[18px]" />
+              </a>
             </div>
           </div>
         </div>
@@ -167,5 +177,22 @@ export function Hero() {
         </div>
       </div>
     </section>
+  );
+}
+
+function OfferRow({
+  icon,
+  children,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <li className="flex items-center gap-3 text-[14.5px] font-semibold text-[#C7CFD6]">
+      <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[11px] bg-white/[0.06] text-chrome">
+        {icon}
+      </span>
+      {children}
+    </li>
   );
 }
