@@ -3,13 +3,15 @@ import { Modal } from "@/components/ui/Modal";
 import { CarModal } from "@/components/CarModal";
 import { LeadForm } from "@/components/LeadForm";
 import { Button } from "@/components/ui/Button";
-import { cars, formatPrice } from "@/data/cars";
+import { formatPrice } from "@/data/cars";
 import { site } from "@/lib/site";
 import { Flag } from "@/components/icons/Flag";
 import { useUI } from "@/lib/ui";
+import { useCars } from "@/lib/carsStore";
 
 export function ModalHost() {
   const { modal, close, favorites, removeFav, openCar } = useUI();
+  const { cars } = useCars();
   if (!modal) return null;
 
   if (modal.type === "car") {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { Header } from "@/components/sections/Header";
 import { Hero } from "@/components/sections/Hero";
@@ -20,7 +20,15 @@ import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { CursorGlow } from "@/components/ui/CursorGlow";
 import { Preloader } from "@/components/Preloader";
 import { ModalHost } from "@/components/ModalHost";
-import { CatalogPage } from "@/components/pages/CatalogPage";
+
+const CatalogPage = lazy(() =>
+  import("@/components/pages/CatalogPage").then((m) => ({
+    default: m.CatalogPage,
+  })),
+);
+const AdminPage = lazy(() =>
+  import("@/components/pages/AdminPage").then((m) => ({ default: m.AdminPage })),
+);
 
 function Landing() {
   return (
@@ -72,10 +80,19 @@ export function App() {
       <CursorGlow />
       <ScrollProgress />
       <Header />
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/catalog" element={<CatalogPage />} />
-      </Routes>
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center bg-paper pt-20">
+            <span className="h-10 w-10 animate-spin rounded-full border-2 border-line border-t-bordeaux" />
+          </div>
+        }
+      >
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/catalog" element={<CatalogPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+        </Routes>
+      </Suspense>
       <Footer />
       <FloatingTelegram />
       <Toaster />

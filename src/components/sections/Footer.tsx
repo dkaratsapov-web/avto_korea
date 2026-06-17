@@ -1,4 +1,5 @@
 import { Phone, Send, MessageCircle, Mail, MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Logo } from "@/components/ui/Logo";
 import { CarSilhouette } from "@/components/icons/CarSilhouette";
 import { Flag } from "@/components/icons/Flag";
@@ -96,8 +97,11 @@ export function Footer() {
       <div className="wrap relative flex flex-wrap items-center justify-between gap-3 py-6 text-[13px]">
         <span>© 2026 ДиАвто69. Импорт авто под ключ.</span>
         {/* TODO: подключить страницы политики и реквизитов после подтверждения. */}
-        <span className="text-[#6f7884]">
-          Реквизиты и политика конфиденциальности — TODO
+        <span className="flex items-center gap-3 text-[#6f7884]">
+          Реквизиты и политика — TODO
+          <Link to="/admin" className="transition-colors hover:text-chrome">
+            Админ
+          </Link>
         </span>
       </div>
     </footer>

@@ -90,7 +90,7 @@ export function CarCard({ car }: { car: Car }) {
           </div>
           <span className="flex h-[46px] items-center gap-2 rounded-[11px] bg-graphite px-4 text-[14px] font-bold text-white transition-colors group-hover:bg-bordeaux">
             Подробнее
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
           </span>
         </div>
       </div>

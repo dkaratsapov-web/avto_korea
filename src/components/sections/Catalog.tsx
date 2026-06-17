@@ -5,30 +5,28 @@ import { CarCard } from "@/components/CarCard";
 import { Reveal } from "@/components/ui/Reveal";
 import { Button } from "@/components/ui/Button";
 import { Flag } from "@/components/icons/Flag";
-import { cars } from "@/data/cars";
+import { useCars } from "@/lib/carsStore";
 import { countries, type CountryCode } from "@/lib/site";
 
 type Filter = "all" | CountryCode;
 const PAGE = 6; // 3 в ряд × 2 ряда
 
-// Только страны, которые реально есть в витрине.
-const present = Array.from(new Set(cars.map((c) => c.country))) as CountryCode[];
-const tabs: { value: Filter; label: string; flag?: string }[] = [
-  { value: "all", label: "Все" },
-  ...present.map((code) => ({
-    value: code,
-    label: countries[code].label,
-    flag: countries[code].flag,
-  })),
-];
-
 export function Catalog() {
+  const { cars } = useCars();
   const [filter, setFilter] = useState<Filter>("all");
   const [shown, setShown] = useState(PAGE);
 
+  const tabs = useMemo<{ value: Filter; label: string }[]>(() => {
+    const present = Array.from(new Set(cars.map((c) => c.country)));
+    return [
+      { value: "all", label: "Все" },
+      ...present.map((code) => ({ value: code, label: countries[code].label })),
+    ];
+  }, [cars]);
+
   const filtered = useMemo(
     () => cars.filter((c) => filter === "all" || c.country === filter),
-    [filter],
+    [cars, filter],
   );
   const visible = filtered.slice(0, shown);
   const hasMore = shown < filtered.length;
