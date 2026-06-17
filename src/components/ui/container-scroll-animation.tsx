@@ -54,7 +54,7 @@ function Card({
         rotateX: rotate,
         scale,
         boxShadow:
-          "0 0 #0000004d, 0 9px 20px #0000004a, 0 37px 37px #00000042, 0 84px 50px #00000026, 0 149px 60px #0000000a, 0 233px 65px #00000003",
+          "0 0 #0000004d, 0 9px 20px #0000004a, 0 37px 37px #00000042, 0 84px 50px #00000026, 0 149px 60px #0000000a, 0 233px 65px #00000003, 0 120px 160px -60px rgba(0,0,0,.5)",
       }}
       className="mx-auto w-full rounded-[28px] border border-line-dark bg-graphite-2 p-3 md:p-5"
     >

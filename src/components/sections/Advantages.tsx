@@ -103,7 +103,7 @@ function AdvantageCard({
 
 export function Advantages() {
   return (
-    <section className="overflow-hidden bg-gradient-to-b from-white to-paper pb-6 pt-[72px]">
+    <section className="overflow-x-clip bg-gradient-to-b from-white to-paper pb-10 pt-[72px]">
       <div className="wrap">
         <ContainerScroll
           titleComponent={
