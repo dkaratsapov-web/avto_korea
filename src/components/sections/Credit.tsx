@@ -42,30 +42,30 @@ export function Credit() {
           ))}
         </div>
 
-        <Reveal className="mt-10 rounded-card border border-line bg-white p-6 sm:p-8">
-          <div className="flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
-            <div>
-              <div className="mb-4 text-[13px] font-extrabold uppercase tracking-[0.12em] text-ink-2">
-                Банки-партнёры
-              </div>
-              <div className="flex flex-wrap gap-3">
-                {banks.map((b) => (
-                  <span
-                    key={b}
-                    className="inline-flex items-center gap-2.5 rounded-full border border-line bg-paper px-5 py-3 font-display text-[18px] font-extrabold uppercase tracking-[0.01em] text-ink"
-                  >
-                    <Landmark className="h-5 w-5 text-bordeaux" />
-                    {b}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <Button variant="primary" onClick={openLead} className="flex-none">
-              Рассчитать кредит
-              <ArrowRight className="h-[18px] w-[18px]" />
-            </Button>
+        <Reveal className="mt-10 rounded-card border border-line bg-white p-6 text-center sm:p-8">
+          <div className="mb-4 text-[13px] font-extrabold uppercase tracking-[0.12em] text-ink-2">
+            Банки-партнёры
           </div>
-          <p className="mt-5 text-[12.5px] text-ink-2">
+          <div className="flex flex-wrap justify-center gap-3">
+            {banks.map((b) => (
+              <span
+                key={b}
+                className="inline-flex items-center gap-2.5 rounded-full border border-line bg-paper px-5 py-3 font-display text-[18px] font-extrabold uppercase tracking-[0.01em] text-ink"
+              >
+                <Landmark className="h-5 w-5 text-bordeaux" />
+                {b}
+              </span>
+            ))}
+          </div>
+          <Button
+            variant="primary"
+            onClick={openLead}
+            className="mx-auto mt-7 !min-h-[56px] !px-9 text-[16px]"
+          >
+            Рассчитать кредит
+            <ArrowRight className="h-5 w-5" />
+          </Button>
+          <p className="mx-auto mt-5 max-w-xl text-[12.5px] text-ink-2">
             Кредит предоставляется банком; решение принимает банк. Условия,
             ставки и одобрение уточняйте у менеджера.
           </p>
