@@ -47,7 +47,7 @@ export const cars: Car[] = [
     priceTverRub: 2_070_000,
     status: "in_stock",
     isNew: true,
-    images: [1, 2, 3, 4, 5, 6].map((n) => asset(`cars/tharu/${n}.jpg`)),
+    images: [1, 2, 3, 4, 5, 6].map((n) => asset(`cars/tharu/${n}.webp`)),
     highlights: [
       "Новый автомобиль, 0 км",
       "Комплектация Sharp Edition",
@@ -71,7 +71,7 @@ export const cars: Car[] = [
     priceTverRub: 1_800_000,
     status: "in_stock",
     isNew: true,
-    images: [1, 2, 3, 4, 5, 6, 7].map((n) => asset(`cars/k3/${n}.jpg`)),
+    images: [1, 2, 3, 4, 5, 6, 7].map((n) => asset(`cars/k3/${n}.webp`)),
     highlights: [
       "Новый автомобиль, 2026 года, 0 км",
       "Комплектация Comfort Edition",
@@ -95,7 +95,7 @@ export const cars: Car[] = [
     priceTverRub: 5_430_000,
     status: "in_stock",
     isNew: true,
-    images: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => asset(`cars/teramont/${n}.jpg`)),
+    images: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => asset(`cars/teramont/${n}.webp`)),
     highlights: [
       "Новый автомобиль, 2026 года, 0 км",
       "Максимальная комплектация · 450TSI",
@@ -119,7 +119,7 @@ export const cars: Car[] = [
     priceTverRub: 1_970_000,
     status: "in_stock",
     isNew: true,
-    images: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => asset(`cars/kia-k3-luxury/${n}.jpg`)),
+    images: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => asset(`cars/kia-k3-luxury/${n}.webp`)),
     highlights: [
       "Новый автомобиль, 2026 года, 0 км",
       "Максимальная комплектация Luxury Smart",
@@ -144,7 +144,7 @@ export const cars: Car[] = [
     priceTverRub: 2_100_000,
     status: "in_stock",
     isNew: true,
-    images: [1, 2, 3, 4, 5, 6].map((n) => asset(`cars/jetta-vs7/${n}.jpg`)),
+    images: [1, 2, 3, 4, 5, 6].map((n) => asset(`cars/jetta-vs7/${n}.webp`)),
     highlights: [
       "Новый автомобиль, 2026 года, 0 км",
       "Комплектация Glory Edition",
@@ -168,7 +168,7 @@ export const cars: Car[] = [
     priceTverRub: 1_740_000,
     status: "in_stock",
     isNew: true,
-    images: [1, 2, 3, 4, 5, 6, 7].map((n) => asset(`cars/geely-emgrand/${n}.jpg`)),
+    images: [1, 2, 3, 4, 5, 6, 7].map((n) => asset(`cars/geely-emgrand/${n}.webp`)),
     highlights: [
       "Новый автомобиль, 2026 года, 0 км",
       "Комплектация Luxury",
@@ -192,7 +192,7 @@ export const cars: Car[] = [
     priceTverRub: 1_970_000,
     status: "in_stock",
     isNew: true,
-    images: [1, 2, 3, 4, 5, 6, 7].map((n) => asset(`cars/hyundai-elantra/${n}.jpg`)),
+    images: [1, 2, 3, 4, 5, 6, 7].map((n) => asset(`cars/hyundai-elantra/${n}.webp`)),
     highlights: [
       "Новый автомобиль, 2026 года, 0 км",
       "Комплектация Premium",
@@ -216,7 +216,7 @@ export const cars: Car[] = [
     priceTverRub: 1_960_000,
     status: "in_stock",
     isNew: true,
-    images: [1, 2, 3, 4, 5, 6].map((n) => asset(`cars/jetta-vs5/${n}.jpg`)),
+    images: [1, 2, 3, 4, 5, 6].map((n) => asset(`cars/jetta-vs5/${n}.webp`)),
     highlights: [
       "Новый автомобиль, 2026 года, 0 км",
       "Двигатель 1.4T, 150 л.с., АКПП",
@@ -239,7 +239,7 @@ export const cars: Car[] = [
     priceTverRub: 1_820_000,
     status: "in_stock",
     isNew: true,
-    images: [1, 2, 3, 4, 5, 6].map((n) => asset(`cars/jetta-vs5-pioner/${n}.jpg`)),
+    images: [1, 2, 3, 4, 5, 6].map((n) => asset(`cars/jetta-vs5-pioner/${n}.webp`)),
     highlights: [
       "Новый автомобиль, 2026 года, 0 км",
       "Комплектация Pioneer Edition",
@@ -263,7 +263,7 @@ export const cars: Car[] = [
     priceTverRub: 3_990_000,
     status: "in_stock",
     isNew: true,
-    images: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => asset(`cars/toyota-rav4/${n}.jpg`)),
+    images: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => asset(`cars/toyota-rav4/${n}.webp`)),
     highlights: [
       "Новый автомобиль, 2026 года, 0 км",
       "Максимальная комплектация Deluxe Edition",

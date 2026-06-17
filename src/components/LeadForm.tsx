@@ -48,8 +48,8 @@ export type LeadFormProps = {
   className?: string;
   /** Преселект страны для формы-калькулятора. */
   defaultCountry?: keyof typeof countries;
-  /** Первое поле compact-формы: авто/бюджет (по умолчанию) или имя (для карточки авто). */
-  firstField?: "car" | "name";
+  /** Показывать поле «Марка и модель» в compact-форме (на карточке авто не нужно). */
+  withCar?: boolean;
 };
 
 export function LeadForm({
@@ -59,7 +59,7 @@ export function LeadForm({
   submitLabel = "Получить расчёт",
   className = "",
   defaultCountry,
-  firstField = "car",
+  withCar = true,
 }: LeadFormProps) {
   const [loading, setLoading] = useState(false);
   const fieldClass = tone === "dark" ? "field-dark" : "field-light";
@@ -116,23 +116,22 @@ export function LeadForm({
           onSubmit={handleSubmit}
           className="flex max-w-[560px] flex-wrap items-center gap-[10px] rounded-card border border-line-dark bg-white/[0.04] p-4"
         >
-          {firstField === "name" ? (
-            <input
-              type="text"
-              name="name"
-              placeholder="Ваше имя"
-              aria-label="Имя"
-              className={`${fieldClass} min-w-[150px] flex-1`}
-            />
-          ) : (
+          <input
+            type="text"
+            name="name"
+            placeholder="Ваше имя"
+            aria-label="Имя"
+            className={`${fieldClass} min-w-[140px] flex-1`}
+          />
+          {withCar ? (
             <input
               type="text"
               name="car"
               placeholder="Марка и модель"
               aria-label="Авто или бюджет"
-              className={`${fieldClass} min-w-[150px] flex-1`}
+              className={`${fieldClass} min-w-[140px] flex-1`}
             />
-          )}
+          ) : null}
           <input
             type="tel"
             name="phone"
@@ -141,7 +140,7 @@ export function LeadForm({
             aria-label="Телефон"
             required
             onInput={maskPhone}
-            className={`${fieldClass} min-w-[150px] flex-1`}
+            className={`${fieldClass} min-w-[140px] flex-1`}
           />
           <Button
             type="submit"
@@ -166,6 +165,16 @@ export function LeadForm({
       onSubmit={handleSubmit}
       className={`grid gap-4 sm:grid-cols-2 ${className}`}
     >
+      <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-2 sm:col-span-2">
+        Имя
+        <input
+          type="text"
+          name="name"
+          placeholder="Как к вам обращаться"
+          className={fieldClass}
+        />
+      </label>
+
       <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-2">
         Страна
         <select

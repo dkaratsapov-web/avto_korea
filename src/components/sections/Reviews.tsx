@@ -1,5 +1,12 @@
 import { useRef } from "react";
-import { ChevronLeft, ChevronRight, CheckCircle2, Quote } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  Quote,
+  Image as ImageIcon,
+  Play,
+} from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
 import { Flag } from "@/components/icons/Flag";
@@ -13,6 +20,10 @@ type Review = {
   term: string;
   price: string;
   text: string;
+  /** Фото кейса (если есть). TODO: реальные фото/видео доставленных авто. */
+  media?: string;
+  /** Ссылка на видео-отзыв (если есть). */
+  video?: string;
 };
 
 // TODO: заменить на реальные отзывы и кейсы заказчика.
@@ -87,16 +98,51 @@ export function Reviews() {
             return (
               <article
                 key={r.name + r.car}
-                className="flex w-[88%] flex-none snap-start flex-col rounded-card border border-line bg-white p-6 sm:w-[420px]"
+                className="flex w-[88%] flex-none snap-start flex-col overflow-hidden rounded-card border border-line bg-white sm:w-[420px]"
               >
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/[0.14] px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
+                {/* Медиа кейса: фото или видео */}
+                <div className="relative aspect-[16/10] overflow-hidden bg-graphite">
+                  {r.media ? (
+                    // eslint-disable-next-line
+                    <img
+                      src={r.media}
+                      alt={r.car}
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[linear-gradient(160deg,#232C36,#11151A)]">
+                      <div className="flex items-center gap-3 text-chrome/70">
+                        <ImageIcon className="h-7 w-7" />
+                        <Play className="h-7 w-7" />
+                      </div>
+                      <span className="text-[12px] font-semibold uppercase tracking-[0.1em] text-steel">
+                        Фото / видео кейса
+                      </span>
+                    </div>
+                  )}
+                  <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-white/90 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
                     <CheckCircle2 className="h-4 w-4" /> Доставлено
                   </span>
-                  <Flag code={r.country} className="h-5 w-7" />
-
+                  <span className="absolute right-3 top-3">
+                    <Flag code={r.country} className="h-5 w-7" />
+                  </span>
+                  {r.video ? (
+                    <a
+                      href={r.video}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Смотреть видео-отзыв"
+                      className="absolute inset-0 flex items-center justify-center"
+                    >
+                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-bordeaux/90 text-white shadow-lg transition-transform hover:scale-105">
+                        <Play className="h-6 w-6 fill-white" />
+                      </span>
+                    </a>
+                  ) : null}
                 </div>
 
+                <div className="flex flex-1 flex-col p-6">
                 <Quote className="mb-2 h-6 w-6 text-chrome" />
                 <p className="flex-1 text-[15px] leading-relaxed text-ink">
                   {r.text}
@@ -120,6 +166,7 @@ export function Reviews() {
                       </div>
                     </div>
                   </div>
+                </div>
                 </div>
               </article>
             );

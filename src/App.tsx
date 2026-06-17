@@ -18,9 +18,11 @@ import { FloatingTelegram } from "@/components/FloatingTelegram";
 import { Toaster } from "@/components/ui/Toaster";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { CursorGlow } from "@/components/ui/CursorGlow";
-import { Preloader } from "@/components/Preloader";
 import { ModalHost } from "@/components/ModalHost";
 
+const Preloader = lazy(() =>
+  import("@/components/Preloader").then((m) => ({ default: m.Preloader })),
+);
 const CatalogPage = lazy(() =>
   import("@/components/pages/CatalogPage").then((m) => ({
     default: m.CatalogPage,
@@ -75,7 +77,11 @@ export function App() {
 
   return (
     <>
-      {intro ? <Preloader onDone={() => setIntro(false)} /> : null}
+      {intro ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[100] bg-graphite" />}>
+          <Preloader onDone={() => setIntro(false)} />
+        </Suspense>
+      ) : null}
       <ScrollManager />
       <CursorGlow />
       <ScrollProgress />

@@ -187,7 +187,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
             <LeadForm
               layout="compact"
               tone="dark"
-              firstField="name"
+              withCar={false}
               source={`Каталог — ${car.model}`}
               submitLabel="Запросить"
               className="lg:flex-none"

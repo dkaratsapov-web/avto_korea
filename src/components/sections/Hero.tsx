@@ -1,4 +1,6 @@
 import { useRef, useState, type PointerEvent } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 import { LeadForm } from "@/components/LeadForm";
 import { EstimateMockup } from "@/components/HeroEstimate";
 import { Flag } from "@/components/icons/Flag";
@@ -19,7 +21,7 @@ const flags: { code: CountryCode; title: string }[] = [
 
 // import.meta.env.BASE_URL учитывает base из vite.config (на GitHub Pages — /avto_korea/).
 // TODO: заменить на фото, на которое у заказчика есть права (см. ТЗ).
-const HERO_IMAGE = `${import.meta.env.BASE_URL}hero-bg.jpg`;
+const HERO_IMAGE = `${import.meta.env.BASE_URL}hero-bg.webp`;
 
 export function Hero() {
   const ref = useRef<HTMLElement | null>(null);
@@ -77,7 +79,7 @@ export function Hero() {
         <div className="grain absolute inset-0" aria-hidden />
       </div>
 
-      <div className="wrap grid items-center gap-10 pb-[64px] pt-[120px] max-md:gap-[18px] max-md:pb-[56px] max-md:pt-[104px] md:grid-cols-[1.08fr_0.92fr] md:pb-[100px] md:pt-[140px]">
+      <div className="wrap grid items-center gap-10 pb-8 pt-[120px] max-md:gap-[18px] max-md:pb-6 max-md:pt-[104px] md:grid-cols-[1.08fr_0.92fr] md:pb-8 md:pt-[140px]">
         <div className="relative z-10 animate-fade-up">
           <div className="mb-[22px] inline-flex items-center gap-3 rounded-full border border-line-dark bg-graphite-2/50 py-2 pl-2 pr-4 text-[13px] font-bold uppercase tracking-[0.14em] text-chrome backdrop-blur-sm">
             <span className="slash" aria-hidden /> Импорт авто под ключ · 69 регион
@@ -138,11 +140,15 @@ export function Hero() {
         </div>
       </div>
 
-      {/* индикатор прокрутки */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-5 z-10 hidden justify-center md:flex">
-        <div className="flex h-9 w-6 items-start justify-center rounded-full border border-chrome/40 p-1.5">
-          <span className="h-2 w-1 animate-scroll-cue rounded-full bg-chrome" />
-        </div>
+      {/* Большая кнопка в каталог */}
+      <div className="wrap relative z-10 pb-[72px] max-md:pb-12">
+        <Link
+          to="/catalog"
+          className="group flex h-[60px] w-full items-center justify-center gap-3 rounded-[16px] border border-chrome/30 bg-white/[0.06] text-[18px] font-extrabold uppercase tracking-[0.03em] text-white backdrop-blur-sm transition-all duration-300 hover:border-chrome hover:bg-white/[0.12] sm:h-[64px] sm:text-[20px]"
+        >
+          Перейти в каталог
+          <ArrowRight className="h-6 w-6 transition-transform duration-300 group-hover:translate-x-1.5" />
+        </Link>
       </div>
     </section>
   );
