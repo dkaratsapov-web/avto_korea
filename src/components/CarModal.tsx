@@ -9,6 +9,7 @@ import {
 import { Modal } from "@/components/ui/Modal";
 import { LeadForm } from "@/components/LeadForm";
 import { Button } from "@/components/ui/Button";
+import { Flag } from "@/components/icons/Flag";
 import {
   EngineIcon,
   MileageIcon,
@@ -41,7 +42,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
               className="h-full w-full object-cover"
             />
             <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[13px] font-bold text-ink">
-              <span className="text-[15px]">{country.flag}</span>
+              <Flag code={car.country} className="h-3.5 w-5" />
               {country.label}
             </span>
             {car.isNew ? (

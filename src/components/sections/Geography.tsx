@@ -1,5 +1,6 @@
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
+import { Flag } from "@/components/icons/Flag";
 import { countries } from "@/lib/site";
 
 const routes = [
@@ -47,7 +48,7 @@ export function Geography() {
                 className="flex h-full flex-col rounded-card border border-line bg-paper p-6 transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:border-[#d4d8de] hover:bg-white hover:shadow-card"
               >
                 <div className="mb-4 flex items-center gap-3">
-                  <span className="text-[34px] leading-none">{c.flag}</span>
+                  <Flag code={r.code} className="h-8 w-12 shadow-sm" />
                   <div>
                     <div className="font-display text-[22px] uppercase text-ink">
                       {c.label}

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { CarCard } from "@/components/CarCard";
 import { Reveal } from "@/components/ui/Reveal";
 import { Button } from "@/components/ui/Button";
+import { Flag } from "@/components/icons/Flag";
 import { cars } from "@/data/cars";
 import { countries, type CountryCode } from "@/lib/site";
 
@@ -78,7 +79,9 @@ export function Catalog() {
                       : "border-line bg-white text-ink-2 hover:border-steel hover:text-ink"
                   }`}
                 >
-                  {t.flag ? <span className="text-[15px]">{t.flag}</span> : null}
+                  {t.value !== "all" ? (
+                    <Flag code={t.value} className="h-3.5 w-5" />
+                  ) : null}
                   {t.label}
                 </button>
               );

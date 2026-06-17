@@ -4,7 +4,8 @@ import { CarModal } from "@/components/CarModal";
 import { LeadForm } from "@/components/LeadForm";
 import { Button } from "@/components/ui/Button";
 import { cars, formatPrice } from "@/data/cars";
-import { countries, site } from "@/lib/site";
+import { site } from "@/lib/site";
+import { Flag } from "@/components/icons/Flag";
 import { useUI } from "@/lib/ui";
 
 export function ModalHost() {
@@ -67,7 +68,6 @@ export function ModalHost() {
         ) : (
           <div className="space-y-3">
             {favCars.map((car) => {
-              const country = countries[car.country];
               return (
                 <div
                   key={car.id}
@@ -87,8 +87,9 @@ export function ModalHost() {
                     />
                   </button>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-bold text-white">
-                      {country.flag} {car.model}
+                    <div className="flex items-center gap-2 font-bold text-white">
+                      <Flag code={car.country} className="h-3.5 w-5" />
+                      <span className="truncate">{car.model}</span>
                     </div>
                     <div className="font-num text-[15px] font-bold text-bordeaux-bright">
                       {formatPrice(car.priceTverRub ?? car.priceRub)} ₽

@@ -1,6 +1,8 @@
 import { useRef, useState, type PointerEvent } from "react";
 import { LeadForm } from "@/components/LeadForm";
 import { EstimateMockup } from "@/components/HeroEstimate";
+import { Flag } from "@/components/icons/Flag";
+import type { CountryCode } from "@/lib/site";
 
 const badges = [
   { strong: "15 мин", rest: " — расчёт под ключ" },
@@ -8,11 +10,11 @@ const badges = [
   { pre: "Цена ", strong: "с растаможкой" },
 ];
 
-const flags = [
-  { flag: "🇰🇷", title: "Корея" },
-  { flag: "🇨🇳", title: "Китай" },
-  { flag: "🇯🇵", title: "Япония" },
-  { flag: "🇪🇺", title: "ЕС" },
+const flags: { code: CountryCode; title: string }[] = [
+  { code: "kr", title: "Корея" },
+  { code: "cn", title: "Китай" },
+  { code: "jp", title: "Япония" },
+  { code: "eu", title: "ЕС" },
 ];
 
 // import.meta.env.BASE_URL учитывает base из vite.config (на GitHub Pages — /avto_korea/).
@@ -114,9 +116,7 @@ export function Hero() {
           <div className="mt-[26px] flex items-center gap-2.5 text-[14px] text-[#AEB7BE]">
             Возим из:
             {flags.map((f) => (
-              <span key={f.title} title={f.title} className="text-[22px]">
-                {f.flag}
-              </span>
+              <Flag key={f.code} code={f.code} className="h-4 w-6" />
             ))}
           </div>
         </div>

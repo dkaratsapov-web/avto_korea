@@ -1,6 +1,7 @@
 import { Phone, Send, MessageCircle, Mail, MapPin } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { CarSilhouette } from "@/components/icons/CarSilhouette";
+import { Flag } from "@/components/icons/Flag";
 import { nav, site } from "@/lib/site";
 
 export function Footer() {
@@ -15,9 +16,13 @@ export function Footer() {
       <div className="wrap relative grid gap-10 py-14 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <Logo />
-          <p className="mt-4 max-w-xs text-[14px] leading-relaxed">
-            Импорт авто из 🇰🇷 🇨🇳 🇯🇵 🇪🇺 под ключ. Реальные цены и честный
-            расчёт без накруток.
+          <p className="mt-4 flex max-w-xs flex-wrap items-center gap-1.5 text-[14px] leading-relaxed">
+            Импорт авто из
+            <Flag code="kr" className="h-3.5 w-5" />
+            <Flag code="cn" className="h-3.5 w-5" />
+            <Flag code="jp" className="h-3.5 w-5" />
+            <Flag code="eu" className="h-3.5 w-5" />
+            под ключ — реальные цены и честный расчёт без накруток.
           </p>
           <div className="mt-4 flex items-center gap-2 text-[#9AA4B0]">
             <MapPin className="h-4 w-4 text-steel" /> {site.region}
@@ -89,7 +94,7 @@ export function Footer() {
 
       <div className="chrome-line opacity-40" />
       <div className="wrap relative flex flex-wrap items-center justify-between gap-3 py-6 text-[13px]">
-        <span>© 2026 ДиАвто69. Авто из 🇰🇷 🇨🇳 🇯🇵 🇪🇺 под ключ.</span>
+        <span>© 2026 ДиАвто69. Импорт авто под ключ.</span>
         {/* TODO: подключить страницы политики и реквизитов после подтверждения. */}
         <span className="text-[#6f7884]">
           Реквизиты и политика конфиденциальности — TODO

@@ -176,7 +176,7 @@ export function LeadForm({
           <option value="">Любая</option>
           {Object.entries(countries).map(([code, c]) => (
             <option key={code} value={code}>
-              {c.flag} {c.label}
+              {c.label}
             </option>
           ))}
         </select>

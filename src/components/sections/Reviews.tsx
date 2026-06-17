@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { ChevronLeft, ChevronRight, CheckCircle2, Quote } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
+import { Flag } from "@/components/icons/Flag";
 import { countries } from "@/lib/site";
 
 type Review = {
@@ -83,7 +84,6 @@ export function Reviews() {
           className="mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {reviews.map((r) => {
-            const c = countries[r.country];
             return (
               <article
                 key={r.name + r.car}
@@ -93,9 +93,8 @@ export function Reviews() {
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/[0.14] px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
                     <CheckCircle2 className="h-4 w-4" /> Доставлено
                   </span>
-                  <span className="text-[22px]" title={c.label}>
-                    {c.flag}
-                  </span>
+                  <Flag code={r.country} className="h-5 w-7" />
+
                 </div>
 
                 <Quote className="mb-2 h-6 w-6 text-chrome" />

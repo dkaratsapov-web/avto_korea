@@ -5,6 +5,7 @@ import {
   GearboxIcon,
   DriveIcon,
 } from "@/components/icons/SpecIcons";
+import { Flag } from "@/components/icons/Flag";
 import { type Car, statusLabels, formatPrice } from "@/data/cars";
 import { countries } from "@/lib/site";
 import { useUI } from "@/lib/ui";
@@ -38,7 +39,7 @@ export function CarCard({ car }: { car: Car }) {
         <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
 
         <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-white/[0.92] px-[11px] py-[5px] text-[13px] font-bold text-ink">
-          <span className="text-[15px]">{country.flag}</span>
+          <Flag code={car.country} className="h-3.5 w-5" />
           {country.label}
         </span>
 
