@@ -28,7 +28,7 @@ function Panel({
       onClick={onActivate}
       aria-expanded={isActive}
       aria-label={step.title}
-      className={`group relative h-[460px] shrink-0 overflow-hidden rounded-[22px] border text-left outline-none transition-[flex-grow,border-color] duration-[2800ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+      className={`group relative h-[460px] shrink-0 overflow-hidden rounded-[22px] border text-left outline-none transition-[flex-grow,border-color] duration-[1800ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
         isActive
           ? "border-bordeaux-bright/40"
           : "border-line-dark hover:border-chrome/30"
@@ -47,7 +47,7 @@ function Panel({
       {/* крупный номер-водяной знак */}
       <span
         aria-hidden
-        className={`pointer-events-none absolute right-2 top-1 font-display text-[120px] font-extrabold leading-none transition-opacity duration-[2000ms] ${
+        className={`pointer-events-none absolute right-2 top-1 font-display text-[120px] font-extrabold leading-none transition-opacity duration-[1100ms] ${
           isActive ? "text-shine opacity-40" : "text-white/[0.05]"
         }`}
       >
@@ -56,7 +56,7 @@ function Panel({
 
       {/* иконка */}
       <span
-        className={`absolute left-4 top-4 flex h-12 w-12 items-center justify-center rounded-[14px] transition-colors duration-[2000ms] ${
+        className={`absolute left-4 top-4 flex h-12 w-12 items-center justify-center rounded-[14px] transition-colors duration-[1100ms] ${
           isActive ? "bg-bordeaux text-white" : "bg-white/[0.06] text-chrome"
         }`}
       >
@@ -77,7 +77,7 @@ function Panel({
       <span
         className={`absolute bottom-0 left-0 block w-[360px] max-w-full bg-gradient-to-t from-graphite via-graphite/70 to-transparent p-6 pt-16 transition-[opacity,transform] ${
           isActive
-            ? "translate-y-0 opacity-100 delay-[800ms] duration-700"
+            ? "translate-y-0 opacity-100 delay-0 duration-500"
             : "pointer-events-none translate-y-2 opacity-0 delay-0 duration-200"
         }`}
         aria-hidden={!isActive}
