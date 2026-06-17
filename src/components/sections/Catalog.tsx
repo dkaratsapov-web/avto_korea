@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { CarCard } from "@/components/CarCard";
 import { Reveal } from "@/components/ui/Reveal";
+import { Button } from "@/components/ui/Button";
 import { cars } from "@/data/cars";
 import { countries, type CountryCode } from "@/lib/site";
 
 type Filter = "all" | CountryCode;
+const PAGE = 6; // 3 в ряд × 2 ряда
 
 // Только страны, которые реально есть в витрине.
 const present = Array.from(new Set(cars.map((c) => c.country))) as CountryCode[];
@@ -19,11 +21,19 @@ const tabs: { value: Filter; label: string; flag?: string }[] = [
 
 export function Catalog() {
   const [filter, setFilter] = useState<Filter>("all");
+  const [shown, setShown] = useState(PAGE);
 
-  const visible = useMemo(
+  const filtered = useMemo(
     () => cars.filter((c) => filter === "all" || c.country === filter),
     [filter],
   );
+  const visible = filtered.slice(0, shown);
+  const hasMore = shown < filtered.length;
+
+  function changeFilter(value: Filter) {
+    setFilter(value);
+    setShown(PAGE);
+  }
 
   return (
     <section id="catalog" className="scroll-mt-24 bg-paper py-[88px]">
@@ -61,7 +71,7 @@ export function Catalog() {
                   key={t.value}
                   role="tab"
                   aria-selected={active}
-                  onClick={() => setFilter(t.value)}
+                  onClick={() => changeFilter(t.value)}
                   className={`flex items-center gap-[7px] rounded-full border-[1.5px] px-[18px] py-2.5 text-[14px] font-bold transition-[0.15s] ${
                     active
                       ? "border-graphite bg-graphite text-white"
@@ -81,7 +91,7 @@ export function Catalog() {
         {visible.length > 0 ? (
           <div className="grid grid-cols-1 gap-[22px] sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((car, i) => (
-              <Reveal key={car.id} direction="up" delay={i * 90}>
+              <Reveal key={car.id} direction="up" delay={(i % 3) * 80}>
                 <CarCard car={car} />
               </Reveal>
             ))}
@@ -92,6 +102,17 @@ export function Catalog() {
             под ваш запрос.
           </p>
         )}
+
+        {hasMore ? (
+          <div className="mt-[34px] flex justify-center">
+            <Button
+              variant="ghost-light"
+              onClick={() => setShown((s) => s + PAGE)}
+            >
+              Смотреть ещё ({filtered.length - shown})
+            </Button>
+          </div>
+        ) : null}
       </div>
     </section>
   );

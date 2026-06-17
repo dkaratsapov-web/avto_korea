@@ -21,11 +21,13 @@ import { Preloader } from "@/components/Preloader";
 import { ModalHost } from "@/components/ModalHost";
 
 export function App() {
-  const [intro, setIntro] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-  );
+  const [intro, setIntro] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const isMobile = window.innerWidth < 768;
+    // на мобиле и при reduce-motion прелоадер-глобус пропускаем (производительность)
+    return !reduce && !isMobile;
+  });
 
   useEffect(() => {
     if (!intro) return;

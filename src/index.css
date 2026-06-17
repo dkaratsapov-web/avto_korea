@@ -36,6 +36,8 @@
   body {
     @apply bg-paper font-body text-ink antialiased;
     line-height: 1.5;
+    /* страховка от горизонтального скролла на мобильных */
+    overflow-x: clip;
   }
   h1,
   h2,
@@ -228,6 +230,13 @@
 }
 .btn-primary:hover::after {
   transform: translateX(130%);
+}
+
+/* на мобильных не гоняем дорогую анимацию размытых glow-блобов */
+@media (max-width: 767px) {
+  .glow-blob {
+    animation: none !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
