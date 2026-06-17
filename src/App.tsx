@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { Header } from "@/components/sections/Header";
 import { Hero } from "@/components/sections/Hero";
 import { BrandTicker } from "@/components/sections/BrandTicker";
@@ -19,13 +20,40 @@ import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { CursorGlow } from "@/components/ui/CursorGlow";
 import { Preloader } from "@/components/Preloader";
 import { ModalHost } from "@/components/ModalHost";
+import { CatalogPage } from "@/components/pages/CatalogPage";
+
+function Landing() {
+  return (
+    <main>
+      <Hero />
+      <BrandTicker />
+      <Stats />
+      <Advantages />
+      <Catalog />
+      <HowItWorks />
+      <Calculator />
+      <Credit />
+      <Geography />
+      <Reviews />
+      <Faq />
+      <FinalCta />
+    </main>
+  );
+}
+
+function ScrollManager() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [pathname]);
+  return null;
+}
 
 export function App() {
   const [intro, setIntro] = useState(() => {
     if (typeof window === "undefined") return false;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const isMobile = window.innerWidth < 768;
-    // на мобиле и при reduce-motion прелоадер-глобус пропускаем (производительность)
     return !reduce && !isMobile;
   });
 
@@ -40,23 +68,14 @@ export function App() {
   return (
     <>
       {intro ? <Preloader onDone={() => setIntro(false)} /> : null}
+      <ScrollManager />
       <CursorGlow />
       <ScrollProgress />
       <Header />
-      <main>
-        <Hero />
-        <BrandTicker />
-        <Stats />
-        <Advantages />
-        <Catalog />
-        <HowItWorks />
-        <Calculator />
-        <Credit />
-        <Geography />
-        <Reviews />
-        <Faq />
-        <FinalCta />
-      </main>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/catalog" element={<CatalogPage />} />
+      </Routes>
       <Footer />
       <FloatingTelegram />
       <Toaster />

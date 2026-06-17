@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 import { CarCard } from "@/components/CarCard";
 import { Reveal } from "@/components/ui/Reveal";
 import { Button } from "@/components/ui/Button";
@@ -106,16 +108,20 @@ export function Catalog() {
           </p>
         )}
 
-        {hasMore ? (
-          <div className="mt-[34px] flex justify-center">
+        <div className="mt-[34px] flex flex-wrap items-center justify-center gap-3">
+          {hasMore ? (
             <Button
               variant="ghost-light"
               onClick={() => setShown((s) => s + PAGE)}
             >
               Смотреть ещё ({filtered.length - shown})
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+          <Link to="/catalog" className="btn btn-primary">
+            Весь каталог с фильтрами
+            <ArrowRight className="h-[18px] w-[18px]" />
+          </Link>
+        </div>
       </div>
     </section>
   );

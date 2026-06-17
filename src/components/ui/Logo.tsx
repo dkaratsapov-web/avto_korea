@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { CarSilhouette } from "@/components/icons/CarSilhouette";
 
 export function Logo({
@@ -8,8 +9,9 @@ export function Logo({
   className?: string;
 }) {
   return (
-    <a
-      href="#top"
+    <Link
+      to="/"
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       aria-label="ДиАвто69 — на главную"
       className={`flex items-baseline gap-px font-display text-[26px] font-extrabold tracking-[0.02em] text-white ${className}`}
     >
@@ -19,6 +21,6 @@ export function Logo({
       <span className="text-chrome">Ди</span>
       <span>Авто</span>
       <span className="text-bordeaux-bright">69</span>
-    </a>
+    </Link>
   );
 }

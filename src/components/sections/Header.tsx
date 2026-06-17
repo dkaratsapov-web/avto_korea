@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Menu,
   X,
@@ -22,6 +23,28 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState<string>("");
   const { openLead, openFavorites, favCount } = useUI();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  function scrollToId(id: string) {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  }
+  function handleNav(href: string) {
+    setOpen(false);
+    if (href === "#catalog") {
+      navigate("/catalog");
+      window.scrollTo({ top: 0 });
+      return;
+    }
+    const id = href.slice(1);
+    if (pathname !== "/") {
+      navigate("/");
+      setTimeout(() => scrollToId(id), 90);
+    } else {
+      scrollToId(id);
+    }
+  }
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -46,7 +69,7 @@ export function Header() {
     );
     els.forEach((el) => obs.observe(el));
     return () => obs.disconnect();
-  }, []);
+  }, [pathname]);
 
   const h = scrolled ? "h-12" : "h-[52px]";
 
@@ -79,8 +102,9 @@ export function Header() {
                     aria-hidden
                   />
                 ) : null}
-                <a
-                  href={item.href}
+                <button
+                  type="button"
+                  onClick={() => handleNav(item.href)}
                   aria-current={isActive ? "true" : undefined}
                   className={`relative rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors ${
                     isActive
@@ -95,7 +119,7 @@ export function Header() {
                       aria-hidden
                     />
                   ) : null}
-                </a>
+                </button>
               </span>
             );
           })}
@@ -157,11 +181,11 @@ export function Header() {
             {nav.map((item) => {
               const isActive = active === item.href.slice(1);
               return (
-                <a
+                <button
                   key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center gap-3 rounded-full px-4 py-3 text-[16px] font-semibold transition-colors ${
+                  type="button"
+                  onClick={() => handleNav(item.href)}
+                  className={`flex items-center gap-3 rounded-full px-4 py-3 text-left text-[16px] font-semibold transition-colors ${
                     isActive
                       ? "bg-white/[0.08] text-white"
                       : "text-[#C3CBD2] hover:bg-white/5 hover:text-white"
@@ -174,7 +198,7 @@ export function Header() {
                     aria-hidden
                   />
                   {item.label}
-                </a>
+                </button>
               );
             })}
             <div className="mt-1 flex items-center gap-2 border-t border-line-dark px-2 pt-3">
