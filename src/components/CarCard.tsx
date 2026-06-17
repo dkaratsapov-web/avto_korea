@@ -18,12 +18,15 @@ export function CarCard({ car }: { car: Car }) {
 
   return (
     <article
-      ref={tilt.ref}
-      onPointerMove={tilt.onMove}
-      onPointerLeave={tilt.onLeave}
       onClick={() => openCar(car.id)}
-      className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-card border border-line bg-white transition-[transform,box-shadow,border-color] duration-300 [transform-style:preserve-3d] hover:border-[#d4d8de] hover:shadow-card"
+      className="group h-full cursor-pointer overflow-hidden rounded-card border border-line bg-white transition-[box-shadow,border-color] duration-300 hover:border-[#d4d8de] hover:shadow-card"
     >
+      <div
+        ref={tilt.ref}
+        onPointerMove={tilt.onMove}
+        onPointerLeave={tilt.onLeave}
+        className="flex h-full flex-col transition-transform duration-300 [transform-style:preserve-3d]"
+      >
       <div className="relative aspect-[16/10] overflow-hidden bg-graphite">
         {/* eslint-disable-next-line */}
         <img
@@ -89,6 +92,7 @@ export function CarCard({ car }: { car: Car }) {
             <ArrowRight className="h-4 w-4" />
           </span>
         </div>
+      </div>
       </div>
     </article>
   );

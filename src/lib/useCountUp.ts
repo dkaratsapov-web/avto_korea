@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
  * Анимированный счётчик: считает от 0 до target, когда элемент попадает во вьюпорт.
  * Уважает prefers-reduced-motion (показывает финальное значение сразу).
  */
-export function useCountUp(target: number, duration = 2600) {
+export function useCountUp(target: number, duration = 3600) {
   const ref = useRef<HTMLSpanElement | null>(null);
   const [value, setValue] = useState(0);
   const started = useRef(false);
@@ -27,8 +27,8 @@ export function useCountUp(target: number, duration = 2600) {
             const start = performance.now();
             const tick = (now: number) => {
               const p = Math.min((now - start) / duration, 1);
-              // easeOutQuint — заметно медленнее у финиша
-              const eased = 1 - Math.pow(1 - p, 5);
+              // сильный ease-out — заметно медленнее у финиша
+              const eased = 1 - Math.pow(1 - p, 7);
               setValue(Math.round(target * eased));
               if (p < 1) requestAnimationFrame(tick);
             };

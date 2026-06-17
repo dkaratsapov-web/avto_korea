@@ -34,11 +34,11 @@ function StatItem({ stat, delay }: { stat: Stat; delay: number }) {
 
 export function Stats() {
   return (
-    <section className="grain relative overflow-hidden bg-graphite-2 py-[70px]">
-      <div className="glow-blob -left-20 top-0 h-72 w-72 animate-glow-pan bg-bordeaux/25" aria-hidden />
-      <div className="glow-blob -right-10 bottom-0 h-64 w-64 animate-glow-pan bg-steel/20 [animation-delay:-7s]" aria-hidden />
+    <section className="grain relative overflow-hidden bg-graphite-2 py-[44px]">
+      <div className="glow-blob -left-20 top-0 h-56 w-56 animate-glow-pan bg-bordeaux/25" aria-hidden />
+      <div className="glow-blob -right-10 bottom-0 h-52 w-52 animate-glow-pan bg-steel/20 [animation-delay:-7s]" aria-hidden />
 
-      <div className="wrap relative grid grid-cols-2 gap-y-12 lg:grid-cols-4">
+      <div className="wrap relative grid grid-cols-2 gap-y-9 lg:grid-cols-4">
         {stats.map((s, i) => (
           <div
             key={s.label}

@@ -7,6 +7,7 @@ import { Advantages } from "@/components/sections/Advantages";
 import { HowItWorks } from "@/components/sections/HowItWorks";
 import { Catalog } from "@/components/sections/Catalog";
 import { Calculator } from "@/components/sections/Calculator";
+import { Credit } from "@/components/sections/Credit";
 import { Geography } from "@/components/sections/Geography";
 import { Reviews } from "@/components/sections/Reviews";
 import { Faq } from "@/components/sections/Faq";
@@ -41,13 +42,14 @@ export function App() {
       <ScrollProgress />
       <Header />
       <main>
-        <Hero start={!intro} />
+        <Hero />
         <BrandTicker />
         <Stats />
         <Advantages />
         <Catalog />
         <HowItWorks />
         <Calculator />
+        <Credit />
         <Geography />
         <Reviews />
         <Faq />

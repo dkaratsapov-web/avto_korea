@@ -246,9 +246,29 @@ export function Preloader({ onDone }: { onDone: () => void }) {
       drawArc(elapsed);
     };
 
+    // Генерация точек для одной фичи (вынесена, чтобы дробить по кадрам).
+    let queue: any[] = [];
+    const genFeature = (feature: any) => {
+      const [[minLng, minLat], [maxLng, maxLat]] = geoBounds(feature);
+      const step = 3.4;
+      for (let lng = minLng; lng <= maxLng; lng += step) {
+        for (let lat = minLat; lat <= maxLat; lat += step) {
+          const p: [number, number] = [lng, lat];
+          if (pointInFeature(p, feature)) dots.push({ p, v: toVec(lng, lat) });
+        }
+      }
+    };
+
     let lastRender = -100;
     const t = timer((elapsed) => {
       if (!reduce) projection.rotate([-90 + elapsed * 0.004, -48]);
+      // инкрементальная генерация точек с бюджетом ~4мс/кадр — без джанка
+      if (queue.length) {
+        const budget = performance.now() + 4;
+        while (queue.length && performance.now() < budget) {
+          genFeature(queue.shift());
+        }
+      }
       if (elapsed - lastRender < 33) return; // ~30fps
       lastRender = elapsed;
       render(elapsed);
@@ -258,16 +278,7 @@ export function Preloader({ onDone }: { onDone: () => void }) {
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((geo: any) => {
         land = geo;
-        for (const feature of geo.features) {
-          const [[minLng, minLat], [maxLng, maxLat]] = geoBounds(feature);
-          const step = 3.2;
-          for (let lng = minLng; lng <= maxLng; lng += step) {
-            for (let lat = minLat; lat <= maxLat; lat += step) {
-              const p: [number, number] = [lng, lat];
-              if (pointInFeature(p, feature)) dots.push({ p, v: toVec(lng, lat) });
-            }
-          }
-        }
+        queue = geo.features.slice(); // точки сгенерируются постепенно в timer
       })
       .catch(() => {
         /* без суши — глобус с дугой всё равно показывается */

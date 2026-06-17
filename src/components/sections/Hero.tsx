@@ -1,9 +1,6 @@
 import { useRef, useState, type PointerEvent } from "react";
-import { Clock, Truck, Globe2, ArrowRight } from "lucide-react";
 import { LeadForm } from "@/components/LeadForm";
-import { ParticleHeadline } from "@/components/ui/particle-text-effect";
-
-const HEADLINE_LINES = ["Авто из Кореи,", "Китая и Японии", "под ключ"];
+import { EstimateMockup } from "@/components/HeroEstimate";
 
 const badges = [
   { strong: "15 мин", rest: " — расчёт под ключ" },
@@ -22,15 +19,9 @@ const flags = [
 // TODO: заменить на фото, на которое у заказчика есть права (см. ТЗ).
 const HERO_IMAGE = `${import.meta.env.BASE_URL}hero-bg.jpg`;
 
-export function Hero({ start = true }: { start?: boolean }) {
+export function Hero() {
   const ref = useRef<HTMLElement | null>(null);
   const [pointer, setPointer] = useState({ x: 0.5, y: 0.5, active: false });
-  const [reduced] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-  );
-  const [assembled, setAssembled] = useState(reduced);
 
   function onMove(e: PointerEvent<HTMLElement>) {
     if (e.pointerType !== "mouse") return;
@@ -90,28 +81,13 @@ export function Hero({ start = true }: { start?: boolean }) {
             <span className="slash" aria-hidden /> Импорт авто под ключ · 69 регион
           </div>
 
-          <div className="relative mb-[18px]">
-            <h1
-              className={`text-[clamp(40px,5.4vw,72px)] text-white transition-opacity duration-700 [text-shadow:0_2px_24px_rgba(0,0,0,.45)] ${
-                assembled ? "opacity-100" : "opacity-0"
-              }`}
-            >
-              Авто из Кореи,
-              <br />
-              Китая и Японии
-              <br />
-              <em className="not-italic text-shine">под ключ</em>
-            </h1>
-            {!reduced && !assembled ? (
-              <ParticleHeadline
-                className="pointer-events-none absolute inset-0"
-                lines={HEADLINE_LINES}
-                accentIndex={2}
-                start={start}
-                onDone={() => setAssembled(true)}
-              />
-            ) : null}
-          </div>
+          <h1 className="mb-[18px] text-[clamp(40px,5.4vw,72px)] text-white [text-shadow:0_2px_24px_rgba(0,0,0,.45)]">
+            Авто из Кореи,
+            <br />
+            Китая и Японии
+            <br />
+            <em className="not-italic text-shine">под ключ</em>
+          </h1>
 
           <p className="mb-[26px] max-w-[520px] text-[19px] text-[#D2D9DF]">
             Считаем честно и показываем реальную цену с доставкой и растаможкой —
@@ -145,50 +121,18 @@ export function Hero({ start = true }: { start?: boolean }) {
           </div>
         </div>
 
-        {/* Карточка-оффер */}
-        <div className="relative z-10 hidden items-center justify-end md:flex">
+        {/* Мокап сметы под ключ с печатью */}
+        <div className="relative z-10 hidden items-center justify-center md:flex">
           <div
-            className="relative w-full max-w-[400px]"
+            className="relative"
             style={{ transform: `translate(${px * 6}px, ${py * 5}px)` }}
           >
-            {/* фирменный хром-акцент */}
             <div
-              className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 animate-spin-slow rounded-full border border-chrome/15 [border-style:dashed]"
+              className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 animate-spin-slow rounded-full border border-chrome/15 [border-style:dashed]"
               aria-hidden
             />
-            <div className="glass animate-fade-up rounded-card p-7 shadow-glow">
-              <div className="flex items-center gap-3 text-[12px] font-extrabold uppercase tracking-[0.16em] text-chrome">
-                <span className="slash" aria-hidden /> Цена под ключ
-              </div>
-
-              <div className="mt-5 text-[12px] font-bold uppercase tracking-[0.1em] text-[#9AA4B2]">
-                под ключ от
-              </div>
-              <div className="font-num text-[clamp(34px,4.4vw,46px)] font-bold leading-none text-bordeaux-bright">
-                2 190 000 ₽
-              </div>
-
-              <div className="chrome-line my-5 opacity-60" />
-
-              <ul className="space-y-3.5">
-                <OfferRow icon={<Globe2 className="h-5 w-5" />}>
-                  Корея · Китай · Япония · ЕС
-                </OfferRow>
-                <OfferRow icon={<Clock className="h-5 w-5" />}>
-                  Честный расчёт за 15 минут
-                </OfferRow>
-                <OfferRow icon={<Truck className="h-5 w-5" />}>
-                  Доставка 30–45 дней, с растаможкой
-                </OfferRow>
-              </ul>
-
-              <a
-                href="#catalog"
-                className="btn btn-primary mt-6 w-full"
-              >
-                Смотреть наличие
-                <ArrowRight className="h-[18px] w-[18px]" />
-              </a>
+            <div className="animate-fade-up">
+              <EstimateMockup />
             </div>
           </div>
         </div>
@@ -201,22 +145,5 @@ export function Hero({ start = true }: { start?: boolean }) {
         </div>
       </div>
     </section>
-  );
-}
-
-function OfferRow({
-  icon,
-  children,
-}: {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <li className="flex items-center gap-3 text-[14.5px] font-semibold text-[#C7CFD6]">
-      <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[11px] bg-white/[0.06] text-chrome">
-        {icon}
-      </span>
-      {children}
-    </li>
   );
 }
