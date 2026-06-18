@@ -30,11 +30,13 @@ const json = (o, s = 200) =>
 
 const DEFAULT_SETTINGS = {
   welcomeText:
-    "🚗 *ДиАвто69* — авто из Кореи, Китая, Японии и ЕС под ключ.\nЧестный расчёт с растаможкой, без накруток.\n\nОткройте каталог и оставьте заявку 👇",
-  catalogButtonText: "🚘 Открыть каталог",
+    "🚗 *ДиАвто69* — авто из Кореи, Китая, Японии и ЕС под ключ.\nЧестный расчёт с растаможкой, без накруток.\n\nЖмите «Запустить бот» — каталог, калькулятор и заявка 👇",
+  catalogButtonText: "🚀 Запустить бот",
   calcButtonText: "🧮 Калькулятор",
   managerButtonText: "💬 Написать менеджеру",
   managerUrl: "https://t.me/Dmitriicarexport",
+  mapButtonText: "📍 Как к нам проехать?",
+  mapUrl: "",
 };
 
 /* ---------- Telegram API ---------- */
@@ -222,6 +224,8 @@ const need = {
   "faq.save": "manager",
   "stats.get": "viewer",
   "broadcast.send": "owner",
+  "drafts.list": "manager",
+  "drafts.remove": "manager",
   "admins.list": "owner",
   "admins.set": "owner",
   "admins.remove": "owner",
@@ -242,6 +246,13 @@ export default {
       } catch {
         return new Response("ok");
       }
+      // пост из канала → черновик авто (для подтверждения в админке)
+      const post = upd.channel_post || upd.edited_channel_post;
+      if (post) {
+        await handleChannelPost(env, post);
+        return new Response("ok");
+      }
+
       // нажатие inline-кнопки (например, «Калькулятор» — пока заглушка)
       const cq = upd.callback_query;
       if (cq) {
@@ -288,21 +299,17 @@ export default {
               text: settings.catalogButtonText,
               url: "https://avto-korea.pages.dev/catalog",
             };
-        const calcUrl = appUrl + (appUrl.includes("?") ? "&" : "?") + "screen=calc";
-        const calcBtn = /^https:\/\//.test(appUrl)
-          ? { text: settings.calcButtonText, web_app: { url: calcUrl } }
-          : { text: settings.calcButtonText, callback_data: "calc" };
+        const rows = [
+          [openBtn],
+          [{ text: settings.managerButtonText, url: settings.managerUrl }],
+        ];
+        if (settings.mapUrl)
+          rows.push([{ text: settings.mapButtonText, url: settings.mapUrl }]);
         const r = await api(env, "sendMessage", {
           chat_id: msg.chat.id,
           text: settings.welcomeText,
           parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [
-              [openBtn],
-              [calcBtn],
-              [{ text: settings.managerButtonText, url: settings.managerUrl }],
-            ],
-          },
+          reply_markup: { inline_keyboard: rows },
         });
         if (!r.ok) {
           await api(env, "sendMessage", {
@@ -353,6 +360,31 @@ export default {
     if (url.pathname === "/api/catalog" && request.method === "GET") {
       const catalog = await kvGet(env, "catalog", null);
       return json({ ok: true, catalog });
+    }
+
+    // --- Прокси фото из Telegram (токен остаётся на сервере) ---
+    if (url.pathname === "/api/tgphoto" && request.method === "GET") {
+      const id = url.searchParams.get("id");
+      if (!id) return new Response("no id", { status: 400, headers: cors });
+      try {
+        const gf = await api(env, "getFile", { file_id: id });
+        const j = await gf.json();
+        const path = j?.result?.file_path;
+        if (!path) return new Response("not found", { status: 404, headers: cors });
+        const f = await fetch(
+          `https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${path}`,
+        );
+        return new Response(f.body, {
+          status: f.status,
+          headers: {
+            ...cors,
+            "Content-Type": f.headers.get("content-type") || "image/jpeg",
+            "Cache-Control": "public, max-age=604800",
+          },
+        });
+      } catch {
+        return new Response("error", { status: 500, headers: cors });
+      }
     }
 
     // --- Публичные отзывы / FAQ ---
@@ -464,6 +496,62 @@ async function storeLead(env, d) {
   }
 }
 
+/* ---------- Черновики из канала ---------- */
+function parseCaption(text) {
+  const lines = String(text || "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const model = lines[0] || "";
+  const nums = (String(text).match(/\d[\d\s.]*\d|\d/g) || [])
+    .map((s) => Number(s.replace(/[^\d]/g, "")))
+    .filter(Boolean);
+  const price = nums.find((n) => n >= 100000) || 0;
+  const yearM = String(text).match(/\b(19|20)\d{2}\b/);
+  const year = yearM ? Number(yearM[0]) : new Date().getFullYear();
+  return { model, price, year, highlights: lines };
+}
+
+async function handleChannelPost(env, post) {
+  if (!env.STORE) return;
+  const caption = (post.caption || post.text || "").trim();
+  const fileId =
+    Array.isArray(post.photo) && post.photo.length
+      ? post.photo[post.photo.length - 1].file_id
+      : null;
+  const groupId = post.media_group_id || null;
+  const drafts = (await kvGet(env, "drafts", [])) || [];
+
+  // альбом: добавляем фото к уже созданному черновику той же группы
+  if (groupId) {
+    const ex = drafts.find((d) => d.groupId === groupId);
+    if (ex) {
+      if (fileId && !ex.fileIds.includes(fileId)) ex.fileIds.push(fileId);
+      if (caption && !ex.caption) {
+        ex.caption = caption;
+        ex.parsed = parseCaption(caption);
+      }
+      await kvPut(env, "drafts", drafts);
+      return;
+    }
+  }
+
+  if (!fileId && !caption) return;
+  drafts.unshift({
+    id: "d" + Date.now() + Math.random().toString(36).slice(2, 6),
+    groupId,
+    caption,
+    fileIds: fileId ? [fileId] : [],
+    parsed: parseCaption(caption),
+    ts: Date.now(),
+  });
+  await kvPut(env, "drafts", drafts.slice(0, 50));
+  await api(env, "sendMessage", {
+    chat_id: env.TELEGRAM_CHAT_ID,
+    text: "🆕 Новый черновик авто из канала — проверьте в админке → «Черновики».",
+  });
+}
+
 /* ---------- Обработчики админ-действий ---------- */
 async function handleAdmin(env, action, payload, role, user) {
   switch (action) {
@@ -491,6 +579,8 @@ async function handleAdmin(env, action, payload, role, user) {
         "calcButtonText",
         "managerButtonText",
         "managerUrl",
+        "mapButtonText",
+        "mapUrl",
         "miniAppUrl",
       ];
       const next = { ...cur };
@@ -567,6 +657,17 @@ async function handleAdmin(env, action, payload, role, user) {
           views: stats.views || {},
         },
       });
+    }
+
+    case "drafts.list":
+      return json({ ok: true, drafts: (await kvGet(env, "drafts", [])) || [] });
+
+    case "drafts.remove": {
+      const list = ((await kvGet(env, "drafts", [])) || []).filter(
+        (d) => d.id !== payload?.id,
+      );
+      await kvPut(env, "drafts", list);
+      return json({ ok: true, drafts: list });
     }
 
     case "broadcast.send": {

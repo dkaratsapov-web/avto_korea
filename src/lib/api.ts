@@ -13,7 +13,17 @@ export type BotSettings = {
   calcButtonText: string;
   managerButtonText: string;
   managerUrl: string;
+  mapButtonText: string;
+  mapUrl: string;
   miniAppUrl?: string;
+};
+
+export type Draft = {
+  id: string;
+  caption: string;
+  fileIds: string[];
+  parsed: { model: string; price: number; year: number; highlights: string[] };
+  ts: number;
 };
 
 export type AdminRole = "owner" | "manager" | "viewer";

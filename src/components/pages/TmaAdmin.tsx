@@ -15,6 +15,8 @@ import {
   Bell,
   Megaphone,
   BarChart3,
+  FileStack,
+  Upload,
 } from "lucide-react";
 import { useCars } from "@/lib/carsStore";
 import { type Car, type CarStatus, formatPrice } from "@/data/cars";
@@ -23,6 +25,7 @@ import { Flag } from "@/components/icons/Flag";
 import { showToast } from "@/lib/toast";
 import {
   adminCall,
+  API_BASE,
   type AdminRole,
   type BotSettings,
   type Lead,
@@ -30,11 +33,13 @@ import {
   type Review,
   type Subscription,
   type Stats,
+  type Draft,
 } from "@/lib/api";
 import { haptic, type TG } from "@/lib/telegram";
 
 type Tab =
   | "catalog"
+  | "drafts"
   | "bot"
   | "leads"
   | "reviews"
@@ -77,6 +82,23 @@ function slug(s: string) {
   );
 }
 
+function carFromDraft(d: Draft): Car {
+  const price = d.parsed.price || 0;
+  return {
+    ...emptyCar(),
+    id: "",
+    model: d.parsed.model || "Авто из канала",
+    year: d.parsed.year || new Date().getFullYear(),
+    priceRub: price,
+    priceTverRub: price,
+    priceMoscowRub: price,
+    images: d.fileIds.map(
+      (fid) => `${API_BASE}/api/tgphoto?id=${encodeURIComponent(fid)}`,
+    ),
+    highlights: d.parsed.highlights || [],
+  };
+}
+
 export function TmaAdmin({
   tg,
   initData,
@@ -91,6 +113,7 @@ export function TmaAdmin({
   const [tab, setTab] = useState<Tab>("catalog");
   const tabs: { id: Tab; label: string; icon: typeof CarIcon; min: number }[] = [
     { id: "catalog", label: "Каталог", icon: CarIcon, min: 1 },
+    { id: "drafts", label: "Черновики", icon: FileStack, min: 2 },
     { id: "bot", label: "Бот", icon: Bot, min: 1 },
     { id: "leads", label: "Заявки", icon: Inbox, min: 1 },
     { id: "reviews", label: "Отзывы", icon: Star, min: 1 },
@@ -144,6 +167,9 @@ export function TmaAdmin({
       {tab === "catalog" ? (
         <CatalogTab tg={tg} initData={initData} canEdit={rank >= 2} />
       ) : null}
+      {tab === "drafts" && rank >= 2 ? (
+        <DraftsTab tg={tg} initData={initData} />
+      ) : null}
       {tab === "bot" ? (
         <BotTab tg={tg} initData={initData} canEdit={rank >= 2} />
       ) : null}
@@ -157,6 +183,105 @@ export function TmaAdmin({
         <BroadcastTab tg={tg} initData={initData} />
       ) : null}
       {tab === "admins" && rank >= 3 ? <AdminsTab initData={initData} /> : null}
+    </div>
+  );
+}
+
+/* ---------- Черновики из канала ---------- */
+function DraftsTab({ tg, initData }: { tg: TG | null; initData: string }) {
+  const { cars, setAll } = useCars();
+  const [drafts, setDrafts] = useState<Draft[] | null>(null);
+  const [editing, setEditing] = useState<{ car: Car; draftId: string } | null>(null);
+
+  useEffect(() => {
+    adminCall<{ drafts: Draft[] }>(initData, "drafts.list").then((r) =>
+      setDrafts(r.ok ? r.drafts : []),
+    );
+  }, [initData]);
+
+  async function publish(car: Car, draftId: string) {
+    const id = car.id || slug(car.model);
+    const price = car.priceTverRub || car.priceRub || 0;
+    const full = { ...car, id, priceRub: price, priceTverRub: price };
+    const next = cars.some((c) => c.id === id)
+      ? cars.map((c) => (c.id === id ? full : c))
+      : [...cars, full];
+    setAll(next);
+    const r = await adminCall(initData, "catalog.save", next);
+    await adminCall(initData, "drafts.remove", { id: draftId });
+    setEditing(null);
+    setDrafts((p) => (p ? p.filter((d) => d.id !== draftId) : p));
+    if (r.ok) {
+      haptic(tg, "medium");
+      showToast("Опубликовано в каталог");
+    } else showToast("Ошибка сохранения", "error");
+  }
+
+  async function remove(id: string) {
+    const r = await adminCall<{ drafts: Draft[] }>(initData, "drafts.remove", { id });
+    if (r.ok) setDrafts(r.drafts);
+  }
+
+  if (editing)
+    return (
+      <CarEditor
+        initial={editing.car}
+        onCancel={() => setEditing(null)}
+        onSave={(car) => publish(car, editing.draftId)}
+      />
+    );
+  if (drafts === null) return <Spinner />;
+  if (drafts.length === 0)
+    return (
+      <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center">
+        <FileStack className="mx-auto h-8 w-8 text-chrome" />
+        <p className="mt-2 font-bold">Черновиков нет</p>
+        <p className="mt-1 text-[13px] text-[#9AA4B2]">
+          Добавьте бота администратором в ваш канал — новые посты с фото будут
+          падать сюда на проверку, и вы публикуете их в каталог одной кнопкой.
+        </p>
+      </div>
+    );
+  return (
+    <div className="space-y-2.5">
+      {drafts.map((d) => (
+        <div key={d.id} className="rounded-[16px] border border-line-dark bg-graphite-2 p-2.5">
+          <div className="flex gap-3">
+            <div className="h-[64px] w-[88px] flex-none overflow-hidden rounded-[10px] bg-black">
+              {d.fileIds[0] ? (
+                // eslint-disable-next-line
+                <img
+                  src={`${API_BASE}/api/tgphoto?id=${encodeURIComponent(d.fileIds[0])}`}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : null}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-bold">{d.parsed.model || "—"}</div>
+              <div className="text-[12px] text-[#9AA4B2]">
+                {d.parsed.year} ·{" "}
+                {d.parsed.price ? formatPrice(d.parsed.price) + " ₽" : "цена не распознана"}
+              </div>
+              <div className="text-[11px] text-[#8C97A1]">{d.fileIds.length} фото</div>
+            </div>
+          </div>
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={() => setEditing({ car: carFromDraft(d), draftId: d.id })}
+              className="btn btn-primary flex-1 !py-2"
+            >
+              <Upload className="h-4 w-4" /> Оформить и опубликовать
+            </button>
+            <button
+              onClick={() => remove(d.id)}
+              className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-line-dark text-bordeaux-bright"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -882,6 +1007,28 @@ function BotTab({
           placeholder="https://t.me/..."
         />
       </label>
+      <label>
+        <span className={lab}>Текст кнопки «Как проехать»</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.mapButtonText ?? ""}
+          onChange={(e) => set("mapButtonText", e.target.value)}
+        />
+      </label>
+      <label>
+        <span className={lab}>Ссылка на Яндекс.Карты (как проехать)</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.mapUrl ?? ""}
+          onChange={(e) => set("mapUrl", e.target.value)}
+          placeholder="https://yandex.ru/maps/..."
+        />
+      </label>
+      <p className="text-[11px] text-[#8C97A1]">
+        Кнопка «Как проехать» появится в боте только когда заполнена ссылка.
+      </p>
       <label>
         <span className={lab}>URL мини-аппа</span>
         <input
