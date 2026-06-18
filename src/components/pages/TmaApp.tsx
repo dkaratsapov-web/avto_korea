@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import {
   Heart,
   Search,
@@ -41,6 +41,11 @@ import {
 } from "@/lib/api";
 import { TmaAdmin } from "@/components/pages/TmaAdmin";
 
+// Тот же прелоадер-глобус, что и на сайте (грузится отдельным чанком).
+const Preloader = lazy(() =>
+  import("@/components/Preloader").then((m) => ({ default: m.Preloader })),
+);
+
 type View =
   | { name: "home" }
   | { name: "list" }
@@ -74,6 +79,11 @@ export function TmaApp() {
   const initDataRef = useRef<string>("");
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [intro, setIntro] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    return !reduce && !window.sessionStorage.getItem("diauto:tma:intro");
+  });
 
   // стабильные обёртки для нативных кнопок
   const mainCb = useRef<() => void>(() => {});
@@ -244,7 +254,18 @@ export function TmaApp() {
   }
 
   return (
-    <div className="min-h-screen bg-graphite text-white">
+    <>
+      {intro ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[100] bg-graphite" />}>
+          <Preloader
+            onDone={() => {
+              window.sessionStorage.setItem("diauto:tma:intro", "1");
+              setIntro(false);
+            }}
+          />
+        </Suspense>
+      ) : null}
+      <div className="min-h-screen bg-graphite text-white">
       <div className="mx-auto max-w-md px-4 pb-28">
         {/* Шапка — фиксируется при скролле */}
         <div className="sticky top-0 z-40 -mx-4 mb-4 flex items-center justify-between border-b border-line-dark/60 bg-graphite px-4 py-3">
@@ -443,7 +464,8 @@ export function TmaApp() {
           />
         ) : null}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
