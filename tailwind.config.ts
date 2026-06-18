@@ -62,6 +62,10 @@ const config: Config = {
           "0%,100%": { transform: "translateX(0)" },
           "50%": { transform: "translateX(6px)" },
         },
+        "pulse-glow": {
+          "0%,100%": { boxShadow: "0 0 0 0 rgba(156,26,18,.55)" },
+          "50%": { boxShadow: "0 0 0 9px rgba(156,26,18,0)" },
+        },
         "spin-slow": {
           "0%": { transform: "rotate(0deg)" },
           "100%": { transform: "rotate(360deg)" },
@@ -75,6 +79,7 @@ const config: Config = {
         "glow-pan": "glow-pan 14s ease-in-out infinite",
         "scroll-cue": "scroll-cue 1.8s ease-in-out infinite",
         nudge: "nudge 1.3s ease-in-out infinite",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
         "spin-slow": "spin-slow 22s linear infinite",
       },
     },

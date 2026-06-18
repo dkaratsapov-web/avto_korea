@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import {
   Menu,
   X,
@@ -8,6 +8,7 @@ import {
   MessageCircle,
   ArrowRight,
   Heart,
+  Car,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
@@ -86,6 +87,18 @@ export function Header() {
         >
           <Logo />
         </div>
+
+        {/* Каталог — отдельная яркая пульсирующая кнопка */}
+        <Magnetic strength={0.35} className="hidden md:inline-block">
+          <Link
+            to="/catalog"
+            className={`group relative flex ${h} animate-pulse-glow items-center gap-2 overflow-hidden rounded-full bg-gradient-to-b from-bordeaux-bright to-bordeaux px-5 font-extrabold uppercase tracking-[0.02em] text-white shadow-[0_8px_22px_rgba(122,20,16,.5)] transition-transform`}
+          >
+            <Car className="h-[18px] w-[18px]" />
+            Каталог
+            <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/35 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+          </Link>
+        </Magnetic>
 
         {/* Капсула: навигация */}
         <nav
@@ -178,6 +191,13 @@ export function Header() {
             className="glass mt-1 flex flex-col gap-1 rounded-[26px] p-3 shadow-[0_18px_40px_rgba(0,0,0,.45)]"
             aria-label="Мобильная навигация"
           >
+            <Link
+              to="/catalog"
+              onClick={() => setOpen(false)}
+              className="mb-1 flex items-center justify-center gap-2 rounded-full bg-gradient-to-b from-bordeaux-bright to-bordeaux px-4 py-3 font-extrabold uppercase tracking-[0.02em] text-white shadow-[0_8px_22px_rgba(122,20,16,.45)]"
+            >
+              <Car className="h-[18px] w-[18px]" /> Каталог
+            </Link>
             {nav.map((item) => {
               const isActive = active === item.href.slice(1);
               return (

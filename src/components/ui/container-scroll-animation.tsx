@@ -54,11 +54,20 @@ function Card({
         rotateX: rotate,
         scale,
         boxShadow:
-          "0 0 #0000004d, 0 9px 20px #0000004a, 0 37px 37px #00000042, 0 84px 50px #00000026, 0 149px 60px #0000000a, 0 233px 65px #00000003, 0 120px 160px -60px rgba(0,0,0,.5)",
+          "0 0 #0000004d, 0 9px 20px #0000004a, 0 37px 37px #00000042, 0 84px 50px #00000026, 0 149px 60px #0000000a, 0 233px 65px #00000003, 0 120px 160px -60px rgba(0,0,0,.55)",
       }}
-      className="mx-auto w-full rounded-[28px] border border-line-dark bg-graphite-2 p-3 md:p-5"
+      className="relative mx-auto w-full rounded-[34px] bg-[linear-gradient(145deg,#3b424a_0%,#23272d_45%,#15181c_100%)] p-2.5 ring-1 ring-black/50 [box-shadow:inset_0_1px_0_rgba(255,255,255,.12),inset_0_0_0_1px_rgba(0,0,0,.4)] md:rounded-[46px] md:p-4"
     >
-      <div className="grain relative overflow-hidden rounded-[20px] bg-graphite p-5 md:p-7">
+      {/* металлический блик по краю + фронтальная камера */}
+      <span
+        className="pointer-events-none absolute inset-0 rounded-[34px] [background:linear-gradient(180deg,rgba(255,255,255,.10),transparent_18%,transparent_82%,rgba(255,255,255,.05))] md:rounded-[46px]"
+        aria-hidden
+      />
+      <span
+        className="absolute left-1/2 top-[7px] h-[5px] w-[5px] -translate-x-1/2 rounded-full bg-black/70 ring-1 ring-white/10 md:top-2.5"
+        aria-hidden
+      />
+      <div className="grain relative overflow-hidden rounded-[24px] bg-graphite p-5 ring-1 ring-black/60 md:rounded-[34px] md:p-7">
         <div className="glow-blob -right-10 -top-10 h-56 w-56 animate-glow-pan bg-bordeaux/20" aria-hidden />
         <div className="relative">{children}</div>
       </div>
