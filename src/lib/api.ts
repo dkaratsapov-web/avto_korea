@@ -58,6 +58,26 @@ export type Stats = {
   views: Record<string, number>;
 };
 
+export type Rates = {
+  eur: number | null;
+  usd: number | null;
+  krw: number | null;
+  cny: number | null;
+  jpy: number | null;
+};
+
+/** Курс валют ЦБ РФ (для калькулятора). */
+export async function fetchRates(): Promise<{ rates: Rates; date: string | null } | null> {
+  if (!API_BASE) return null;
+  try {
+    const r = await fetch(`${API_BASE}/api/rates`);
+    const d = (await r.json()) as { ok: boolean; rates: Rates; date: string | null };
+    return d.ok ? { rates: d.rates, date: d.date } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Публичные отзывы (для сайта и мини-аппа). */
 export async function fetchReviews(): Promise<Review[]> {
   if (!API_BASE) return [];

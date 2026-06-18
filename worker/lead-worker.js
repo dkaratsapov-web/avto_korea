@@ -362,6 +362,31 @@ export default {
       return json({ ok: true, catalog });
     }
 
+    // --- Курс валют ЦБ РФ (для калькулятора) ---
+    if (url.pathname === "/api/rates" && request.method === "GET") {
+      try {
+        const r = await fetch("https://www.cbr-xml-daily.ru/daily_json.js", {
+          cf: { cacheTtl: 3600, cacheEverything: true },
+        });
+        const d = await r.json();
+        const v = d.Valute || {};
+        const norm = (c) => (c ? c.Value / (c.Nominal || 1) : null);
+        return json({
+          ok: true,
+          date: d.Date || null,
+          rates: {
+            eur: norm(v.EUR),
+            usd: norm(v.USD),
+            krw: norm(v.KRW),
+            cny: norm(v.CNY),
+            jpy: norm(v.JPY),
+          },
+        });
+      } catch {
+        return json({ ok: false }, 502);
+      }
+    }
+
     // --- Прокси фото из Telegram (токен остаётся на сервере) ---
     if (url.pathname === "/api/tgphoto" && request.method === "GET") {
       const id = url.searchParams.get("id");

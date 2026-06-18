@@ -33,6 +33,7 @@ import {
   subscribe as apiSubscribe,
   fetchReviews,
   fetchFaq,
+  fetchRates,
   type AdminRole,
   type Review,
   type Faq,
@@ -1029,7 +1030,6 @@ function LeadView({
 /* ---------- Примерный калькулятор «под ключ» ---------- */
 // Коэффициенты приблизительные — для предварительной оценки.
 // Точную смету подтверждает менеджер.
-const EUR_RUB = 105; // примерный курс €
 const DELIVERY: Record<CountryCode, number> = {
   kr: 120000,
   cn: 90000,
@@ -1048,24 +1048,50 @@ function dutyPerCc(cc: number, age: Age) {
   return age === "o5" ? old : base;
 }
 
+// Утильсбор-2026. Льготный (физлицо, личное пользование) — только при
+// двигателе ≤3.0 л и мощности ≤160 л.с.: 3 400 ₽ (до 3 лет) / 5 200 ₽ (старше).
+// Иначе — коммерческий (ориентир, базовая ставка × коэффициент).
+function utilFee(age: Age, eligible: boolean, cc: number) {
+  if (eligible) return age === "u3" ? 3400 : 5200;
+  const t = cc <= 1000 ? 0 : cc <= 2000 ? 1 : cc <= 3000 ? 2 : 3;
+  const commNew = [180000, 600000, 1200000, 2000000];
+  const commOld = [300000, 850000, 1650000, 2700000];
+  return age === "u3" ? commNew[t] : commOld[t];
+}
+
 function CalcView({ onBack, onLead }: { onBack: () => void; onLead: () => void }) {
   const [country, setCountry] = useState<CountryCode>("kr");
   const [priceStr, setPriceStr] = useState("");
   const [volStr, setVolStr] = useState("");
+  const [powStr, setPowStr] = useState("");
   const [age, setAge] = useState<Age>("a35");
   const [electric, setElectric] = useState(false);
+  const [eurRate, setEurRate] = useState<number | null>(null);
+  const [rateDate, setRateDate] = useState<string | null>(null);
 
+  useEffect(() => {
+    fetchRates().then((r) => {
+      if (r?.rates.eur) {
+        setEurRate(r.rates.eur);
+        setRateDate(r.date);
+      }
+    });
+  }, []);
+
+  const EUR_RUB = eurRate ?? 105;
   const price = Number(priceStr) || 0;
   const volume = Number(volStr) || 0;
+  const power = Number(powStr) || 0;
   const delivery = DELIVERY[country];
-  const util = age === "u3" ? 3400 : 5200;
+  const eligible = electric ? power <= 160 : volume <= 3000 && power <= 160;
+  const util = utilFee(age, eligible, volume);
   const duty = electric
     ? Math.round(price * 0.15)
     : age === "u3"
       ? Math.round(price * 0.48)
       : Math.round(volume * dutyPerCc(volume, age) * EUR_RUB);
   const total = price + delivery + duty + util + DOCS + SERVICE;
-  const ready = price > 0 && (electric || volume > 0);
+  const ready = price > 0 && power > 0 && (electric || volume > 0);
 
   const ageBtns: [Age, string][] = [
     ["u3", "до 3 лет"],
@@ -1138,19 +1164,33 @@ function CalcView({ onBack, onLead }: { onBack: () => void; onLead: () => void }
           </div>
         </div>
 
-        <label className={electric ? "pointer-events-none opacity-40" : ""}>
-          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
-            Объём двигателя, см³
-          </span>
-          <input
-            value={volStr}
-            inputMode="numeric"
-            disabled={electric}
-            onChange={(e) => setVolStr(e.target.value.replace(/\D/g, ""))}
-            placeholder="например, 1600"
-            className="field-dark"
-          />
-        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className={electric ? "pointer-events-none opacity-40" : ""}>
+            <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+              Объём, см³
+            </span>
+            <input
+              value={volStr}
+              inputMode="numeric"
+              disabled={electric}
+              onChange={(e) => setVolStr(e.target.value.replace(/\D/g, ""))}
+              placeholder="1600"
+              className="field-dark"
+            />
+          </label>
+          <label>
+            <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+              Мощность, л.с.
+            </span>
+            <input
+              value={powStr}
+              inputMode="numeric"
+              onChange={(e) => setPowStr(e.target.value.replace(/\D/g, ""))}
+              placeholder="150"
+              className="field-dark"
+            />
+          </label>
+        </div>
 
         <label className="flex items-center gap-2">
           <input
@@ -1168,7 +1208,10 @@ function CalcView({ onBack, onLead }: { onBack: () => void; onLead: () => void }
         <CalcRow label="Стоимость авто" value={price} />
         <CalcRow label={`Доставка (${countries[country].label})`} value={delivery} />
         <CalcRow label="Таможенная пошлина" value={duty} hint={!ready ? "—" : undefined} />
-        <CalcRow label="Утильсбор" value={util} />
+        <CalcRow
+          label={`Утильсбор (${eligible ? "льготный" : "коммерческий"})`}
+          value={util}
+        />
         <CalcRow label="Оформление (СБКТС, ЭПТС, брокер)" value={DOCS} />
         <CalcRow label="Услуги компании" value={SERVICE} />
         <div className="mt-3 flex items-center justify-between border-t border-line-dark pt-3">
@@ -1181,9 +1224,18 @@ function CalcView({ onBack, onLead }: { onBack: () => void; onLead: () => void }
         </div>
       </div>
 
+      {ready && !eligible ? (
+        <p className="mt-2 rounded-[12px] border border-bordeaux-bright/30 bg-bordeaux/[0.08] p-2.5 text-[12px] text-[#E7B3AE]">
+          ⚠️ Мощность &gt;160 л.с. или объём &gt;3.0 л — действует{" "}
+          <b>коммерческий</b> утильсбор (ориентир). Точную сумму подтвердит менеджер.
+        </p>
+      ) : null}
+
       <p className="mt-2 text-[12px] text-[#8C97A1]">
-        Расчёт примерный (курс €{EUR_RUB}, ставки усреднены). Итоговую смету
-        фиксирует менеджер по конкретному авто.
+        Расчёт примерный. Курс €{" "}
+        {eurRate ? `${eurRate.toFixed(2)} ₽ (ЦБ${rateDate ? ", " + rateDate.slice(0, 10) : ""})` : `${EUR_RUB} ₽`}
+        . Утильсбор-2026: льготный 3 400/5 200 ₽ при ≤3.0 л и ≤160 л.с. Итоговую
+        смету фиксирует менеджер.
       </p>
 
       <button onClick={onLead} className="btn btn-primary mt-4 w-full">
