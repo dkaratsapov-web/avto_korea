@@ -113,6 +113,11 @@ export function TmaApp() {
 
   const inTg = ready && !!tgRef.current;
 
+  // при смене экрана прокручиваем наверх (иначе карточка открывается прокрученной)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [view, adminOpen]);
+
   function back() {
     haptic(tgRef.current);
     setView((v) =>
