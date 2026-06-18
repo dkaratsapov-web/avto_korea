@@ -477,6 +477,15 @@ function BotTab({
         />
       </label>
       <label>
+        <span className={lab}>Текст кнопки «Калькулятор»</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.calcButtonText}
+          onChange={(e) => set("calcButtonText", e.target.value)}
+        />
+      </label>
+      <label>
         <span className={lab}>Текст кнопки «Менеджер»</span>
         <input
           disabled={!canEdit}

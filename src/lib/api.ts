@@ -10,6 +10,7 @@ export const hasBackend = !!API_BASE;
 export type BotSettings = {
   welcomeText: string;
   catalogButtonText: string;
+  calcButtonText: string;
   managerButtonText: string;
   managerUrl: string;
   miniAppUrl?: string;

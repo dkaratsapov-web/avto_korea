@@ -32,6 +32,7 @@ const DEFAULT_SETTINGS = {
   welcomeText:
     "🚗 *ДиАвто69* — авто из Кореи, Китая, Японии и ЕС под ключ.\nЧестный расчёт с растаможкой, без накруток.\n\nОткройте каталог и оставьте заявку 👇",
   catalogButtonText: "🚘 Открыть каталог",
+  calcButtonText: "🧮 Калькулятор (скоро)",
   managerButtonText: "💬 Написать менеджеру",
   managerUrl: "https://t.me/Dmitriicarexport",
 };
@@ -165,6 +166,19 @@ export default {
       } catch {
         return new Response("ok");
       }
+      // нажатие inline-кнопки (например, «Калькулятор» — пока заглушка)
+      const cq = upd.callback_query;
+      if (cq) {
+        await api(env, "answerCallbackQuery", { callback_query_id: cq.id });
+        if (cq.data === "calc" && cq.message?.chat?.id) {
+          await api(env, "sendMessage", {
+            chat_id: cq.message.chat.id,
+            text: "🧮 Калькулятор в разработке.\nПока оставьте заявку — рассчитаем стоимость под ключ вручную в течение 15 минут.",
+          });
+        }
+        return new Response("ok");
+      }
+
       const msg = upd.message || upd.edited_message;
 
       // заявка из мини-аппа (reply-кнопка)
@@ -204,6 +218,7 @@ export default {
           reply_markup: {
             inline_keyboard: [
               [openBtn],
+              [{ text: settings.calcButtonText, callback_data: "calc" }],
               [{ text: settings.managerButtonText, url: settings.managerUrl }],
             ],
           },
@@ -311,6 +326,7 @@ async function handleAdmin(env, action, payload, role, user) {
       const allowed = [
         "welcomeText",
         "catalogButtonText",
+        "calcButtonText",
         "managerButtonText",
         "managerUrl",
         "miniAppUrl",
