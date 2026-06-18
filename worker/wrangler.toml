@@ -17,7 +17,7 @@ compatibility_date = "2024-11-01"
 [vars]
 MINI_APP_URL = "https://avto-korea.pages.dev/tma"
 # ID владельцев админки (Telegram id через запятую). Узнать: @userinfobot.
-ADMIN_IDS = "REPLACE_WITH_YOUR_TELEGRAM_ID"
+ADMIN_IDS = "169920903"
 
 # Общее хранилище (каталог, настройки, админы, заявки).
 # id берётся из Cloudflare → Storage & Databases → KV → ваш namespace.
