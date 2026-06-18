@@ -482,16 +482,31 @@ function StatsTab({ initData }: { initData: string }) {
   }, [initData]);
   if (!stats) return <Spinner />;
   const cells: [string, number][] = [
-    ["Заявок", stats.leads],
+    ["Заявок всего", stats.leads],
+    ["Заявок сегодня", stats.leadsToday ?? 0],
+    ["Заявок за 7 дней", stats.leads7d ?? 0],
     ["Пользователей", stats.users],
+    ["Новых за 7 дней", stats.usersNew7d ?? 0],
     ["Подписок", stats.subs],
     ["Отзывов", stats.reviews],
+    ["Черновиков", stats.drafts ?? 0],
     ["Просмотров", stats.totalViews],
   ];
   const top = Object.entries(stats.views || {})
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
   const nameOf = (id: string) => cars.find((c) => c.id === id)?.model || id;
+  const sources = Object.entries(stats.bySource || {}).sort((a, b) => b[1] - a[1]);
+
+  // Сводка по каталогу (из общих данных)
+  const prices = cars.map((c) => c.priceTverRub ?? c.priceRub).filter(Boolean);
+  const byStatus = {
+    in_stock: cars.filter((c) => c.status === "in_stock").length,
+    in_transit: cars.filter((c) => c.status === "in_transit").length,
+    on_order: cars.filter((c) => c.status === "on_order").length,
+  };
+  const fmt = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2.5">
@@ -501,6 +516,63 @@ function StatsTab({ initData }: { initData: string }) {
             <div className="text-[12px] text-[#9AA4B2]">{label}</div>
           </div>
         ))}
+      </div>
+
+      {stats.lastLeadTs ? (
+        <div className="rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5 text-[12.5px] text-[#C7CFD6]">
+          🕓 Последняя заявка:{" "}
+          {new Date(stats.lastLeadTs).toLocaleString("ru-RU", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </div>
+      ) : null}
+
+      {sources.length ? (
+        <div>
+          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+            Источники заявок
+          </div>
+          <div className="space-y-2">
+            {sources.map(([src, v]) => (
+              <div
+                key={src}
+                className="flex items-center justify-between rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5"
+              >
+                <span className="truncate text-[13.5px]">{src}</span>
+                <span className="font-num text-[13px] text-bordeaux-bright">{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div>
+        <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+          Каталог
+        </div>
+        <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5 text-[13px] text-[#C7CFD6]">
+          <div className="flex justify-between py-0.5">
+            <span>Всего авто</span>
+            <span className="font-num text-white">{cars.length}</span>
+          </div>
+          <div className="flex justify-between py-0.5">
+            <span>В наличии / в пути / под заказ</span>
+            <span className="font-num text-white">
+              {byStatus.in_stock} / {byStatus.in_transit} / {byStatus.on_order}
+            </span>
+          </div>
+          {prices.length ? (
+            <div className="flex justify-between py-0.5">
+              <span>Цены, ₽</span>
+              <span className="font-num text-white">
+                {fmt(Math.min(...prices))} – {fmt(Math.max(...prices))}
+              </span>
+            </div>
+          ) : null}
+        </div>
       </div>
       <div>
         <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">

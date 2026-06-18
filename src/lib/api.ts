@@ -56,6 +56,12 @@ export type Stats = {
   reviews: number;
   totalViews: number;
   views: Record<string, number>;
+  leadsToday?: number;
+  leads7d?: number;
+  usersNew7d?: number;
+  drafts?: number;
+  bySource?: Record<string, number>;
+  lastLeadTs?: number | null;
 };
 
 export type Rates = {

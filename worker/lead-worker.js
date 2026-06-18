@@ -670,7 +670,15 @@ async function handleAdmin(env, action, payload, role, user) {
       const users = (await kvGet(env, "users", {})) || {};
       const subs = (await kvGet(env, "subs", [])) || [];
       const reviews = (await kvGet(env, "reviews", [])) || [];
+      const drafts = (await kvGet(env, "drafts", [])) || [];
       const stats = (await kvGet(env, "stats", {})) || {};
+      const now = Date.now();
+      const DAY = 86400000;
+      const bySource = {};
+      for (const l of leads) {
+        const s = l.source || "сайт";
+        bySource[s] = (bySource[s] || 0) + 1;
+      }
       return json({
         ok: true,
         stats: {
@@ -678,8 +686,16 @@ async function handleAdmin(env, action, payload, role, user) {
           users: Object.keys(users).length,
           subs: subs.length,
           reviews: reviews.length,
+          drafts: drafts.length,
           totalViews: stats.totalViews || 0,
           views: stats.views || {},
+          leadsToday: leads.filter((l) => now - (l.ts || 0) < DAY).length,
+          leads7d: leads.filter((l) => now - (l.ts || 0) < 7 * DAY).length,
+          usersNew7d: Object.values(users).filter(
+            (u) => now - (u.ts || 0) < 7 * DAY,
+          ).length,
+          bySource,
+          lastLeadTs: leads[0]?.ts || null,
         },
       });
     }
