@@ -65,7 +65,7 @@ export function TmaApp() {
     setView((v) => (v.name === "lead" ? v.from : { name: "list" }));
   }
 
-  function submit(name: string, phone: string, carId?: string) {
+  async function submit(name: string, phone: string, carId?: string) {
     if (name.trim().length < 2 || phone.replace(/\D/g, "").length < 11) {
       haptic(tgRef.current, "rigid");
       showToast("Заполните имя и телефон полностью", "error");
@@ -80,6 +80,29 @@ export function TmaApp() {
       source: "Telegram Mini App",
     };
     const tg = tgRef.current;
+
+    // 1) надёжно — через серверless-эндпоинт (если задан)
+    const endpoint = import.meta.env.VITE_LEAD_ENDPOINT as string | undefined;
+    if (endpoint) {
+      try {
+        const r = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (r.ok) {
+          haptic(tg, "medium");
+          showToast("Заявка отправлена — перезвоним в течение 15 минут");
+          if (tg?.close) setTimeout(() => tg.close(), 900);
+          else setView({ name: "list" });
+          return;
+        }
+      } catch {
+        /* упадём в фолбэк */
+      }
+    }
+
+    // 2) через Telegram (если открыт из reply-кнопки)
     try {
       if (tg?.sendData) {
         tg.sendData(JSON.stringify(payload));
@@ -90,6 +113,8 @@ export function TmaApp() {
     } catch {
       /* sendData недоступен — откроем чат */
     }
+
+    // 3) фолбэк — открыть чат с менеджером
     showToast("Заявка готова — открываем чат с менеджером");
     if (tg?.openTelegramLink) tg.openTelegramLink(site.telegramHref);
     else window.open(site.telegramHref, "_blank");
