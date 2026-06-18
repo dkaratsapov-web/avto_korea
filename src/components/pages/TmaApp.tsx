@@ -10,6 +10,13 @@ import {
   Calculator,
   SlidersHorizontal,
   X,
+  Car as CarIcon,
+  Bell,
+  Scale,
+  Star,
+  HelpCircle,
+  Send,
+  Loader2,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { useCars } from "@/lib/carsStore";
@@ -18,14 +25,29 @@ import { countries, site, type CountryCode } from "@/lib/site";
 import { type Car, formatPrice } from "@/data/cars";
 import { showToast } from "@/lib/toast";
 import { loadTelegram, haptic, type TG } from "@/lib/telegram";
-import { adminCall, type AdminRole } from "@/lib/api";
+import {
+  adminCall,
+  pingUser,
+  logView,
+  subscribe as apiSubscribe,
+  fetchReviews,
+  fetchFaq,
+  type AdminRole,
+  type Review,
+  type Faq,
+} from "@/lib/api";
 import { TmaAdmin } from "@/components/pages/TmaAdmin";
 
 type View =
+  | { name: "home" }
   | { name: "list" }
   | { name: "car"; id: string }
   | { name: "favorites" }
   | { name: "calc" }
+  | { name: "subscribe" }
+  | { name: "compare" }
+  | { name: "reviews" }
+  | { name: "faq" }
   | { name: "lead"; carId?: string; from: View };
 
 export function TmaApp() {
@@ -33,12 +55,17 @@ export function TmaApp() {
   const { favorites, isFav, toggleFav } = useUI();
   const tgRef = useRef<TG | null>(null);
   const [ready, setReady] = useState(false);
-  const [view, setView] = useState<View>(() =>
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("screen") === "calc"
-      ? { name: "calc" }
-      : { name: "list" },
-  );
+  const [view, setView] = useState<View>(() => {
+    if (typeof window === "undefined") return { name: "home" };
+    const s = new URLSearchParams(window.location.search).get("screen");
+    if (s === "calc") return { name: "calc" };
+    if (s === "catalog") return { name: "list" };
+    if (s === "subscribe") return { name: "subscribe" };
+    if (s === "reviews") return { name: "reviews" };
+    if (s === "faq") return { name: "faq" };
+    return { name: "home" };
+  });
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   const initDataRef = useRef<string>("");
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [adminOpen, setAdminOpen] = useState(false);
@@ -68,6 +95,7 @@ export function TmaApp() {
         const initData = tg.initData || "";
         initDataRef.current = initData;
         if (initData) {
+          pingUser(initData);
           adminCall<{ role: AdminRole }>(initData, "me").then((r) => {
             if (mounted && r.ok && r.role) setAdminRole(r.role);
           });
@@ -85,7 +113,13 @@ export function TmaApp() {
 
   function back() {
     haptic(tgRef.current);
-    setView((v) => (v.name === "lead" ? v.from : { name: "list" }));
+    setView((v) =>
+      v.name === "lead"
+        ? v.from
+        : v.name === "car"
+          ? { name: "list" }
+          : { name: "home" },
+    );
   }
 
   async function submit(name: string, phone: string, carId?: string) {
@@ -161,7 +195,7 @@ export function TmaApp() {
     }
 
     backCb.current = back;
-    if (view.name !== "list") tg.BackButton.show();
+    if (view.name !== "home") tg.BackButton.show();
     else tg.BackButton.hide();
 
     if (view.name === "car") {
@@ -208,7 +242,7 @@ export function TmaApp() {
             type="button"
             onClick={() => {
               haptic(tgRef.current);
-              setView({ name: "list" });
+              setView({ name: "home" });
             }}
             className="flex items-baseline gap-px font-display text-[22px] font-extrabold text-white"
           >
@@ -258,6 +292,20 @@ export function TmaApp() {
           </div>
         </div>
 
+        {view.name === "home" ? (
+          <HomeView
+            favCount={favorites.length}
+            compareCount={compareIds.length}
+            go={(name) => {
+              haptic(tgRef.current);
+              setView({ name } as View);
+            }}
+            onLead={() =>
+              setView({ name: "lead", from: { name: "home" }, carId: undefined })
+            }
+          />
+        ) : null}
+
         {view.name === "list" ? (
           <ListView
             cars={cars}
@@ -268,6 +316,7 @@ export function TmaApp() {
             }}
             onOpen={(id) => {
               haptic(tgRef.current);
+              logView(id);
               setView({ name: "car", id });
             }}
           />
@@ -281,14 +330,43 @@ export function TmaApp() {
               haptic(tgRef.current);
               toggleFav(id);
             }}
-            onBack={() => setView({ name: "list" })}
+            onBack={() => setView({ name: "home" })}
           />
         ) : null}
 
         {view.name === "calc" ? (
           <CalcView
-            onBack={() => setView({ name: "list" })}
+            onBack={() => setView({ name: "home" })}
             onLead={() => setView({ name: "lead", from: { name: "calc" }, carId: undefined })}
+          />
+        ) : null}
+
+        {view.name === "subscribe" ? (
+          <SubscribeView
+            initData={initDataRef.current}
+            inTg={inTg}
+            onBack={() => setView({ name: "home" })}
+            haptic={() => haptic(tgRef.current, "medium")}
+          />
+        ) : null}
+
+        {view.name === "reviews" ? (
+          <ReviewsView onBack={() => setView({ name: "home" })} />
+        ) : null}
+
+        {view.name === "faq" ? (
+          <FaqView onBack={() => setView({ name: "home" })} />
+        ) : null}
+
+        {view.name === "compare" ? (
+          <CompareView
+            cars={cars.filter((c) => compareIds.includes(c.id))}
+            onRemove={(id) =>
+              setCompareIds((p) => p.filter((x) => x !== id))
+            }
+            onClear={() => setCompareIds([])}
+            onBack={() => setView({ name: "home" })}
+            onOpenCatalog={() => setView({ name: "list" })}
           />
         ) : null}
 
@@ -300,6 +378,17 @@ export function TmaApp() {
                 <CarView
                   car={car}
                   fav={isFav(car.id)}
+                  inCompare={compareIds.includes(car.id)}
+                  onToggleCompare={() => {
+                    haptic(tgRef.current);
+                    setCompareIds((p) =>
+                      p.includes(car.id)
+                        ? p.filter((x) => x !== car.id)
+                        : p.length >= 3
+                          ? p
+                          : [...p, car.id],
+                    );
+                  }}
                   onToggleFav={() => {
                     haptic(tgRef.current);
                     toggleFav(car.id);
@@ -639,6 +728,8 @@ function FavView({
 function CarView({
   car,
   fav,
+  inCompare,
+  onToggleCompare,
   onToggleFav,
   onBack,
   onLead,
@@ -646,6 +737,8 @@ function CarView({
 }: {
   car: Car;
   fav: boolean;
+  inCompare: boolean;
+  onToggleCompare: () => void;
   onToggleFav: () => void;
   onBack: () => void;
   onLead: () => void;
@@ -735,6 +828,17 @@ function CarView({
           </button>
         ) : null}
       </div>
+      <button
+        onClick={onToggleCompare}
+        className={`btn mt-3 w-full ${
+          inCompare
+            ? "border border-bordeaux-bright bg-bordeaux/15 text-white"
+            : "border border-line-dark text-white"
+        }`}
+      >
+        <Scale className="h-[18px] w-[18px]" />
+        {inCompare ? "В сравнении" : "Добавить к сравнению"}
+      </button>
     </>
   );
 }
@@ -1008,6 +1112,392 @@ function CalcRow({
         {hint ?? `${formatPrice(value)} ₽`}
       </span>
     </div>
+  );
+}
+
+/* ---------- Домашнее меню ---------- */
+type HomeTarget =
+  | "list"
+  | "calc"
+  | "subscribe"
+  | "compare"
+  | "reviews"
+  | "favorites"
+  | "faq";
+
+function HomeView({
+  favCount,
+  compareCount,
+  go,
+  onLead,
+}: {
+  favCount: number;
+  compareCount: number;
+  go: (name: HomeTarget) => void;
+  onLead: () => void;
+}) {
+  const items: {
+    name: HomeTarget;
+    label: string;
+    sub: string;
+    icon: typeof CarIcon;
+    primary?: boolean;
+  }[] = [
+    { name: "list", label: "Каталог", sub: "Авто в наличии и под заказ", icon: CarIcon, primary: true },
+    { name: "calc", label: "Калькулятор", sub: "Расчёт под ключ", icon: Calculator },
+    { name: "subscribe", label: "Подписка", sub: "Сообщим о новинках", icon: Bell },
+    { name: "compare", label: "Сравнить", sub: compareCount ? `${compareCount} выбрано` : "До 3 авто", icon: Scale },
+    { name: "reviews", label: "Отзывы", sub: "Мнения клиентов", icon: Star },
+    { name: "faq", label: "Вопросы", sub: "Частые вопросы", icon: HelpCircle },
+    { name: "favorites", label: "Избранное", sub: favCount ? `${favCount} авто` : "Сохранённые", icon: Heart },
+  ];
+  return (
+    <>
+      <div className="mb-4 grain overflow-hidden rounded-[20px] border border-line-dark bg-[radial-gradient(420px_180px_at_85%_-20%,#3a1714,#161b22_70%)] p-4">
+        <div className="text-[15.5px] font-extrabold leading-snug">
+          Авто из Кореи, Китая, Японии и ЕС — под ключ
+        </div>
+        <div className="mt-1 text-[12.5px] text-[#9AA4B2]">
+          Честный расчёт с растаможкой. Выберите раздел 👇
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {items.map((it) => (
+          <button
+            key={it.name}
+            onClick={() => go(it.name)}
+            className={`flex flex-col items-start gap-2 rounded-[18px] border p-4 text-left transition-transform active:scale-[0.98] ${
+              it.primary
+                ? "col-span-2 border-bordeaux-bright bg-bordeaux/[0.12]"
+                : "border-line-dark bg-graphite-2"
+            }`}
+          >
+            <span
+              className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                it.primary ? "bg-bordeaux text-white" : "bg-graphite text-bordeaux-bright"
+              }`}
+            >
+              <it.icon className="h-5 w-5" />
+            </span>
+            <span className="text-[16px] font-extrabold">{it.label}</span>
+            <span className="text-[12px] text-[#9AA4B2]">{it.sub}</span>
+          </button>
+        ))}
+      </div>
+      <button onClick={onLead} className="btn btn-primary mt-3 w-full">
+        <Send className="h-[18px] w-[18px]" /> Оставить заявку
+      </button>
+    </>
+  );
+}
+
+/* ---------- Подписка на подбор ---------- */
+const SUB_COUNTRIES = [
+  ["", "Любая"],
+  ["Корея", "Корея"],
+  ["Китай", "Китай"],
+  ["Япония", "Япония"],
+  ["Европа", "Европа"],
+] as const;
+const SUB_BODIES = ["", "Седан", "Кроссовер", "Внедорожник", "Хэтчбек", "Минивэн"];
+
+function SubscribeView({
+  initData,
+  inTg,
+  onBack,
+  haptic: hapticOk,
+}: {
+  initData: string;
+  inTg: boolean;
+  onBack: () => void;
+  haptic: () => void;
+}) {
+  const [country, setCountry] = useState("");
+  const [body, setBody] = useState("");
+  const [budget, setBudget] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const lab = "mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]";
+
+  async function submit() {
+    if (!inTg || !initData) {
+      showToast("Подписка доступна при открытии из Telegram", "error");
+      return;
+    }
+    setLoading(true);
+    const r = await apiSubscribe(initData, {
+      country: country || undefined,
+      body: body || undefined,
+      budget: budget ? Number(budget) : undefined,
+    });
+    setLoading(false);
+    if (r.ok) {
+      hapticOk();
+      setDone(true);
+    } else showToast("Не удалось оформить: " + (r.error || ""), "error");
+  }
+
+  if (done) {
+    return (
+      <>
+        <Header2 title="Подписка" onBack={onBack} />
+        <div className="rounded-[18px] border border-success/40 bg-success/10 p-5 text-center">
+          <Bell className="mx-auto h-8 w-8 text-success" />
+          <p className="mt-2 text-[16px] font-bold">Подписка оформлена!</p>
+          <p className="mt-1 text-[13px] text-[#C7CFD6]">
+            Сообщим в этом боте, как только появится подходящее авто.
+          </p>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Header2 title="Подписка на подбор" onBack={onBack} />
+      <p className="-mt-2 mb-4 text-[13px] text-[#9AA4B2]">
+        Укажите параметры — пришлём уведомление, когда появится подходящее авто.
+      </p>
+      <div className="space-y-3">
+        <div>
+          <span className={lab}>Страна</span>
+          <div className="flex flex-wrap gap-2">
+            {SUB_COUNTRIES.map(([v, label]) => (
+              <button
+                key={label}
+                onClick={() => setCountry(v)}
+                className={`rounded-full border px-3.5 py-2 text-[13px] font-bold ${
+                  country === v
+                    ? "border-bordeaux-bright bg-bordeaux text-white"
+                    : "border-line-dark text-chrome"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <span className={lab}>Тип кузова</span>
+          <div className="flex flex-wrap gap-2">
+            {SUB_BODIES.map((b) => (
+              <button
+                key={b || "any"}
+                onClick={() => setBody(b)}
+                className={`rounded-full border px-3.5 py-2 text-[13px] font-bold ${
+                  body === b
+                    ? "border-bordeaux-bright bg-bordeaux text-white"
+                    : "border-line-dark text-chrome"
+                }`}
+              >
+                {b || "Любой"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label>
+          <span className={lab}>Бюджет до, ₽</span>
+          <input
+            value={budget}
+            inputMode="numeric"
+            onChange={(e) => setBudget(e.target.value.replace(/\D/g, ""))}
+            placeholder="например, 2 500 000"
+            className="field-dark"
+          />
+        </label>
+      </div>
+      <button onClick={submit} className="btn btn-primary mt-4 w-full">
+        {loading ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Bell className="h-[18px] w-[18px]" />}
+        Подписаться
+      </button>
+    </>
+  );
+}
+
+/* ---------- Отзывы ---------- */
+function ReviewsView({ onBack }: { onBack: () => void }) {
+  const [reviews, setReviews] = useState<Review[] | null>(null);
+  useEffect(() => {
+    fetchReviews().then(setReviews);
+  }, []);
+  return (
+    <>
+      <Header2 title="Отзывы клиентов" onBack={onBack} />
+      {reviews === null ? (
+        <div className="flex justify-center py-10 text-chrome">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      ) : reviews.length === 0 ? (
+        <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
+          Отзывы скоро появятся.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {reviews.map((r) => (
+            <div key={r.id} className="rounded-[16px] border border-line-dark bg-graphite-2 p-4">
+              <div className="flex items-center justify-between">
+                <span className="font-bold">{r.name}</span>
+                <span className="flex gap-0.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-3.5 w-3.5 ${i < r.rating ? "fill-bordeaux-bright text-bordeaux-bright" : "text-[#3a424c]"}`}
+                    />
+                  ))}
+                </span>
+              </div>
+              {r.car ? <div className="text-[12px] text-[#8C97A1]">{r.car}</div> : null}
+              <p className="mt-1.5 text-[13.5px] text-[#C7CFD6]">{r.text}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ---------- FAQ ---------- */
+function FaqView({ onBack }: { onBack: () => void }) {
+  const [faq, setFaq] = useState<Faq[] | null>(null);
+  const [open, setOpen] = useState<number | null>(0);
+  useEffect(() => {
+    fetchFaq().then(setFaq);
+  }, []);
+  return (
+    <>
+      <Header2 title="Частые вопросы" onBack={onBack} />
+      {faq === null ? (
+        <div className="flex justify-center py-10 text-chrome">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {faq.map((f, i) => (
+            <div key={i} className="overflow-hidden rounded-[14px] border border-line-dark bg-graphite-2">
+              <button
+                onClick={() => setOpen(open === i ? null : i)}
+                className="flex w-full items-center justify-between gap-2 p-3.5 text-left"
+              >
+                <span className="text-[14px] font-bold">{f.q}</span>
+                <ChevronRight
+                  className={`h-4 w-4 flex-none text-chrome transition-transform ${open === i ? "rotate-90" : ""}`}
+                />
+              </button>
+              {open === i ? (
+                <p className="px-3.5 pb-3.5 text-[13px] text-[#C7CFD6]">{f.a}</p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+      <a
+        href={site.telegramHref}
+        target="_blank"
+        rel="noreferrer"
+        className="btn btn-primary mt-4 w-full"
+      >
+        <Send className="h-[18px] w-[18px]" /> Задать вопрос менеджеру
+      </a>
+    </>
+  );
+}
+
+/* ---------- Сравнение ---------- */
+function CompareView({
+  cars,
+  onRemove,
+  onClear,
+  onBack,
+  onOpenCatalog,
+}: {
+  cars: Car[];
+  onRemove: (id: string) => void;
+  onClear: () => void;
+  onBack: () => void;
+  onOpenCatalog: () => void;
+}) {
+  const rows: [string, (c: Car) => string][] = [
+    ["Цена под ключ", (c) => `${formatPrice(c.priceTverRub ?? c.priceRub)} ₽`],
+    ["Год", (c) => String(c.year)],
+    ["Страна", (c) => countries[c.country].label],
+    ["Кузов", (c) => c.bodyType || "—"],
+    ["Двигатель", (c) => c.engine],
+    ["Мощность", (c) => (c.powerHp ? `${c.powerHp} л.с.` : "—")],
+    ["Топливо", (c) => c.fuelType || "—"],
+    ["Коробка", (c) => c.gearbox],
+    ["Привод", (c) => c.drive],
+    ["Цвет", (c) => c.color || "—"],
+  ];
+  if (cars.length === 0) {
+    return (
+      <>
+        <Header2 title="Сравнение" onBack={onBack} />
+        <div className="rounded-[18px] border border-line-dark bg-graphite-2 p-6 text-center">
+          <Scale className="mx-auto h-8 w-8 text-chrome" />
+          <p className="mt-2 font-bold">Список сравнения пуст</p>
+          <p className="mt-1 text-[13px] text-[#9AA4B2]">
+            Откройте карточку авто и нажмите «Добавить к сравнению» (до 3 авто).
+          </p>
+          <button onClick={onOpenCatalog} className="btn btn-primary mt-4 w-full">
+            <CarIcon className="h-[18px] w-[18px]" /> В каталог
+          </button>
+        </div>
+      </>
+    );
+  }
+  return (
+    <>
+      <div className="mb-4 flex items-center gap-2">
+        <button
+          onClick={onBack}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-line-dark text-chrome"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <h1 className="truncate text-[18px] font-extrabold uppercase">Сравнение</h1>
+        <button onClick={onClear} className="ml-auto text-[12.5px] font-bold text-bordeaux-bright">
+          Очистить
+        </button>
+      </div>
+      <div className="overflow-x-auto [scrollbar-width:thin]">
+        <table className="w-full border-collapse text-[13px]">
+          <thead>
+            <tr>
+              <th className="sticky left-0 bg-graphite" />
+              {cars.map((c) => (
+                <th key={c.id} className="min-w-[140px] p-2 align-top">
+                  <div className="relative overflow-hidden rounded-[12px] border border-line-dark bg-graphite-2 p-2">
+                    <button
+                      onClick={() => onRemove(c.id)}
+                      className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-graphite/80 text-bordeaux-bright"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                    {/* eslint-disable-next-line */}
+                    <img src={c.images[0]} alt="" className="h-16 w-full rounded-[8px] object-cover" />
+                    <div className="mt-1.5 text-[12.5px] font-bold leading-tight">{c.model}</div>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([label, fn], ri) => (
+              <tr key={label} className={ri % 2 ? "bg-white/[0.02]" : ""}>
+                <td className="sticky left-0 bg-graphite px-2 py-2 text-[11.5px] font-bold uppercase tracking-wide text-[#8C97A1]">
+                  {label}
+                </td>
+                {cars.map((c) => (
+                  <td key={c.id} className="px-2 py-2 font-num text-white">
+                    {fn(c)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 

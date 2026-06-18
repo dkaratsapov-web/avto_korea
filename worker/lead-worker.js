@@ -60,8 +60,76 @@ function leadText(d) {
   if (d.country) lines.push(`🌍 Страна: ${d.country}`);
   if (d.year) lines.push(`📅 Год: ${d.year}`);
   if (d.budget) lines.push(`💰 Бюджет: ${d.budget}`);
+  if (d.link) lines.push(`🔗 Ссылка: ${d.link}`);
+  if (d.comment) lines.push(`📝 Комментарий: ${d.comment}`);
   lines.push("", `📍 Источник: ${d.source || "сайт"}`);
   return lines.join("\n");
+}
+
+const DEFAULT_FAQ = [
+  {
+    q: "Сколько занимает доставка?",
+    a: "В среднем 15–40 дней — зависит от страны и логистики. По конкретному авто срок подтвердит менеджер.",
+  },
+  {
+    q: "Цена окончательная?",
+    a: "Да, цена указана под ключ в РФ: авто, доставка, растаможка, утильсбор и ЭПТС. Без скрытых наценок.",
+  },
+  {
+    q: "Есть ли проверка авто?",
+    a: "Каждое авто проверяем перед выкупом. Историю и состояние присылаем до оплаты.",
+  },
+  {
+    q: "Как происходит оплата?",
+    a: "Поэтапно по договору. Детали под ваш случай расскажет менеджер.",
+  },
+];
+
+/* ---------- Пользователи / статистика / фото ---------- */
+async function recordUser(env, from) {
+  if (!env.STORE || !from?.id) return;
+  try {
+    const users = (await kvGet(env, "users", {})) || {};
+    if (!users[from.id]) {
+      users[from.id] = {
+        name: [from.first_name, from.last_name].filter(Boolean).join(" "),
+        username: from.username || "",
+        ts: Date.now(),
+      };
+      await kvPut(env, "users", users);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+async function bumpView(env, id) {
+  if (!env.STORE) return;
+  try {
+    const stats = (await kvGet(env, "stats", {})) || {};
+    stats.views = stats.views || {};
+    stats.views[id] = (stats.views[id] || 0) + 1;
+    stats.totalViews = (stats.totalViews || 0) + 1;
+    await kvPut(env, "stats", stats);
+  } catch {
+    /* ignore */
+  }
+}
+
+async function sendPhotoDataUrl(env, chatId, dataUrl, caption) {
+  const m = /^data:(.+?);base64,(.*)$/s.exec(dataUrl || "");
+  if (!m) return { ok: false };
+  const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+  const fd = new FormData();
+  fd.append("chat_id", String(chatId));
+  fd.append("caption", caption.slice(0, 1024));
+  fd.append("parse_mode", "Markdown");
+  fd.append("photo", new Blob([bytes], { type: m[1] || "image/jpeg" }), "photo.jpg");
+  const r = await fetch(
+    `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`,
+    { method: "POST", body: fd },
+  );
+  return { ok: r.ok };
 }
 
 /* ---------- KV helpers ---------- */
@@ -146,6 +214,14 @@ const need = {
   "settings.get": "viewer",
   "catalog.save": "manager",
   "settings.save": "manager",
+  "subs.list": "manager",
+  "reviews.list": "viewer",
+  "reviews.save": "manager",
+  "reviews.remove": "manager",
+  "faq.get": "viewer",
+  "faq.save": "manager",
+  "stats.get": "viewer",
+  "broadcast.send": "owner",
   "admins.list": "owner",
   "admins.set": "owner",
   "admins.remove": "owner",
@@ -203,6 +279,7 @@ export default {
       }
 
       if (msg && typeof msg.text === "string") {
+        await recordUser(env, msg.from);
         const settings = await getSettings(env);
         const appUrl = miniAppUrl(env, settings);
         const openBtn = /^https:\/\//.test(appUrl)
@@ -248,18 +325,99 @@ export default {
       if (String(d.phone || "").replace(/\D/g, "").length < 10)
         return json({ ok: false, error: "phone_required" }, 422);
       await storeLead(env, d);
-      const r = await api(env, "sendMessage", {
-        chat_id: env.TELEGRAM_CHAT_ID,
-        text: leadText(d),
-        parse_mode: "Markdown",
-      });
-      return json({ ok: r.ok }, r.ok ? 200 : 502);
+      const caption = leadText(d);
+      let ok;
+      if (d.photo) {
+        const r = await sendPhotoDataUrl(env, env.TELEGRAM_CHAT_ID, d.photo, caption);
+        ok = r.ok;
+        if (!ok) {
+          const r2 = await api(env, "sendMessage", {
+            chat_id: env.TELEGRAM_CHAT_ID,
+            text: caption,
+            parse_mode: "Markdown",
+          });
+          ok = r2.ok;
+        }
+      } else {
+        const r = await api(env, "sendMessage", {
+          chat_id: env.TELEGRAM_CHAT_ID,
+          text: caption,
+          parse_mode: "Markdown",
+        });
+        ok = r.ok;
+      }
+      return json({ ok }, ok ? 200 : 502);
     }
 
     // --- Публичный общий каталог ---
     if (url.pathname === "/api/catalog" && request.method === "GET") {
       const catalog = await kvGet(env, "catalog", null);
       return json({ ok: true, catalog });
+    }
+
+    // --- Публичные отзывы / FAQ ---
+    if (url.pathname === "/api/reviews" && request.method === "GET") {
+      return json({ ok: true, reviews: (await kvGet(env, "reviews", [])) || [] });
+    }
+    if (url.pathname === "/api/faq" && request.method === "GET") {
+      return json({ ok: true, faq: (await kvGet(env, "faq", DEFAULT_FAQ)) || DEFAULT_FAQ });
+    }
+
+    // --- Счётчик просмотров авто ---
+    if (url.pathname === "/api/view" && request.method === "POST") {
+      let b;
+      try {
+        b = await request.json();
+      } catch {
+        return json({ ok: false }, 400);
+      }
+      if (b?.id) await bumpView(env, String(b.id));
+      return json({ ok: true });
+    }
+
+    // --- Регистрация пользователя мини-аппа (для рассылок/статистики) ---
+    if (url.pathname === "/api/ping" && request.method === "POST") {
+      let b;
+      try {
+        b = await request.json();
+      } catch {
+        return json({ ok: false }, 400);
+      }
+      const auth = await verifyInitData(b?.initData, env.TELEGRAM_BOT_TOKEN);
+      if (auth.ok) await recordUser(env, auth.user);
+      return json({ ok: true });
+    }
+
+    // --- Подписка на подбор (любой Telegram-пользователь) ---
+    if (url.pathname === "/api/subscribe" && request.method === "POST") {
+      let b;
+      try {
+        b = await request.json();
+      } catch {
+        return json({ ok: false, error: "bad_json" }, 400);
+      }
+      const auth = await verifyInitData(b?.initData, env.TELEGRAM_BOT_TOKEN);
+      if (!auth.ok) return json({ ok: false, error: "unauthorized" }, 401);
+      await recordUser(env, auth.user);
+      const subs = (await kvGet(env, "subs", [])) || [];
+      const p = b.params || {};
+      subs.unshift({
+        userId: auth.user.id,
+        name: auth.user.first_name || "",
+        params: p,
+        ts: Date.now(),
+      });
+      await kvPut(env, "subs", subs.slice(0, 200));
+      await api(env, "sendMessage", {
+        chat_id: env.TELEGRAM_CHAT_ID,
+        parse_mode: "Markdown",
+        text: `🔔 *Новая подписка на подбор*\n👤 ${auth.user.first_name || "—"} (id ${auth.user.id})\n🌍 Страна: ${p.country || "любая"}\n🚙 Кузов: ${p.body || "любой"}\n💰 Бюджет до: ${p.budget ? p.budget + " ₽" : "—"}`,
+      });
+      await api(env, "sendMessage", {
+        chat_id: auth.user.id,
+        text: "🔔 Подписка оформлена! Сообщим, как только появится подходящее авто.",
+      });
+      return json({ ok: true });
     }
 
     // --- Админ-API ---
@@ -344,6 +502,89 @@ async function handleAdmin(env, action, payload, role, user) {
 
     case "leads.list":
       return json({ ok: true, leads: (await kvGet(env, "leads", [])) || [] });
+
+    case "subs.list":
+      return json({ ok: true, subs: (await kvGet(env, "subs", [])) || [] });
+
+    case "reviews.list":
+      return json({ ok: true, reviews: (await kvGet(env, "reviews", [])) || [] });
+
+    case "reviews.save": {
+      const list = (await kvGet(env, "reviews", [])) || [];
+      const rev = {
+        id: payload?.id || "r" + Date.now(),
+        name: String(payload?.name || "").slice(0, 80),
+        text: String(payload?.text || "").slice(0, 1000),
+        car: String(payload?.car || "").slice(0, 120),
+        rating: Math.max(1, Math.min(5, Number(payload?.rating) || 5)),
+        ts: payload?.ts || Date.now(),
+      };
+      const idx = list.findIndex((x) => x.id === rev.id);
+      if (idx >= 0) list[idx] = rev;
+      else list.unshift(rev);
+      await kvPut(env, "reviews", list);
+      return json({ ok: true, reviews: list });
+    }
+
+    case "reviews.remove": {
+      const list = ((await kvGet(env, "reviews", [])) || []).filter(
+        (x) => x.id !== payload?.id,
+      );
+      await kvPut(env, "reviews", list);
+      return json({ ok: true, reviews: list });
+    }
+
+    case "faq.get":
+      return json({ ok: true, faq: (await kvGet(env, "faq", DEFAULT_FAQ)) || DEFAULT_FAQ });
+
+    case "faq.save": {
+      if (!Array.isArray(payload))
+        return json({ ok: false, error: "bad_payload" }, 400);
+      const faq = payload
+        .map((x) => ({
+          q: String(x.q || "").slice(0, 200),
+          a: String(x.a || "").slice(0, 1000),
+        }))
+        .filter((x) => x.q);
+      await kvPut(env, "faq", faq);
+      return json({ ok: true, faq });
+    }
+
+    case "stats.get": {
+      const leads = (await kvGet(env, "leads", [])) || [];
+      const users = (await kvGet(env, "users", {})) || {};
+      const subs = (await kvGet(env, "subs", [])) || [];
+      const reviews = (await kvGet(env, "reviews", [])) || [];
+      const stats = (await kvGet(env, "stats", {})) || {};
+      return json({
+        ok: true,
+        stats: {
+          leads: leads.length,
+          users: Object.keys(users).length,
+          subs: subs.length,
+          reviews: reviews.length,
+          totalViews: stats.totalViews || 0,
+          views: stats.views || {},
+        },
+      });
+    }
+
+    case "broadcast.send": {
+      const text = String(payload?.text || "").trim();
+      if (!text) return json({ ok: false, error: "empty" }, 400);
+      const users = (await kvGet(env, "users", {})) || {};
+      const ids = Object.keys(users);
+      let sent = 0;
+      for (const id of ids) {
+        try {
+          const r = await api(env, "sendMessage", { chat_id: id, text });
+          if (r.ok) sent++;
+        } catch {
+          /* ignore */
+        }
+      }
+      return json({ ok: true, sent, total: ids.length });
+    }
 
     case "admins.list": {
       const admins = (await kvGet(env, "admins", {})) || {};
