@@ -907,12 +907,26 @@ export function HomeView({
   ];
   return (
     <>
-      <div className="mb-3 grain overflow-hidden rounded-[20px] border border-line-dark bg-[radial-gradient(420px_180px_at_85%_-20%,#3a1714,#161b22_70%)] p-4">
-        <div className="text-[15.5px] font-extrabold leading-snug">
-          Авто из Кореи, Китая, Японии и ЕС — под ключ
+      <div className="mb-5 px-0.5 pt-1">
+        <div className="mb-2.5 flex items-center gap-2.5">
+          <span className="h-[2px] w-7 rounded-full bg-bordeaux-bright" />
+          <span className="text-[10.5px] font-extrabold uppercase tracking-[0.22em] text-bordeaux-bright">
+            Импорт авто под ключ
+          </span>
         </div>
-        <div className="mt-1 text-[12.5px] text-[#9AA4B2]">
-          Честный расчёт с растаможкой. Выберите раздел 👇
+        <h1 className="font-display text-[26px] font-extrabold uppercase leading-[1.04] text-shine">
+          Авто из Кореи, Китая,
+          <br />
+          Японии и ЕС
+        </h1>
+        <div className="mt-3 flex items-center gap-2">
+          <Flag code="kr" className="h-3.5 w-5" />
+          <Flag code="cn" className="h-3.5 w-5" />
+          <Flag code="jp" className="h-3.5 w-5" />
+          <Flag code="eu" className="h-3.5 w-5" />
+          <span className="ml-1 text-[12.5px] text-[#9AA4B2]">
+            Честный расчёт с растаможкой
+          </span>
         </div>
       </div>
 
