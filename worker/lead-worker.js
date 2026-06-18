@@ -212,7 +212,7 @@ const RANK = { viewer: 1, manager: 2, owner: 3 };
 const need = {
   "me": "viewer",
   "catalog.get": "viewer",
-  "leads.list": "viewer",
+  "leads.list": "manager",
   "settings.get": "viewer",
   "catalog.save": "manager",
   "settings.save": "manager",
@@ -222,7 +222,7 @@ const need = {
   "reviews.remove": "manager",
   "faq.get": "viewer",
   "faq.save": "manager",
-  "stats.get": "viewer",
+  "stats.get": "manager",
   "broadcast.send": "owner",
   "drafts.list": "manager",
   "drafts.remove": "manager",

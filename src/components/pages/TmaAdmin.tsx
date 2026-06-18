@@ -115,10 +115,10 @@ export function TmaAdmin({
     { id: "catalog", label: "Каталог", icon: CarIcon, min: 1 },
     { id: "drafts", label: "Черновики", icon: FileStack, min: 2 },
     { id: "bot", label: "Бот", icon: Bot, min: 1 },
-    { id: "leads", label: "Заявки", icon: Inbox, min: 1 },
+    { id: "leads", label: "Заявки", icon: Inbox, min: 2 },
     { id: "reviews", label: "Отзывы", icon: Star, min: 1 },
     { id: "subs", label: "Подписки", icon: Bell, min: 2 },
-    { id: "stats", label: "Статистика", icon: BarChart3, min: 1 },
+    { id: "stats", label: "Статистика", icon: BarChart3, min: 2 },
     { id: "broadcast", label: "Рассылка", icon: Megaphone, min: 3 },
     { id: "admins", label: "Админы", icon: Users, min: 3 },
   ];
@@ -173,12 +173,12 @@ export function TmaAdmin({
       {tab === "bot" ? (
         <BotTab tg={tg} initData={initData} canEdit={rank >= 2} />
       ) : null}
-      {tab === "leads" ? <LeadsTab initData={initData} /> : null}
+      {tab === "leads" && rank >= 2 ? <LeadsTab initData={initData} /> : null}
       {tab === "reviews" ? (
         <ReviewsTab tg={tg} initData={initData} canEdit={rank >= 2} />
       ) : null}
       {tab === "subs" && rank >= 2 ? <SubsTab initData={initData} /> : null}
-      {tab === "stats" ? <StatsTab initData={initData} /> : null}
+      {tab === "stats" && rank >= 2 ? <StatsTab initData={initData} /> : null}
       {tab === "broadcast" && rank >= 3 ? (
         <BroadcastTab tg={tg} initData={initData} />
       ) : null}
