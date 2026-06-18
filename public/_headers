@@ -1,0 +1,28 @@
+# Cloudflare Pages — управление кэшем.
+# HTML (точки входа SPA) не кэшируем, чтобы обновления подхватывались сразу
+# (важно для Telegram-вебвью, который кэширует мини-апп агрессивно).
+# Ассеты с хэшем в имени — кэшируем надолго (имя меняется при каждой сборке).
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+/404.html
+  Cache-Control: no-cache
+
+/tma
+  Cache-Control: no-cache
+
+/tma/*
+  Cache-Control: no-cache
+
+/catalog
+  Cache-Control: no-cache
+
+/admin
+  Cache-Control: no-cache

@@ -204,7 +204,8 @@ export function Preloader({ onDone }: { onDone: () => void }) {
       }
 
       const pulse = 3 + Math.sin(elapsed / 280) * 1.6;
-      drawPoint(TOKYO, "ЯПОНИЯ", pulse, "left");
+      // Япония у правого края — подпись рисуем слева от точки, иначе обрежется.
+      drawPoint(TOKYO, "ЯПОНИЯ", pulse, "right");
       drawPoint(MOSCOW, "РОССИЯ", pulse, "right");
     };
 
