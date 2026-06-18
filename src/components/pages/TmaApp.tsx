@@ -237,9 +237,9 @@ export function TmaApp() {
 
   return (
     <div className="min-h-screen bg-graphite text-white">
-      <div className="mx-auto max-w-md px-4 pb-28 pt-4">
-        {/* Шапка */}
-        <div className="mb-4 flex items-center justify-between">
+      <div className="mx-auto max-w-md px-4 pb-28">
+        {/* Шапка — фиксируется при скролле */}
+        <div className="sticky top-0 z-40 -mx-4 mb-4 flex items-center justify-between border-b border-line-dark/60 bg-graphite px-4 py-3">
           <button
             type="button"
             onClick={() => {
