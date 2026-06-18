@@ -91,17 +91,31 @@ export default {
 
       // любое сообщение/команда → приветствие с кнопкой открыть каталог
       if (msg && typeof msg.text === "string") {
-        await api(env, "sendMessage", {
+        // web_app-кнопку показываем только при валидном https-URL мини-аппа,
+        // иначе Telegram отклонит всё сообщение и бот «промолчит».
+        const appUrl = String(env.MINI_APP_URL || "");
+        const openBtn = /^https:\/\//.test(appUrl)
+          ? { text: "🚘 Открыть каталог", web_app: { url: appUrl } }
+          : { text: "🚘 Открыть каталог", url: "https://авто-из-кореи-под-ключ.рф/catalog" };
+        const r = await api(env, "sendMessage", {
           chat_id: msg.chat.id,
           text: "🚗 *ДиАвто69* — авто из Кореи, Китая, Японии и ЕС под ключ.\nЧестный расчёт с растаможкой, без накруток.\n\nОткройте каталог и оставьте заявку 👇",
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "🚘 Открыть каталог", web_app: { url: env.MINI_APP_URL } }],
+              [openBtn],
               [{ text: "💬 Написать менеджеру", url: "https://t.me/Dmitriicarexport" }],
             ],
           },
         });
+        // если Telegram отклонил сообщение (напр. невалидный URL кнопки) —
+        // шлём простой текст без разметки, чтобы бот ответил в любом случае.
+        if (!r.ok) {
+          await api(env, "sendMessage", {
+            chat_id: msg.chat.id,
+            text: "🚗 ДиАвто69 — авто из Кореи, Китая, Японии и ЕС под ключ.\nКаталог: https://авто-из-кореи-под-ключ.рф/catalog\nМенеджер: https://t.me/Dmitriicarexport",
+          });
+        }
       }
       return new Response("ok");
     }
