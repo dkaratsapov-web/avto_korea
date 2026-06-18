@@ -915,23 +915,23 @@ function CarView({
           <Heart className={`h-[18px] w-[18px] ${fav ? "fill-bordeaux-bright text-bordeaux-bright" : ""}`} />
           {fav ? "В избранном" : "В избранное"}
         </button>
-        {showInAppCta ? (
-          <button onClick={onLead} className="btn btn-primary flex-1">
-            Оставить заявку
-          </button>
-        ) : null}
+        <button
+          onClick={onToggleCompare}
+          className={`btn flex-1 ${
+            inCompare
+              ? "border border-bordeaux-bright bg-bordeaux/15 text-white"
+              : "border border-line-dark text-white"
+          }`}
+        >
+          <Scale className="h-[18px] w-[18px]" />
+          {inCompare ? "В сравнении" : "Сравнить"}
+        </button>
       </div>
-      <button
-        onClick={onToggleCompare}
-        className={`btn mt-3 w-full ${
-          inCompare
-            ? "border border-bordeaux-bright bg-bordeaux/15 text-white"
-            : "border border-line-dark text-white"
-        }`}
-      >
-        <Scale className="h-[18px] w-[18px]" />
-        {inCompare ? "В сравнении" : "Добавить к сравнению"}
-      </button>
+      {showInAppCta ? (
+        <button onClick={onLead} className="btn btn-primary mt-3 w-full">
+          Оставить заявку
+        </button>
+      ) : null}
     </>
   );
 }
