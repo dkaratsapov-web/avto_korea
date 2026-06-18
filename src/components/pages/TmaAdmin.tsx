@@ -507,6 +507,14 @@ function StatsTab({ initData }: { initData: string }) {
   };
   const fmt = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
 
+  const topFav = Object.entries(stats.favs || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const daily = stats.daily || [];
+  const dailyMax = Math.max(1, ...daily.map((d) => d.count));
+  const convView = stats.totalViews ? (stats.leads / stats.totalViews) * 100 : 0;
+  const convUser = stats.users ? stats.leads / stats.users : 0;
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2.5">
@@ -516,6 +524,43 @@ function StatsTab({ initData }: { initData: string }) {
             <div className="text-[12px] text-[#9AA4B2]">{label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Конверсии */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
+          <div className="font-num text-[22px] font-extrabold text-success">
+            {convView.toFixed(1)}%
+          </div>
+          <div className="text-[12px] text-[#9AA4B2]">Просмотр → заявка</div>
+        </div>
+        <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
+          <div className="font-num text-[22px] font-extrabold text-success">
+            {convUser.toFixed(2)}
+          </div>
+          <div className="text-[12px] text-[#9AA4B2]">Заявок на пользователя</div>
+        </div>
+      </div>
+
+      {/* График заявок по дням */}
+      <div>
+        <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+          Заявки за 14 дней
+        </div>
+        <div className="flex h-24 items-end gap-1 rounded-[16px] border border-line-dark bg-graphite-2 p-3">
+          {daily.map((d) => (
+            <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
+              <div className="flex w-full flex-1 items-end">
+                <div
+                  className="w-full rounded-t bg-bordeaux-bright"
+                  style={{ height: `${Math.max(4, (d.count / dailyMax) * 100)}%` }}
+                  title={`${d.date}: ${d.count}`}
+                />
+              </div>
+              <span className="text-[8px] text-[#8C97A1]">{d.date.slice(8)}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {stats.lastLeadTs ? (
@@ -588,6 +633,29 @@ function StatsTab({ initData }: { initData: string }) {
                 className="flex items-center justify-between rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5"
               >
                 <span className="truncate text-[13.5px] font-semibold">{nameOf(id)}</span>
+                <span className="font-num text-[13px] text-bordeaux-bright">{v}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+          Топ по избранному
+        </div>
+        {topFav.length === 0 ? (
+          <p className="text-[13px] text-[#8C97A1]">Пока нет данных.</p>
+        ) : (
+          <div className="space-y-2">
+            {topFav.map(([id, v]) => (
+              <div
+                key={id}
+                className="flex items-center justify-between rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5"
+              >
+                <span className="truncate text-[13.5px] font-semibold">
+                  ♥ {nameOf(id)}
+                </span>
                 <span className="font-num text-[13px] text-bordeaux-bright">{v}</span>
               </div>
             ))}

@@ -62,6 +62,8 @@ export type Stats = {
   drafts?: number;
   bySource?: Record<string, number>;
   lastLeadTs?: number | null;
+  daily?: { date: string; count: number }[];
+  favs?: Record<string, number>;
 };
 
 export type Rates = {
@@ -125,6 +127,16 @@ export function logView(id: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id }),
+  }).catch(() => {});
+}
+
+/** Засчитать добавление в избранное (популярность). */
+export function logFav(id: string) {
+  if (!API_BASE) return;
+  fetch(`${API_BASE}/api/fav`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, on: true }),
   }).catch(() => {});
 }
 

@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { logFav } from "@/lib/api";
 
 type ModalState =
   | { type: "car"; carId: string }
@@ -77,9 +78,11 @@ export function UIProvider({ children }: { children: ReactNode }) {
     [favorites],
   );
   const toggleFav = useCallback((id: string) => {
-    setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    setFavorites((prev) => {
+      const already = prev.includes(id);
+      if (!already) logFav(id); // учёт популярности (добавление в избранное)
+      return already ? prev.filter((x) => x !== id) : [...prev, id];
+    });
   }, []);
   const removeFav = useCallback((id: string) => {
     setFavorites((prev) => prev.filter((x) => x !== id));

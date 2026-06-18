@@ -432,6 +432,27 @@ export default {
       return json({ ok: true });
     }
 
+    // --- Учёт добавления в избранное (популярность) ---
+    if (url.pathname === "/api/fav" && request.method === "POST") {
+      let b;
+      try {
+        b = await request.json();
+      } catch {
+        return json({ ok: false }, 400);
+      }
+      if (b?.id && b?.on && env.STORE) {
+        try {
+          const stats = (await kvGet(env, "stats", {})) || {};
+          stats.favs = stats.favs || {};
+          stats.favs[String(b.id)] = (stats.favs[String(b.id)] || 0) + 1;
+          await kvPut(env, "stats", stats);
+        } catch {
+          /* ignore */
+        }
+      }
+      return json({ ok: true });
+    }
+
     // --- Регистрация пользователя мини-аппа (для рассылок/статистики) ---
     if (url.pathname === "/api/ping" && request.method === "POST") {
       let b;
@@ -516,6 +537,12 @@ async function storeLead(env, d) {
       ts: Date.now(),
     });
     await kvPut(env, "leads", leads.slice(0, 50));
+    // дневной счётчик заявок (для графика)
+    const stats = (await kvGet(env, "stats", {})) || {};
+    stats.daily = stats.daily || {};
+    const day = new Date().toISOString().slice(0, 10);
+    stats.daily[day] = (stats.daily[day] || 0) + 1;
+    await kvPut(env, "stats", stats);
   } catch {
     /* ignore */
   }
@@ -679,6 +706,11 @@ async function handleAdmin(env, action, payload, role, user) {
         const s = l.source || "сайт";
         bySource[s] = (bySource[s] || 0) + 1;
       }
+      const daily = [];
+      for (let i = 13; i >= 0; i--) {
+        const key = new Date(now - i * DAY).toISOString().slice(0, 10);
+        daily.push({ date: key, count: (stats.daily || {})[key] || 0 });
+      }
       return json({
         ok: true,
         stats: {
@@ -689,6 +721,8 @@ async function handleAdmin(env, action, payload, role, user) {
           drafts: drafts.length,
           totalViews: stats.totalViews || 0,
           views: stats.views || {},
+          favs: stats.favs || {},
+          daily,
           leadsToday: leads.filter((l) => now - (l.ts || 0) < DAY).length,
           leads7d: leads.filter((l) => now - (l.ts || 0) < 7 * DAY).length,
           usersNew7d: Object.values(users).filter(
