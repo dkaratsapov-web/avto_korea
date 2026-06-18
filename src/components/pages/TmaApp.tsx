@@ -446,7 +446,6 @@ function ListView({
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | CountryCode>("all");
   const [open, setOpen] = useState(false);
-  const [lightbox, setLightbox] = useState<string[] | null>(null);
   const [brands, setBrands] = useState<string[]>([]);
   const [bodies, setBodies] = useState<string[]>([]);
   const [fuels, setFuels] = useState<string[]>([]);
@@ -633,7 +632,7 @@ function ListView({
           >
             <button
               type="button"
-              onClick={() => setLightbox(car.images)}
+              onClick={() => onOpen(car.id)}
               className="relative block aspect-[16/10] w-full bg-black"
             >
               {/* eslint-disable-next-line */}
@@ -648,8 +647,8 @@ function ListView({
                   Новинка
                 </span>
               ) : null}
-              <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
-                <Maximize2 className="h-3 w-3" /> {car.images.length}
+              <span className="absolute bottom-2.5 right-2.5 rounded-full bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
+                {car.images.length} фото
               </span>
               <span
                 onClick={(e) => {
@@ -688,10 +687,6 @@ function ListView({
           </p>
         ) : null}
       </div>
-
-      {lightbox ? (
-        <Lightbox images={lightbox} onClose={() => setLightbox(null)} />
-      ) : null}
     </>
   );
 }
