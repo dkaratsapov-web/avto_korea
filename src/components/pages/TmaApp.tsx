@@ -267,12 +267,17 @@ export function TmaApp() {
             type="button"
             onClick={() => {
               haptic(tgRef.current);
-              setView({ name: "calc" });
+              setView({ name: "compare" });
             }}
-            aria-label="Калькулятор"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome"
+            aria-label="Сравнение"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome"
           >
-            <Calculator className="h-5 w-5" />
+            <Scale className="h-5 w-5" />
+            {compareIds.length > 0 ? (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-bordeaux px-1 font-num text-[11px] font-bold text-white">
+                {compareIds.length}
+              </span>
+            ) : null}
           </button>
           <button
             type="button"
