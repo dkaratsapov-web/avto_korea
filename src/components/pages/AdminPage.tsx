@@ -16,8 +16,9 @@ import { type Car, type CarStatus, formatPrice } from "@/data/cars";
 import { countries, type CountryCode } from "@/lib/site";
 import { Flag } from "@/components/icons/Flag";
 
-const ADMIN_PASS =
-  (import.meta.env.VITE_ADMIN_PASS as string | undefined) ?? "diauto69";
+// Пароль задаётся только через переменную окружения. Без неё веб-админка
+// закрыта — управление каталогом перенесено в Telegram-бота (по подписи).
+const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASS as string | undefined;
 const AUTH_KEY = "diauto:admin";
 
 const emptyCar = (): Car => ({
@@ -62,6 +63,30 @@ export function AdminPage() {
   );
   const [pass, setPass] = useState("");
   const [err, setErr] = useState(false);
+
+  // Без заданного пароля веб-админка закрыта: управление — в Telegram-боте.
+  if (!ADMIN_PASS) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-graphite px-6 pt-20">
+        <div className="glass w-full max-w-sm rounded-card p-7 text-center text-white">
+          <h1 className="text-[22px] font-extrabold uppercase">Админка в боте</h1>
+          <p className="mb-5 mt-2 text-[13px] text-[#9AA4B2]">
+            Управление каталогом, настройками и заявками перенесено в
+            Telegram-бота (вход по вашему аккаунту, без паролей).
+          </p>
+          <a href="https://t.me/DI_AVTO_69_BOT" className="btn btn-primary w-full">
+            Открыть бота
+          </a>
+          <Link
+            to="/"
+            className="mt-4 block text-center text-[13px] text-chrome hover:text-white"
+          >
+            ← На сайт
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   if (!authed) {
     return (
