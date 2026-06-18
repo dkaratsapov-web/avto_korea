@@ -1171,7 +1171,7 @@ function HomeView({
           <button
             key={it.name}
             onClick={() => go(it.name)}
-            className={`flex flex-col items-start gap-2 rounded-[18px] border p-4 text-left transition-transform active:scale-[0.98] ${
+            className={`flex flex-col items-center gap-2 rounded-[18px] border p-4 text-center transition-transform active:scale-[0.98] ${
               it.primary
                 ? "col-span-2 border-bordeaux-bright bg-bordeaux/[0.12]"
                 : "border-line-dark bg-graphite-2"
