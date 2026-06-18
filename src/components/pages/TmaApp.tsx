@@ -503,49 +503,52 @@ function ListView({
 
   return (
     <>
-      <div className="mb-3 flex gap-2">
-        <label className="relative block flex-1">
-          <Search className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#8C97A1]" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Поиск по модели…"
-            className="field-dark pl-10"
-          />
-        </label>
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className={`relative flex h-[46px] w-[46px] flex-none items-center justify-center rounded-[12px] border ${
-            open || activeCount
-              ? "border-bordeaux-bright bg-bordeaux/15 text-bordeaux-bright"
-              : "border-line-dark text-chrome"
-          }`}
-          aria-label="Фильтры"
-        >
-          <SlidersHorizontal className="h-5 w-5" />
-          {activeCount ? (
-            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-bordeaux px-1 font-num text-[11px] font-bold text-white">
-              {activeCount}
-            </span>
-          ) : null}
-        </button>
-      </div>
-
-      <div className="mb-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {countryTabs.map((t) => (
+      {/* Поиск + табы — фиксируются под шапкой */}
+      <div className="sticky top-[64px] z-30 -mx-4 mb-3 border-b border-line-dark/60 bg-graphite px-4 pb-2.5 pt-2">
+        <div className="mb-2.5 flex gap-2">
+          <label className="relative block flex-1">
+            <Search className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#8C97A1]" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Поиск по модели…"
+              className="field-dark pl-10"
+            />
+          </label>
           <button
-            key={t.value}
-            onClick={() => setFilter(t.value)}
-            className={`flex flex-none items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold ${
-              filter === t.value
-                ? "border-bordeaux-bright bg-bordeaux text-white"
+            onClick={() => setOpen((v) => !v)}
+            className={`relative flex h-[46px] w-[46px] flex-none items-center justify-center rounded-[12px] border ${
+              open || activeCount
+                ? "border-bordeaux-bright bg-bordeaux/15 text-bordeaux-bright"
                 : "border-line-dark text-chrome"
             }`}
+            aria-label="Фильтры"
           >
-            {t.value !== "all" ? <Flag code={t.value} className="h-3 w-4" /> : null}
-            {t.label}
+            <SlidersHorizontal className="h-5 w-5" />
+            {activeCount ? (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-bordeaux px-1 font-num text-[11px] font-bold text-white">
+                {activeCount}
+              </span>
+            ) : null}
           </button>
-        ))}
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {countryTabs.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setFilter(t.value)}
+              className={`flex flex-none items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold ${
+                filter === t.value
+                  ? "border-bordeaux-bright bg-bordeaux text-white"
+                  : "border-line-dark text-chrome"
+              }`}
+            >
+              {t.value !== "all" ? <Flag code={t.value} className="h-3 w-4" /> : null}
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {open ? (
