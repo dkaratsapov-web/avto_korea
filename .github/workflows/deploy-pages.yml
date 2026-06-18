@@ -35,8 +35,8 @@ jobs:
       - name: Build (Vite)
         run: npm run build
         env:
-          VITE_BASE: /avto_korea/
-          VITE_SITE_URL: https://dkaratsapov-web.github.io/avto_korea
+          VITE_BASE: /
+          VITE_SITE_URL: https://авто-из-кореи-под-ключ.рф
 
       - name: SPA fallback (404 -> index)
         run: cp dist/index.html dist/404.html
