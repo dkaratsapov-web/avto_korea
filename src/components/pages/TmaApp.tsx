@@ -1,0 +1,618 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Heart,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ArrowLeft,
+  Check,
+} from "lucide-react";
+import { Flag } from "@/components/icons/Flag";
+import { useCars } from "@/lib/carsStore";
+import { useUI } from "@/lib/ui";
+import { countries, site, type CountryCode } from "@/lib/site";
+import { type Car, formatPrice } from "@/data/cars";
+import { showToast } from "@/lib/toast";
+import { loadTelegram, haptic, type TG } from "@/lib/telegram";
+
+type View =
+  | { name: "list" }
+  | { name: "car"; id: string }
+  | { name: "favorites" }
+  | { name: "lead"; carId?: string; from: View };
+
+export function TmaApp() {
+  const { cars } = useCars();
+  const { favorites, isFav, toggleFav } = useUI();
+  const tgRef = useRef<TG | null>(null);
+  const [ready, setReady] = useState(false);
+  const [view, setView] = useState<View>({ name: "list" });
+
+  // стабильные обёртки для нативных кнопок
+  const mainCb = useRef<() => void>(() => {});
+  const backCb = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    document.body.style.background = "#11151A";
+    let mounted = true;
+    loadTelegram().then((tg) => {
+      if (!mounted) return;
+      tgRef.current = tg;
+      if (tg) {
+        tg.ready();
+        tg.expand();
+        try {
+          tg.setHeaderColor("#11151A");
+          tg.setBackgroundColor("#11151A");
+        } catch {
+          /* ignore */
+        }
+        tg.MainButton.onClick(() => mainCb.current());
+        tg.BackButton.onClick(() => backCb.current());
+      }
+      setReady(true);
+    });
+    return () => {
+      mounted = false;
+      document.body.style.background = "";
+    };
+  }, []);
+
+  const inTg = ready && !!tgRef.current;
+
+  function back() {
+    haptic(tgRef.current);
+    setView((v) => (v.name === "lead" ? v.from : { name: "list" }));
+  }
+
+  function submit(name: string, phone: string, carId?: string) {
+    if (name.trim().length < 2 || phone.replace(/\D/g, "").length < 11) {
+      haptic(tgRef.current, "rigid");
+      showToast("Заполните имя и телефон полностью", "error");
+      return;
+    }
+    const car = carId ? cars.find((c) => c.id === carId) : undefined;
+    const payload = {
+      type: "lead",
+      name: name.trim(),
+      phone,
+      car: car ? `${car.model} · ${car.id}` : "",
+      source: "Telegram Mini App",
+    };
+    const tg = tgRef.current;
+    try {
+      if (tg?.sendData) {
+        tg.sendData(JSON.stringify(payload));
+        haptic(tg, "medium");
+        tg.close();
+        return;
+      }
+    } catch {
+      /* sendData недоступен — откроем чат */
+    }
+    showToast("Заявка готова — открываем чат с менеджером");
+    if (tg?.openTelegramLink) tg.openTelegramLink(site.telegramHref);
+    else window.open(site.telegramHref, "_blank");
+  }
+
+  // конфигурация нативных кнопок под текущий экран
+  const leadFormRef = useRef<{ name: string; phone: string; carId?: string }>({
+    name: "",
+    phone: "",
+  });
+  useEffect(() => {
+    const tg = tgRef.current;
+    if (!tg) return;
+    backCb.current = back;
+    if (view.name !== "list") tg.BackButton.show();
+    else tg.BackButton.hide();
+
+    if (view.name === "car") {
+      mainCb.current = () =>
+        setView({ name: "lead", carId: view.id, from: view });
+      tg.MainButton.setText("Оставить заявку");
+      tg.MainButton.setParams({ color: "#9C1A12", text_color: "#ffffff" });
+      tg.MainButton.show();
+    } else if (view.name === "lead") {
+      mainCb.current = () => {
+        const f = leadFormRef.current;
+        submit(f.name, f.phone, f.carId);
+      };
+      tg.MainButton.setText("Отправить заявку");
+      tg.MainButton.setParams({ color: "#9C1A12", text_color: "#ffffff" });
+      tg.MainButton.show();
+    } else {
+      tg.MainButton.hide();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, ready]);
+
+  return (
+    <div className="min-h-screen bg-graphite text-white">
+      <div className="mx-auto max-w-md px-4 pb-28 pt-4">
+        {/* Шапка */}
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => {
+              haptic(tgRef.current);
+              setView({ name: "list" });
+            }}
+            className="flex items-baseline gap-px font-display text-[22px] font-extrabold text-white"
+          >
+            <span className="text-chrome">Ди</span>Авто
+            <span className="text-bordeaux-bright">69</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              haptic(tgRef.current);
+              setView({ name: "favorites" });
+            }}
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome"
+          >
+            <Heart className="h-5 w-5" />
+            {favorites.length > 0 ? (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-bordeaux px-1 font-num text-[11px] font-bold text-white">
+                {favorites.length}
+              </span>
+            ) : null}
+          </button>
+        </div>
+
+        {view.name === "list" ? (
+          <ListView
+            cars={cars}
+            isFav={isFav}
+            onToggleFav={(id) => {
+              haptic(tgRef.current);
+              toggleFav(id);
+            }}
+            onOpen={(id) => {
+              haptic(tgRef.current);
+              setView({ name: "car", id });
+            }}
+          />
+        ) : null}
+
+        {view.name === "favorites" ? (
+          <FavView
+            cars={cars.filter((c) => favorites.includes(c.id))}
+            onOpen={(id) => setView({ name: "car", id })}
+            onRemove={(id) => {
+              haptic(tgRef.current);
+              toggleFav(id);
+            }}
+            onBack={() => setView({ name: "list" })}
+          />
+        ) : null}
+
+        {view.name === "car"
+          ? (() => {
+              const car = cars.find((c) => c.id === view.id);
+              if (!car) return null;
+              return (
+                <CarView
+                  car={car}
+                  fav={isFav(car.id)}
+                  onToggleFav={() => {
+                    haptic(tgRef.current);
+                    toggleFav(car.id);
+                  }}
+                  onBack={() => setView({ name: "list" })}
+                  onLead={() =>
+                    setView({ name: "lead", carId: car.id, from: view })
+                  }
+                  showInAppCta={!inTg}
+                />
+              );
+            })()
+          : null}
+
+        {view.name === "lead" ? (
+          <LeadView
+            car={
+              view.carId ? cars.find((c) => c.id === view.carId) : undefined
+            }
+            formRef={leadFormRef}
+            onBack={back}
+            onSubmit={(n, p) => submit(n, p, view.carId)}
+            showInAppCta={!inTg}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Экраны ---------- */
+
+function ListView({
+  cars,
+  isFav,
+  onToggleFav,
+  onOpen,
+}: {
+  cars: Car[];
+  isFav: (id: string) => boolean;
+  onToggleFav: (id: string) => void;
+  onOpen: (id: string) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<"all" | CountryCode>("all");
+
+  const countryTabs = useMemo(() => {
+    const present = Array.from(new Set(cars.map((c) => c.country)));
+    return [
+      { value: "all" as const, label: "Все" },
+      ...present.map((code) => ({ value: code, label: countries[code].label })),
+    ];
+  }, [cars]);
+
+  const list = cars.filter(
+    (c) =>
+      (filter === "all" || c.country === filter) &&
+      c.model.toLowerCase().includes(q.toLowerCase()),
+  );
+
+  return (
+    <>
+      <label className="relative mb-3 block">
+        <Search className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#8C97A1]" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Поиск по модели…"
+          className="field-dark pl-10"
+        />
+      </label>
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {countryTabs.map((t) => (
+          <button
+            key={t.value}
+            onClick={() => setFilter(t.value)}
+            className={`flex flex-none items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold ${
+              filter === t.value
+                ? "border-bordeaux-bright bg-bordeaux text-white"
+                : "border-line-dark text-chrome"
+            }`}
+          >
+            {t.value !== "all" ? <Flag code={t.value} className="h-3 w-4" /> : null}
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {list.map((car) => (
+          <button
+            key={car.id}
+            onClick={() => onOpen(car.id)}
+            className="flex w-full items-center gap-3 rounded-[16px] border border-line-dark bg-graphite-2 p-2.5 text-left"
+          >
+            <div className="relative h-[64px] w-[88px] flex-none overflow-hidden rounded-[10px] bg-black">
+              {/* eslint-disable-next-line */}
+              <img
+                src={car.images[0]}
+                alt=""
+                loading="lazy"
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <Flag code={car.country} className="h-3 w-4" />
+                <span className="truncate font-bold">{car.model}</span>
+              </div>
+              <div className="text-[12px] text-[#9AA4B2]">
+                {car.year} · {car.engine}
+              </div>
+              <div className="font-num text-[16px] font-bold text-bordeaux-bright">
+                {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+              </div>
+            </div>
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFav(car.id);
+              }}
+              className={`flex h-9 w-9 flex-none items-center justify-center rounded-full ${
+                isFav(car.id) ? "bg-bordeaux text-white" : "text-chrome"
+              }`}
+            >
+              <Heart
+                className={`h-[18px] w-[18px] ${isFav(car.id) ? "fill-white" : ""}`}
+              />
+            </span>
+          </button>
+        ))}
+        {list.length === 0 ? (
+          <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
+            Ничего не найдено
+          </p>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+function FavView({
+  cars,
+  onOpen,
+  onRemove,
+  onBack,
+}: {
+  cars: Car[];
+  onOpen: (id: string) => void;
+  onRemove: (id: string) => void;
+  onBack: () => void;
+}) {
+  return (
+    <>
+      <Header2 title="Избранное" onBack={onBack} />
+      <div className="space-y-3">
+        {cars.length === 0 ? (
+          <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
+            Здесь пока пусто. Добавляйте авто кнопкой ♥.
+          </p>
+        ) : (
+          cars.map((car) => (
+            <div
+              key={car.id}
+              className="flex items-center gap-3 rounded-[16px] border border-line-dark bg-graphite-2 p-2.5"
+            >
+              <button
+                onClick={() => onOpen(car.id)}
+                className="h-[56px] w-[80px] flex-none overflow-hidden rounded-[10px] bg-black"
+              >
+                {/* eslint-disable-next-line */}
+                <img src={car.images[0]} alt="" className="h-full w-full object-cover" />
+              </button>
+              <button
+                onClick={() => onOpen(car.id)}
+                className="min-w-0 flex-1 text-left"
+              >
+                <div className="truncate font-bold">{car.model}</div>
+                <div className="font-num text-[15px] font-bold text-bordeaux-bright">
+                  {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+                </div>
+              </button>
+              <button
+                onClick={() => onRemove(car.id)}
+                className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-bordeaux text-white"
+              >
+                <Heart className="h-[18px] w-[18px] fill-white" />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+
+function CarView({
+  car,
+  fav,
+  onToggleFav,
+  onBack,
+  onLead,
+  showInAppCta,
+}: {
+  car: Car;
+  fav: boolean;
+  onToggleFav: () => void;
+  onBack: () => void;
+  onLead: () => void;
+  showInAppCta: boolean;
+}) {
+  const [idx, setIdx] = useState(0);
+  const prev = () =>
+    setIdx((i) => (i - 1 + car.images.length) % car.images.length);
+  const next = () => setIdx((i) => (i + 1) % car.images.length);
+
+  return (
+    <>
+      <Header2 title={car.model} onBack={onBack} />
+      <div className="relative aspect-[16/11] overflow-hidden rounded-[16px] bg-black">
+        {/* eslint-disable-next-line */}
+        <img src={car.images[idx]} alt="" className="h-full w-full object-cover" />
+        {car.images.length > 1 ? (
+          <>
+            <button
+              onClick={prev}
+              className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-graphite/80 text-white"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              onClick={next}
+              className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-graphite/80 text-white"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-graphite/80 px-2 py-0.5 font-num text-[12px]">
+              {idx + 1}/{car.images.length}
+            </div>
+          </>
+        ) : null}
+        {car.isNew ? (
+          <span className="absolute right-3 top-3 rounded-full bg-bordeaux px-3 py-1 text-[11px] font-extrabold uppercase text-white">
+            Новинка
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-3 flex items-center gap-2">
+        <Flag code={car.country} className="h-4 w-6" />
+        <span className="text-[14px] font-semibold text-chrome">
+          {countries[car.country].label} · {car.trim}
+        </span>
+      </div>
+      <h2 className="mt-1 text-[24px] font-extrabold uppercase leading-none">
+        {car.model}
+      </h2>
+      <div className="mt-1 text-[13px] text-[#9AA4B2]">
+        {car.year} · {car.engine} · {car.gearbox} · {car.drive}
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <Price label="до Твери" value={car.priceTverRub ?? car.priceRub} accent />
+        {car.priceMoscowRub ? (
+          <Price label="до Москвы" value={car.priceMoscowRub} />
+        ) : null}
+      </div>
+
+      <ul className="mt-4 space-y-1.5">
+        {car.highlights.map((h) => (
+          <li key={h} className="flex items-start gap-2 text-[13.5px] text-[#C7CFD6]">
+            <Check className="mt-0.5 h-4 w-4 flex-none text-success" />
+            {h}
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-5 flex gap-3">
+        <button
+          onClick={onToggleFav}
+          className={`btn flex-1 ${
+            fav
+              ? "border border-bordeaux-bright bg-bordeaux/15 text-white"
+              : "border border-line-dark text-white"
+          }`}
+        >
+          <Heart className={`h-[18px] w-[18px] ${fav ? "fill-bordeaux-bright text-bordeaux-bright" : ""}`} />
+          {fav ? "В избранном" : "В избранное"}
+        </button>
+        {showInAppCta ? (
+          <button onClick={onLead} className="btn btn-primary flex-1">
+            Оставить заявку
+          </button>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+function LeadView({
+  car,
+  formRef,
+  onBack,
+  onSubmit,
+  showInAppCta,
+}: {
+  car?: Car;
+  formRef: React.MutableRefObject<{ name: string; phone: string; carId?: string }>;
+  onBack: () => void;
+  onSubmit: (name: string, phone: string) => void;
+  showInAppCta: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+
+  useEffect(() => {
+    formRef.current = { name, phone, carId: car?.id };
+  }, [name, phone, car, formRef]);
+
+  function maskPhone(v: string) {
+    let d = v.replace(/\D/g, "");
+    if (d[0] === "8") d = "7" + d.slice(1);
+    else if (d[0] === "9") d = "7" + d;
+    else if (d && d[0] !== "7") d = "7" + d;
+    d = d.slice(0, 11);
+    const r = d.slice(1);
+    if (!r) return d ? "+7" : "";
+    let out = "+7 (" + r.slice(0, 3);
+    if (r.length >= 3) out += ")";
+    if (r.length > 3) out += " " + r.slice(3, 6);
+    if (r.length >= 6) out += "-" + r.slice(6, 8);
+    if (r.length >= 8) out += "-" + r.slice(8, 10);
+    return out;
+  }
+
+  return (
+    <>
+      <Header2 title="Заявка на расчёт" onBack={onBack} />
+      {car ? (
+        <div className="mb-4 flex items-center gap-3 rounded-[16px] border border-line-dark bg-graphite-2 p-2.5">
+          {/* eslint-disable-next-line */}
+          <img
+            src={car.images[0]}
+            alt=""
+            className="h-12 w-16 flex-none rounded-[8px] object-cover"
+          />
+          <div>
+            <div className="font-bold">{car.model}</div>
+            <div className="font-num text-[14px] font-bold text-bordeaux-bright">
+              {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <div className="space-y-3">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Ваше имя"
+          className="field-dark"
+        />
+        <input
+          value={phone}
+          inputMode="tel"
+          onChange={(e) => setPhone(maskPhone(e.target.value))}
+          placeholder="+7 (___) ___-__-__"
+          className="field-dark"
+        />
+      </div>
+      <p className="mt-2 text-[12px] text-[#8C97A1]">
+        Нажимая «Отправить», вы соглашаетесь с обработкой персональных данных.
+        Перезвоним в течение 15 минут.
+      </p>
+      {showInAppCta ? (
+        <button
+          onClick={() => onSubmit(name, phone)}
+          className="btn btn-primary mt-4 w-full"
+        >
+          Отправить заявку
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+function Header2({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <div className="mb-4 flex items-center gap-2">
+      <button
+        onClick={onBack}
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-line-dark text-chrome"
+      >
+        <ArrowLeft className="h-5 w-5" />
+      </button>
+      <h1 className="truncate text-[18px] font-extrabold uppercase">{title}</h1>
+    </div>
+  );
+}
+
+function Price({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number;
+  accent?: boolean;
+}) {
+  return (
+    <div className="rounded-[14px] border border-line-dark bg-graphite-2 px-3 py-2.5">
+      <div className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#8C97A1]">
+        под ключ {label}
+      </div>
+      <div
+        className={`font-num text-[18px] font-bold ${accent ? "text-bordeaux-bright" : "text-white"}`}
+      >
+        {formatPrice(value)} ₽
+      </div>
+    </div>
+  );
+}

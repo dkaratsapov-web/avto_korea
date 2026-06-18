@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, Outlet, useLocation } from "react-router-dom";
 import { Header } from "@/components/sections/Header";
 import { Hero } from "@/components/sections/Hero";
 import { BrandTicker } from "@/components/sections/BrandTicker";
@@ -31,6 +31,9 @@ const CatalogPage = lazy(() =>
 const AdminPage = lazy(() =>
   import("@/components/pages/AdminPage").then((m) => ({ default: m.AdminPage })),
 );
+const TmaApp = lazy(() =>
+  import("@/components/pages/TmaApp").then((m) => ({ default: m.TmaApp })),
+);
 
 function Landing() {
   return (
@@ -59,7 +62,8 @@ function ScrollManager() {
   return null;
 }
 
-export function App() {
+/** Маркетинговая обёртка сайта: прелоадер, шапка, футер, декор. */
+function SiteLayout() {
   const [intro, setIntro] = useState(() => {
     if (typeof window === "undefined") return false;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -82,10 +86,20 @@ export function App() {
           <Preloader onDone={() => setIntro(false)} />
         </Suspense>
       ) : null}
-      <ScrollManager />
       <CursorGlow />
       <ScrollProgress />
       <Header />
+      <Outlet />
+      <Footer />
+      <FloatingTelegram />
+    </>
+  );
+}
+
+export function App() {
+  return (
+    <>
+      <ScrollManager />
       <Suspense
         fallback={
           <div className="flex min-h-screen items-center justify-center bg-paper pt-20">
@@ -94,13 +108,14 @@ export function App() {
         }
       >
         <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/catalog" element={<CatalogPage />} />
+          <Route element={<SiteLayout />}>
+            <Route path="/" element={<Landing />} />
+            <Route path="/catalog" element={<CatalogPage />} />
+          </Route>
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/tma" element={<TmaApp />} />
         </Routes>
       </Suspense>
-      <Footer />
-      <FloatingTelegram />
       <Toaster />
       <ModalHost />
     </>
