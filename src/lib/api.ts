@@ -11,6 +11,7 @@ export type BotSettings = {
   welcomeText: string;
   catalogButtonText: string;
   calcButtonText: string;
+  quizButtonText: string;
   managerButtonText: string;
   managerUrl: string;
   mapButtonText: string;

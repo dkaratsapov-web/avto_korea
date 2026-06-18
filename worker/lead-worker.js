@@ -33,6 +33,7 @@ const DEFAULT_SETTINGS = {
     "🚗 *ДиАвто69* — авто из Кореи, Китая, Японии и ЕС под ключ.\nЧестный расчёт с растаможкой, без накруток.\n\nЖмите «Запустить бот» — каталог, калькулятор и заявка 👇",
   catalogButtonText: "🚀 Запустить бот",
   calcButtonText: "🧮 Калькулятор",
+  quizButtonText: "🧩 Подбор по бюджету (5 вопросов)",
   managerButtonText: "💬 Написать менеджеру",
   managerUrl: "https://t.me/Dmitriicarexport",
   mapButtonText: "📍 Как к нам проехать?",
@@ -299,10 +300,12 @@ export default {
               text: settings.catalogButtonText,
               url: "https://avto-korea.pages.dev/catalog",
             };
-        const rows = [
-          [openBtn],
-          [{ text: settings.managerButtonText, url: settings.managerUrl }],
-        ];
+        const rows = [[openBtn]];
+        if (/^https:\/\//.test(appUrl)) {
+          const quizUrl = appUrl + (appUrl.includes("?") ? "&" : "?") + "screen=quiz";
+          rows.push([{ text: settings.quizButtonText, web_app: { url: quizUrl } }]);
+        }
+        rows.push([{ text: settings.managerButtonText, url: settings.managerUrl }]);
         if (settings.mapUrl)
           rows.push([{ text: settings.mapButtonText, url: settings.mapUrl }]);
         const r = await api(env, "sendMessage", {
@@ -629,6 +632,7 @@ async function handleAdmin(env, action, payload, role, user) {
         "welcomeText",
         "catalogButtonText",
         "calcButtonText",
+        "quizButtonText",
         "managerButtonText",
         "managerUrl",
         "mapButtonText",

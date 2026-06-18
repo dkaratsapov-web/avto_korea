@@ -18,6 +18,7 @@ import {
   Send,
   Loader2,
   Maximize2,
+  ClipboardList,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { useCars } from "@/lib/carsStore";
@@ -46,6 +47,7 @@ type View =
   | { name: "car"; id: string }
   | { name: "favorites" }
   | { name: "calc" }
+  | { name: "quiz" }
   | { name: "subscribe" }
   | { name: "compare" }
   | { name: "reviews" }
@@ -61,6 +63,7 @@ export function TmaApp() {
     if (typeof window === "undefined") return { name: "home" };
     const s = new URLSearchParams(window.location.search).get("screen");
     if (s === "calc") return { name: "calc" };
+    if (s === "quiz") return { name: "quiz" };
     if (s === "catalog") return { name: "list" };
     if (s === "subscribe") return { name: "subscribe" };
     if (s === "reviews") return { name: "reviews" };
@@ -350,6 +353,19 @@ export function TmaApp() {
           <CalcView
             onBack={() => setView({ name: "home" })}
             onLead={() => setView({ name: "lead", from: { name: "calc" }, carId: undefined })}
+          />
+        ) : null}
+
+        {view.name === "quiz" ? (
+          <QuizView
+            inTg={inTg}
+            onBack={() => setView({ name: "home" })}
+            onOpen={(id) => {
+              haptic(tgRef.current);
+              logView(id);
+              setView({ name: "car", id });
+            }}
+            haptic={() => haptic(tgRef.current, "medium")}
           />
         ) : null}
 
@@ -1271,6 +1287,7 @@ function CalcRow({
 type HomeTarget =
   | "list"
   | "calc"
+  | "quiz"
   | "subscribe"
   | "compare"
   | "reviews"
@@ -1305,7 +1322,7 @@ function HomeView({
   ];
   return (
     <>
-      <div className="mb-4 grain overflow-hidden rounded-[20px] border border-line-dark bg-[radial-gradient(420px_180px_at_85%_-20%,#3a1714,#161b22_70%)] p-4">
+      <div className="mb-3 grain overflow-hidden rounded-[20px] border border-line-dark bg-[radial-gradient(420px_180px_at_85%_-20%,#3a1714,#161b22_70%)] p-4">
         <div className="text-[15.5px] font-extrabold leading-snug">
           Авто из Кореи, Китая, Японии и ЕС — под ключ
         </div>
@@ -1313,6 +1330,25 @@ function HomeView({
           Честный расчёт с растаможкой. Выберите раздел 👇
         </div>
       </div>
+
+      {/* Промо-кнопка квиза */}
+      <button
+        onClick={() => go("quiz")}
+        className="mb-3 flex w-full items-center gap-3 rounded-[18px] border border-bordeaux-bright bg-bordeaux/[0.15] p-4 text-left transition-transform active:scale-[0.99]"
+      >
+        <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-bordeaux text-white">
+          <ClipboardList className="h-5 w-5" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[15px] font-extrabold">
+            Ответьте на 5 вопросов
+          </span>
+          <span className="block text-[12.5px] text-[#C7CFD6]">
+            Подберём авто и расчёт под ваш бюджет
+          </span>
+        </span>
+      </button>
+
       <div className="grid grid-cols-2 gap-3">
         {items.map((it) => (
           <button
@@ -1339,6 +1375,299 @@ function HomeView({
       <button onClick={onLead} className="btn btn-primary mt-3 w-full">
         <Send className="h-[18px] w-[18px]" /> Оставить заявку
       </button>
+    </>
+  );
+}
+
+/* ---------- Квиз: 5 вопросов → подбор под бюджет ---------- */
+type QuizState = {
+  budget?: number; // индекс варианта бюджета
+  body?: string;
+  country?: CountryCode | "any";
+  condition?: "new" | "used" | "any";
+  when?: string;
+};
+const BUDGETS: { label: string; min: number; max: number }[] = [
+  { label: "до 1,5 млн ₽", min: 0, max: 1_500_000 },
+  { label: "1,5–2,5 млн ₽", min: 1_500_000, max: 2_500_000 },
+  { label: "2,5–4 млн ₽", min: 2_500_000, max: 4_000_000 },
+  { label: "от 4 млн ₽", min: 4_000_000, max: Infinity },
+];
+
+function QuizView({
+  inTg,
+  onBack,
+  onOpen,
+  haptic: hapticOk,
+}: {
+  inTg: boolean;
+  onBack: () => void;
+  onOpen: (id: string) => void;
+  haptic: () => void;
+}) {
+  const { cars } = useCars();
+  const [step, setStep] = useState(0);
+  const [a, setA] = useState<QuizState>({});
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const steps: {
+    key: keyof QuizState;
+    q: string;
+    opts: { label: string; value: string | number }[];
+  }[] = [
+    {
+      key: "budget",
+      q: "Какой бюджет под ключ?",
+      opts: BUDGETS.map((b, i) => ({ label: b.label, value: i })),
+    },
+    {
+      key: "body",
+      q: "Какой тип кузова?",
+      opts: [
+        { label: "Седан", value: "Седан" },
+        { label: "Кроссовер", value: "Кроссовер" },
+        { label: "Внедорожник", value: "Внедорожник" },
+        { label: "Неважно", value: "any" },
+      ],
+    },
+    {
+      key: "country",
+      q: "Откуда предпочитаете?",
+      opts: [
+        { label: "Корея", value: "kr" },
+        { label: "Китай", value: "cn" },
+        { label: "Япония", value: "jp" },
+        { label: "Европа", value: "eu" },
+        { label: "Неважно", value: "any" },
+      ],
+    },
+    {
+      key: "condition",
+      q: "Новое или с пробегом?",
+      opts: [
+        { label: "Новое", value: "new" },
+        { label: "С пробегом", value: "used" },
+        { label: "Неважно", value: "any" },
+      ],
+    },
+    {
+      key: "when",
+      q: "Когда планируете покупку?",
+      opts: [
+        { label: "Сейчас", value: "Сейчас" },
+        { label: "1–3 месяца", value: "1–3 месяца" },
+        { label: "Просто смотрю", value: "Просто смотрю" },
+      ],
+    },
+  ];
+
+  const total = steps.length;
+  const done = step >= total;
+
+  function choose(key: keyof QuizState, value: string | number) {
+    hapticOk();
+    setA((p) => ({ ...p, [key]: value }));
+    setStep((s) => s + 1);
+  }
+
+  // подбор под ответы
+  const budget = typeof a.budget === "number" ? BUDGETS[a.budget] : null;
+  const matches = cars.filter((c) => {
+    const price = c.priceTverRub ?? c.priceRub;
+    if (budget && (price < budget.min || price > budget.max)) return false;
+    if (a.body && a.body !== "any" && c.bodyType !== a.body) return false;
+    if (a.country && a.country !== "any" && c.country !== a.country) return false;
+    if (a.condition === "new" && !c.isNew) return false;
+    if (a.condition === "used" && c.isNew) return false;
+    return true;
+  });
+
+  function summary() {
+    const parts = [
+      budget ? `бюджет ${budget.label}` : "",
+      a.body && a.body !== "any" ? a.body : "",
+      a.country && a.country !== "any" ? countries[a.country as CountryCode].label : "",
+      a.condition === "new" ? "новое" : a.condition === "used" ? "с пробегом" : "",
+    ].filter(Boolean);
+    return parts.join(", ");
+  }
+
+  function maskPhone(v: string) {
+    let d = v.replace(/\D/g, "");
+    if (d[0] === "8") d = "7" + d.slice(1);
+    else if (d[0] === "9") d = "7" + d;
+    else if (d && d[0] !== "7") d = "7" + d;
+    d = d.slice(0, 11);
+    const r = d.slice(1);
+    if (!r) return d ? "+7" : "";
+    let out = "+7 (" + r.slice(0, 3);
+    if (r.length >= 3) out += ")";
+    if (r.length > 3) out += " " + r.slice(3, 6);
+    if (r.length >= 6) out += "-" + r.slice(6, 8);
+    if (r.length >= 8) out += "-" + r.slice(8, 10);
+    return out;
+  }
+
+  async function submit() {
+    if (name.trim().length < 2 || phone.replace(/\D/g, "").length < 11) {
+      showToast("Заполните имя и телефон", "error");
+      return;
+    }
+    const payload = {
+      type: "lead",
+      name: name.trim(),
+      phone,
+      car: `Квиз: ${summary() || "без уточнений"}`,
+      budget: budget?.label || "",
+      comment: a.when ? `Срок: ${a.when}` : "",
+      source: "Квиз (мини-апп)",
+    };
+    const endpoint = import.meta.env.VITE_LEAD_ENDPOINT as string | undefined;
+    if (!endpoint) {
+      setSent(true);
+      return;
+    }
+    setLoading(true);
+    try {
+      const r = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setLoading(false);
+      if (r.ok) {
+        hapticOk();
+        setSent(true);
+      } else showToast("Не удалось отправить", "error");
+    } catch {
+      setLoading(false);
+      showToast("Ошибка сети", "error");
+    }
+  }
+
+  if (sent) {
+    return (
+      <>
+        <Header2 title="Подбор по бюджету" onBack={onBack} />
+        <div className="rounded-[18px] border border-success/40 bg-success/10 p-5 text-center">
+          <Check className="mx-auto h-8 w-8 text-success" />
+          <p className="mt-2 text-[16px] font-bold">Заявка отправлена!</p>
+          <p className="mt-1 text-[13px] text-[#C7CFD6]">
+            Подготовим расчёт под ваш бюджет и перезвоним в течение 15 минут.
+          </p>
+        </div>
+      </>
+    );
+  }
+
+  // экран вопросов
+  if (!done) {
+    const cur = steps[step];
+    return (
+      <>
+        <Header2 title="Подбор по бюджету" onBack={step === 0 ? onBack : () => setStep((s) => s - 1)} />
+        <div className="mb-4">
+          <div className="mb-1.5 flex justify-between text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+            <span>Вопрос {step + 1} из {total}</span>
+            <span>{Math.round(((step + 1) / total) * 100)}%</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-graphite-2">
+            <div
+              className="h-full rounded-full bg-bordeaux-bright transition-all"
+              style={{ width: `${((step + 1) / total) * 100}%` }}
+            />
+          </div>
+        </div>
+        <h2 className="mb-4 text-[20px] font-extrabold leading-tight">{cur.q}</h2>
+        <div className="space-y-2.5">
+          {cur.opts.map((o) => (
+            <button
+              key={String(o.value)}
+              onClick={() => choose(cur.key, o.value)}
+              className="flex w-full items-center justify-between rounded-[14px] border border-line-dark bg-graphite-2 px-4 py-3.5 text-left text-[15px] font-semibold transition-colors active:border-bordeaux-bright"
+            >
+              {o.label}
+              <ChevronRight className="h-4 w-4 text-chrome" />
+            </button>
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  // экран результата + заявка
+  return (
+    <>
+      <Header2 title="Ваш подбор" onBack={() => setStep(total - 1)} />
+      <div className="mb-4 rounded-[14px] border border-line-dark bg-graphite-2 p-3 text-[13px] text-[#C7CFD6]">
+        🎯 Параметры: <b className="text-white">{summary() || "без уточнений"}</b>
+      </div>
+
+      {matches.length ? (
+        <>
+          <div className="mb-2 text-[13px] font-semibold text-[#9AA4B2]">
+            Подходит из наличия: <span className="font-num text-white">{matches.length}</span>
+          </div>
+          <div className="mb-4 space-y-2.5">
+            {matches.slice(0, 5).map((car) => (
+              <button
+                key={car.id}
+                onClick={() => onOpen(car.id)}
+                className="flex w-full items-center gap-3 rounded-[14px] border border-line-dark bg-graphite-2 p-2.5 text-left"
+              >
+                <div className="h-[52px] w-[74px] flex-none overflow-hidden rounded-[10px] bg-black">
+                  {/* eslint-disable-next-line */}
+                  <img src={car.images[0]} alt="" className="h-full w-full object-cover" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-bold">{car.model}</div>
+                  <div className="font-num text-[14px] font-bold text-bordeaux-bright">
+                    {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 flex-none text-chrome" />
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="mb-4 rounded-[14px] border border-line-dark bg-graphite-2 p-4 text-center text-[13.5px] text-[#9AA4B2]">
+          Точного совпадения в наличии нет — подберём под заказ под ваш бюджет.
+        </p>
+      )}
+
+      <div className="rounded-[18px] border border-bordeaux-bright/40 bg-bordeaux/[0.06] p-4">
+        <p className="mb-3 text-[14px] font-bold">
+          Оставьте контакты — пришлём расчёт под ключ под ваш бюджет:
+        </p>
+        <div className="space-y-2.5">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ваше имя"
+            className="field-dark"
+          />
+          <input
+            value={phone}
+            inputMode="tel"
+            onChange={(e) => setPhone(maskPhone(e.target.value))}
+            placeholder="+7 (___) ___-__-__"
+            className="field-dark"
+          />
+        </div>
+        {!inTg ? (
+          <p className="mt-2 text-[11px] text-[#8C97A1]">
+            Перезвоним в течение 15 минут.
+          </p>
+        ) : null}
+        <button onClick={submit} className="btn btn-primary mt-3 w-full">
+          {loading ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Send className="h-[18px] w-[18px]" />}
+          Получить расчёт
+        </button>
+      </div>
     </>
   );
 }
