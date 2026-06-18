@@ -27,7 +27,7 @@ export const site = {
 
 export const nav = [
   { href: "#how", label: "Как работаем" },
-  { href: "#catalog", label: "Наличие" },
+  { href: "#catalog", label: "Каталог" },
   { href: "#calc", label: "Расчёт" },
   { href: "#reviews", label: "Отзывы" },
   { href: "#contacts", label: "Контакты" },
