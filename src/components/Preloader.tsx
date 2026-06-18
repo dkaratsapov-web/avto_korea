@@ -12,8 +12,9 @@ import { Logo } from "@/components/ui/Logo";
 
 const TOKYO: [number, number] = [139.69, 35.69];
 const MOSCOW: [number, number] = [37.62, 55.75];
-const LAND_URL =
-  "https://raw.githubusercontent.com/martynafford/natural-earth-geojson/refs/heads/master/110m/physical/ne_110m_land.json";
+// Контур суши лежит локально (public/), грузится с нашего же хоста — без задержек
+// и без зависимости от GitHub (важно для РФ-сетей).
+const LAND_URL = `${import.meta.env.BASE_URL}land-110m.json`;
 
 type Ring = number[][];
 
@@ -246,8 +247,6 @@ export function Preloader({ onDone }: { onDone: () => void }) {
       drawArc(elapsed);
     };
 
-    // Генерация точек для одной фичи (вынесена, чтобы дробить по кадрам).
-    let queue: any[] = [];
     const genFeature = (feature: any) => {
       const [[minLng, minLat], [maxLng, maxLat]] = geoBounds(feature);
       const step = 3.4;
@@ -262,23 +261,18 @@ export function Preloader({ onDone }: { onDone: () => void }) {
     let lastRender = -100;
     const t = timer((elapsed) => {
       if (!reduce) projection.rotate([-90 + elapsed * 0.004, -48]);
-      // инкрементальная генерация точек с бюджетом ~4мс/кадр — без джанка
-      if (queue.length) {
-        const budget = performance.now() + 4;
-        while (queue.length && performance.now() < budget) {
-          genFeature(queue.shift());
-        }
-      }
       if (elapsed - lastRender < 33) return; // ~30fps
       lastRender = elapsed;
       render(elapsed);
     });
 
+    // Контур с нашего хоста — мгновенно. Все точки генерируем сразу,
+    // чтобы суша и точки появлялись вместе, а не «доезжали» по кадрам.
     fetch(LAND_URL)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((geo: any) => {
+        for (const f of geo.features) genFeature(f);
         land = geo;
-        queue = geo.features.slice(); // точки сгенерируются постепенно в timer
       })
       .catch(() => {
         /* без суши — глобус с дугой всё равно показывается */
@@ -310,14 +304,6 @@ export function Preloader({ onDone }: { onDone: () => void }) {
           Готовим витрину…
         </p>
       </div>
-
-      <button
-        type="button"
-        onClick={() => setLeaving(true)}
-        className="absolute bottom-6 right-6 rounded-full border border-line-dark px-4 py-2 text-[13px] font-semibold text-chrome transition-colors hover:border-chrome hover:text-white"
-      >
-        Пропустить
-      </button>
     </div>
   );
 }
