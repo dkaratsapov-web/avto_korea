@@ -38,6 +38,12 @@ const emptyCar = (): Car => ({
   mileage: "Новый, 0 км",
   gearbox: "АКПП",
   drive: "Передний",
+  bodyType: "Кроссовер",
+  fuelType: "Бензин",
+  engineCc: 1500,
+  powerHp: 150,
+  mileageKm: 0,
+  color: "",
   priceRub: 0,
   priceMoscowRub: 0,
   priceTverRub: 0,
@@ -322,6 +328,66 @@ function CarEditor({
             className="field-dark"
             value={f.trim}
             onChange={(e) => set("trim", e.target.value)}
+          />
+        </label>
+        <label>
+          <span className={lab}>Тип кузова</span>
+          <input
+            className="field-dark"
+            value={f.bodyType ?? ""}
+            onChange={(e) => set("bodyType", e.target.value)}
+            placeholder="Кроссовер / Седан"
+          />
+        </label>
+        <label>
+          <span className={lab}>Топливо</span>
+          <select
+            className="field-dark"
+            value={f.fuelType ?? "Бензин"}
+            onChange={(e) => set("fuelType", e.target.value)}
+          >
+            <option>Бензин</option>
+            <option>Дизель</option>
+            <option>Гибрид</option>
+            <option>Электро</option>
+          </select>
+        </label>
+        <label>
+          <span className={lab}>Объём, см³</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="field-dark"
+            value={f.engineCc ?? 0}
+            onChange={(e) => set("engineCc", Number(e.target.value))}
+          />
+        </label>
+        <label>
+          <span className={lab}>Мощность, л.с.</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="field-dark"
+            value={f.powerHp ?? 0}
+            onChange={(e) => set("powerHp", Number(e.target.value))}
+          />
+        </label>
+        <label>
+          <span className={lab}>Цвет</span>
+          <input
+            className="field-dark"
+            value={f.color ?? ""}
+            onChange={(e) => set("color", e.target.value)}
+          />
+        </label>
+        <label>
+          <span className={lab}>Пробег, км</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="field-dark"
+            value={f.mileageKm ?? 0}
+            onChange={(e) => set("mileageKm", Number(e.target.value))}
           />
         </label>
         <label>

@@ -30,6 +30,12 @@ const emptyCar = (): Car => ({
   mileage: "Новый, 0 км",
   gearbox: "АКПП",
   drive: "Передний",
+  bodyType: "Кроссовер",
+  fuelType: "Бензин",
+  engineCc: 1500,
+  powerHp: 150,
+  mileageKm: 0,
+  color: "",
   priceRub: 0,
   priceMoscowRub: 0,
   priceTverRub: 0,
@@ -359,11 +365,68 @@ function CarEditor({
           />
         </label>
         <label>
-          <span className={lab}>Пробег</span>
+          <span className={lab}>Тип кузова</span>
+          <input
+            className={inp}
+            value={f.bodyType ?? ""}
+            onChange={(e) => set("bodyType", e.target.value)}
+            placeholder="Кроссовер / Седан…"
+          />
+        </label>
+        <label>
+          <span className={lab}>Тип топлива</span>
+          <select
+            className={inp}
+            value={f.fuelType ?? "Бензин"}
+            onChange={(e) => set("fuelType", e.target.value)}
+          >
+            <option>Бензин</option>
+            <option>Дизель</option>
+            <option>Гибрид</option>
+            <option>Электро</option>
+          </select>
+        </label>
+        <label>
+          <span className={lab}>Объём, см³</span>
+          <input
+            type="number"
+            className={inp}
+            value={f.engineCc ?? 0}
+            onChange={(e) => set("engineCc", Number(e.target.value))}
+          />
+        </label>
+        <label>
+          <span className={lab}>Мощность, л.с.</span>
+          <input
+            type="number"
+            className={inp}
+            value={f.powerHp ?? 0}
+            onChange={(e) => set("powerHp", Number(e.target.value))}
+          />
+        </label>
+        <label>
+          <span className={lab}>Цвет</span>
+          <input
+            className={inp}
+            value={f.color ?? ""}
+            onChange={(e) => set("color", e.target.value)}
+          />
+        </label>
+        <label>
+          <span className={lab}>Пробег (текст)</span>
           <input
             className={inp}
             value={f.mileage}
             onChange={(e) => set("mileage", e.target.value)}
+          />
+        </label>
+        <label>
+          <span className={lab}>Пробег, км (число)</span>
+          <input
+            type="number"
+            className={inp}
+            value={f.mileageKm ?? 0}
+            onChange={(e) => set("mileageKm", Number(e.target.value))}
           />
         </label>
         <label>

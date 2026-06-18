@@ -23,15 +23,21 @@ export function CatalogPage() {
 
   const facets = useMemo(() => {
     const prices = cars.map((c) => c.priceTverRub ?? c.priceRub);
+    const powers = cars.map((c) => c.powerHp ?? 0).filter(Boolean);
     return {
       countries: Array.from(new Set(cars.map((c) => c.country))),
       brands: Array.from(new Set(cars.map((c) => brandOf(c.model)))).sort(),
+      bodies: Array.from(new Set(cars.map((c) => c.bodyType).filter(Boolean) as string[])).sort(),
+      fuels: Array.from(new Set(cars.map((c) => c.fuelType).filter(Boolean) as string[])).sort(),
+      colors: Array.from(new Set(cars.map((c) => c.color).filter(Boolean) as string[])).sort(),
       drives: Array.from(new Set(cars.map((c) => c.drive))),
       gear: Array.from(new Set(cars.map((c) => c.gearbox))),
       years: Array.from(new Set(cars.map((c) => c.year))).sort((a, b) => b - a),
       statuses: Array.from(new Set(cars.map((c) => c.status))),
       min: prices.length ? Math.min(...prices) : 0,
       max: prices.length ? Math.max(...prices) : 0,
+      powerMin: powers.length ? Math.min(...powers) : 0,
+      powerMax: powers.length ? Math.max(...powers) : 0,
     };
   }, [cars]);
 
@@ -39,15 +45,20 @@ export function CatalogPage() {
   const [countryTab, setCountryTab] = useState<CountryCode | "all">("all");
   const [statusTab, setStatusTab] = useState<CarStatus | "all">("all");
   const [brands, setBrands] = useState<string[]>([]);
+  const [bodies, setBodies] = useState<string[]>([]);
+  const [fuels, setFuels] = useState<string[]>([]);
+  const [colors, setColors] = useState<string[]>([]);
   const [drives, setDrives] = useState<string[]>([]);
   const [gear, setGear] = useState<string[]>([]);
   const [years, setYears] = useState<number[]>([]);
   const [condition, setCondition] = useState<Condition>("all");
   const [priceMax, setPriceMax] = useState<number | null>(null);
+  const [powerMin, setPowerMin] = useState<number | null>(null);
   const [sort, setSort] = useState<Sort>("default");
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const cap = priceMax ?? facets.max;
+  const powCap = powerMin ?? facets.powerMin;
 
   const result = useMemo(() => {
     let list = cars.filter((c) => {
@@ -57,12 +68,16 @@ export function CatalogPage() {
       if (countryTab !== "all" && c.country !== countryTab) return false;
       if (statusTab !== "all" && c.status !== statusTab) return false;
       if (brands.length && !brands.includes(brandOf(c.model))) return false;
+      if (bodies.length && !(c.bodyType && bodies.includes(c.bodyType))) return false;
+      if (fuels.length && !(c.fuelType && fuels.includes(c.fuelType))) return false;
+      if (colors.length && !(c.color && colors.includes(c.color))) return false;
       if (drives.length && !drives.includes(c.drive)) return false;
       if (gear.length && !gear.includes(c.gearbox)) return false;
       if (years.length && !years.includes(c.year)) return false;
       if (condition === "new" && !c.isNew) return false;
       if (condition === "used" && c.isNew) return false;
       if (price > cap) return false;
+      if (powCap && (c.powerHp ?? 0) < powCap) return false;
       return true;
     });
     if (sort === "price-asc")
@@ -74,15 +89,19 @@ export function CatalogPage() {
         (a, b) => (b.priceTverRub ?? b.priceRub) - (a.priceTverRub ?? a.priceRub),
       );
     return list;
-  }, [cars, search, countryTab, statusTab, brands, drives, gear, years, condition, cap, sort]);
+  }, [cars, search, countryTab, statusTab, brands, bodies, fuels, colors, drives, gear, years, condition, cap, powCap, sort]);
 
   const activeCount =
     brands.length +
+    bodies.length +
+    fuels.length +
+    colors.length +
     drives.length +
     gear.length +
     years.length +
     (condition !== "all" ? 1 : 0) +
     (priceMax !== null ? 1 : 0) +
+    (powerMin !== null ? 1 : 0) +
     (search ? 1 : 0);
 
   function reset() {
@@ -90,11 +109,15 @@ export function CatalogPage() {
     setCountryTab("all");
     setStatusTab("all");
     setBrands([]);
+    setBodies([]);
+    setFuels([]);
+    setColors([]);
     setDrives([]);
     setGear([]);
     setYears([]);
     setCondition("all");
     setPriceMax(null);
+    setPowerMin(null);
     setSort("default");
   }
 
@@ -173,6 +196,48 @@ export function CatalogPage() {
               ))}
             </FilterGroup>
 
+            {facets.bodies.length ? (
+              <FilterGroup title="Тип кузова">
+                {facets.bodies.map((b) => (
+                  <Chip
+                    key={b}
+                    active={bodies.includes(b)}
+                    onClick={() => setBodies((p) => toggle(p, b))}
+                  >
+                    {b}
+                  </Chip>
+                ))}
+              </FilterGroup>
+            ) : null}
+
+            {facets.fuels.length ? (
+              <FilterGroup title="Топливо">
+                {facets.fuels.map((f) => (
+                  <Chip
+                    key={f}
+                    active={fuels.includes(f)}
+                    onClick={() => setFuels((p) => toggle(p, f))}
+                  >
+                    {f}
+                  </Chip>
+                ))}
+              </FilterGroup>
+            ) : null}
+
+            {facets.colors.length ? (
+              <FilterGroup title="Цвет">
+                {facets.colors.map((c) => (
+                  <Chip
+                    key={c}
+                    active={colors.includes(c)}
+                    onClick={() => setColors((p) => toggle(p, c))}
+                  >
+                    {c}
+                  </Chip>
+                ))}
+              </FilterGroup>
+            ) : null}
+
             <FilterGroup title="Состояние">
               {(
                 [
@@ -245,6 +310,28 @@ export function CatalogPage() {
                 <span>{fmt(facets.max)} ₽</span>
               </div>
             </div>
+
+            {facets.powerMax > facets.powerMin ? (
+              <div>
+                <div className="mb-2 text-[13px] font-extrabold uppercase tracking-[0.08em] text-ink-2">
+                  Мощность от{" "}
+                  <span className="font-num text-bordeaux">{powCap} л.с.</span>
+                </div>
+                <input
+                  type="range"
+                  min={facets.powerMin}
+                  max={facets.powerMax}
+                  step={5}
+                  value={powCap}
+                  onChange={(e) => setPowerMin(Number(e.target.value))}
+                  className="w-full accent-bordeaux"
+                />
+                <div className="mt-1 flex justify-between font-num text-[12px] text-ink-2">
+                  <span>{facets.powerMin} л.с.</span>
+                  <span>{facets.powerMax} л.с.</span>
+                </div>
+              </div>
+            ) : null}
           </div>
         </aside>
 
@@ -316,6 +403,21 @@ export function CatalogPage() {
             {brands.map((b) => (
               <RemoveChip key={b} onClick={() => setBrands((p) => toggle(p, b))}>
                 {b}
+              </RemoveChip>
+            ))}
+            {bodies.map((b) => (
+              <RemoveChip key={b} onClick={() => setBodies((p) => toggle(p, b))}>
+                {b}
+              </RemoveChip>
+            ))}
+            {fuels.map((f) => (
+              <RemoveChip key={f} onClick={() => setFuels((p) => toggle(p, f))}>
+                {f}
+              </RemoveChip>
+            ))}
+            {colors.map((c) => (
+              <RemoveChip key={c} onClick={() => setColors((p) => toggle(p, c))}>
+                {c}
               </RemoveChip>
             ))}
             {condition !== "all" ? (

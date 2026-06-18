@@ -12,6 +12,18 @@ export type Car = {
   mileage: string;
   gearbox: string;
   drive: string;
+  /** Тип кузова: «Седан», «Кроссовер», «Внедорожник»… */
+  bodyType?: string;
+  /** Тип топлива: «Бензин», «Дизель», «Гибрид», «Электро». */
+  fuelType?: string;
+  /** Объём двигателя, см³ (для фильтра по объёму). */
+  engineCc?: number;
+  /** Мощность, л.с. */
+  powerHp?: number;
+  /** Пробег, км (0 — новый). */
+  mileageKm?: number;
+  /** Цвет кузова. */
+  color?: string;
   /** Основная цена под ключ (до Твери), ₽. */
   priceRub: number;
   priceMoscowRub?: number;
@@ -42,6 +54,12 @@ export const cars: Car[] = [
     mileage: "Новый, 0 км",
     gearbox: "АКПП",
     drive: "Передний",
+    bodyType: "Кроссовер",
+    fuelType: "Бензин",
+    engineCc: 1498,
+    powerHp: 110,
+    mileageKm: 0,
+    color: "Белый",
     priceRub: 2_070_000,
     priceMoscowRub: 2_050_000,
     priceTverRub: 2_070_000,
@@ -66,6 +84,12 @@ export const cars: Car[] = [
     mileage: "Новый, 0 км",
     gearbox: "АКПП",
     drive: "Передний",
+    bodyType: "Седан",
+    fuelType: "Бензин",
+    engineCc: 1498,
+    powerHp: 115,
+    mileageKm: 0,
+    color: "Серый",
     priceRub: 1_800_000,
     priceMoscowRub: 1_780_000,
     priceTverRub: 1_800_000,
@@ -90,6 +114,12 @@ export const cars: Car[] = [
     mileage: "Новый, 0 км",
     gearbox: "АКПП",
     drive: "Полный",
+    bodyType: "Внедорожник",
+    fuelType: "Бензин",
+    engineCc: 1984,
+    powerHp: 272,
+    mileageKm: 0,
+    color: "Чёрный",
     priceRub: 5_430_000,
     priceMoscowRub: 5_400_000,
     priceTverRub: 5_430_000,
@@ -114,6 +144,12 @@ export const cars: Car[] = [
     mileage: "Новый, 0 км",
     gearbox: "АКПП",
     drive: "Передний",
+    bodyType: "Седан",
+    fuelType: "Бензин",
+    engineCc: 1498,
+    powerHp: 115,
+    mileageKm: 0,
+    color: "Чёрный",
     priceRub: 1_970_000,
     priceMoscowRub: 1_950_000,
     priceTverRub: 1_970_000,
@@ -139,6 +175,12 @@ export const cars: Car[] = [
     mileage: "Новый, 0 км",
     gearbox: "АКПП",
     drive: "Передний",
+    bodyType: "Кроссовер",
+    fuelType: "Бензин",
+    engineCc: 1395,
+    powerHp: 150,
+    mileageKm: 0,
+    color: "Серебристый",
     priceRub: 2_100_000,
     priceMoscowRub: 2_080_000,
     priceTverRub: 2_100_000,
@@ -163,6 +205,12 @@ export const cars: Car[] = [
     mileage: "Новый, 0 км",
     gearbox: "АКПП",
     drive: "Передний",
+    bodyType: "Седан",
+    fuelType: "Бензин",
+    engineCc: 1498,
+    powerHp: 120,
+    mileageKm: 0,
+    color: "Белый",
     priceRub: 1_740_000,
     priceMoscowRub: 1_720_000,
     priceTverRub: 1_740_000,
@@ -187,6 +235,12 @@ export const cars: Car[] = [
     mileage: "Новый, 0 км",
     gearbox: "АКПП",
     drive: "Передний",
+    bodyType: "Седан",
+    fuelType: "Бензин",
+    engineCc: 1498,
+    powerHp: 115,
+    mileageKm: 0,
+    color: "Серый",
     priceRub: 1_970_000,
     priceMoscowRub: 1_950_000,
     priceTverRub: 1_970_000,
@@ -211,6 +265,12 @@ export const cars: Car[] = [
     mileage: "Новый, 0 км",
     gearbox: "АКПП",
     drive: "Передний",
+    bodyType: "Кроссовер",
+    fuelType: "Бензин",
+    engineCc: 1395,
+    powerHp: 150,
+    mileageKm: 0,
+    color: "Белый",
     priceRub: 1_960_000,
     priceMoscowRub: 1_940_000,
     priceTverRub: 1_960_000,
@@ -234,6 +294,12 @@ export const cars: Car[] = [
     mileage: "Новый, 0 км",
     gearbox: "АКПП",
     drive: "Передний",
+    bodyType: "Кроссовер",
+    fuelType: "Бензин",
+    engineCc: 1395,
+    powerHp: 150,
+    mileageKm: 0,
+    color: "Синий",
     priceRub: 1_820_000,
     priceMoscowRub: 1_800_000,
     priceTverRub: 1_820_000,
@@ -258,6 +324,12 @@ export const cars: Car[] = [
     mileage: "Новый, 0 км",
     gearbox: "АКПП",
     drive: "Полный",
+    bodyType: "Кроссовер",
+    fuelType: "Бензин",
+    engineCc: 1987,
+    powerHp: 171,
+    mileageKm: 0,
+    color: "Серый",
     priceRub: 3_990_000,
     priceMoscowRub: 3_970_000,
     priceTverRub: 3_990_000,

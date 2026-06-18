@@ -8,6 +8,8 @@ import {
   Check,
   ShieldCheck,
   Calculator,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { useCars } from "@/lib/carsStore";
@@ -330,6 +332,10 @@ export function TmaApp() {
 
 /* ---------- Экраны ---------- */
 
+function mtoggle<T>(arr: T[], v: T): T[] {
+  return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
+}
+
 function ListView({
   cars,
   isFav,
@@ -343,6 +349,24 @@ function ListView({
 }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | CountryCode>("all");
+  const [open, setOpen] = useState(false);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [bodies, setBodies] = useState<string[]>([]);
+  const [fuels, setFuels] = useState<string[]>([]);
+  const [drives, setDrives] = useState<string[]>([]);
+  const [priceMax, setPriceMax] = useState<number | null>(null);
+
+  const facets = useMemo(() => {
+    const prices = cars.map((c) => c.priceTverRub ?? c.priceRub);
+    return {
+      brands: Array.from(new Set(cars.map((c) => c.model.trim().split(/\s+/)[0]))).sort(),
+      bodies: Array.from(new Set(cars.map((c) => c.bodyType).filter(Boolean) as string[])).sort(),
+      fuels: Array.from(new Set(cars.map((c) => c.fuelType).filter(Boolean) as string[])).sort(),
+      drives: Array.from(new Set(cars.map((c) => c.drive))),
+      min: prices.length ? Math.min(...prices) : 0,
+      max: prices.length ? Math.max(...prices) : 0,
+    };
+  }, [cars]);
 
   const countryTabs = useMemo(() => {
     const present = Array.from(new Set(cars.map((c) => c.country)));
@@ -352,24 +376,66 @@ function ListView({
     ];
   }, [cars]);
 
-  const list = cars.filter(
-    (c) =>
-      (filter === "all" || c.country === filter) &&
-      c.model.toLowerCase().includes(q.toLowerCase()),
-  );
+  const cap = priceMax ?? facets.max;
+  const activeCount =
+    brands.length + bodies.length + fuels.length + drives.length + (priceMax !== null ? 1 : 0);
+
+  const list = cars.filter((c) => {
+    const price = c.priceTverRub ?? c.priceRub;
+    if (filter !== "all" && c.country !== filter) return false;
+    if (!c.model.toLowerCase().includes(q.toLowerCase())) return false;
+    if (brands.length && !brands.includes(c.model.trim().split(/\s+/)[0])) return false;
+    if (bodies.length && !(c.bodyType && bodies.includes(c.bodyType))) return false;
+    if (fuels.length && !(c.fuelType && fuels.includes(c.fuelType))) return false;
+    if (drives.length && !drives.includes(c.drive)) return false;
+    if (price > cap) return false;
+    return true;
+  });
+
+  function resetFilters() {
+    setBrands([]);
+    setBodies([]);
+    setFuels([]);
+    setDrives([]);
+    setPriceMax(null);
+  }
+
+  const pill = (active: boolean) =>
+    `flex flex-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold ${
+      active ? "border-bordeaux-bright bg-bordeaux text-white" : "border-line-dark text-chrome"
+    }`;
 
   return (
     <>
-      <label className="relative mb-3 block">
-        <Search className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#8C97A1]" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Поиск по модели…"
-          className="field-dark pl-10"
-        />
-      </label>
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="mb-3 flex gap-2">
+        <label className="relative block flex-1">
+          <Search className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#8C97A1]" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Поиск по модели…"
+            className="field-dark pl-10"
+          />
+        </label>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className={`relative flex h-[46px] w-[46px] flex-none items-center justify-center rounded-[12px] border ${
+            open || activeCount
+              ? "border-bordeaux-bright bg-bordeaux/15 text-bordeaux-bright"
+              : "border-line-dark text-chrome"
+          }`}
+          aria-label="Фильтры"
+        >
+          <SlidersHorizontal className="h-5 w-5" />
+          {activeCount ? (
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-bordeaux px-1 font-num text-[11px] font-bold text-white">
+              {activeCount}
+            </span>
+          ) : null}
+        </button>
+      </div>
+
+      <div className="mb-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {countryTabs.map((t) => (
           <button
             key={t.value}
@@ -384,6 +450,82 @@ function ListView({
             {t.label}
           </button>
         ))}
+      </div>
+
+      {open ? (
+        <div className="mb-4 space-y-3 rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[14px] font-extrabold uppercase">Фильтры</span>
+            {activeCount ? (
+              <button
+                onClick={resetFilters}
+                className="flex items-center gap-1 text-[12.5px] font-bold text-bordeaux-bright"
+              >
+                <X className="h-3.5 w-3.5" /> Сбросить
+              </button>
+            ) : null}
+          </div>
+
+          {facets.bodies.length ? (
+            <FilterRow label="Кузов">
+              {facets.bodies.map((b) => (
+                <button key={b} onClick={() => setBodies((p) => mtoggle(p, b))} className={pill(bodies.includes(b))}>
+                  {b}
+                </button>
+              ))}
+            </FilterRow>
+          ) : null}
+
+          {facets.fuels.length ? (
+            <FilterRow label="Топливо">
+              {facets.fuels.map((f) => (
+                <button key={f} onClick={() => setFuels((p) => mtoggle(p, f))} className={pill(fuels.includes(f))}>
+                  {f}
+                </button>
+              ))}
+            </FilterRow>
+          ) : null}
+
+          <FilterRow label="Привод">
+            {facets.drives.map((d) => (
+              <button key={d} onClick={() => setDrives((p) => mtoggle(p, d))} className={pill(drives.includes(d))}>
+                {d}
+              </button>
+            ))}
+          </FilterRow>
+
+          <FilterRow label="Марка">
+            {facets.brands.map((b) => (
+              <button key={b} onClick={() => setBrands((p) => mtoggle(p, b))} className={pill(brands.includes(b))}>
+                {b}
+              </button>
+            ))}
+          </FilterRow>
+
+          {facets.max > facets.min ? (
+            <div>
+              <div className="mb-1 text-[12px] font-bold uppercase tracking-wide text-[#8C97A1]">
+                Цена до{" "}
+                <span className="font-num text-bordeaux-bright">
+                  {formatPrice(cap)} ₽
+                </span>
+              </div>
+              <input
+                type="range"
+                min={facets.min}
+                max={facets.max}
+                step={10000}
+                value={cap}
+                onChange={(e) => setPriceMax(Number(e.target.value))}
+                className="w-full accent-bordeaux"
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="mb-2 text-[13px] font-semibold text-[#9AA4B2]">
+        Найдено: <span className="font-num text-white">{list.length}</span>
       </div>
 
       <div className="space-y-3">
@@ -865,6 +1007,23 @@ function CalcRow({
       <span className="font-num font-bold text-white">
         {hint ?? `${formatPrice(value)} ₽`}
       </span>
+    </div>
+  );
+}
+
+function FilterRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 text-[12px] font-bold uppercase tracking-wide text-[#8C97A1]">
+        {label}
+      </div>
+      <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   );
 }
