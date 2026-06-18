@@ -17,6 +17,7 @@ import {
   HelpCircle,
   Send,
   Loader2,
+  Maximize2,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { useCars } from "@/lib/carsStore";
@@ -444,6 +445,7 @@ function ListView({
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | CountryCode>("all");
   const [open, setOpen] = useState(false);
+  const [lightbox, setLightbox] = useState<string[] | null>(null);
   const [brands, setBrands] = useState<string[]>([]);
   const [bodies, setBodies] = useState<string[]>([]);
   const [fuels, setFuels] = useState<string[]>([]);
@@ -622,14 +624,17 @@ function ListView({
         Найдено: <span className="font-num text-white">{list.length}</span>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {list.map((car) => (
-          <button
+          <div
             key={car.id}
-            onClick={() => onOpen(car.id)}
-            className="flex w-full items-center gap-3 rounded-[16px] border border-line-dark bg-graphite-2 p-2.5 text-left"
+            className="overflow-hidden rounded-[18px] border border-line-dark bg-graphite-2"
           >
-            <div className="relative h-[64px] w-[88px] flex-none overflow-hidden rounded-[10px] bg-black">
+            <button
+              type="button"
+              onClick={() => setLightbox(car.images)}
+              className="relative block aspect-[16/10] w-full bg-black"
+            >
               {/* eslint-disable-next-line */}
               <img
                 src={car.images[0]}
@@ -637,33 +642,44 @@ function ListView({
                 loading="lazy"
                 className="h-full w-full object-cover"
               />
-            </div>
-            <div className="min-w-0 flex-1">
+              {car.isNew ? (
+                <span className="absolute left-2.5 top-2.5 rounded-full bg-bordeaux px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white">
+                  Новинка
+                </span>
+              ) : null}
+              <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
+                <Maximize2 className="h-3 w-3" /> {car.images.length}
+              </span>
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFav(car.id);
+                }}
+                className={`absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full ${
+                  isFav(car.id) ? "bg-bordeaux text-white" : "bg-black/45 text-white"
+                }`}
+              >
+                <Heart className={`h-[18px] w-[18px] ${isFav(car.id) ? "fill-white" : ""}`} />
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpen(car.id)}
+              className="block w-full p-3.5 text-left"
+            >
               <div className="flex items-center gap-1.5">
                 <Flag code={car.country} className="h-3 w-4" />
                 <span className="truncate font-bold">{car.model}</span>
               </div>
-              <div className="text-[12px] text-[#9AA4B2]">
+              <div className="text-[12.5px] text-[#9AA4B2]">
                 {car.year} · {car.engine}
+                {car.bodyType ? ` · ${car.bodyType}` : ""}
               </div>
-              <div className="font-num text-[16px] font-bold text-bordeaux-bright">
+              <div className="mt-0.5 font-num text-[19px] font-extrabold text-bordeaux-bright">
                 {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
               </div>
-            </div>
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFav(car.id);
-              }}
-              className={`flex h-9 w-9 flex-none items-center justify-center rounded-full ${
-                isFav(car.id) ? "bg-bordeaux text-white" : "text-chrome"
-              }`}
-            >
-              <Heart
-                className={`h-[18px] w-[18px] ${isFav(car.id) ? "fill-white" : ""}`}
-              />
-            </span>
-          </button>
+            </button>
+          </div>
         ))}
         {list.length === 0 ? (
           <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
@@ -671,7 +687,71 @@ function ListView({
           </p>
         ) : null}
       </div>
+
+      {lightbox ? (
+        <Lightbox images={lightbox} onClose={() => setLightbox(null)} />
+      ) : null}
     </>
+  );
+}
+
+/* ---------- Полноэкранный просмотр фото ---------- */
+function Lightbox({
+  images,
+  start = 0,
+  onClose,
+}: {
+  images: string[];
+  start?: number;
+  onClose: () => void;
+}) {
+  const [i, setI] = useState(start);
+  const startX = useRef(0);
+  const prev = () => setI((x) => (x - 1 + images.length) % images.length);
+  const next = () => setI((x) => (x + 1) % images.length);
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col bg-black/95" onClick={onClose}>
+      <div className="flex items-center justify-between p-3">
+        <span className="rounded-full bg-white/10 px-3 py-1.5 font-num text-[13px] text-white">
+          {i + 1} / {images.length}
+        </span>
+        <button
+          onClick={onClose}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      <div
+        className="relative flex flex-1 items-center justify-center px-2 pb-4"
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => (startX.current = e.touches[0].clientX)}
+        onTouchEnd={(e) => {
+          const dx = e.changedTouches[0].clientX - startX.current;
+          if (dx > 40) prev();
+          else if (dx < -40) next();
+        }}
+      >
+        {/* eslint-disable-next-line */}
+        <img src={images[i]} alt="" className="max-h-full max-w-full object-contain" />
+        {images.length > 1 ? (
+          <>
+            <button
+              onClick={prev}
+              className="absolute left-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white"
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+            <button
+              onClick={next}
+              className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white"
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          </>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -750,16 +830,28 @@ function CarView({
   showInAppCta: boolean;
 }) {
   const [idx, setIdx] = useState(0);
+  const [lb, setLb] = useState(false);
   const prev = () =>
     setIdx((i) => (i - 1 + car.images.length) % car.images.length);
   const next = () => setIdx((i) => (i + 1) % car.images.length);
 
   return (
     <>
+      {lb ? (
+        <Lightbox images={car.images} start={idx} onClose={() => setLb(false)} />
+      ) : null}
       <Header2 title={car.model} onBack={onBack} />
       <div className="relative aspect-[16/11] overflow-hidden rounded-[16px] bg-black">
         {/* eslint-disable-next-line */}
-        <img src={car.images[idx]} alt="" className="h-full w-full object-cover" />
+        <img
+          src={car.images[idx]}
+          alt=""
+          onClick={() => setLb(true)}
+          className="h-full w-full cursor-pointer object-cover"
+        />
+        <span className="pointer-events-none absolute right-2 top-2 flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
+          <Maximize2 className="h-3 w-3" /> на весь экран
+        </span>
         {car.images.length > 1 ? (
           <>
             <button
