@@ -49,14 +49,43 @@ https://api.telegram.org/bot<TOKEN>/getWebhookInfo
 https://api.telegram.org/bot<TOKEN>/setChatMenuButton?menu_button={"type":"web_app","text":"Каталог","web_app":{"url":"https://авто-из-кореи-под-ключ.рф/tma"}}
 ```
 
-## 4. Подключить заявки к сайту
-В workflow сборки (`.github/workflows/deploy-pages.yml`, шаг *Build*) добавьте
-переменную окружения:
-```yaml
-VITE_LEAD_ENDPOINT: https://diauto-bot.<account>.workers.dev/lead
+## 4. Админка в боте (общий каталог + роли)
+Чтобы заработала админка внутри мини-аппа (общий каталог, тексты бота, заявки,
+выдача прав), нужно добавить хранилище KV и указать владельцев.
+
+**4.1. Создать KV namespace и привязать.** Cloudflare → Storage & Databases →
+**KV → Create** (имя любое, напр. `diauto`). Затем воркер `diauto-bot` →
+**Settings → Bindings → Add → KV Namespace**:
 ```
-После пересборки все формы сайта и мини-аппа будут слать заявки в воркер → вам
-в Telegram. Без неё формы работают в демо-режиме.
+Variable name: STORE        ← важно именно так
+KV namespace:  diauto
+```
+
+**4.2. Указать владельцев.** Узнайте свой Telegram ID через **@userinfobot**.
+Воркер → **Settings → Variables and Secrets → Variable**:
+```
+ADMIN_IDS = 123456789           (несколько — через запятую: 111,222)
+```
+Владелец (owner) может всё + выдавать права. Остальных админов добавляете уже
+из самой админки: **manager** (правит каталог и тексты бота) и **viewer**
+(видит заявки) — по их Telegram ID.
+
+**4.3. Вход.** В боте `/start` → «Открыть каталог» → в шапке мини-аппа у
+владельцев появится значок «щит» — это вход в админку. Вход только по вашему
+Telegram-аккаунту, пароль не нужен (воркер проверяет подпись Telegram).
+
+> Без KV бот и заявки продолжают работать, но админка и общий каталог выключены.
+
+## 5. Подключить заявки и общий каталог к сайту
+Сайт хостится на **Cloudflare Pages** — в проекте Pages → **Settings →
+Environment variables (Production)** должна быть:
+```
+VITE_LEAD_ENDPOINT = https://diauto-bot.<account>.workers.dev/lead
+```
+Этот же адрес фронтенд использует и для общего каталога (`/api/catalog`) и
+админ-API (`/api/admin`) — отдельных переменных не нужно. После пересборки все
+формы шлют заявки в воркер, а каталог берётся из KV (общий для всех). Без
+переменной формы работают в демо-режиме, каталог — стандартный из сборки.
 
 ## Проверка
 ```bash

@@ -13,7 +13,10 @@ export type TG = {
   openTelegramLink: (url: string) => void;
   openLink: (url: string) => void;
   colorScheme?: string;
-  initDataUnsafe?: { user?: { first_name?: string; username?: string } };
+  initData?: string;
+  initDataUnsafe?: {
+    user?: { id?: number; first_name?: string; username?: string };
+  };
   HapticFeedback?: {
     impactOccurred: (s: Haptic) => void;
     notificationOccurred: (s: "error" | "success" | "warning") => void;

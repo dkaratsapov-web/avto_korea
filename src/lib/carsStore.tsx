@@ -2,11 +2,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { cars as defaultCars, type Car } from "@/data/cars";
+import { fetchSharedCatalog } from "@/lib/api";
 
 const KEY = "diauto:cars";
 
@@ -36,6 +38,24 @@ export function CarsProvider({ children }: { children: ReactNode }) {
   const [isCustom, setIsCustom] = useState(
     () => typeof window !== "undefined" && !!window.localStorage.getItem(KEY),
   );
+
+  // Общий каталог из бэкенда (KV) — источник правды для всех посетителей.
+  // localStorage остаётся кэшем для мгновенного рендера/офлайна.
+  useEffect(() => {
+    let alive = true;
+    fetchSharedCatalog().then((shared) => {
+      if (!alive || !shared || !Array.isArray(shared)) return;
+      setCars(shared);
+      try {
+        window.localStorage.setItem(KEY, JSON.stringify(shared));
+      } catch {
+        /* ignore */
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const save = useCallback((updater: (prev: Car[]) => Car[]) => {
     setCars((prev) => {

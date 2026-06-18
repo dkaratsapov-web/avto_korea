@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ArrowLeft,
   Check,
+  ShieldCheck,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { useCars } from "@/lib/carsStore";
@@ -14,6 +15,8 @@ import { countries, site, type CountryCode } from "@/lib/site";
 import { type Car, formatPrice } from "@/data/cars";
 import { showToast } from "@/lib/toast";
 import { loadTelegram, haptic, type TG } from "@/lib/telegram";
+import { adminCall, type AdminRole } from "@/lib/api";
+import { TmaAdmin } from "@/components/pages/TmaAdmin";
 
 type View =
   | { name: "list" }
@@ -27,6 +30,9 @@ export function TmaApp() {
   const tgRef = useRef<TG | null>(null);
   const [ready, setReady] = useState(false);
   const [view, setView] = useState<View>({ name: "list" });
+  const initDataRef = useRef<string>("");
+  const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
+  const [adminOpen, setAdminOpen] = useState(false);
 
   // стабильные обёртки для нативных кнопок
   const mainCb = useRef<() => void>(() => {});
@@ -49,6 +55,14 @@ export function TmaApp() {
         }
         tg.MainButton.onClick(() => mainCb.current());
         tg.BackButton.onClick(() => backCb.current());
+        // проверяем, админ ли открывший — по подписи initData
+        const initData = tg.initData || "";
+        initDataRef.current = initData;
+        if (initData) {
+          adminCall<{ role: AdminRole }>(initData, "me").then((r) => {
+            if (mounted && r.ok && r.role) setAdminRole(r.role);
+          });
+        }
       }
       setReady(true);
     });
@@ -128,6 +142,15 @@ export function TmaApp() {
   useEffect(() => {
     const tg = tgRef.current;
     if (!tg) return;
+
+    // В админке — своя навигация, нативные кнопки не нужны.
+    if (adminOpen) {
+      backCb.current = () => setAdminOpen(false);
+      tg.BackButton.show();
+      tg.MainButton.hide();
+      return;
+    }
+
     backCb.current = back;
     if (view.name !== "list") tg.BackButton.show();
     else tg.BackButton.hide();
@@ -150,7 +173,22 @@ export function TmaApp() {
       tg.MainButton.hide();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, ready]);
+  }, [view, ready, adminOpen]);
+
+  if (adminOpen && adminRole) {
+    return (
+      <div className="min-h-screen bg-graphite text-white">
+        <div className="mx-auto max-w-md px-4 pb-28 pt-4">
+          <TmaAdmin
+            tg={tgRef.current}
+            initData={initDataRef.current}
+            role={adminRole}
+            onExit={() => setAdminOpen(false)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-graphite text-white">
@@ -168,6 +206,20 @@ export function TmaApp() {
             <span className="text-chrome">Ди</span>Авто
             <span className="text-bordeaux-bright">69</span>
           </button>
+          <div className="flex items-center gap-2">
+          {adminRole ? (
+            <button
+              type="button"
+              onClick={() => {
+                haptic(tgRef.current);
+                setAdminOpen(true);
+              }}
+              aria-label="Админка"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-bordeaux-bright/60 bg-bordeaux/15 text-bordeaux-bright"
+            >
+              <ShieldCheck className="h-5 w-5" />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => {
@@ -183,6 +235,7 @@ export function TmaApp() {
               </span>
             ) : null}
           </button>
+          </div>
         </div>
 
         {view.name === "list" ? (
