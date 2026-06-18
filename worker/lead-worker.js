@@ -32,7 +32,7 @@ const DEFAULT_SETTINGS = {
   welcomeText:
     "🚗 *ДиАвто69* — авто из Кореи, Китая, Японии и ЕС под ключ.\nЧестный расчёт с растаможкой, без накруток.\n\nОткройте каталог и оставьте заявку 👇",
   catalogButtonText: "🚘 Открыть каталог",
-  calcButtonText: "🧮 Калькулятор (скоро)",
+  calcButtonText: "🧮 Калькулятор",
   managerButtonText: "💬 Написать менеджеру",
   managerUrl: "https://t.me/Dmitriicarexport",
 };
@@ -211,6 +211,10 @@ export default {
               text: settings.catalogButtonText,
               url: "https://avto-korea.pages.dev/catalog",
             };
+        const calcUrl = appUrl + (appUrl.includes("?") ? "&" : "?") + "screen=calc";
+        const calcBtn = /^https:\/\//.test(appUrl)
+          ? { text: settings.calcButtonText, web_app: { url: calcUrl } }
+          : { text: settings.calcButtonText, callback_data: "calc" };
         const r = await api(env, "sendMessage", {
           chat_id: msg.chat.id,
           text: settings.welcomeText,
@@ -218,7 +222,7 @@ export default {
           reply_markup: {
             inline_keyboard: [
               [openBtn],
-              [{ text: settings.calcButtonText, callback_data: "calc" }],
+              [calcBtn],
               [{ text: settings.managerButtonText, url: settings.managerUrl }],
             ],
           },

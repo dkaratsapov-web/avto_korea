@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Check,
   ShieldCheck,
+  Calculator,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { useCars } from "@/lib/carsStore";
@@ -22,6 +23,7 @@ type View =
   | { name: "list" }
   | { name: "car"; id: string }
   | { name: "favorites" }
+  | { name: "calc" }
   | { name: "lead"; carId?: string; from: View };
 
 export function TmaApp() {
@@ -29,7 +31,12 @@ export function TmaApp() {
   const { favorites, isFav, toggleFav } = useUI();
   const tgRef = useRef<TG | null>(null);
   const [ready, setReady] = useState(false);
-  const [view, setView] = useState<View>({ name: "list" });
+  const [view, setView] = useState<View>(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("screen") === "calc"
+      ? { name: "calc" }
+      : { name: "list" },
+  );
   const initDataRef = useRef<string>("");
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [adminOpen, setAdminOpen] = useState(false);
@@ -224,6 +231,17 @@ export function TmaApp() {
             type="button"
             onClick={() => {
               haptic(tgRef.current);
+              setView({ name: "calc" });
+            }}
+            aria-label="Калькулятор"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome"
+          >
+            <Calculator className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              haptic(tgRef.current);
               setView({ name: "favorites" });
             }}
             className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome"
@@ -262,6 +280,13 @@ export function TmaApp() {
               toggleFav(id);
             }}
             onBack={() => setView({ name: "list" })}
+          />
+        ) : null}
+
+        {view.name === "calc" ? (
+          <CalcView
+            onBack={() => setView({ name: "list" })}
+            onLead={() => setView({ name: "lead", from: { name: "calc" }, carId: undefined })}
           />
         ) : null}
 
@@ -655,6 +680,192 @@ function LeadView({
         </button>
       ) : null}
     </>
+  );
+}
+
+/* ---------- Примерный калькулятор «под ключ» ---------- */
+// Коэффициенты приблизительные — для предварительной оценки.
+// Точную смету подтверждает менеджер.
+const EUR_RUB = 105; // примерный курс €
+const DELIVERY: Record<CountryCode, number> = {
+  kr: 120000,
+  cn: 90000,
+  jp: 130000,
+  eu: 160000,
+};
+const DOCS = 60000; // СБКТС / ЭПТС / брокер
+const SERVICE = 80000; // услуги компании
+type Age = "u3" | "a35" | "o5";
+
+function dutyPerCc(cc: number, age: Age) {
+  const base =
+    cc <= 1000 ? 1.5 : cc <= 1500 ? 1.7 : cc <= 1800 ? 2.5 : cc <= 2300 ? 2.7 : cc <= 3000 ? 3.0 : 3.6;
+  const old =
+    cc <= 1000 ? 3.0 : cc <= 1500 ? 3.2 : cc <= 1800 ? 3.5 : cc <= 2300 ? 4.8 : cc <= 3000 ? 5.0 : 5.7;
+  return age === "o5" ? old : base;
+}
+
+function CalcView({ onBack, onLead }: { onBack: () => void; onLead: () => void }) {
+  const [country, setCountry] = useState<CountryCode>("kr");
+  const [priceStr, setPriceStr] = useState("");
+  const [volStr, setVolStr] = useState("");
+  const [age, setAge] = useState<Age>("a35");
+  const [electric, setElectric] = useState(false);
+
+  const price = Number(priceStr) || 0;
+  const volume = Number(volStr) || 0;
+  const delivery = DELIVERY[country];
+  const util = age === "u3" ? 3400 : 5200;
+  const duty = electric
+    ? Math.round(price * 0.15)
+    : age === "u3"
+      ? Math.round(price * 0.48)
+      : Math.round(volume * dutyPerCc(volume, age) * EUR_RUB);
+  const total = price + delivery + duty + util + DOCS + SERVICE;
+  const ready = price > 0 && (electric || volume > 0);
+
+  const ageBtns: [Age, string][] = [
+    ["u3", "до 3 лет"],
+    ["a35", "3–5 лет"],
+    ["o5", "старше 5"],
+  ];
+
+  return (
+    <>
+      <Header2 title="Калькулятор под ключ" onBack={onBack} />
+      <p className="-mt-2 mb-4 text-[13px] text-[#9AA4B2]">
+        Примерная стоимость авто в РФ: доставка, пошлина, утильсбор, оформление и
+        услуги. Точный расчёт подтвердит менеджер.
+      </p>
+
+      <div className="space-y-3">
+        <div>
+          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+            Страна
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(DELIVERY) as CountryCode[]).map((code) => (
+              <button
+                key={code}
+                onClick={() => setCountry(code)}
+                className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold ${
+                  country === code
+                    ? "border-bordeaux-bright bg-bordeaux text-white"
+                    : "border-line-dark text-chrome"
+                }`}
+              >
+                <Flag code={code} className="h-3 w-4" />
+                {countries[code].label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <label>
+          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+            Цена авто в стране, ₽
+          </span>
+          <input
+            value={priceStr}
+            inputMode="numeric"
+            onChange={(e) => setPriceStr(e.target.value.replace(/\D/g, ""))}
+            placeholder="например, 1 500 000"
+            className="field-dark"
+          />
+        </label>
+
+        <div>
+          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+            Возраст авто
+          </span>
+          <div className="flex gap-2">
+            {ageBtns.map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setAge(v)}
+                className={`flex-1 rounded-full border px-2 py-2 text-[13px] font-bold ${
+                  age === v
+                    ? "border-bordeaux-bright bg-bordeaux text-white"
+                    : "border-line-dark text-chrome"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <label className={electric ? "pointer-events-none opacity-40" : ""}>
+          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+            Объём двигателя, см³
+          </span>
+          <input
+            value={volStr}
+            inputMode="numeric"
+            disabled={electric}
+            onChange={(e) => setVolStr(e.target.value.replace(/\D/g, ""))}
+            placeholder="например, 1600"
+            className="field-dark"
+          />
+        </label>
+
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={electric}
+            onChange={(e) => setElectric(e.target.checked)}
+            className="h-4 w-4 accent-bordeaux"
+          />
+          <span className="text-[14px] font-semibold">Электромобиль</span>
+        </label>
+      </div>
+
+      {/* Результат */}
+      <div className="mt-5 rounded-[18px] border border-line-dark bg-graphite-2 p-4">
+        <CalcRow label="Стоимость авто" value={price} />
+        <CalcRow label={`Доставка (${countries[country].label})`} value={delivery} />
+        <CalcRow label="Таможенная пошлина" value={duty} hint={!ready ? "—" : undefined} />
+        <CalcRow label="Утильсбор" value={util} />
+        <CalcRow label="Оформление (СБКТС, ЭПТС, брокер)" value={DOCS} />
+        <CalcRow label="Услуги компании" value={SERVICE} />
+        <div className="mt-3 flex items-center justify-between border-t border-line-dark pt-3">
+          <span className="text-[13px] font-bold uppercase tracking-wide text-chrome">
+            Итого под ключ
+          </span>
+          <span className="font-num text-[22px] font-extrabold text-bordeaux-bright">
+            {ready ? `${formatPrice(total)} ₽` : "—"}
+          </span>
+        </div>
+      </div>
+
+      <p className="mt-2 text-[12px] text-[#8C97A1]">
+        Расчёт примерный (курс €{EUR_RUB}, ставки усреднены). Итоговую смету
+        фиксирует менеджер по конкретному авто.
+      </p>
+
+      <button onClick={onLead} className="btn btn-primary mt-4 w-full">
+        Оставить заявку на точный расчёт
+      </button>
+    </>
+  );
+}
+
+function CalcRow({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: number;
+  hint?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between py-1 text-[13.5px]">
+      <span className="text-[#C7CFD6]">{label}</span>
+      <span className="font-num font-bold text-white">
+        {hint ?? `${formatPrice(value)} ₽`}
+      </span>
+    </div>
   );
 }
 

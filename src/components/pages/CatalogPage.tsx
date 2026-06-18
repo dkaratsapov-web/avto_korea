@@ -6,14 +6,17 @@ import { CarCard } from "@/components/CarCard";
 import { Flag } from "@/components/icons/Flag";
 import { Button } from "@/components/ui/Button";
 import { useCars } from "@/lib/carsStore";
+import { statusLabels, type CarStatus } from "@/data/cars";
 import { countries, type CountryCode } from "@/lib/site";
 
 type Sort = "default" | "price-asc" | "price-desc";
+type Condition = "all" | "new" | "used";
 
 function toggle<T>(arr: T[], v: T): T[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 }
 const fmt = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
+const brandOf = (model: string) => model.trim().split(/\s+/)[0];
 
 export function CatalogPage() {
   const { cars } = useCars();
@@ -22,19 +25,24 @@ export function CatalogPage() {
     const prices = cars.map((c) => c.priceTverRub ?? c.priceRub);
     return {
       countries: Array.from(new Set(cars.map((c) => c.country))),
+      brands: Array.from(new Set(cars.map((c) => brandOf(c.model)))).sort(),
       drives: Array.from(new Set(cars.map((c) => c.drive))),
       gear: Array.from(new Set(cars.map((c) => c.gearbox))),
       years: Array.from(new Set(cars.map((c) => c.year))).sort((a, b) => b - a),
+      statuses: Array.from(new Set(cars.map((c) => c.status))),
       min: prices.length ? Math.min(...prices) : 0,
       max: prices.length ? Math.max(...prices) : 0,
     };
   }, [cars]);
 
   const [search, setSearch] = useState("");
-  const [cc, setCc] = useState<CountryCode[]>([]);
+  const [countryTab, setCountryTab] = useState<CountryCode | "all">("all");
+  const [statusTab, setStatusTab] = useState<CarStatus | "all">("all");
+  const [brands, setBrands] = useState<string[]>([]);
   const [drives, setDrives] = useState<string[]>([]);
   const [gear, setGear] = useState<string[]>([]);
   const [years, setYears] = useState<number[]>([]);
+  const [condition, setCondition] = useState<Condition>("all");
   const [priceMax, setPriceMax] = useState<number | null>(null);
   const [sort, setSort] = useState<Sort>("default");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -46,10 +54,14 @@ export function CatalogPage() {
       const price = c.priceTverRub ?? c.priceRub;
       if (search && !c.model.toLowerCase().includes(search.toLowerCase()))
         return false;
-      if (cc.length && !cc.includes(c.country)) return false;
+      if (countryTab !== "all" && c.country !== countryTab) return false;
+      if (statusTab !== "all" && c.status !== statusTab) return false;
+      if (brands.length && !brands.includes(brandOf(c.model))) return false;
       if (drives.length && !drives.includes(c.drive)) return false;
       if (gear.length && !gear.includes(c.gearbox)) return false;
       if (years.length && !years.includes(c.year)) return false;
+      if (condition === "new" && !c.isNew) return false;
+      if (condition === "used" && c.isNew) return false;
       if (price > cap) return false;
       return true;
     });
@@ -62,22 +74,26 @@ export function CatalogPage() {
         (a, b) => (b.priceTverRub ?? b.priceRub) - (a.priceTverRub ?? a.priceRub),
       );
     return list;
-  }, [cars, search, cc, drives, gear, years, cap, sort]);
+  }, [cars, search, countryTab, statusTab, brands, drives, gear, years, condition, cap, sort]);
 
   const activeCount =
-    cc.length +
+    brands.length +
     drives.length +
     gear.length +
     years.length +
+    (condition !== "all" ? 1 : 0) +
     (priceMax !== null ? 1 : 0) +
     (search ? 1 : 0);
 
   function reset() {
     setSearch("");
-    setCc([]);
+    setCountryTab("all");
+    setStatusTab("all");
+    setBrands([]);
     setDrives([]);
     setGear([]);
     setYears([]);
+    setCondition("all");
     setPriceMax(null);
     setSort("default");
   }
@@ -105,6 +121,23 @@ export function CatalogPage() {
             Цена уже под ключ в РФ — с доставкой, растаможкой, утильсбором и ЭПТС.
             Подберите по параметрам и откройте карточку с фото.
           </p>
+
+          {/* Табы по стране */}
+          <div className="mt-7 flex flex-wrap gap-2">
+            <Tab active={countryTab === "all"} onClick={() => setCountryTab("all")}>
+              Все страны
+            </Tab>
+            {facets.countries.map((code) => (
+              <Tab
+                key={code}
+                active={countryTab === code}
+                onClick={() => setCountryTab(code)}
+              >
+                <Flag code={code} className="h-3.5 w-5" />
+                {countries[code].label}
+              </Tab>
+            ))}
+          </div>
         </div>
         <div className="chrome-line absolute inset-x-0 bottom-0" />
       </section>
@@ -128,15 +161,32 @@ export function CatalogPage() {
               ) : null}
             </div>
 
-            <FilterGroup title="Страна">
-              {facets.countries.map((code) => (
+            <FilterGroup title="Марка">
+              {facets.brands.map((b) => (
                 <Chip
-                  key={code}
-                  active={cc.includes(code)}
-                  onClick={() => setCc((p) => toggle(p, code))}
+                  key={b}
+                  active={brands.includes(b)}
+                  onClick={() => setBrands((p) => toggle(p, b))}
                 >
-                  <Flag code={code} className="h-3.5 w-5" />
-                  {countries[code].label}
+                  {b}
+                </Chip>
+              ))}
+            </FilterGroup>
+
+            <FilterGroup title="Состояние">
+              {(
+                [
+                  ["all", "Любое"],
+                  ["new", "Новые"],
+                  ["used", "С пробегом"],
+                ] as const
+              ).map(([v, label]) => (
+                <Chip
+                  key={v}
+                  active={condition === v}
+                  onClick={() => setCondition(v)}
+                >
+                  {label}
                 </Chip>
               ))}
             </FilterGroup>
@@ -200,6 +250,22 @@ export function CatalogPage() {
 
         {/* Контент */}
         <div>
+          {/* Табы по статусу */}
+          <div className="mb-5 flex flex-wrap gap-2">
+            <StatusTab active={statusTab === "all"} onClick={() => setStatusTab("all")}>
+              Все
+            </StatusTab>
+            {facets.statuses.map((s) => (
+              <StatusTab
+                key={s}
+                active={statusTab === s}
+                onClick={() => setStatusTab(s)}
+              >
+                {statusLabels[s]}
+              </StatusTab>
+            ))}
+          </div>
+
           {/* Тулбар */}
           <div className="mb-5 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
             <label className="relative">
@@ -247,11 +313,16 @@ export function CatalogPage() {
                 {result.length}
               </motion.span>
             </span>
-            {cc.map((c) => (
-              <RemoveChip key={c} onClick={() => setCc((p) => toggle(p, c))}>
-                {countries[c].label}
+            {brands.map((b) => (
+              <RemoveChip key={b} onClick={() => setBrands((p) => toggle(p, b))}>
+                {b}
               </RemoveChip>
             ))}
+            {condition !== "all" ? (
+              <RemoveChip onClick={() => setCondition("all")}>
+                {condition === "new" ? "Новые" : "С пробегом"}
+              </RemoveChip>
+            ) : null}
             {drives.map((d) => (
               <RemoveChip key={d} onClick={() => setDrives((p) => toggle(p, d))}>
                 {d}
@@ -304,6 +375,56 @@ export function CatalogPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function Tab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-[14px] font-bold transition-all duration-200 ${
+        active
+          ? "border-bordeaux-bright bg-bordeaux text-white shadow-[0_8px_24px_-8px_rgba(154,26,18,0.7)]"
+          : "border-white/15 bg-white/5 text-[#C7CFD6] hover:border-white/30 hover:text-white"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function StatusTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-[11px] border px-4 py-2.5 text-[13.5px] font-bold transition-all duration-200 ${
+        active
+          ? "border-graphite bg-graphite text-white"
+          : "border-line bg-white text-ink-2 hover:border-steel hover:text-ink"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
