@@ -89,8 +89,9 @@ const DEFAULT_FAQ = [
 ];
 
 /* ---------- Пользователи / статистика / фото ---------- */
+// Возвращает true, если пользователь новый (записан впервые).
 async function recordUser(env, from) {
-  if (!env.STORE || !from?.id) return;
+  if (!env.STORE || !from?.id) return false;
   try {
     const users = (await kvGet(env, "users", {})) || {};
     if (!users[from.id]) {
@@ -100,10 +101,32 @@ async function recordUser(env, from) {
         ts: Date.now(),
       };
       await kvPut(env, "users", users);
+      return true;
     }
   } catch {
     /* ignore */
   }
+  return false;
+}
+
+// Оповещение менеджеру о новом пользователе (нажал «Старт»).
+async function notifyNewUser(env, from) {
+  if (!env.TELEGRAM_CHAT_ID || !from?.id) return;
+  const name =
+    [from.first_name, from.last_name].filter(Boolean).join(" ") || "—";
+  const uname = from.username ? `@${from.username}` : "без username";
+  const lines = [
+    "👋 *Новый пользователь запустил бота*",
+    `👤 Имя: ${name}`,
+    `🔗 Username: ${uname}`,
+    `🆔 ID: ${from.id}`,
+    `[Открыть профиль](tg://user?id=${from.id})`,
+  ];
+  await api(env, "sendMessage", {
+    chat_id: env.TELEGRAM_CHAT_ID,
+    text: lines.join("\n"),
+    parse_mode: "Markdown",
+  });
 }
 
 async function bumpView(env, id) {
@@ -291,7 +314,8 @@ export default {
       }
 
       if (msg && typeof msg.text === "string") {
-        await recordUser(env, msg.from);
+        const isNew = await recordUser(env, msg.from);
+        if (isNew) await notifyNewUser(env, msg.from);
         const settings = await getSettings(env);
         const appUrl = miniAppUrl(env, settings);
         const openBtn = /^https:\/\//.test(appUrl)
