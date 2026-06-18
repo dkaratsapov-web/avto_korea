@@ -1,0 +1,26 @@
+# Конфиг воркера для автодеплоя через Cloudflare Workers Builds.
+# При пуше в git Cloudflare сам пересобирает и публикует воркер.
+# В Workers Builds укажите Root directory = worker
+#
+# Лежит в папке worker/, чтобы не мешать сборке сайта на Pages
+# (Pages читает wrangler.toml из корня репозитория).
+#
+# Секреты (НЕ здесь, только в дашборде → Variables and Secrets):
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+# Они сохраняются между деплоями и в публичный репозиторий не попадают.
+
+name = "diauto-bot"
+main = "lead-worker.js"
+compatibility_date = "2024-11-01"
+
+# Публичные переменные (можно держать в репозитории — это не секреты).
+[vars]
+MINI_APP_URL = "https://avto-korea.pages.dev/tma"
+# ID владельцев админки (Telegram id через запятую). Узнать: @userinfobot.
+ADMIN_IDS = "REPLACE_WITH_YOUR_TELEGRAM_ID"
+
+# Общее хранилище (каталог, настройки, админы, заявки).
+# id берётся из Cloudflare → Storage & Databases → KV → ваш namespace.
+[[kv_namespaces]]
+binding = "STORE"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"

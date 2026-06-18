@@ -9,6 +9,27 @@
 
 **Токен бота хранится только в секретах воркера** и нигде не светится в коде сайта.
 
+## 0. Автодеплой (воркер обновляется сам при пуше в git)
+В репозитории есть `worker/wrangler.toml` — описывает воркер, переменные и
+привязку KV. Подключив **Workers Builds**, Cloudflare сам пересобирает воркер при
+каждом пуше (как Pages для сайта). Ручная вставка кода больше не нужна.
+
+1. Заполните в `worker/wrangler.toml` два значения (это **не** секреты):
+   - `ADMIN_IDS` — ваш Telegram id (узнать: @userinfobot);
+   - `id` в `[[kv_namespaces]]` — id KV-namespace (Storage & Databases → KV →
+     создать `diauto` → скопировать **Namespace ID**).
+2. Воркер `diauto-bot` → **Settings → Build → Connect** → выберите репозиторий
+   `dkaratsapov-web/avto_korea`, branch `claude/beautiful-goodall-irzq2f`,
+   **Root directory = `worker`**. Build command пустой (деплой по `wrangler.toml`).
+3. Один раз задайте секреты (они в git не хранятся и при деплоях не стираются):
+   `diauto-bot → Settings → Variables and Secrets`:
+   ```
+   TELEGRAM_BOT_TOKEN = <токен>     (Secret)
+   TELEGRAM_CHAT_ID   = <id чата>   (Secret)
+   ```
+Готово: дальше любой `git push` сам обновляет и сайт (Pages), и бота (Worker).
+Разделы 2–4 ниже — ручной способ (если не подключать автодеплой).
+
 ## 1. Что нужно
 - Аккаунт Cloudflare (бесплатный).
 - **Новый** токен бота из @BotFather (старый, что светился, — отозвать `/revoke`).
