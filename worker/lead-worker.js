@@ -531,7 +531,10 @@ export default {
 async function storeLead(env, d) {
   if (!env.STORE) return;
   try {
-    const leads = (await kvGet(env, "leads", [])) || [];
+    const [leads, stats] = await Promise.all([
+      kvGet(env, "leads", []),
+      kvGet(env, "stats", {}),
+    ]);
     leads.unshift({
       name: d.name || "",
       phone: d.phone || "",
@@ -539,13 +542,14 @@ async function storeLead(env, d) {
       source: d.source || "сайт",
       ts: Date.now(),
     });
-    await kvPut(env, "leads", leads.slice(0, 50));
     // дневной счётчик заявок (для графика)
-    const stats = (await kvGet(env, "stats", {})) || {};
     stats.daily = stats.daily || {};
     const day = new Date().toISOString().slice(0, 10);
     stats.daily[day] = (stats.daily[day] || 0) + 1;
-    await kvPut(env, "stats", stats);
+    await Promise.all([
+      kvPut(env, "leads", leads.slice(0, 50)),
+      kvPut(env, "stats", stats),
+    ]);
   } catch {
     /* ignore */
   }
@@ -697,12 +701,15 @@ async function handleAdmin(env, action, payload, role, user) {
     }
 
     case "stats.get": {
-      const leads = (await kvGet(env, "leads", [])) || [];
-      const users = (await kvGet(env, "users", {})) || {};
-      const subs = (await kvGet(env, "subs", [])) || [];
-      const reviews = (await kvGet(env, "reviews", [])) || [];
-      const drafts = (await kvGet(env, "drafts", [])) || [];
-      const stats = (await kvGet(env, "stats", {})) || {};
+      // параллельное чтение KV — один round-trip вместо шести
+      const [leads, users, subs, reviews, drafts, stats] = await Promise.all([
+        kvGet(env, "leads", []),
+        kvGet(env, "users", {}),
+        kvGet(env, "subs", []),
+        kvGet(env, "reviews", []),
+        kvGet(env, "drafts", []),
+        kvGet(env, "stats", {}),
+      ]);
       const now = Date.now();
       const DAY = 86400000;
       const bySource = {};

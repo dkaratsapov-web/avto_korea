@@ -475,6 +475,23 @@ function mtoggle<T>(arr: T[], v: T): T[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 }
 
+// Маска российского номера: +7 (XXX) XXX-XX-XX
+function maskRuPhone(v: string) {
+  let d = v.replace(/\D/g, "");
+  if (d[0] === "8") d = "7" + d.slice(1);
+  else if (d[0] === "9") d = "7" + d;
+  else if (d && d[0] !== "7") d = "7" + d;
+  d = d.slice(0, 11);
+  const r = d.slice(1);
+  if (!r) return d ? "+7" : "";
+  let out = "+7 (" + r.slice(0, 3);
+  if (r.length >= 3) out += ")";
+  if (r.length > 3) out += " " + r.slice(3, 6);
+  if (r.length >= 6) out += "-" + r.slice(6, 8);
+  if (r.length >= 8) out += "-" + r.slice(8, 10);
+  return out;
+}
+
 function ListView({
   cars,
   isFav,
@@ -1002,21 +1019,6 @@ function LeadView({
     formRef.current = { name, phone, carId: car?.id };
   }, [name, phone, car, formRef]);
 
-  function maskPhone(v: string) {
-    let d = v.replace(/\D/g, "");
-    if (d[0] === "8") d = "7" + d.slice(1);
-    else if (d[0] === "9") d = "7" + d;
-    else if (d && d[0] !== "7") d = "7" + d;
-    d = d.slice(0, 11);
-    const r = d.slice(1);
-    if (!r) return d ? "+7" : "";
-    let out = "+7 (" + r.slice(0, 3);
-    if (r.length >= 3) out += ")";
-    if (r.length > 3) out += " " + r.slice(3, 6);
-    if (r.length >= 6) out += "-" + r.slice(6, 8);
-    if (r.length >= 8) out += "-" + r.slice(8, 10);
-    return out;
-  }
 
   return (
     <>
@@ -1047,7 +1049,7 @@ function LeadView({
         <input
           value={phone}
           inputMode="tel"
-          onChange={(e) => setPhone(maskPhone(e.target.value))}
+          onChange={(e) => setPhone(maskRuPhone(e.target.value))}
           placeholder="+7 (___) ___-__-__"
           className="field-dark"
         />
@@ -1517,21 +1519,6 @@ function QuizView({
     return parts.join(", ");
   }
 
-  function maskPhone(v: string) {
-    let d = v.replace(/\D/g, "");
-    if (d[0] === "8") d = "7" + d.slice(1);
-    else if (d[0] === "9") d = "7" + d;
-    else if (d && d[0] !== "7") d = "7" + d;
-    d = d.slice(0, 11);
-    const r = d.slice(1);
-    if (!r) return d ? "+7" : "";
-    let out = "+7 (" + r.slice(0, 3);
-    if (r.length >= 3) out += ")";
-    if (r.length > 3) out += " " + r.slice(3, 6);
-    if (r.length >= 6) out += "-" + r.slice(6, 8);
-    if (r.length >= 8) out += "-" + r.slice(8, 10);
-    return out;
-  }
 
   async function submit() {
     if (name.trim().length < 2 || phone.replace(/\D/g, "").length < 11) {
@@ -1675,7 +1662,7 @@ function QuizView({
           <input
             value={phone}
             inputMode="tel"
-            onChange={(e) => setPhone(maskPhone(e.target.value))}
+            onChange={(e) => setPhone(maskRuPhone(e.target.value))}
             placeholder="+7 (___) ___-__-__"
             className="field-dark"
           />
