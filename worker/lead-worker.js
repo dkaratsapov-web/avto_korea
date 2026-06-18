@@ -36,7 +36,7 @@ const DEFAULT_SETTINGS = {
   managerButtonText: "💬 Написать менеджеру",
   managerUrl: "https://t.me/Dmitriicarexport",
   mapButtonText: "📍 Как к нам проехать?",
-  mapUrl: "",
+  mapUrl: "https://yandex.com/maps/-/CTAf5Lo-",
 };
 
 /* ---------- Telegram API ---------- */
