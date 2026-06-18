@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { showToast } from "@/lib/toast";
 import { countries } from "@/lib/site";
@@ -62,7 +62,25 @@ export function LeadForm({
   withCar = true,
 }: LeadFormProps) {
   const [loading, setLoading] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [photoName, setPhotoName] = useState("");
   const fieldClass = tone === "dark" ? "field-dark" : "field-light";
+
+  function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("Фото слишком большое (до 5 МБ)", "error");
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhoto(String(reader.result));
+      setPhotoName(file.name);
+    };
+    reader.readAsDataURL(file);
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -74,6 +92,8 @@ export function LeadForm({
     const endpoint = import.meta.env.VITE_LEAD_ENDPOINT as string | undefined;
     if (!endpoint) {
       form.reset();
+      setPhoto(null);
+      setPhotoName("");
       showToast("Демо-режим: заявка принята. На боевом сайте — звонок за 15 минут.");
       return;
     }
@@ -83,10 +103,12 @@ export function LeadForm({
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, source }),
+        body: JSON.stringify({ ...data, photo: photo || undefined, source }),
       });
       if (!res.ok) throw new Error("bad response");
       form.reset();
+      setPhoto(null);
+      setPhotoName("");
       showToast("Заявка принята — перезвоним в течение 15 минут.");
     } catch {
       showToast(
@@ -238,6 +260,43 @@ export function LeadForm({
           className={fieldClass}
         />
       </label>
+
+      <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-2 sm:col-span-2">
+        Ссылка на авто (необязательно)
+        <input
+          type="url"
+          name="link"
+          placeholder="Ссылка с encar / che168 и т.п."
+          className={fieldClass}
+        />
+      </label>
+
+      <div className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-2 sm:col-span-2">
+        Фото желаемого авто (необязательно)
+        <label
+          className={`flex cursor-pointer items-center justify-center gap-2 rounded-[11px] border border-dashed px-4 py-3 text-[13.5px] font-semibold ${
+            tone === "dark"
+              ? "border-line-dark text-chrome hover:border-steel"
+              : "border-line text-ink-2 hover:border-steel"
+          }`}
+        >
+          <Paperclip className="h-[18px] w-[18px]" />
+          {photoName ? photoName : "Прикрепить фото"}
+          <input type="file" accept="image/*" className="hidden" onChange={onPhoto} />
+        </label>
+        {photoName ? (
+          <button
+            type="button"
+            onClick={() => {
+              setPhoto(null);
+              setPhotoName("");
+            }}
+            className="self-start text-[12.5px] font-bold text-bordeaux hover:underline"
+          >
+            Убрать фото
+          </button>
+        ) : null}
+      </div>
 
       <label className="flex items-start gap-2.5 text-[12.5px] text-ink-2 sm:col-span-2">
         <input

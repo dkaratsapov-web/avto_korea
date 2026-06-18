@@ -11,6 +11,10 @@ import {
   Inbox,
   Users,
   Loader2,
+  Star,
+  Bell,
+  Megaphone,
+  BarChart3,
 } from "lucide-react";
 import { useCars } from "@/lib/carsStore";
 import { type Car, type CarStatus, formatPrice } from "@/data/cars";
@@ -23,10 +27,21 @@ import {
   type BotSettings,
   type Lead,
   type AdminsMap,
+  type Review,
+  type Subscription,
+  type Stats,
 } from "@/lib/api";
 import { haptic, type TG } from "@/lib/telegram";
 
-type Tab = "catalog" | "bot" | "leads" | "admins";
+type Tab =
+  | "catalog"
+  | "bot"
+  | "leads"
+  | "reviews"
+  | "subs"
+  | "stats"
+  | "broadcast"
+  | "admins";
 
 const emptyCar = (): Car => ({
   id: "",
@@ -77,7 +92,11 @@ export function TmaAdmin({
   const tabs: { id: Tab; label: string; icon: typeof CarIcon; min: number }[] = [
     { id: "catalog", label: "Каталог", icon: CarIcon, min: 1 },
     { id: "bot", label: "Бот", icon: Bot, min: 1 },
-    { id: "leads", label: "Заявки", icon: Inbox, min: 0 },
+    { id: "leads", label: "Заявки", icon: Inbox, min: 1 },
+    { id: "reviews", label: "Отзывы", icon: Star, min: 1 },
+    { id: "subs", label: "Подписки", icon: Bell, min: 2 },
+    { id: "stats", label: "Статистика", icon: BarChart3, min: 1 },
+    { id: "broadcast", label: "Рассылка", icon: Megaphone, min: 3 },
     { id: "admins", label: "Админы", icon: Users, min: 3 },
   ];
   const rank = role === "owner" ? 3 : role === "manager" ? 2 : 1;
@@ -102,7 +121,7 @@ export function TmaAdmin({
 
       <div className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs
-          .filter((t) => (t.id === "admins" ? rank >= 3 : true))
+          .filter((t) => rank >= t.min)
           .map((t) => (
             <button
               key={t.id}
@@ -129,7 +148,300 @@ export function TmaAdmin({
         <BotTab tg={tg} initData={initData} canEdit={rank >= 2} />
       ) : null}
       {tab === "leads" ? <LeadsTab initData={initData} /> : null}
+      {tab === "reviews" ? (
+        <ReviewsTab tg={tg} initData={initData} canEdit={rank >= 2} />
+      ) : null}
+      {tab === "subs" && rank >= 2 ? <SubsTab initData={initData} /> : null}
+      {tab === "stats" ? <StatsTab initData={initData} /> : null}
+      {tab === "broadcast" && rank >= 3 ? (
+        <BroadcastTab tg={tg} initData={initData} />
+      ) : null}
       {tab === "admins" && rank >= 3 ? <AdminsTab initData={initData} /> : null}
+    </div>
+  );
+}
+
+/* ---------- Отзывы ---------- */
+function ReviewsTab({
+  tg,
+  initData,
+  canEdit,
+}: {
+  tg: TG | null;
+  initData: string;
+  canEdit: boolean;
+}) {
+  const [list, setList] = useState<Review[] | null>(null);
+  const [editing, setEditing] = useState<Review | null>(null);
+  const lab = "mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]";
+
+  function load() {
+    adminCall<{ reviews: Review[] }>(initData, "reviews.list").then((r) =>
+      setList(r.ok ? r.reviews : []),
+    );
+  }
+  useEffect(load, [initData]);
+
+  async function save(rev: Review) {
+    const r = await adminCall<{ reviews: Review[] }>(initData, "reviews.save", rev);
+    if (r.ok) {
+      setList(r.reviews);
+      setEditing(null);
+      haptic(tg, "medium");
+      showToast("Отзыв сохранён");
+    } else showToast("Ошибка: " + (r.error || ""), "error");
+  }
+  async function remove(id: string) {
+    const r = await adminCall<{ reviews: Review[] }>(initData, "reviews.remove", { id });
+    if (r.ok) setList(r.reviews);
+  }
+
+  if (editing) {
+    const e = editing;
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[16px] font-extrabold uppercase">
+            {e.id ? "Редактирование" : "Новый отзыв"}
+          </h2>
+          <button
+            onClick={() => setEditing(null)}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-line-dark text-chrome"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <label>
+          <span className={lab}>Имя клиента</span>
+          <input
+            className="field-dark"
+            value={e.name}
+            onChange={(ev) => setEditing({ ...e, name: ev.target.value })}
+          />
+        </label>
+        <label>
+          <span className={lab}>Авто (необязательно)</span>
+          <input
+            className="field-dark"
+            value={e.car ?? ""}
+            onChange={(ev) => setEditing({ ...e, car: ev.target.value })}
+          />
+        </label>
+        <div>
+          <span className={lab}>Оценка</span>
+          <div className="flex gap-1.5">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                onClick={() => setEditing({ ...e, rating: n })}
+                className="p-0.5"
+              >
+                <Star
+                  className={`h-7 w-7 ${n <= e.rating ? "fill-bordeaux-bright text-bordeaux-bright" : "text-[#3a424c]"}`}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+        <label>
+          <span className={lab}>Текст отзыва</span>
+          <textarea
+            className="field-dark min-h-[110px]"
+            value={e.text}
+            onChange={(ev) => setEditing({ ...e, text: ev.target.value })}
+          />
+        </label>
+        <button onClick={() => save(e)} className="btn btn-primary w-full">
+          <Save className="h-[18px] w-[18px]" /> Сохранить
+        </button>
+      </div>
+    );
+  }
+
+  if (list === null) return <Spinner />;
+
+  return (
+    <>
+      {canEdit ? (
+        <button
+          onClick={() =>
+            setEditing({ id: "", name: "", text: "", car: "", rating: 5, ts: Date.now() })
+          }
+          className="btn btn-primary mb-3 w-full"
+        >
+          <Plus className="h-[18px] w-[18px]" /> Добавить отзыв
+        </button>
+      ) : null}
+      <div className="space-y-2.5">
+        {list.length === 0 ? (
+          <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
+            Отзывов пока нет.
+          </p>
+        ) : (
+          list.map((r) => (
+            <div key={r.id} className="rounded-[16px] border border-line-dark bg-graphite-2 p-3">
+              <div className="flex items-center gap-2">
+                <span className="font-bold">{r.name}</span>
+                <span className="flex">
+                  {Array.from({ length: r.rating }).map((_, i) => (
+                    <Star key={i} className="h-3 w-3 fill-bordeaux-bright text-bordeaux-bright" />
+                  ))}
+                </span>
+                {canEdit ? (
+                  <span className="ml-auto flex gap-1.5">
+                    <button
+                      onClick={() => setEditing(r)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-line-dark text-chrome"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => remove(r.id)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-line-dark text-bordeaux-bright"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-[13px] text-[#C7CFD6]">{r.text}</p>
+            </div>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ---------- Подписки ---------- */
+function SubsTab({ initData }: { initData: string }) {
+  const [subs, setSubs] = useState<Subscription[] | null>(null);
+  useEffect(() => {
+    adminCall<{ subs: Subscription[] }>(initData, "subs.list").then((r) =>
+      setSubs(r.ok ? r.subs : []),
+    );
+  }, [initData]);
+  if (subs === null) return <Spinner />;
+  if (subs.length === 0)
+    return (
+      <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
+        Подписок пока нет.
+      </p>
+    );
+  return (
+    <div className="space-y-2.5">
+      {subs.map((s, i) => (
+        <div key={i} className="rounded-[16px] border border-line-dark bg-graphite-2 p-3">
+          <div className="flex items-center justify-between">
+            <span className="font-bold">{s.name || "—"}</span>
+            <span className="font-num text-[11px] text-[#8C97A1]">#{s.userId}</span>
+          </div>
+          <div className="mt-1 text-[12.5px] text-[#C7CFD6]">
+            🌍 {s.params.country || "любая"} · 🚙 {s.params.body || "любой"} · 💰{" "}
+            {s.params.budget ? `до ${formatPrice(s.params.budget)} ₽` : "—"}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Статистика ---------- */
+function StatsTab({ initData }: { initData: string }) {
+  const { cars } = useCars();
+  const [stats, setStats] = useState<Stats | null>(null);
+  useEffect(() => {
+    adminCall<{ stats: Stats }>(initData, "stats.get").then((r) =>
+      r.ok ? setStats(r.stats) : null,
+    );
+  }, [initData]);
+  if (!stats) return <Spinner />;
+  const cells: [string, number][] = [
+    ["Заявок", stats.leads],
+    ["Пользователей", stats.users],
+    ["Подписок", stats.subs],
+    ["Отзывов", stats.reviews],
+    ["Просмотров", stats.totalViews],
+  ];
+  const top = Object.entries(stats.views || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const nameOf = (id: string) => cars.find((c) => c.id === id)?.model || id;
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2.5">
+        {cells.map(([label, v]) => (
+          <div key={label} className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
+            <div className="font-num text-[26px] font-extrabold text-bordeaux-bright">{v}</div>
+            <div className="text-[12px] text-[#9AA4B2]">{label}</div>
+          </div>
+        ))}
+      </div>
+      <div>
+        <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+          Топ просматриваемых
+        </div>
+        {top.length === 0 ? (
+          <p className="text-[13px] text-[#8C97A1]">Пока нет данных.</p>
+        ) : (
+          <div className="space-y-2">
+            {top.map(([id, v]) => (
+              <div
+                key={id}
+                className="flex items-center justify-between rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5"
+              >
+                <span className="truncate text-[13.5px] font-semibold">{nameOf(id)}</span>
+                <span className="font-num text-[13px] text-bordeaux-bright">{v}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Рассылка ---------- */
+function BroadcastTab({ tg, initData }: { tg: TG | null; initData: string }) {
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function send() {
+    if (text.trim().length < 2) return;
+    if (!confirm("Отправить сообщение всем пользователям бота?")) return;
+    setSending(true);
+    const r = await adminCall<{ sent: number; total: number }>(
+      initData,
+      "broadcast.send",
+      { text: text.trim() },
+    );
+    setSending(false);
+    if (r.ok) {
+      haptic(tg, "medium");
+      showToast(`Отправлено: ${r.sent} из ${r.total}`);
+      setText("");
+    } else showToast("Ошибка: " + (r.error || ""), "error");
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[13px] text-[#9AA4B2]">
+        Сообщение получат все, кто писал боту или открывал мини-апп.
+      </p>
+      <textarea
+        className="field-dark min-h-[140px]"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Текст рассылки…"
+      />
+      <button onClick={send} className="btn btn-primary w-full">
+        {sending ? (
+          <Loader2 className="h-[18px] w-[18px] animate-spin" />
+        ) : (
+          <Megaphone className="h-[18px] w-[18px]" />
+        )}
+        Отправить всем
+      </button>
     </div>
   );
 }
