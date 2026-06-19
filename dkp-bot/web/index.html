@@ -104,13 +104,17 @@ function inp(id, label, val = "") {
 }
 
 /* ---------- стороны (Продавец / Покупатель) ---------- */
-const TYPES = [["man","Физлицо (М)"],["woman","Физлицо (Ж)"],["org","Юрлицо"],["ip","ИП"]];
+const TYPES = [["person","Физлицо"],["org","Юрлицо"],["ip","ИП"]];
 function partyBlock(pre, title) {
   const seg = TYPES.map(([k, l]) =>
     `<button data-t="${k}" onclick="setType('${pre}','${k}')">${l}</button>`).join("");
   return `<h2>${title}</h2>
   <div class="card">
     <div class="seg" id="${pre}-seg">${seg}</div>
+    <div class="seg gender-only" id="${pre}-gseg" style="display:none;max-width:240px">
+      <button data-g="m" onclick="setGender('${pre}','m')">муж.</button>
+      <button data-g="f" onclick="setGender('${pre}','f')">жен.</button>
+    </div>
     <div class="file person-only" id="${pre}-pfile-wrap">
       <button class="btn sec" onclick="document.getElementById('${pre}-pfile').click()">📷 Фото паспорта</button>
       <span id="${pre}-status" class="badge"></span>
@@ -139,7 +143,8 @@ function fillFields(containerId, fields, prefix) {
 });
 fillFields("car-fields", CAR_FIELDS, "");
 
-const partyType = { seller: "man", buyer: "man" };
+const partyType = { seller: "person", buyer: "person" };
+const partyGender = { seller: "m", buyer: "m" };
 function setType(pre, t) {
   partyType[pre] = t;
   document.querySelectorAll(`#${pre}-seg button`).forEach((b) =>
@@ -149,8 +154,28 @@ function setType(pre, t) {
   document.getElementById(`${pre}-person`).style.display = isOrg ? "none" : "block";
   document.getElementById(`${pre}-pfile-wrap`).style.display = isOrg ? "none" : "flex";
   document.getElementById(`${pre}-ofile-wrap`).style.display = isOrg ? "flex" : "none";
+  // Пол нужен для физлица и ИП («именуемый/ая»); для юрлица — нет.
+  document.getElementById(`${pre}-gseg`).style.display = t === "org" ? "none" : "flex";
 }
-setType("seller", "man"); setType("buyer", "man");
+function setGender(pre, g) {
+  partyGender[pre] = g;
+  document.querySelectorAll(`#${pre}-gseg button`).forEach((b) =>
+    b.classList.toggle("on", b.dataset.g === g));
+}
+// Определение пола по отчеству (надёжный признак в русском).
+function detectGender(fio) {
+  const patr = (fio.trim().split(/\s+/)[2] || "").toLowerCase();
+  if (/(вна|чна)$/.test(patr)) return "f";
+  if (/(вич|ьич|ыч|ич)$/.test(patr)) return "m";
+  return null;
+}
+["seller", "buyer"].forEach((pre) => {
+  setType(pre, "person"); setGender(pre, "m");
+  const fioEl = document.getElementById(`${pre}_fio`);
+  if (fioEl) fioEl.addEventListener("input", () => {
+    const g = detectGender(fioEl.value); if (g) setGender(pre, g);
+  });
+});
 
 /* ---------- загрузка и распознавание фото ---------- */
 function fileToDataUrl(file) {
@@ -175,6 +200,12 @@ async function recognize(file, kind, statusEl, applyPrefix) {
     for (const [k, v] of Object.entries(data.fields || {})) {
       const el = document.getElementById(applyPrefix + k);
       if (el && v) { el.value = v; n++; }
+    }
+    // Автоопределение пола по распознанному ФИО (для физлица/ИП).
+    const pre = applyPrefix.replace(/_$/, "");
+    if (pre === "seller" || pre === "buyer") {
+      const fioEl = document.getElementById(`${pre}_fio`);
+      if (fioEl && fioEl.value) { const g = detectGender(fioEl.value); if (g) setGender(pre, g); }
     }
     statusEl.textContent = `распознано полей: ${n} — проверьте`;
     if (data._names && data._names.length)
@@ -234,7 +265,8 @@ function shortFio(fio) {
 }
 function partyData(pre) {
   const t = partyType[pre], isOrg = t === "org" || t === "ip";
-  const end = isOrg && t === "org" ? "ое" : t === "woman" ? "ая" : "ый";
+  // Юрлицо → «именуемое»; физлицо/ИП → по полу: жен. «ая», муж. «ый».
+  const end = t === "org" ? "ое" : partyGender[pre] === "f" ? "ая" : "ый";
   const d = { [`${pre}_org`]: isOrg, [`${pre}_end`]: end, [`${pre}_address`]: val(`${pre}_address`) };
   if (isOrg) {
     for (const [k] of ORG_FIELDS) d[`${pre}_${k}`] = val(`${pre}_${k}`);
