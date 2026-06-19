@@ -118,6 +118,11 @@ function partyBlock(pre, title) {
       <input type="file" id="${pre}-pfile" accept="image/*" capture="environment" />
     </div>
     <div class="person-only" id="${pre}-person"></div>
+    <div class="file org-only" id="${pre}-ofile-wrap">
+      <button class="btn sec" onclick="document.getElementById('${pre}-ofile').click()">📷 Скан карточки организации</button>
+      <span id="${pre}-ostatus" class="badge"></span>
+      <input type="file" id="${pre}-ofile" accept="image/*" capture="environment" />
+    </div>
     <div class="org-only" id="${pre}-org"></div>
   </div>`;
 }
@@ -144,6 +149,7 @@ function setType(pre, t) {
   document.getElementById(`${pre}-org`).style.display = isOrg ? "block" : "none";
   document.getElementById(`${pre}-person`).style.display = isOrg ? "none" : "block";
   document.getElementById(`${pre}-pfile-wrap`).style.display = isOrg ? "none" : "flex";
+  document.getElementById(`${pre}-ofile-wrap`).style.display = isOrg ? "flex" : "none";
 }
 setType("seller", "man"); setType("buyer", "man");
 
@@ -174,6 +180,10 @@ async function recognize(file, kind, statusEl, applyPrefix) {
   document.getElementById(`${pre}-pfile`).addEventListener("change", (e) => {
     if (e.target.files[0]) recognize(e.target.files[0], "passport",
       document.getElementById(`${pre}-status`), `${pre}_`);
+  });
+  document.getElementById(`${pre}-ofile`).addEventListener("change", (e) => {
+    if (e.target.files[0]) recognize(e.target.files[0], "org_card",
+      document.getElementById(`${pre}-ostatus`), `${pre}_`);
   });
 });
 document.getElementById("sts-file").addEventListener("change", (e) => {
