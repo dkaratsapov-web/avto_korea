@@ -201,15 +201,14 @@ async function recognize(file, kind, statusEl, applyPrefix) {
       const el = document.getElementById(applyPrefix + k);
       if (el && v) { el.value = v; n++; }
     }
-    // Автоопределение пола по распознанному ФИО (для физлица/ИП).
+    // Пол: из поля gender Яндекса, иначе по отчеству.
     const pre = applyPrefix.replace(/_$/, "");
     if (pre === "seller" || pre === "buyer") {
       const fioEl = document.getElementById(`${pre}_fio`);
-      if (fioEl && fioEl.value) { const g = detectGender(fioEl.value); if (g) setGender(pre, g); }
+      const g = data._gender || (fioEl && detectGender(fioEl.value));
+      if (g) setGender(pre, g);
     }
     statusEl.textContent = `распознано полей: ${n} — проверьте`;
-    if (data._names && data._names.length)
-      statusEl.textContent += ` · поля Яндекса: ${data._names.join(", ")}`;
   } catch (e) { statusEl.textContent = "ошибка распознавания — вручную"; }
 }
 ["seller", "buyer"].forEach((pre) => {

@@ -138,8 +138,12 @@ async function recognizeYandex(env, mediaType, data, kind) {
   const fields = kind === "passport" ? mapPassport(entities, fullText)
     : kind === "sts" ? mapSts(entities, fullText)
     : mapOrg(fullText);
-  // Временный дебаг: реальные имена полей Яндекса — для точной настройки маппинга.
-  return { fields, _names: entities.map((e) => e.name).filter(Boolean) };
+  let _gender;
+  if (kind === "passport") {
+    const g = (entities.find((e) => (e.name || "").toLowerCase() === "gender")?.text || "").trim().toLowerCase();
+    if (/^[мm]/.test(g)) _gender = "m"; else if (/^[жf]/.test(g)) _gender = "f";
+  }
+  return { fields, _gender };
 }
 
 // Карта сущностей по точному имени (lowercase) — Яндекс отдаёт name/surname/...
