@@ -129,10 +129,10 @@ async function recognizeYandex(env, mediaType, data, kind) {
   if (!r.ok) return { error: "vision_failed", status: r.status, detail: (await r.text().catch(() => "")).slice(0, 300) };
   // Ответ может прийти как один JSON или как поток JSON-строк (по странице) — берём первую.
   const raw = await r.text();
-  let out;
-  try { out = JSON.parse(raw); }
-  catch { try { out = JSON.parse(raw.split("\n").filter(Boolean)[0]); } catch { return { error: "parse_failed", raw: raw.slice(0, 300) }; } }
-  const ann = out.result?.textAnnotation || {};
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch { try { parsed = JSON.parse(raw.split("\n").filter(Boolean)[0]); } catch { return { error: "parse_failed", raw: raw.slice(0, 300) }; } }
+  const ann = parsed.result?.textAnnotation || {};
   const entities = ann.entities || [];
   const fullText = ann.fullText || "";
   const fields = kind === "passport" ? mapPassport(entities, fullText)
@@ -145,9 +145,9 @@ async function recognizeYandex(env, mediaType, data, kind) {
     if (/^[мm]/.test(g)) _gender = "m"; else if (/^[жf]/.test(g)) _gender = "f";
   }
   const out = { fields, _gender };
-  // Временный дебаг только для СТС — для настройки маппинга.
-  if (kind === "sts") {
-    out._names = entities.map((e) => e.name).filter(Boolean);
+  // Временный дебаг для паспорта и СТС — для настройки маппинга.
+  if (kind === "sts" || kind === "passport") {
+    out._ents = entities.map((e) => `${e.name}=${(e.text || "").replace(/\s+/g, " ").slice(0, 30)}`);
     out._text = fullText.replace(/\s+/g, " ").slice(0, 400);
   }
   return out;
