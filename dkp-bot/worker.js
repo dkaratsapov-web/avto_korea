@@ -213,10 +213,13 @@ function mapPassport(entities, fullText) {
   }
   return f;
 }
+// Граница значения — перед следующей подписью (общая для СТС/ПТС).
+const STOP_LABEL = "(?=\\s*(?:категори|кузов|шасси|рама|двигател|мощност|об[ъь][её]м|цвет|масса|эколог|год|vin|идентификац|регистрац|разрешен|изготов|марк|модел|сери|номер|особ|паспорт|наимен|тип|разреш)|$)";
 // ПТС (паспорт ТС) — спец-модели у Яндекса нет, разбираем из общего текста.
 function mapPts(t) {
   const f = {};
   const T = (t || "").replace(/\s+/g, " ");
+  const grab = (re) => { const m = T.match(re); return m ? (m[1] || "").trim() : ""; };
   const vin = T.match(/\b[A-HJ-NPR-Z0-9]{17}\b/);
   if (vin) f.car_vin = vin[0].toUpperCase();
   // Серия и номер ПТС: «78 УХ 654321» (2 цифры + 2 буквы + 6 цифр).
@@ -224,8 +227,14 @@ function mapPts(t) {
   if (pts) { f.pts_series = pts[1].replace(/\s+/g, " ").trim(); f.pts_number = pts[2]; }
   const yr = T.match(/год[а-я ]*выпуска\D{0,8}((?:19|20)\d{2})/i) || T.match(/\b(19\d{2}|20\d{2})\b/);
   if (yr) f.car_year = yr[1] || yr[0];
-  const eng = T.match(/двигател[ья][^№]*№?\s*([A-ZА-Я0-9]{4,})/i);
-  if (eng) f.car_engine = eng[1];
+  f.car_type = grab(new RegExp("тип\\s*тс[\\s:№]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,40}?)" + STOP_LABEL, "i"));
+  f.car_category = grab(/категори[ия]\s*(?:тс)?[\s:№]*([ABCDEMTАВСЕДКМТ]{1,2}[1ЕE]?)\b/i);
+  f.car_color = grab(new RegExp("цвет[\\s:а-яё]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,30}?)" + STOP_LABEL, "i"));
+  f.car_power = grab(/мощност[ьи][^0-9]{0,16}(\d{2,4})/i);
+  f.car_volume = grab(/(?:рабочий\s*)?об[ъь][её]м[^0-9]{0,16}(\d{3,5})/i);
+  const e = grab(/двигател[ья][\s№:no.]{0,8}([A-ZА-Я0-9][A-ZА-Я0-9 \-]{3,22})/i); if (/\d{3,}/.test(e)) f.car_engine = e;
+  const b = grab(/кузов[\s№:()a-zа-яё.]{0,12}([A-ZА-Я0-9]{6,22})/i); if (/\d{4,}/.test(b)) f.car_body = b.toUpperCase();
+  const ch = grab(/(?:шасси|рама)[\s№():a-zа-яё.]{0,16}([A-ZА-Я0-9]{6,22}|отсутствует)/i); if (ch) f.car_chassis = ch.toUpperCase();
   return f;
 }
 // Прописка (отдельное фото страницы регистрации) → адрес. OCR общий, чистим текст.
@@ -263,15 +272,17 @@ function mapSts(entities, fullText) {
   const pn = find("pts_number").replace(/\D/g, "");
   if (pn.length >= 4) { f.pts_series = pn.slice(0, 4); f.pts_number = pn.slice(4); }
   // Поля, которые структурная модель не отдаёт — из текста СТС (page-OCR), по подписям.
+  // Значение обрезается перед следующей подписью; двигатель/кузов берём только с цифрами.
   const T = (fullText || "").replace(/\s+/g, " ");
   const grab = (re) => { const mm = T.match(re); return mm ? (mm[1] || "").trim() : ""; };
+  const STOP = "(?=\\s*(?:категори|кузов|шасси|рама|двигател|мощност|об[ъь][её]м|цвет|масса|эколог|год|vin|идентификац|регистрац|разрешен|изготов|марк|модел|сери|номер|особ)|$)";
   if (!f.car_vin) { const v = T.match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
-  if (!f.car_category) f.car_category = grab(/категори[ия][^A-EА-ЯABCDM]{0,8}([A-EА-ЕM]{1,2}\d?)/i);
-  if (!f.car_type) f.car_type = grab(/тип\s*ТС[^А-Яа-яA-Za-z]{0,4}([А-Яа-яЁё]+(?:\s[А-Яа-яЁё]+){0,2})/i);
-  if (!f.car_engine) f.car_engine = grab(/двигател[ья][^A-ZА-Я0-9]{0,14}([A-ZА-Я0-9][A-ZА-Я0-9 \-]{3,}\d)/i);
-  if (!f.car_body) f.car_body = grab(/кузов[а\s()№A-Za-zА-Яа-я]{0,16}([A-ZА-Я0-9]{6,})/i).toUpperCase();
+  if (!f.car_type) f.car_type = grab(new RegExp("тип\\s*тс[\\s:№]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,40}?)" + STOP, "i"));
+  if (!f.car_category) f.car_category = grab(/категори[ия]\s*(?:тс)?[\s:№]*([ABCDEMTАВСЕДКМТ]{1,2}[1ЕE]?)\b/i);
   if (!f.car_power) f.car_power = grab(/мощност[ьи][^0-9]{0,16}(\d{2,4})/i);
   if (!f.car_volume) f.car_volume = grab(/(?:рабочий\s*)?об[ъь][её]м[^0-9]{0,16}(\d{3,5})/i);
+  if (!f.car_engine) { const e = grab(/двигател[ья][\s№:no\.]{0,8}([A-ZА-Я0-9][A-ZА-Я0-9 \-]{3,22})/i); if (/\d{3,}/.test(e)) f.car_engine = e; }
+  if (!f.car_body) { const b = grab(/кузов[\s№:()a-zа-яё.]{0,12}([A-ZА-Я0-9]{6,22})/i); if (/\d{4,}/.test(b)) f.car_body = b.toUpperCase(); }
   return f;
 }
 function mapOrg(t) {
