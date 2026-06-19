@@ -110,7 +110,8 @@ async function recognize(env, imageDataUrl, kind) {
 /* ---------- Yandex Vision OCR (модели под паспорт РФ и СТС) ---------- */
 const YA_MODEL = { passport: "passport", sts: "vehicle-registration-front", org_card: "page", reg: "page" };
 
-async function recognizeYandex(env, mediaType, data, kind) {
+// Один вызов OCR Яндекса с заданной моделью → { entities, fullText } или { error }.
+async function yandexOcr(env, mediaType, data, model) {
   const headers = {
     "content-type": "application/json",
     Authorization: "Api-Key " + env.YANDEX_API_KEY,
@@ -119,22 +120,27 @@ async function recognizeYandex(env, mediaType, data, kind) {
   const r = await fetch("https://ocr.api.cloud.yandex.net/ocr/v1/recognizeText", {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      mimeType: mediaType,
-      languageCodes: ["ru", "en"],
-      model: YA_MODEL[kind] || "page",
-      content: data,
-    }),
+    body: JSON.stringify({ mimeType: mediaType, languageCodes: ["ru", "en"], model, content: data }),
   });
   if (!r.ok) return { error: "vision_failed", status: r.status, detail: (await r.text().catch(() => "")).slice(0, 300) };
-  // Ответ может прийти как один JSON или как поток JSON-строк (по странице) — берём первую.
   const raw = await r.text();
   let parsed;
   try { parsed = JSON.parse(raw); }
-  catch { try { parsed = JSON.parse(raw.split("\n").filter(Boolean)[0]); } catch { return { error: "parse_failed", raw: raw.slice(0, 300) }; } }
+  catch { try { parsed = JSON.parse(raw.split("\n").filter(Boolean)[0]); } catch { return { error: "parse_failed" }; } }
   const ann = parsed.result?.textAnnotation || {};
-  const entities = ann.entities || [];
-  const fullText = ann.fullText || "";
+  return { entities: ann.entities || [], fullText: ann.fullText || "" };
+}
+
+async function recognizeYandex(env, mediaType, data, kind) {
+  const res = await yandexOcr(env, mediaType, data, YA_MODEL[kind] || "page");
+  if (res.error) return res;
+  let { entities, fullText } = res;
+  // Модели passport/sts не отдают сплошной текст — добираем page-OCR
+  // для «кем выдан» (паспорт) и резервного разбора.
+  if (kind === "passport") {
+    const page = await yandexOcr(env, mediaType, data, "page");
+    if (!page.error && page.fullText) fullText = page.fullText;
+  }
   const fields = kind === "passport" ? mapPassport(entities, fullText)
     : kind === "sts" ? mapSts(entities, fullText)
     : kind === "reg" ? mapReg(fullText)
@@ -144,13 +150,7 @@ async function recognizeYandex(env, mediaType, data, kind) {
     const g = (entities.find((e) => (e.name || "").toLowerCase() === "gender")?.text || "").trim().toLowerCase();
     if (/^[мm]/.test(g)) _gender = "m"; else if (/^[жf]/.test(g)) _gender = "f";
   }
-  const out = { fields, _gender };
-  // Временный дебаг для паспорта и СТС — для настройки маппинга.
-  if (kind === "sts" || kind === "passport") {
-    out._ents = entities.map((e) => `${e.name}=${(e.text || "").replace(/\s+/g, " ").slice(0, 30)}`);
-    out._text = fullText.replace(/\s+/g, " ").slice(0, 400);
-  }
-  return out;
+  return { fields, _gender };
 }
 
 // Карта сущностей по точному имени (lowercase) — Яндекс отдаёт name/surname/...
@@ -183,7 +183,7 @@ function mapPassport(entities, fullText) {
     pasp_number: number,
     pasp_issued_by: pick(m, "issued_by", "issuing_authority", "authority"),
     pasp_issued_date: pick(m, "issue_date", "date_of_issue"),
-    pasp_code: pick(m, "subdivision_code", "department_code", "division_code", "code"),
+    pasp_code: pick(m, "subdivision", "subdivision_code", "department_code", "division_code", "code"),
   };
   // Запасные разборы из общего текста.
   if (!f.pasp_series) {
@@ -214,19 +214,26 @@ function mapReg(t) {
 }
 function mapSts(entities, fullText) {
   const m = entMap(entities);
+  // Реальные поля модели vehicle-registration-front имеют префикс stsfront_.
+  const g = (...names) => pick(m, ...names.map((n) => "stsfront_" + n), ...names);
+  const brand = g("car_brand", "brand", "make");
+  const model = g("car_model", "model");
   const f = {
-    car_brand: pick(m, "model", "brand", "make", "vehicle_model"),
-    car_vin: pick(m, "vin"),
-    car_type: pick(m, "type", "vehicle_type"),
-    car_category: pick(m, "category", "vehicle_category"),
-    car_year: pick(m, "year", "manufacture_year", "year_of_manufacture"),
-    car_engine: pick(m, "engine_number", "engine"),
-    car_chassis: pick(m, "chassis", "chassis_number"),
-    car_body: pick(m, "body", "body_number"),
-    car_color: pick(m, "color", "colour"),
-    car_plate: pick(m, "license_plate", "registration_number", "plate", "reg_number"),
+    car_brand: titleCase([brand, model].filter(Boolean).join(" ")),
+    car_vin: g("vin_number", "vin").toUpperCase(),
+    car_type: g("car_type", "type"),
+    car_category: g("car_category", "category"),
+    car_year: g("car_year", "year"),
+    car_engine: g("car_engine_number", "engine_number", "engine"),
+    car_chassis: g("car_chassis_number", "chassis_number", "chassis").toUpperCase(),
+    car_body: g("car_body_number", "body_number", "body").toUpperCase(),
+    car_color: g("car_color", "color"),
+    car_plate: g("car_number", "license_plate", "registration_number", "plate").toUpperCase(),
     sts_series: "", sts_number: "", pts_series: "", pts_number: "",
   };
+  const sn = g("sts_number").replace(/\D/g, "");
+  if (sn.length >= 10) { f.sts_series = sn.slice(0, 4); f.sts_number = sn.slice(4); }
+  else f.sts_number = sn;
   if (!f.car_vin) { const v = fullText.match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
   return f;
 }

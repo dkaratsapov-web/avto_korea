@@ -215,8 +215,6 @@ async function recognize(file, kind, statusEl, applyPrefix) {
       if (g) setGender(pre, g);
     }
     statusEl.textContent = `распознано полей: ${n} — проверьте`;
-    if ((kind === "sts" || kind === "passport") && data._ents)
-      statusEl.textContent += ` · ${data._ents.join(" | ")} · ТЕКСТ: ${data._text || ""}`;
   } catch (e) { statusEl.textContent = "ошибка распознавания — вручную"; }
 }
 ["seller", "buyer"].forEach((pre) => {
