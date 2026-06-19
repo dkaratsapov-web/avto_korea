@@ -161,6 +161,16 @@ export default {
 
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
+    // Разовая привязка вебхука: открыть в браузере после установки токена.
+    if (url.pathname === "/setup") {
+      if (!env.TELEGRAM_BOT_TOKEN)
+        return new Response("Сначала задайте секрет TELEGRAM_BOT_TOKEN в воркере.", { status: 400 });
+      const hook = `${url.origin}/webhook`;
+      const r = await tg(env, "setWebhook", { url: hook });
+      const out = await r.json().catch(() => ({}));
+      return json({ setWebhook: hook, telegram: out });
+    }
+
     // Telegram webhook
     if (url.pathname === "/webhook" && request.method === "POST") {
       const update = await request.json().catch(() => null);
