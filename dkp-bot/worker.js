@@ -135,56 +135,69 @@ async function recognizeYandex(env, mediaType, data, kind) {
   const ann = out.result?.textAnnotation || {};
   const entities = ann.entities || [];
   const fullText = ann.fullText || "";
-  if (kind === "passport") return { fields: mapPassport(entities, fullText) };
-  if (kind === "sts") return { fields: mapSts(entities, fullText) };
-  return { fields: mapOrg(fullText) };
+  const fields = kind === "passport" ? mapPassport(entities, fullText)
+    : kind === "sts" ? mapSts(entities, fullText)
+    : mapOrg(fullText);
+  // Временный дебаг: реальные имена полей Яндекса — для точной настройки маппинга.
+  return { fields, _names: entities.map((e) => e.name).filter(Boolean) };
 }
 
-// Достаёт текст сущности по подстроке в её имени.
-function ent(entities, ...keys) {
+// Карта сущностей по точному имени (lowercase) — Яндекс отдаёт name/surname/...
+function entMap(entities) {
+  const m = {};
   for (const e of entities) {
-    const n = (e.name || "").toLowerCase();
-    if (keys.some((k) => n.includes(k))) return (e.text || "").trim();
+    const k = (e.name || "").toLowerCase();
+    if (k && !(k in m)) m[k] = (e.text || "").trim();
   }
-  return "";
+  return m;
 }
+const pick = (m, ...names) => { for (const n of names) if (m[n]) return m[n]; return ""; };
+// «МОКИЕНКО иван» → «Мокиенко Иван»
+const titleCase = (s) => s.toLowerCase().replace(/(^|[\s\-])([^\s\-])/g, (_, p, c) => p + c.toUpperCase());
+
 function mapPassport(entities, fullText) {
-  const last = ent(entities, "last_name", "surname");
-  const first = ent(entities, "first_name");
-  const middle = ent(entities, "middle_name", "patronymic");
-  const fio = [last, first, middle].filter(Boolean).join(" ");
-  const sn = ent(entities, "series_and_number", "series", "number").replace(/\D/g, "");
-  const series = sn.length >= 10 ? sn.slice(0, 4) : "";
-  const number = sn.length >= 10 ? sn.slice(4, 10) : "";
+  const m = entMap(entities);
+  const last = pick(m, "surname", "last_name");
+  const first = pick(m, "name", "first_name", "given_name");
+  const middle = pick(m, "patronymic", "middle_name");
+  const fio = titleCase([last, first, middle].filter(Boolean).join(" "));
+  let series = "", number = "";
+  const sn = (pick(m, "series_and_number", "number") || ((m.series || "") + (m.number || ""))).replace(/\D/g, "");
+  if (sn.length >= 10) { series = sn.slice(0, 4); number = sn.slice(4, 10); }
   const f = {
     fio,
-    birth: ent(entities, "birth_date"),
-    birthplace: ent(entities, "birth_place"),
+    birth: pick(m, "birth_date", "birthdate", "date_of_birth"),
+    birthplace: titleCase(pick(m, "birth_place", "place_of_birth")),
     pasp_series: series,
     pasp_number: number,
-    pasp_issued_by: ent(entities, "issued_by", "authority"),
-    pasp_issued_date: ent(entities, "issue_date"),
-    pasp_code: ent(entities, "subdivision_code", "code"),
+    pasp_issued_by: pick(m, "issued_by", "issuing_authority", "authority"),
+    pasp_issued_date: pick(m, "issue_date", "date_of_issue"),
+    pasp_code: pick(m, "subdivision_code", "department_code", "division_code", "code"),
   };
-  // Запасной разбор серии/номера из общего текста.
+  // Запасные разборы из общего текста.
   if (!f.pasp_series) {
     const mm = fullText.replace(/\s/g, "").match(/(\d{4})(\d{6})/);
     if (mm) { f.pasp_series = mm[1]; f.pasp_number = mm[2]; }
   }
+  if (!f.pasp_code) {
+    const c = fullText.match(/\b(\d{3})\s*-\s*(\d{3})\b/);
+    if (c) f.pasp_code = c[1] + "-" + c[2];
+  }
   return f;
 }
 function mapSts(entities, fullText) {
+  const m = entMap(entities);
   const f = {
-    car_brand: ent(entities, "model", "brand", "make"),
-    car_vin: ent(entities, "vin"),
-    car_type: ent(entities, "type"),
-    car_category: ent(entities, "category"),
-    car_year: ent(entities, "year"),
-    car_engine: ent(entities, "engine_number", "engine"),
-    car_chassis: ent(entities, "chassis"),
-    car_body: ent(entities, "body"),
-    car_color: ent(entities, "color"),
-    car_plate: ent(entities, "license_plate", "plate", "registration_number", "reg_number"),
+    car_brand: pick(m, "model", "brand", "make", "vehicle_model"),
+    car_vin: pick(m, "vin"),
+    car_type: pick(m, "type", "vehicle_type"),
+    car_category: pick(m, "category", "vehicle_category"),
+    car_year: pick(m, "year", "manufacture_year", "year_of_manufacture"),
+    car_engine: pick(m, "engine_number", "engine"),
+    car_chassis: pick(m, "chassis", "chassis_number"),
+    car_body: pick(m, "body", "body_number"),
+    car_color: pick(m, "color", "colour"),
+    car_plate: pick(m, "license_plate", "registration_number", "plate", "reg_number"),
     sts_series: "", sts_number: "", pts_series: "", pts_number: "",
   };
   if (!f.car_vin) { const v = fullText.match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }

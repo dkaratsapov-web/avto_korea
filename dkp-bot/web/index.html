@@ -177,6 +177,8 @@ async function recognize(file, kind, statusEl, applyPrefix) {
       if (el && v) { el.value = v; n++; }
     }
     statusEl.textContent = `распознано полей: ${n} — проверьте`;
+    if (data._names && data._names.length)
+      statusEl.textContent += ` · поля Яндекса: ${data._names.join(", ")}`;
   } catch (e) { statusEl.textContent = "ошибка распознавания — вручную"; }
 }
 ["seller", "buyer"].forEach((pre) => {
