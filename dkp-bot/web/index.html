@@ -56,9 +56,14 @@
 <h2>Автомобиль</h2>
 <div class="card">
   <div class="file">
-    <button class="btn sec" onclick="document.getElementById('sts-file').click()">📷 Фото СТС</button>
+    <button class="btn sec" onclick="document.getElementById('sts-file').click()">📷 СТС — лицевая</button>
     <span id="sts-status" class="badge">либо заполните вручную ниже</span>
     <input type="file" id="sts-file" accept="image/*" capture="environment" />
+  </div>
+  <div class="file">
+    <button class="btn sec" onclick="document.getElementById('stsb-file').click()">📷 СТС — оборот</button>
+    <span id="stsb-status" class="badge"></span>
+    <input type="file" id="stsb-file" accept="image/*" capture="environment" />
   </div>
   <div id="car-fields"></div>
 </div>
@@ -240,6 +245,10 @@ async function recognize(file, kind, statusEl, applyPrefix) {
 document.getElementById("sts-file").addEventListener("change", (e) => {
   if (e.target.files[0]) recognize(e.target.files[0], "sts",
     document.getElementById("sts-status"), "");
+});
+document.getElementById("stsb-file").addEventListener("change", (e) => {
+  if (e.target.files[0]) recognize(e.target.files[0], "sts_back",
+    document.getElementById("stsb-status"), "");
 });
 
 /* ---------- цена прописью ---------- */

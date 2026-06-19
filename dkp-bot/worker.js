@@ -108,7 +108,10 @@ async function recognize(env, imageDataUrl, kind) {
 }
 
 /* ---------- Yandex Vision OCR (модели под паспорт РФ и СТС) ---------- */
-const YA_MODEL = { passport: "passport", sts: "vehicle-registration-front", org_card: "page", reg: "page" };
+const YA_MODEL = {
+  passport: "passport", sts: "vehicle-registration-front",
+  sts_back: "vehicle-registration-back", org_card: "page", reg: "page",
+};
 
 // Один вызов OCR Яндекса с заданной моделью → { entities, fullText } или { error }.
 async function yandexOcr(env, mediaType, data, model) {
@@ -142,7 +145,7 @@ async function recognizeYandex(env, mediaType, data, kind) {
     if (!page.error && page.fullText) fullText = page.fullText;
   }
   const fields = kind === "passport" ? mapPassport(entities, fullText)
-    : kind === "sts" ? mapSts(entities, fullText)
+    : (kind === "sts" || kind === "sts_back") ? mapSts(entities, fullText)
     : kind === "reg" ? mapReg(fullText)
     : mapOrg(fullText);
   let _gender;
@@ -218,29 +221,32 @@ function mapReg(t) {
   if (i > 0) s = s.slice(i);
   return { address: s.slice(0, 200) };
 }
+// Универсальный разбор СТС (лицевая stsfront_* и оборот stsback_*) по подстрокам.
 function mapSts(entities, fullText) {
   const m = entMap(entities);
-  // Реальные поля модели vehicle-registration-front имеют префикс stsfront_.
-  const g = (...names) => pick(m, ...names.map((n) => "stsfront_" + n), ...names);
-  const brand = g("car_brand", "brand", "make");
-  const model = g("car_model", "model");
+  const keys = Object.keys(m);
+  const find = (...subs) => { for (const k of keys) if (subs.some((s) => k.includes(s)) && m[k]) return m[k]; return ""; };
+  const brand = find("car_brand", "_brand", "make");
+  const model = find("car_model", "_model");
   const f = {
     car_brand: titleCase([brand, model].filter(Boolean).join(" ")),
-    car_vin: g("vin_number", "vin").toUpperCase(),
-    car_type: g("car_type", "type"),
-    car_category: g("car_category", "category"),
-    car_year: g("car_year", "year"),
-    car_engine: g("car_engine_number", "engine_number", "engine"),
-    car_chassis: g("car_chassis_number", "chassis_number", "chassis").toUpperCase(),
-    car_body: g("car_body_number", "body_number", "body").toUpperCase(),
-    car_color: g("car_color", "color"),
-    car_plate: g("car_number", "license_plate", "registration_number", "plate").toUpperCase(),
+    car_vin: find("vin").toUpperCase(),
+    car_type: find("car_type", "vehicle_type"),
+    car_category: find("category"),
+    car_year: find("year"),
+    car_engine: find("engine"),
+    car_chassis: find("chassis").toUpperCase(),
+    car_body: find("body").toUpperCase(),
+    car_color: find("color", "colour"),
+    car_plate: find("car_number", "license_plate", "registration_number", "gos_number").toUpperCase(),
     sts_series: "", sts_number: "", pts_series: "", pts_number: "",
   };
-  const sn = g("sts_number").replace(/\D/g, "");
+  const sn = find("sts_number").replace(/\D/g, "");
   if (sn.length >= 10) { f.sts_series = sn.slice(0, 4); f.sts_number = sn.slice(4); }
-  else f.sts_number = sn;
-  if (!f.car_vin) { const v = fullText.match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
+  else if (sn) f.sts_number = sn;
+  const pn = find("pts_number").replace(/\D/g, "");
+  if (pn.length >= 4) { f.pts_series = pn.slice(0, 4); f.pts_number = pn.slice(4); }
+  if (!f.car_vin) { const v = (fullText || "").match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
   return f;
 }
 function mapOrg(t) {
