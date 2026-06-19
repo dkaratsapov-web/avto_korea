@@ -110,7 +110,7 @@ async function recognize(env, imageDataUrl, kind) {
 /* ---------- Yandex Vision OCR (модели под паспорт РФ и СТС) ---------- */
 const YA_MODEL = {
   passport: "passport", sts: "vehicle-registration-front",
-  sts_back: "vehicle-registration-back", org_card: "page", reg: "page",
+  sts_back: "vehicle-registration-back", pts: "page", org_card: "page", reg: "page",
 };
 
 // Один вызов OCR Яндекса с заданной моделью → { entities, fullText } или { error }.
@@ -146,6 +146,7 @@ async function recognizeYandex(env, mediaType, data, kind) {
   }
   const fields = kind === "passport" ? mapPassport(entities, fullText)
     : (kind === "sts" || kind === "sts_back") ? mapSts(entities, fullText)
+    : kind === "pts" ? mapPts(fullText)
     : kind === "reg" ? mapReg(fullText)
     : mapOrg(fullText);
   let _gender;
@@ -210,6 +211,21 @@ function mapPassport(entities, fullText) {
     }
     if (by) f.pasp_issued_by = by.replace(/^[\s.,№-]+|[\s.,]+$/g, "");
   }
+  return f;
+}
+// ПТС (паспорт ТС) — спец-модели у Яндекса нет, разбираем из общего текста.
+function mapPts(t) {
+  const f = {};
+  const T = (t || "").replace(/\s+/g, " ");
+  const vin = T.match(/\b[A-HJ-NPR-Z0-9]{17}\b/);
+  if (vin) f.car_vin = vin[0].toUpperCase();
+  // Серия и номер ПТС: «78 УХ 654321» (2 цифры + 2 буквы + 6 цифр).
+  const pts = T.match(/\b(\d{2}\s?[А-ЯЁA-Z]{2})\s?№?\s?(\d{6})\b/);
+  if (pts) { f.pts_series = pts[1].replace(/\s+/g, " ").trim(); f.pts_number = pts[2]; }
+  const yr = T.match(/год[а-я ]*выпуска\D{0,8}((?:19|20)\d{2})/i) || T.match(/\b(19\d{2}|20\d{2})\b/);
+  if (yr) f.car_year = yr[1] || yr[0];
+  const eng = T.match(/двигател[ья][^№]*№?\s*([A-ZА-Я0-9]{4,})/i);
+  if (eng) f.car_engine = eng[1];
   return f;
 }
 // Прописка (отдельное фото страницы регистрации) → адрес. OCR общий, чистим текст.
