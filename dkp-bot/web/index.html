@@ -6,7 +6,6 @@
 <title>Оформление ДКП</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.7/pizzip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.7/pizzip-utils.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.50.0/docxtemplater.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js"></script>
@@ -255,9 +254,10 @@ function collect() {
 }
 
 /* ---------- генерация DOCX + PDF ---------- */
-function loadTemplate() {
-  return new Promise((res, rej) =>
-    PizZipUtils.getBinaryContent("dkp-template.docx", (e, c) => e ? rej(e) : res(c)));
+async function loadTemplate() {
+  const res = await fetch("dkp-template.docx", { cache: "no-store" });
+  if (!res.ok) throw new Error("шаблон не найден (" + res.status + ")");
+  return await res.arrayBuffer();
 }
 function bufToB64(buf) {
   let bin = ""; const b = new Uint8Array(buf);
