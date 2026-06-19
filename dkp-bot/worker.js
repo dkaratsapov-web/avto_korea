@@ -140,7 +140,7 @@ async function recognizeYandex(env, mediaType, data, kind) {
   let { entities, fullText } = res;
   // Модели passport/sts не отдают сплошной текст — добираем page-OCR
   // для «кем выдан» (паспорт) и недостающих полей СТС (тип/категория/двигатель/кузов).
-  if (kind === "passport" || kind === "sts") {
+  if (kind === "passport" || kind === "sts" || kind === "sts_back") {
     const page = await yandexOcr(env, mediaType, data, "page");
     if (!page.error && page.fullText) fullText = page.fullText;
   }
@@ -215,27 +215,33 @@ function mapPassport(entities, fullText) {
 }
 // Граница значения — перед следующей подписью (общая для СТС/ПТС).
 const STOP_LABEL = "(?=\\s*(?:категори|кузов|шасси|рама|двигател|мощност|об[ъь][её]м|цвет|масса|эколог|год|vin|идентификац|регистрац|разрешен|изготов|марк|модел|сери|номер|особ|паспорт|наимен|тип|разреш)|$)";
+
+// Дозаполняет недостающие поля ТС из сплошного текста СТС/ПТС (page-OCR).
+function fillFromText(f, t) {
+  const T = (t || "").replace(/\s+/g, " ");
+  if (!T) return f;
+  const grab = (re) => { const m = T.match(re); return m ? (m[1] || "").trim() : ""; };
+  if (!f.car_vin) { const v = T.match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
+  if (!f.car_year) { const y = T.match(/год[а-я ]*выпуска\D{0,8}((?:19|20)\d{2})/i) || T.match(/\b(19\d{2}|20\d{2})\b/); if (y) f.car_year = y[1] || y[0]; }
+  if (!f.car_type) f.car_type = grab(new RegExp("тип\\s*тс[\\s:№]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,40}?)" + STOP_LABEL, "i"));
+  if (!f.car_category) f.car_category = grab(/категори[ия]\s*(?:тс)?[\s:№]*([ABCDEMTАВСЕДКМТ]{1,2}[1ЕE]?)\b/i);
+  if (!f.car_color) f.car_color = grab(new RegExp("цвет[\\s:а-яё]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,30}?)" + STOP_LABEL, "i"));
+  // Мощность: формат «кВт/л.с. 128/174» → берём л.с. (второе число).
+  if (!f.car_power) { const mp = T.match(/мощност[ья][^0-9]{0,28}(\d{2,4})(?:\s*\/\s*(\d{2,4}))?/i); if (mp) f.car_power = mp[2] || mp[1]; }
+  if (!f.car_volume) f.car_volume = grab(/(?:рабочий\s*)?об[ъь][её]м[^0-9]{0,16}(\d{3,5})/i);
+  if (!f.car_engine) { const e = grab(/двигател[ья][\s№:no.]{0,8}([A-ZА-Я0-9][A-ZА-Я0-9 \-]{3,22})/i); if (/\d{3,}/.test(e)) f.car_engine = e; }
+  if (!f.car_body) { const b = grab(/кузов[\s№:(),.a-zа-яё]{0,22}(ОТСУТСТВУЕТ|[A-ZА-Я0-9]{6,22})/i); if (/\d{4,}/.test(b) || /ОТСУТ/i.test(b)) f.car_body = b.toUpperCase(); }
+  if (!f.car_chassis) { const ch = grab(/(?:шасси|рама)[\s№(),.a-zа-яё:]{0,16}(ОТСУТСТВУЕТ|[A-ZА-Я0-9]{6,22})/i); if (ch) f.car_chassis = ch.toUpperCase(); }
+  if (!f.pts_series || !f.pts_number) {
+    const p = T.match(/паспорт\s*тс\s*сери[яи]\s*(\d{2}\s?[А-ЯЁA-Z]{2})\s*№?\s*(\d{6})/i) || T.match(/\b(\d{2}\s?[А-ЯЁA-Z]{2})\s?№?\s?(\d{6})\b/);
+    if (p) { f.pts_series = p[1].replace(/\s+/g, " ").trim(); f.pts_number = p[2]; }
+  }
+  return f;
+}
+
 // ПТС (паспорт ТС) — спец-модели у Яндекса нет, разбираем из общего текста.
 function mapPts(t) {
-  const f = {};
-  const T = (t || "").replace(/\s+/g, " ");
-  const grab = (re) => { const m = T.match(re); return m ? (m[1] || "").trim() : ""; };
-  const vin = T.match(/\b[A-HJ-NPR-Z0-9]{17}\b/);
-  if (vin) f.car_vin = vin[0].toUpperCase();
-  // Серия и номер ПТС: «78 УХ 654321» (2 цифры + 2 буквы + 6 цифр).
-  const pts = T.match(/\b(\d{2}\s?[А-ЯЁA-Z]{2})\s?№?\s?(\d{6})\b/);
-  if (pts) { f.pts_series = pts[1].replace(/\s+/g, " ").trim(); f.pts_number = pts[2]; }
-  const yr = T.match(/год[а-я ]*выпуска\D{0,8}((?:19|20)\d{2})/i) || T.match(/\b(19\d{2}|20\d{2})\b/);
-  if (yr) f.car_year = yr[1] || yr[0];
-  f.car_type = grab(new RegExp("тип\\s*тс[\\s:№]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,40}?)" + STOP_LABEL, "i"));
-  f.car_category = grab(/категори[ия]\s*(?:тс)?[\s:№]*([ABCDEMTАВСЕДКМТ]{1,2}[1ЕE]?)\b/i);
-  f.car_color = grab(new RegExp("цвет[\\s:а-яё]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,30}?)" + STOP_LABEL, "i"));
-  f.car_power = grab(/мощност[ьи][^0-9]{0,16}(\d{2,4})/i);
-  f.car_volume = grab(/(?:рабочий\s*)?об[ъь][её]м[^0-9]{0,16}(\d{3,5})/i);
-  const e = grab(/двигател[ья][\s№:no.]{0,8}([A-ZА-Я0-9][A-ZА-Я0-9 \-]{3,22})/i); if (/\d{3,}/.test(e)) f.car_engine = e;
-  const b = grab(/кузов[\s№:()a-zа-яё.]{0,12}([A-ZА-Я0-9]{6,22})/i); if (/\d{4,}/.test(b)) f.car_body = b.toUpperCase();
-  const ch = grab(/(?:шасси|рама)[\s№():a-zа-яё.]{0,16}([A-ZА-Я0-9]{6,22}|отсутствует)/i); if (ch) f.car_chassis = ch.toUpperCase();
-  return f;
+  return fillFromText({}, t);
 }
 // Прописка (отдельное фото страницы регистрации) → адрес. OCR общий, чистим текст.
 function mapReg(t) {
@@ -271,19 +277,8 @@ function mapSts(entities, fullText) {
   else if (sn) f.sts_number = sn;
   const pn = find("pts_number").replace(/\D/g, "");
   if (pn.length >= 4) { f.pts_series = pn.slice(0, 4); f.pts_number = pn.slice(4); }
-  // Поля, которые структурная модель не отдаёт — из текста СТС (page-OCR), по подписям.
-  // Значение обрезается перед следующей подписью; двигатель/кузов берём только с цифрами.
-  const T = (fullText || "").replace(/\s+/g, " ");
-  const grab = (re) => { const mm = T.match(re); return mm ? (mm[1] || "").trim() : ""; };
-  const STOP = "(?=\\s*(?:категори|кузов|шасси|рама|двигател|мощност|об[ъь][её]м|цвет|масса|эколог|год|vin|идентификац|регистрац|разрешен|изготов|марк|модел|сери|номер|особ)|$)";
-  if (!f.car_vin) { const v = T.match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
-  if (!f.car_type) f.car_type = grab(new RegExp("тип\\s*тс[\\s:№]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,40}?)" + STOP, "i"));
-  if (!f.car_category) f.car_category = grab(/категори[ия]\s*(?:тс)?[\s:№]*([ABCDEMTАВСЕДКМТ]{1,2}[1ЕE]?)\b/i);
-  if (!f.car_power) f.car_power = grab(/мощност[ьи][^0-9]{0,16}(\d{2,4})/i);
-  if (!f.car_volume) f.car_volume = grab(/(?:рабочий\s*)?об[ъь][её]м[^0-9]{0,16}(\d{3,5})/i);
-  if (!f.car_engine) { const e = grab(/двигател[ья][\s№:no\.]{0,8}([A-ZА-Я0-9][A-ZА-Я0-9 \-]{3,22})/i); if (/\d{3,}/.test(e)) f.car_engine = e; }
-  if (!f.car_body) { const b = grab(/кузов[\s№:()a-zа-яё.]{0,12}([A-ZА-Я0-9]{6,22})/i); if (/\d{4,}/.test(b)) f.car_body = b.toUpperCase(); }
-  return f;
+  // Недостающие поля — из сплошного текста СТС (page-OCR).
+  return fillFromText(f, fullText);
 }
 function mapOrg(t) {
   const f = {};
