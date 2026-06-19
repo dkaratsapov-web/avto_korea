@@ -139,8 +139,8 @@ async function recognizeYandex(env, mediaType, data, kind) {
   if (res.error) return res;
   let { entities, fullText } = res;
   // Модели passport/sts не отдают сплошной текст — добираем page-OCR
-  // для «кем выдан» (паспорт) и резервного разбора.
-  if (kind === "passport") {
+  // для «кем выдан» (паспорт) и недостающих полей СТС (тип/категория/двигатель/кузов).
+  if (kind === "passport" || kind === "sts") {
     const page = await yandexOcr(env, mediaType, data, "page");
     if (!page.error && page.fullText) fullText = page.fullText;
   }
@@ -262,7 +262,16 @@ function mapSts(entities, fullText) {
   else if (sn) f.sts_number = sn;
   const pn = find("pts_number").replace(/\D/g, "");
   if (pn.length >= 4) { f.pts_series = pn.slice(0, 4); f.pts_number = pn.slice(4); }
-  if (!f.car_vin) { const v = (fullText || "").match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
+  // Поля, которые структурная модель не отдаёт — из текста СТС (page-OCR), по подписям.
+  const T = (fullText || "").replace(/\s+/g, " ");
+  const grab = (re) => { const mm = T.match(re); return mm ? (mm[1] || "").trim() : ""; };
+  if (!f.car_vin) { const v = T.match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
+  if (!f.car_category) f.car_category = grab(/категори[ия][^A-EА-ЯABCDM]{0,8}([A-EА-ЕM]{1,2}\d?)/i);
+  if (!f.car_type) f.car_type = grab(/тип\s*ТС[^А-Яа-яA-Za-z]{0,4}([А-Яа-яЁё]+(?:\s[А-Яа-яЁё]+){0,2})/i);
+  if (!f.car_engine) f.car_engine = grab(/двигател[ья][^A-ZА-Я0-9]{0,14}([A-ZА-Я0-9][A-ZА-Я0-9 \-]{3,}\d)/i);
+  if (!f.car_body) f.car_body = grab(/кузов[а\s()№A-Za-zА-Яа-я]{0,16}([A-ZА-Я0-9]{6,})/i).toUpperCase();
+  if (!f.car_power) f.car_power = grab(/мощност[ьи][^0-9]{0,16}(\d{2,4})/i);
+  if (!f.car_volume) f.car_volume = grab(/(?:рабочий\s*)?об[ъь][её]м[^0-9]{0,16}(\d{3,5})/i);
   return f;
 }
 function mapOrg(t) {
