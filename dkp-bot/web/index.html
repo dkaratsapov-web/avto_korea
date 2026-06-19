@@ -58,17 +58,17 @@
   <div class="file">
     <button class="btn sec" onclick="document.getElementById('sts-file').click()">📷 СТС — лицевая</button>
     <span id="sts-status" class="badge"></span>
-    <input type="file" id="sts-file" accept="image/*" capture="environment" />
+    <input type="file" id="sts-file" accept="image/*" />
   </div>
   <div class="file">
     <button class="btn sec" onclick="document.getElementById('stsb-file').click()">📷 СТС — оборот</button>
     <span id="stsb-status" class="badge"></span>
-    <input type="file" id="stsb-file" accept="image/*" capture="environment" />
+    <input type="file" id="stsb-file" accept="image/*" />
   </div>
   <div class="file">
     <button class="btn sec" onclick="document.getElementById('pts-file').click()">📷 Фото ПТС</button>
     <span id="pts-status" class="badge">либо впишите серию, номер и дату самостоятельно</span>
-    <input type="file" id="pts-file" accept="image/*" capture="environment" />
+    <input type="file" id="pts-file" accept="image/*" />
   </div>
   <div class="hint" style="text-align:center">либо заполните вручную ниже</div>
   <div id="car-fields"></div>
@@ -146,18 +146,18 @@ function partyBlock(pre, title) {
     <div class="file person-only" id="${pre}-pfile-wrap">
       <button class="btn sec" onclick="document.getElementById('${pre}-pfile').click()">📷 Фото паспорта</button>
       <span id="${pre}-status" class="badge">либо заполните вручную ниже</span>
-      <input type="file" id="${pre}-pfile" accept="image/*" capture="environment" />
+      <input type="file" id="${pre}-pfile" accept="image/*" />
     </div>
     <div class="file person-only" id="${pre}-rfile-wrap">
       <button class="btn sec" onclick="document.getElementById('${pre}-rfile').click()">📷 Фото прописки (адрес)</button>
       <span id="${pre}-rstatus" class="badge">либо впишите адрес вручную ниже</span>
-      <input type="file" id="${pre}-rfile" accept="image/*" capture="environment" />
+      <input type="file" id="${pre}-rfile" accept="image/*" />
     </div>
     <div class="person-only" id="${pre}-person"></div>
     <div class="file org-only" id="${pre}-ofile-wrap">
       <button class="btn sec" onclick="document.getElementById('${pre}-ofile').click()">📷 Скан карточки организации</button>
       <span id="${pre}-ostatus" class="badge">либо заполните вручную ниже</span>
-      <input type="file" id="${pre}-ofile" accept="image/*" capture="environment" />
+      <input type="file" id="${pre}-ofile" accept="image/*" />
     </div>
     <div class="org-only" id="${pre}-org"></div>
   </div>`;
