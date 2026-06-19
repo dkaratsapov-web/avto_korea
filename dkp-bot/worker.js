@@ -143,7 +143,13 @@ async function recognizeYandex(env, mediaType, data, kind) {
     const g = (entities.find((e) => (e.name || "").toLowerCase() === "gender")?.text || "").trim().toLowerCase();
     if (/^[мm]/.test(g)) _gender = "m"; else if (/^[жf]/.test(g)) _gender = "f";
   }
-  return { fields, _gender };
+  const out = { fields, _gender };
+  // Временный дебаг только для СТС — для настройки маппинга.
+  if (kind === "sts") {
+    out._names = entities.map((e) => e.name).filter(Boolean);
+    out._text = fullText.replace(/\s+/g, " ").slice(0, 400);
+  }
+  return out;
 }
 
 // Карта сущностей по точному имени (lowercase) — Яндекс отдаёт name/surname/...

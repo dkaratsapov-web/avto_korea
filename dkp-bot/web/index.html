@@ -209,6 +209,8 @@ async function recognize(file, kind, statusEl, applyPrefix) {
       if (g) setGender(pre, g);
     }
     statusEl.textContent = `распознано полей: ${n} — проверьте`;
+    if (kind === "sts" && (data._names || data._text))
+      statusEl.textContent += ` · поля: ${(data._names || []).join(", ")} · текст: ${data._text || ""}`;
   } catch (e) { statusEl.textContent = "ошибка распознавания — вручную"; }
 }
 ["seller", "buyer"].forEach((pre) => {
