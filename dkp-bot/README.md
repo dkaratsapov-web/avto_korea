@@ -51,8 +51,13 @@ dkp-bot/
 - В `wrangler.toml` пропишите `MINI_APP_URL` = адрес мини-аппа из шага 1.
 - Секреты (Worker → Variables and Secrets → **Secret**):
   - `TELEGRAM_BOT_TOKEN` — токен бота (@BotFather)
-  - `ANTHROPIC_API_KEY` — ключ Claude Vision (для авто-распознавания; без него
-    мини-апп работает в режиме ручного ввода)
+  - Авто-распознавание (необязательно; без него — ручной ввод). Один из вариантов:
+    - **Yandex Vision** (рекомендуется для РФ): `YANDEX_API_KEY` — API-ключ
+      сервисного аккаунта Яндекс Облака с ролью `ai.vision.user`; при необходимости
+      `YANDEX_FOLDER_ID` — идентификатор каталога. Использует модели `passport`
+      и `vehicle-registration-front`.
+    - **Anthropic**: `ANTHROPIC_API_KEY` — ключ Claude Vision.
+  - Приоритет: если задан `YANDEX_API_KEY`, используется Яндекс; иначе Anthropic.
 - Получите адрес воркера, напр. `https://dkp-bot.<субдомен>.workers.dev`.
 
 ### 3. Связать мини-апп с воркером

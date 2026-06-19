@@ -99,10 +99,112 @@ const PROMPTS = {
 };
 
 async function recognize(env, imageDataUrl, kind) {
-  if (!env.ANTHROPIC_API_KEY) return { error: "no_api_key" };
   const m = /^data:(image\/\w+);base64,(.+)$/s.exec(imageDataUrl || "");
   if (!m) return { error: "bad_image" };
   const [, mediaType, data] = m;
+  if (env.YANDEX_API_KEY) return recognizeYandex(env, mediaType, data, kind);
+  if (env.ANTHROPIC_API_KEY) return recognizeAnthropic(env, mediaType, data, kind);
+  return { error: "no_api_key" };
+}
+
+/* ---------- Yandex Vision OCR (модели под паспорт РФ и СТС) ---------- */
+const YA_MODEL = { passport: "passport", sts: "vehicle-registration-front", org_card: "page" };
+
+async function recognizeYandex(env, mediaType, data, kind) {
+  const headers = {
+    "content-type": "application/json",
+    Authorization: "Api-Key " + env.YANDEX_API_KEY,
+  };
+  if (env.YANDEX_FOLDER_ID) headers["x-folder-id"] = env.YANDEX_FOLDER_ID;
+  const r = await fetch("https://ocr.api.cloud.yandex.net/ocr/v1/recognizeText", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      mimeType: mediaType,
+      languageCodes: ["ru", "en"],
+      model: YA_MODEL[kind] || "page",
+      content: data,
+    }),
+  });
+  if (!r.ok) return { error: "vision_failed", status: r.status, detail: (await r.text().catch(() => "")).slice(0, 300) };
+  // Ответ может прийти как один JSON или как поток JSON-строк (по странице) — берём первую.
+  const raw = await r.text();
+  let out;
+  try { out = JSON.parse(raw); }
+  catch { try { out = JSON.parse(raw.split("\n").filter(Boolean)[0]); } catch { return { error: "parse_failed", raw: raw.slice(0, 300) }; } }
+  const ann = out.result?.textAnnotation || {};
+  const entities = ann.entities || [];
+  const fullText = ann.fullText || "";
+  if (kind === "passport") return { fields: mapPassport(entities, fullText) };
+  if (kind === "sts") return { fields: mapSts(entities, fullText) };
+  return { fields: mapOrg(fullText) };
+}
+
+// Достаёт текст сущности по подстроке в её имени.
+function ent(entities, ...keys) {
+  for (const e of entities) {
+    const n = (e.name || "").toLowerCase();
+    if (keys.some((k) => n.includes(k))) return (e.text || "").trim();
+  }
+  return "";
+}
+function mapPassport(entities, fullText) {
+  const last = ent(entities, "last_name", "surname");
+  const first = ent(entities, "first_name");
+  const middle = ent(entities, "middle_name", "patronymic");
+  const fio = [last, first, middle].filter(Boolean).join(" ");
+  const sn = ent(entities, "series_and_number", "series", "number").replace(/\D/g, "");
+  const series = sn.length >= 10 ? sn.slice(0, 4) : "";
+  const number = sn.length >= 10 ? sn.slice(4, 10) : "";
+  const f = {
+    fio,
+    birth: ent(entities, "birth_date"),
+    birthplace: ent(entities, "birth_place"),
+    pasp_series: series,
+    pasp_number: number,
+    pasp_issued_by: ent(entities, "issued_by", "authority"),
+    pasp_issued_date: ent(entities, "issue_date"),
+    pasp_code: ent(entities, "subdivision_code", "code"),
+  };
+  // Запасной разбор серии/номера из общего текста.
+  if (!f.pasp_series) {
+    const mm = fullText.replace(/\s/g, "").match(/(\d{4})(\d{6})/);
+    if (mm) { f.pasp_series = mm[1]; f.pasp_number = mm[2]; }
+  }
+  return f;
+}
+function mapSts(entities, fullText) {
+  const f = {
+    car_brand: ent(entities, "model", "brand", "make"),
+    car_vin: ent(entities, "vin"),
+    car_type: ent(entities, "type"),
+    car_category: ent(entities, "category"),
+    car_year: ent(entities, "year"),
+    car_engine: ent(entities, "engine_number", "engine"),
+    car_chassis: ent(entities, "chassis"),
+    car_body: ent(entities, "body"),
+    car_color: ent(entities, "color"),
+    car_plate: ent(entities, "license_plate", "plate", "registration_number", "reg_number"),
+    sts_series: "", sts_number: "", pts_series: "", pts_number: "",
+  };
+  if (!f.car_vin) { const v = fullText.match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
+  return f;
+}
+function mapOrg(t) {
+  const f = {};
+  const ogrn = t.match(/\b\d{15}\b|\b\d{13}\b/);
+  const inn = t.match(/\b\d{12}\b|\b\d{10}\b/);
+  const kpp = (t.match(/КПП[^\d]{0,6}(\d{9})/i) || [])[1];
+  if (ogrn) f.ogrn = ogrn[0];
+  if (inn) f.inn = inn[0];
+  if (kpp) f.kpp = kpp;
+  const nm = t.split(/\n/).map((l) => l.trim()).find((l) => /(ООО|АО|ПАО|ОАО|ЗАО|ИП)\b/i.test(l));
+  if (nm) f.org_name = nm;
+  return f;
+}
+
+/* ---------- Anthropic Claude Vision (запасной вариант) ---------- */
+async function recognizeAnthropic(env, mediaType, data, kind) {
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
