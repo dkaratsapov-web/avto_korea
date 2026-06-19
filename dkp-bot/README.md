@@ -18,7 +18,29 @@ dkp-bot/
 воркеру не нужна сборка/зависимости. Воркер только: отвечает на `/start`,
 распознаёт фото через Claude Vision и пересылает готовые файлы в чат.
 
-## Развёртывание
+## Автодеплой (GitHub Actions) — рекомендуется
+
+В репозитории настроен workflow `.github/workflows/deploy-dkp-bot.yml`: при каждом
+пуше изменений в `dkp-bot/**` он публикует Worker и Mini App в Cloudflare.
+
+Чтобы включить его, один раз задайте в GitHub
+(**Settings → Secrets and variables → Actions**):
+
+- **Secrets:**
+  - `CLOUDFLARE_API_TOKEN` — токен с правами *Workers Scripts: Edit* и *Pages: Edit*
+    (создаётся в Cloudflare → My Profile → API Tokens).
+  - `CLOUDFLARE_ACCOUNT_ID` — ID аккаунта (Cloudflare → Workers & Pages → справа).
+- **Variables:**
+  - `ENABLE_DKP_DEPLOY` = `true` — включает деплой (пока не задано — workflow
+    пропускается, чтобы пуши не падали с ошибкой).
+
+Секреты самого бота (`TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`) задаются один раз
+в дашборде Cloudflare (Worker → Variables and Secrets → Secret) — в GitHub они не нужны.
+
+После первого деплоя пропишите реальные адреса:
+`MINI_APP_URL` в `wrangler.toml` и `WORKER` в `web/index.html`, затем запушьте снова.
+
+## Развёртывание вручную / через дашборд
 
 ### 1. Мини-апп (Cloudflare Pages)
 - Создайте Pages-проект, **Build output / root = `dkp-bot/web`** (без сборки, статика).
