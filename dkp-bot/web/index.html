@@ -120,6 +120,11 @@ function partyBlock(pre, title) {
       <span id="${pre}-status" class="badge"></span>
       <input type="file" id="${pre}-pfile" accept="image/*" capture="environment" />
     </div>
+    <div class="file person-only" id="${pre}-rfile-wrap">
+      <button class="btn sec" onclick="document.getElementById('${pre}-rfile').click()">📷 Фото прописки (адрес)</button>
+      <span id="${pre}-rstatus" class="badge"></span>
+      <input type="file" id="${pre}-rfile" accept="image/*" capture="environment" />
+    </div>
     <div class="person-only" id="${pre}-person"></div>
     <div class="file org-only" id="${pre}-ofile-wrap">
       <button class="btn sec" onclick="document.getElementById('${pre}-ofile').click()">📷 Скан карточки организации</button>
@@ -153,6 +158,7 @@ function setType(pre, t) {
   document.getElementById(`${pre}-org`).style.display = isOrg ? "block" : "none";
   document.getElementById(`${pre}-person`).style.display = isOrg ? "none" : "block";
   document.getElementById(`${pre}-pfile-wrap`).style.display = isOrg ? "none" : "flex";
+  document.getElementById(`${pre}-rfile-wrap`).style.display = isOrg ? "none" : "flex";
   document.getElementById(`${pre}-ofile-wrap`).style.display = isOrg ? "flex" : "none";
   // Пол нужен для физлица и ИП («именуемый/ая»); для юрлица — нет.
   document.getElementById(`${pre}-gseg`).style.display = t === "org" ? "none" : "flex";
@@ -217,6 +223,10 @@ async function recognize(file, kind, statusEl, applyPrefix) {
   document.getElementById(`${pre}-pfile`).addEventListener("change", (e) => {
     if (e.target.files[0]) recognize(e.target.files[0], "passport",
       document.getElementById(`${pre}-status`), `${pre}_`);
+  });
+  document.getElementById(`${pre}-rfile`).addEventListener("change", (e) => {
+    if (e.target.files[0]) recognize(e.target.files[0], "reg",
+      document.getElementById(`${pre}-rstatus`), `${pre}_`);
   });
   document.getElementById(`${pre}-ofile`).addEventListener("change", (e) => {
     if (e.target.files[0]) recognize(e.target.files[0], "org_card",

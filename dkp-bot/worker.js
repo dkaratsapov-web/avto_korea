@@ -108,7 +108,7 @@ async function recognize(env, imageDataUrl, kind) {
 }
 
 /* ---------- Yandex Vision OCR (модели под паспорт РФ и СТС) ---------- */
-const YA_MODEL = { passport: "passport", sts: "vehicle-registration-front", org_card: "page" };
+const YA_MODEL = { passport: "passport", sts: "vehicle-registration-front", org_card: "page", reg: "page" };
 
 async function recognizeYandex(env, mediaType, data, kind) {
   const headers = {
@@ -137,6 +137,7 @@ async function recognizeYandex(env, mediaType, data, kind) {
   const fullText = ann.fullText || "";
   const fields = kind === "passport" ? mapPassport(entities, fullText)
     : kind === "sts" ? mapSts(entities, fullText)
+    : kind === "reg" ? mapReg(fullText)
     : mapOrg(fullText);
   let _gender;
   if (kind === "passport") {
@@ -193,7 +194,23 @@ function mapPassport(entities, fullText) {
     const c = fullText.match(/\b(\d{3})\s*-\s*(\d{3})\b/);
     if (c) f.pasp_code = c[1] + "-" + c[2];
   }
+  // «Кем выдан»: модель паспорта это поле не возвращает — пробуем из текста
+  // (фрагмент между «выдан…» и датой выдачи).
+  if (!f.pasp_issued_by) {
+    const t = fullText.replace(/\s+/g, " ");
+    const mb = t.match(/выдан[оаы]?\.?\s+(.{8,90}?)\s*\d{2}[.\-]\d{2}[.\-]\d{4}/i);
+    if (mb) f.pasp_issued_by = mb[1].replace(/^[.,\s]+|[.,\s]+$/g, "");
+  }
   return f;
+}
+// Прописка (отдельное фото страницы регистрации) → адрес. OCR общий, чистим текст.
+function mapReg(t) {
+  let s = (t || "").replace(/\s+/g, " ").trim();
+  s = s.replace(/место\s+жительства|зарегистрирован[аоы]?\s*(по\s+месту\s+жительства)?|отметк\w*\s+о\s+регистрации|снят[аоы]?\s+с\s+регистрационного\s+учёта|код подразделения|УФМС|ГУ\s?МВД|ОУФМС|России?|\b\d{2}[.\-]\d{2}[.\-]\d{4}\b/gi, " ");
+  s = s.replace(/\s+/g, " ").trim();
+  const i = s.search(/[А-ЯЁ]?\s*обл|г\.|город|край|респ|ул\.|улиц|пер\.|просп|д\.|кв\./i);
+  if (i > 0) s = s.slice(i);
+  return { address: s.slice(0, 200) };
 }
 function mapSts(entities, fullText) {
   const m = entMap(entities);
