@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Оформление ДКП</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.7/pizzip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.50.0/docxtemplater.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.50.0/build/docxtemplater.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/pdfmake.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/vfs_fonts.js"></script>
 <style>
   :root { --bg: var(--tg-theme-bg-color, #fff); --fg: var(--tg-theme-text-color, #111);
           --hint: var(--tg-theme-hint-color, #888); --btn: var(--tg-theme-button-color, #2ea6ff);
@@ -57,7 +57,7 @@
 <div class="card">
   <div class="file">
     <button class="btn sec" onclick="document.getElementById('sts-file').click()">📷 Фото СТС</button>
-    <span id="sts-status" class="badge"></span>
+    <span id="sts-status" class="badge">либо заполните вручную ниже</span>
     <input type="file" id="sts-file" accept="image/*" capture="environment" />
   </div>
   <div id="car-fields"></div>
@@ -123,18 +123,18 @@ function partyBlock(pre, title) {
     </div>
     <div class="file person-only" id="${pre}-pfile-wrap">
       <button class="btn sec" onclick="document.getElementById('${pre}-pfile').click()">📷 Фото паспорта</button>
-      <span id="${pre}-status" class="badge"></span>
+      <span id="${pre}-status" class="badge">либо заполните вручную ниже</span>
       <input type="file" id="${pre}-pfile" accept="image/*" capture="environment" />
     </div>
     <div class="file person-only" id="${pre}-rfile-wrap">
       <button class="btn sec" onclick="document.getElementById('${pre}-rfile').click()">📷 Фото прописки (адрес)</button>
-      <span id="${pre}-rstatus" class="badge"></span>
+      <span id="${pre}-rstatus" class="badge">либо впишите адрес вручную ниже</span>
       <input type="file" id="${pre}-rfile" accept="image/*" capture="environment" />
     </div>
     <div class="person-only" id="${pre}-person"></div>
     <div class="file org-only" id="${pre}-ofile-wrap">
       <button class="btn sec" onclick="document.getElementById('${pre}-ofile').click()">📷 Скан карточки организации</button>
-      <span id="${pre}-ostatus" class="badge"></span>
+      <span id="${pre}-ostatus" class="badge">либо заполните вручную ниже</span>
       <input type="file" id="${pre}-ofile" accept="image/*" capture="environment" />
     </div>
     <div class="org-only" id="${pre}-org"></div>
@@ -318,9 +318,12 @@ function bufToB64(buf) {
   return btoa(bin);
 }
 async function makeDocx(data) {
+  const Pz = window.PizZip;
+  const DT = window.docxtemplater || window.Docxtemplater || window.DocxTemplater;
+  if (!Pz || !DT) throw new Error("Библиотеки документа не загрузились — проверьте интернет и откройте мини-апп заново.");
   const content = await loadTemplate();
-  const zip = new PizZip(content);
-  const doc = new window.docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+  const zip = new Pz(content);
+  const doc = new DT(zip, { paragraphLoop: true, linebreaks: true });
   doc.render(data);
   return doc.getZip().generate({ type: "arraybuffer" });
 }
