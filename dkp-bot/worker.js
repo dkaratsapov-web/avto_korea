@@ -232,6 +232,13 @@ function fillFromText(f, t) {
   if (!f.car_engine) { const e = grab(/(?:модел[ьи][^.]{0,4})?двигател[ья][\s№:no.,]{0,10}([A-ZА-Я0-9][A-ZА-Я0-9 \-/]{3,24})/i); if (/\d{2,}/.test(e)) f.car_engine = e.trim(); }
   if (!f.car_body) { const b = grab(/кузов.{0,40}?(ОТСУТСТВУЕТ|[A-ZА-Я0-9]{6,22})/i); if (/\d{4,}/.test(b) || /ОТСУТ/i.test(b)) f.car_body = b.toUpperCase(); }
   if (!f.car_chassis) { const ch = grab(/(?:шасси|рама).{0,30}?(ОТСУТСТВУЕТ|[A-ZА-Я0-9]{6,22})/i); if (ch) f.car_chassis = ch.toUpperCase(); }
+  if (!f.pts_issued) {
+    // п.23 «Наименование организации, выдавшей паспорт» + п.25 «Дата выдачи паспорта».
+    const iss = grab(/выдавш[а-яё]+\s+паспорт[\s:№.]*([А-ЯЁA-Z][^0-9]{4,80}?)(?=\s*(?:\d|адрес)|$)/i);
+    const pd = (T.match(/дата\s+выдачи\s+паспорта[\s:№.]*(\d{2}\.\d{2}\.\d{4})/i) || [])[1] || "";
+    const v = [iss.replace(/[,\s]+$/, ""), pd].filter(Boolean).join(", ");
+    if (v) f.pts_issued = v;
+  }
   if (!f.pts_series || !f.pts_number) {
     const p = T.match(/паспорт\s*тс\s*сери[яи]\s*(\d{2}\s?[А-ЯЁA-Z]{2})\s*№?\s*(\d{6})/i) || T.match(/\b(\d{2}\s?[А-ЯЁA-Z]{2})\s?№?\s?(\d{6})\b/);
     if (p) { f.pts_series = p[1].replace(/\s+/g, " ").trim(); f.pts_number = p[2]; }
