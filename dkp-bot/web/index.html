@@ -28,6 +28,11 @@
   .seg button { flex: 1; min-width: 70px; padding: 8px; border: 1px solid #0002; border-radius: 9px;
           background: var(--bg); color: var(--fg); font-size: 13px; cursor: pointer; }
   .seg button.on { background: var(--btn); color: var(--btn-fg); border-color: var(--btn); }
+  .gsel { align-items: center; gap: 6px; margin: 2px 0 6px; }
+  .gsel button { padding: 3px 12px; font-size: 12px; border: 1px solid #0002; border-radius: 20px;
+          background: var(--bg); color: var(--hint); cursor: pointer; }
+  .gsel button.on { background: var(--btn); color: var(--btn-fg); border-color: var(--btn); }
+  .gsel .ghint { font-size: 11px; color: var(--hint); margin-left: 2px; }
   .file { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
   .file input[type=file] { display: none; }
   .btn { display: inline-block; padding: 9px 12px; border-radius: 9px; border: none;
@@ -111,9 +116,10 @@ function partyBlock(pre, title) {
   return `<h2>${title}</h2>
   <div class="card">
     <div class="seg" id="${pre}-seg">${seg}</div>
-    <div class="seg gender-only" id="${pre}-gseg" style="display:none;max-width:240px">
+    <div class="gsel gender-only" id="${pre}-gseg" style="display:none">
       <button data-g="m" onclick="setGender('${pre}','m')">муж.</button>
       <button data-g="f" onclick="setGender('${pre}','f')">жен.</button>
+      <span class="ghint">если заполняете вручную</span>
     </div>
     <div class="file person-only" id="${pre}-pfile-wrap">
       <button class="btn sec" onclick="document.getElementById('${pre}-pfile').click()">📷 Фото паспорта</button>
