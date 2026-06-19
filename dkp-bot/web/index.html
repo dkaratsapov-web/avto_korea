@@ -88,6 +88,17 @@
 
 <button class="submit" id="go" onclick="generate()">Сформировать договор</button>
 
+<div id="preview" style="display:none;position:fixed;inset:0;z-index:50;background:var(--bg);flex-direction:column">
+  <div style="padding:10px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #0002">
+    <b style="flex:1;font-size:15px">Предпросмотр договора</b>
+  </div>
+  <iframe id="pdfPreview" title="preview" style="flex:1;width:100%;border:0;background:#fff"></iframe>
+  <div style="padding:10px 12px;display:flex;gap:8px;border-top:1px solid #0002">
+    <button class="btn sec" style="flex:1" onclick="closePreview()">✏️ Изменить</button>
+    <button class="btn" style="flex:2" id="sendBtn" onclick="sendGenerated()">✅ Отправить в чат</button>
+  </div>
+</div>
+
 <script>
 const tg = window.Telegram?.WebApp; tg?.ready(); tg?.expand();
 // Адрес задеплоенного воркера ДКП-бота:
@@ -391,6 +402,9 @@ function makePdf(data) {
   return new Promise((res) => pdfMake.createPdf(dd).getBuffer((buf) => res(buf)));
 }
 
+// Сформированные файлы хранятся до подтверждения отправки.
+let gen = { docx: null, pdf: null, name: "", url: "" };
+
 async function generate() {
   const btn = document.getElementById("go");
   btn.textContent = "Формирую…"; btn.disabled = true;
@@ -398,19 +412,34 @@ async function generate() {
     const data = collect();
     if (!data.city || !data.price_num) { tg?.showAlert?.("Заполните город и цену."); throw 0; }
     const [docxBuf, pdfBuf] = await Promise.all([makeDocx(data), makePdf(data)]);
+    gen.docx = docxBuf; gen.pdf = pdfBuf;
+    gen.name = `ДКП_${(data.car_brand || "авто").replace(/\s+/g, "_")}`;
+    if (gen.url) URL.revokeObjectURL(gen.url);
+    gen.url = URL.createObjectURL(new Blob([pdfBuf], { type: "application/pdf" }));
+    document.getElementById("pdfPreview").src = gen.url;
+    document.getElementById("preview").style.display = "flex";
+  } catch (e) { if (e !== 0) tg?.showAlert?.("Ошибка: " + (e.message || e)); }
+  finally { btn.textContent = "Сформировать договор"; btn.disabled = false; }
+}
+function closePreview() {
+  document.getElementById("preview").style.display = "none";
+}
+async function sendGenerated() {
+  const sb = document.getElementById("sendBtn");
+  sb.textContent = "Отправляю…"; sb.disabled = true;
+  try {
     const r = await fetch(WORKER + "/api/send", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        initData: tg?.initData || "",
-        filename: `ДКП_${(data.car_brand || "авто").replace(/\s+/g, "_")}`,
-        docx_base64: bufToB64(docxBuf), pdf_base64: bufToB64(pdfBuf),
+        initData: tg?.initData || "", filename: gen.name,
+        docx_base64: bufToB64(gen.docx), pdf_base64: bufToB64(gen.pdf),
       }),
     });
     const out = await r.json();
-    if (out.ok) { tg?.showAlert?.("Готово! Договор отправлен в чат."); tg?.close?.(); }
+    if (out.ok) { closePreview(); tg?.showAlert?.("Готово! Договор отправлен в чат."); tg?.close?.(); }
     else tg?.showAlert?.("Не удалось отправить: " + (out.error || "ошибка"));
-  } catch (e) { if (e !== 0) tg?.showAlert?.("Ошибка: " + (e.message || e)); }
-  finally { btn.textContent = "Сформировать договор"; btn.disabled = false; }
+  } catch (e) { tg?.showAlert?.("Ошибка отправки: " + (e.message || e)); }
+  finally { sb.textContent = "✅ Отправить в чат"; sb.disabled = false; }
 }
 </script>
 </body>
