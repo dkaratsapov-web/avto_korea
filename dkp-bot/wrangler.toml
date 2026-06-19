@@ -1,0 +1,14 @@
+# Конфиг отдельного ДКП-бота (Cloudflare Worker).
+# В Workers Builds укажите Root directory = dkp-bot
+#
+# Секреты (НЕ здесь, только в дашборде → Variables and Secrets → Secret):
+#   TELEGRAM_BOT_TOKEN — токен бота (@BotFather)
+#   ANTHROPIC_API_KEY  — ключ Claude Vision (для авто-распознавания; опционально)
+
+name = "dkp-bot"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+[vars]
+# Адрес мини-аппа. Поменяйте на ваш, когда задеплоите страницу dkp-bot/web.
+MINI_APP_URL = "https://dkp-mini.pages.dev"
