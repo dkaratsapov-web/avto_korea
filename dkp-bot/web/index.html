@@ -165,8 +165,12 @@ async function recognize(file, kind, statusEl, applyPrefix) {
       body: JSON.stringify({ initData: tg?.initData || "", image, kind }),
     });
     const data = await r.json();
-    if (data.error) { statusEl.textContent = data.error === "no_api_key"
-        ? "авто-распознавание выключено — заполните вручную" : "не распозналось — вручную"; return; }
+    if (data.error) {
+      statusEl.textContent = data.error === "no_api_key"
+        ? "авто-распознавание выключено — заполните вручную"
+        : `ошибка: ${data.error}${data.status ? " " + data.status : ""}${data.detail ? " — " + data.detail : ""}`;
+      return;
+    }
     let n = 0;
     for (const [k, v] of Object.entries(data.fields || {})) {
       const el = document.getElementById(applyPrefix + k);
