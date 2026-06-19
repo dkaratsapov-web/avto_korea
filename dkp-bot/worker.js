@@ -224,14 +224,14 @@ function fillFromText(f, t) {
   if (!f.car_vin) { const v = T.match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
   if (!f.car_year) { const y = T.match(/год[а-я ]*выпуска\D{0,8}((?:19|20)\d{2})/i) || T.match(/\b(19\d{2}|20\d{2})\b/); if (y) f.car_year = y[1] || y[0]; }
   if (!f.car_type) f.car_type = grab(new RegExp("тип\\s*тс[\\s:№]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,40}?)" + STOP_LABEL, "i"));
-  if (!f.car_category) f.car_category = grab(/категори[ия]\s*(?:тс)?[\s:№]*([ABCDEMTАВСЕДКМТ]{1,2}[1ЕE]?)\b/i);
+  if (!f.car_category) f.car_category = grab(/категори[ия]\s*(?:тс\s*)?[:№(]*\s*([ABCDEMАВСЕДМ]{1,2}\d?)\b/i);
   if (!f.car_color) f.car_color = grab(new RegExp("цвет[\\s:а-яё]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,30}?)" + STOP_LABEL, "i"));
   // Мощность: формат «кВт/л.с. 128/174» → берём л.с. (второе число).
   if (!f.car_power) { const mp = T.match(/мощност[ья][^0-9]{0,28}(\d{2,4})(?:\s*\/\s*(\d{2,4}))?/i); if (mp) f.car_power = mp[2] || mp[1]; }
   if (!f.car_volume) f.car_volume = grab(/(?:рабочий\s*)?об[ъь][её]м[^0-9]{0,16}(\d{3,5})/i);
-  if (!f.car_engine) { const e = grab(/двигател[ья][\s№:no.]{0,8}([A-ZА-Я0-9][A-ZА-Я0-9 \-]{3,22})/i); if (/\d{3,}/.test(e)) f.car_engine = e; }
-  if (!f.car_body) { const b = grab(/кузов[\s№:(),.a-zа-яё]{0,22}(ОТСУТСТВУЕТ|[A-ZА-Я0-9]{6,22})/i); if (/\d{4,}/.test(b) || /ОТСУТ/i.test(b)) f.car_body = b.toUpperCase(); }
-  if (!f.car_chassis) { const ch = grab(/(?:шасси|рама)[\s№(),.a-zа-яё:]{0,16}(ОТСУТСТВУЕТ|[A-ZА-Я0-9]{6,22})/i); if (ch) f.car_chassis = ch.toUpperCase(); }
+  if (!f.car_engine) { const e = grab(/(?:модел[ьи][^.]{0,4})?двигател[ья][\s№:no.,]{0,10}([A-ZА-Я0-9][A-ZА-Я0-9 \-/]{3,24})/i); if (/\d{2,}/.test(e)) f.car_engine = e.trim(); }
+  if (!f.car_body) { const b = grab(/кузов.{0,40}?(ОТСУТСТВУЕТ|[A-ZА-Я0-9]{6,22})/i); if (/\d{4,}/.test(b) || /ОТСУТ/i.test(b)) f.car_body = b.toUpperCase(); }
+  if (!f.car_chassis) { const ch = grab(/(?:шасси|рама).{0,30}?(ОТСУТСТВУЕТ|[A-ZА-Я0-9]{6,22})/i); if (ch) f.car_chassis = ch.toUpperCase(); }
   if (!f.pts_series || !f.pts_number) {
     const p = T.match(/паспорт\s*тс\s*сери[яи]\s*(\d{2}\s?[А-ЯЁA-Z]{2})\s*№?\s*(\d{6})/i) || T.match(/\b(\d{2}\s?[А-ЯЁA-Z]{2})\s?№?\s?(\d{6})\b/);
     if (p) { f.pts_series = p[1].replace(/\s+/g, " ").trim(); f.pts_number = p[2]; }
