@@ -92,7 +92,7 @@
   <div style="padding:10px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #0002">
     <b style="flex:1;font-size:15px">Предпросмотр договора</b>
   </div>
-  <iframe id="pdfPreview" title="preview" style="flex:1;width:100%;border:0;background:#fff"></iframe>
+  <div id="previewBody" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;background:#e9e9ea;padding:12px"></div>
   <div style="padding:10px 12px;display:flex;gap:8px;border-top:1px solid #0002">
     <button class="btn sec" style="flex:1" onclick="closePreview()">✏️ Изменить</button>
     <button class="btn" style="flex:2" id="sendBtn" onclick="sendGenerated()">✅ Отправить в чат</button>
@@ -358,13 +358,15 @@ async function makeDocx(data) {
   return doc.getZip().generate({ type: "arraybuffer" });
 }
 
-function makePdf(data) {
-  const p = (label, value) => ({ columns: [
-    { text: label, width: 200, bold: true }, { text: value || "—" } ], margin: [0, 1] });
-  const partyLine = (d, pre, role) => d[`${pre}_org`]
+// Описание стороны одной строкой (для договора).
+function partyLine(d, pre, role) {
+  return d[`${pre}_org`]
     ? `${d[pre+"_org_name"]}, ОГРН ${d[pre+"_ogrn"]}, ИНН ${d[pre+"_inn"]}, адрес: ${d[pre+"_address"]}, в лице ${d[pre+"_signer_role"]} ${d[pre+"_signer_fio"]}, действующего на основании ${d[pre+"_basis"]}, именуем${d[pre+"_end"]} «${role}»`
     : `${d[pre+"_fio"]}, ${d[pre+"_birth"]} г.р., паспорт ${d[pre+"_pasp_series"]} № ${d[pre+"_pasp_number"]}, выдан ${d[pre+"_pasp_issued_by"]} ${d[pre+"_pasp_issued_date"]}, код ${d[pre+"_pasp_code"]}, адрес: ${d[pre+"_address"]}, именуем${d[pre+"_end"]} «${role}»`;
-  const spec = [
+}
+// Спецификация ТС (общая для PDF и предпросмотра).
+function carSpec(data) {
+  return [
     ["Марка, модель", data.car_brand], ["VIN", data.car_vin], ["Тип ТС", data.car_type],
     ["Категория", data.car_category], ["Год выпуска", data.car_year], ["Двигатель №", data.car_engine],
     ["Кузов №", data.car_body], ["Цвет", data.car_color], ["Мощность, л.с.", data.car_power],
@@ -372,6 +374,37 @@ function makePdf(data) {
     ["ПТС", `серия ${data.pts_series} № ${data.pts_number}` + (data.pts_issued ? `, выдан ${data.pts_issued}` : "")],
     ["СТС", `серия ${data.sts_series} № ${data.sts_number}`],
   ];
+}
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+// Адаптивный HTML-предпросмотр договора (для мобильных).
+function contractHtml(data) {
+  const rows = carSpec(data).map(([k, v]) =>
+    `<tr><td style="font-weight:600;padding:4px 8px;border-bottom:1px solid #ddd;width:42%;vertical-align:top">${esc(k)}</td><td style="padding:4px 8px;border-bottom:1px solid #ddd;word-break:break-word">${esc(v || "—")}</td></tr>`).join("");
+  return `<div style="max-width:720px;margin:0 auto;background:#fff;color:#111;padding:20px 18px;border-radius:6px;font-size:14px;line-height:1.45;box-shadow:0 1px 6px #0003">
+    <div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:10px">ДОГОВОР КУПЛИ-ПРОДАЖИ ТРАНСПОРТНОГО СРЕДСТВА</div>
+    <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:10px"><span>г. ${esc(data.city)}</span><span>«${esc(data.day)}» ${esc(data.month)} ${esc(data.year)} г.</span></div>
+    <p style="text-align:justify;margin:6px 0">${esc(partyLine(data, "seller", "Продавец"))}, с одной стороны, и</p>
+    <p style="text-align:justify;margin:6px 0">${esc(partyLine(data, "buyer", "Покупатель"))}, с другой стороны,</p>
+    <p style="margin:6px 0">вместе именуемые «Стороны», заключили настоящий договор о нижеследующем:</p>
+    <p style="font-weight:700;margin:12px 0 4px">1. ПРЕДМЕТ ДОГОВОРА</p>
+    <p style="margin:4px 0">1.1. Продавец передаёт в собственность Покупателя, а Покупатель принимает и оплачивает транспортное средство:</p>
+    <table style="width:100%;border-collapse:collapse;margin:6px 0">${rows}</table>
+    <p style="margin:4px 0">1.2. Продавец гарантирует, что ТС не продано, не заложено, в споре и под арестом не состоит.</p>
+    <p style="font-weight:700;margin:12px 0 4px">2. ЦЕНА И ПОРЯДОК РАСЧЁТОВ</p>
+    <p style="margin:2px 0">2.1. Стоимость ТС составляет ${esc(data.price_num)} (${esc(data.price_words)}) рублей.</p>
+    <p style="margin:2px 0">2.2. Расчёт произведён полностью в момент подписания договора.</p>
+    <p style="font-weight:700;margin:12px 0 4px">3. ПЕРЕДАЧА ТС</p>
+    <p style="margin:2px 0">3.1. Продавец передал, а Покупатель принял ТС, документы (ПТС, СТС) и ключи. Договор имеет силу акта приёма-передачи.</p>
+    <p style="margin:2px 0">3.2. Право собственности переходит к Покупателю с момента подписания договора.</p>
+    <p style="font-weight:700;margin:12px 0 6px">4. ПОДПИСИ СТОРОН</p>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px"><div style="flex:1;min-width:140px">ПРОДАВЕЦ:<br>${esc(data.seller_short)}<br><br>М.П. _________</div><div style="flex:1;min-width:140px">ПОКУПАТЕЛЬ:<br>${esc(data.buyer_short)}<br><br>М.П. _________</div></div>
+    <p style="margin:2px 0">Деньги в сумме ${esc(data.price_num)} руб. получил, ТС передал: _________ / ${esc(data.seller_short)}</p>
+    <p style="margin:2px 0">ТС и документы получил, претензий не имею: _________ / ${esc(data.buyer_short)}</p>
+  </div>`;
+}
+
+function makePdf(data) {
+  const spec = carSpec(data);
   const dd = {
     pageSize: "A4", pageMargins: [50, 40, 40, 40],
     defaultStyle: { font: "Roboto", fontSize: 10 },
@@ -411,13 +444,13 @@ async function generate() {
   try {
     const data = collect();
     if (!data.city || !data.price_num) { tg?.showAlert?.("Заполните город и цену."); throw 0; }
+    // Предпросмотр — сразу из данных (адаптивный HTML), файлы готовим параллельно.
+    document.getElementById("previewBody").innerHTML = contractHtml(data);
+    document.getElementById("preview").style.display = "flex";
+    document.getElementById("previewBody").scrollTop = 0;
     const [docxBuf, pdfBuf] = await Promise.all([makeDocx(data), makePdf(data)]);
     gen.docx = docxBuf; gen.pdf = pdfBuf;
     gen.name = `ДКП_${(data.car_brand || "авто").replace(/\s+/g, "_")}`;
-    if (gen.url) URL.revokeObjectURL(gen.url);
-    gen.url = URL.createObjectURL(new Blob([pdfBuf], { type: "application/pdf" }));
-    document.getElementById("pdfPreview").src = gen.url;
-    document.getElementById("preview").style.display = "flex";
   } catch (e) { if (e !== 0) tg?.showAlert?.("Ошибка: " + (e.message || e)); }
   finally { btn.textContent = "Сформировать договор"; btn.disabled = false; }
 }
