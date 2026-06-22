@@ -369,7 +369,8 @@ function carSpec(data) {
   return [
     ["Марка, модель", data.car_brand], ["VIN", data.car_vin], ["Тип ТС", data.car_type],
     ["Категория", data.car_category], ["Год выпуска", data.car_year], ["Двигатель №", data.car_engine],
-    ["Кузов №", data.car_body], ["Цвет", data.car_color], ["Мощность, л.с.", data.car_power],
+    ["Шасси (рама) №", data.car_chassis], ["Кузов №", data.car_body], ["Цвет", data.car_color],
+    ["Мощность, л.с.", data.car_power],
     ["Объём, куб.см", data.car_volume], ["Госномер", data.car_plate],
     ["ПТС", `серия ${data.pts_series} № ${data.pts_number}` + (data.pts_issued ? `, выдан ${data.pts_issued}` : "")],
     ["СТС", `серия ${data.sts_series} № ${data.sts_number}`],
