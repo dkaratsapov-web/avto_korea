@@ -198,7 +198,9 @@ async function recognizeYandex(env, mediaType, data, kind) {
   // YandexGPT добирает поля из распознанного текста (устойчиво к разным формам ПТС/СТС).
   if (fullText && env.YANDEX_FOLDER_ID) {
     const gpt = await yandexGptExtract(env, fullText);
-    if (gpt) for (const k in gpt) { if (gpt[k] && !fields[k]) fields[k] = gpt[k]; }
+    // Марку и серию/номер СТС GPT не доверяем (нормализует/путает) — берём из документа.
+    const skip = { car_brand: 1, sts_series: 1, sts_number: 1 };
+    if (gpt) for (const k in gpt) { if (skip[k]) continue; if (gpt[k] && !fields[k]) fields[k] = gpt[k]; }
   }
   let _gender;
   if (kind === "passport") {
@@ -273,7 +275,7 @@ function fillFromText(f, t) {
   if (!T) return f;
   const grab = (re) => { const m = T.match(re); return m ? (m[1] || "").trim() : ""; };
   if (!f.car_vin) { const v = T.match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
-  if (!f.car_brand) { const br = grab(new RegExp("марк[аи][,\\s]*(?:модел[ьи])?[\\s,]*(?:тс)?[\\s:№()]*([A-ZА-Я0-9][A-ZА-Я0-9 .\\-]{2,40}?)" + STOP_LABEL, "i")); if (br) f.car_brand = br; }
+  if (!f.car_brand) { const br = grab(new RegExp("(?:марка|модель)\\s*(?:,?\\s*модель)?\\s*(?:тс)?\\s*[:№()]*\\s*([^,\\n]{2,40}?)" + STOP_LABEL, "i")); if (br) f.car_brand = br.replace(/\s+/g, " ").trim(); }
   if (!f.car_year) { const y = T.match(/год\s*(?:выпуска|изготовлени[яе])\s*(?:тс)?\D{0,6}((?:19|20)\d{2})/i); if (y) f.car_year = y[1]; }
   if (!f.car_type) f.car_type = grab(new RegExp("тип\\s*тс[\\s:№]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,40}?)" + STOP_LABEL, "i"));
   if (!f.car_category) f.car_category = grab(/категори[ия]\s*(?:тс\s*)?[:№(]*\s*([ABCDEMАВСЕДМ]{1,2}\d?)\b/i);
@@ -291,8 +293,13 @@ function fillFromText(f, t) {
     const v = [iss.replace(/[,\s]+$/, ""), pd].filter(Boolean).join(", ");
     if (v) f.pts_issued = v;
   }
+  if (!f.sts_series || !f.sts_number) {
+    // СТС: «99 серия 87 № 802478» или «99 87 802478» → серия «99 87», номер «802478».
+    const s = T.match(/(\d{2})\s*сери[яи]\s*(\d{2})\s*№?\s*(\d{6})/i) || T.match(/свидетельств\w*[^0-9]{0,40}(\d{2})\s*(\d{2})\s*№?\s*(\d{6})/i);
+    if (s) { f.sts_series = `${s[1]} ${s[2]}`; f.sts_number = s[3]; }
+  }
   if (!f.pts_series || !f.pts_number) {
-    const p = T.match(/паспорт\s*тс\s*сери[яи]\s*(\d{2}\s?[А-ЯЁA-Z]{2})\s*№?\s*(\d{6})/i) || T.match(/\b(\d{2}\s?[А-ЯЁA-Z]{2})\s?№?\s?(\d{6})\b/);
+    const p = T.match(/паспорт\s*тс\s*(?:№\s*)?(?:сери[яи]\s*)?(\d{2}\s?[А-ЯЁA-Z]{2})\s*№?\s*(\d{6})/i) || T.match(/\b(\d{2}\s?[А-ЯЁA-Z]{2})\s?№?\s?(\d{6})\b/);
     if (p) { f.pts_series = p[1].replace(/\s+/g, " ").trim(); f.pts_number = p[2]; }
   }
   return f;
