@@ -134,6 +134,50 @@ async function yandexOcr(env, mediaType, data, model) {
   return { entities: ann.entities || [], fullText: ann.fullText || "" };
 }
 
+// YandexGPT: извлекает поля ДКП из распознанного текста документа в JSON.
+const GPT_PROMPT =
+  "Ты извлекаешь данные из распознанного (OCR) текста российских документов: паспорт РФ, " +
+  "ПТС, СТС, карточка организации. Верни СТРОГО JSON без пояснений, только с полями, которые " +
+  "реально присутствуют в тексте (остальные не включай). Возможные ключи и правила:\n" +
+  "fio (ФИО полностью, с заглавных), birth (дата рождения ДД.ММ.ГГГГ), birthplace (место рождения), " +
+  "pasp_series (4 цифры), pasp_number (6 цифр), pasp_issued_by (кем выдан), pasp_issued_date (ДД.ММ.ГГГГ), " +
+  "pasp_code (код подразделения NNN-NNN), address (адрес регистрации/собственника).\n" +
+  "car_brand (Марка, модель ТС одной строкой), car_vin (VIN, 17 симв.), car_type (тип ТС, напр. «Легковой седан»), " +
+  "car_category (только буква категории до «/», напр. из «В/M1» → «B»), car_year (год выпуска, 4 цифры), " +
+  "car_engine (модель и № двигателя), car_chassis (шасси/рама №, может быть «ОТСУТСТВУЕТ»), " +
+  "car_body (кузов №), car_color (цвет), car_power (мощность В ЛОШАДИНЫХ СИЛАХ — если указано «л.с./кВт» " +
+  "или «кВт/л.с.», бери ЛОШАДИНЫЕ силы = БОЛЬШЕЕ из двух чисел), car_volume (рабочий объём, куб.см), " +
+  "car_plate (госномер), pts_series (серия ПТС, напр. «50 РУ»), pts_number (номер ПТС, 6 цифр), " +
+  "pts_issued (организация, выдавшая ПТС + дата выдачи), sts_series (серия СТС), sts_number (номер СТС).\n" +
+  "org_name, ogrn, inn, kpp, signer_role, signer_fio, basis — для юрлиц/ИП.\n" +
+  "Латиницу/цифры в номерах сохраняй как в тексте. Значения «ОТСУТСТВУЕТ»/«НЕ УСТАНОВЛЕНО» оставляй как есть.";
+
+async function yandexGptExtract(env, fullText) {
+  try {
+    const r = await fetch("https://llm.api.cloud.yandex.net/foundationModels/v1/completion", {
+      method: "POST",
+      headers: { "content-type": "application/json", Authorization: "Api-Key " + env.YANDEX_API_KEY },
+      body: JSON.stringify({
+        modelUri: `gpt://${env.YANDEX_FOLDER_ID}/yandexgpt/latest`,
+        completionOptions: { temperature: 0, maxTokens: 1000 },
+        messages: [
+          { role: "system", text: GPT_PROMPT },
+          { role: "user", text: fullText.slice(0, 6000) },
+        ],
+      }),
+    });
+    if (!r.ok) return null;
+    const out = await r.json();
+    const text = out.result?.alternatives?.[0]?.message?.text || "";
+    const j = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
+    const obj = JSON.parse(j);
+    // оставляем только непустые строковые значения
+    const clean = {};
+    for (const k in obj) { const v = obj[k]; if (typeof v === "string" && v.trim()) clean[k] = v.trim(); }
+    return clean;
+  } catch { return null; }
+}
+
 async function recognizeYandex(env, mediaType, data, kind) {
   const res = await yandexOcr(env, mediaType, data, YA_MODEL[kind] || "page");
   if (res.error) return res;
@@ -149,6 +193,11 @@ async function recognizeYandex(env, mediaType, data, kind) {
     : kind === "pts" ? mapPts(fullText)
     : kind === "reg" ? mapReg(fullText)
     : mapOrg(fullText);
+  // YandexGPT добирает поля из распознанного текста (устойчиво к разным формам ПТС/СТС).
+  if (fullText && env.YANDEX_FOLDER_ID) {
+    const gpt = await yandexGptExtract(env, fullText);
+    if (gpt) for (const k in gpt) { if (gpt[k] && !fields[k]) fields[k] = gpt[k]; }
+  }
   let _gender;
   if (kind === "passport") {
     const g = (entities.find((e) => (e.name || "").toLowerCase() === "gender")?.text || "").trim().toLowerCase();
@@ -227,8 +276,8 @@ function fillFromText(f, t) {
   if (!f.car_type) f.car_type = grab(new RegExp("тип\\s*тс[\\s:№]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,40}?)" + STOP_LABEL, "i"));
   if (!f.car_category) f.car_category = grab(/категори[ия]\s*(?:тс\s*)?[:№(]*\s*([ABCDEMАВСЕДМ]{1,2}\d?)\b/i);
   if (!f.car_color) f.car_color = grab(new RegExp("цвет[\\s:а-яё]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,30}?)" + STOP_LABEL, "i"));
-  // Мощность: формат «кВт/л.с. 128/174» → берём л.с. (второе число).
-  if (!f.car_power) { const mp = T.match(/мощност[ья][^0-9]{0,28}(\d{2,4})(?:\s*\/\s*(\d{2,4}))?/i); if (mp) f.car_power = mp[2] || mp[1]; }
+  // Мощность: л.с. = большее из двух чисел («184 (135)» или «128/174»).
+  if (!f.car_power) { const mp = T.match(/мощност[^0-9]{0,30}(\d{2,4})(?:[^0-9]{1,5}(\d{2,4}))?/i); if (mp) f.car_power = String(Math.max(+mp[1], mp[2] ? +mp[2] : 0)); }
   if (!f.car_volume) f.car_volume = grab(/(?:рабочий\s*)?об[ъь][её]м[^0-9]{0,16}(\d{3,5})/i);
   if (!f.car_engine) { const e = grab(/(?:модел[ьи][^.]{0,4})?двигател[ья][\s№:no.,]{0,10}([A-ZА-Я0-9][A-ZА-Я0-9 \-/]{3,24})/i); if (/\d{2,}/.test(e)) f.car_engine = e.trim(); }
   if (!f.car_body) { const b = grab(/кузов.{0,40}?(ОТСУТСТВУЕТ|[A-ZА-Я0-9]{6,22})/i); if (/\d{4,}/.test(b) || /ОТСУТ/i.test(b)) f.car_body = b.toUpperCase(); }
