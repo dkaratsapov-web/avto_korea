@@ -142,7 +142,8 @@ const GPT_PROMPT =
   "fio (ФИО полностью, с заглавных), birth (дата рождения ДД.ММ.ГГГГ), birthplace (место рождения), " +
   "pasp_series (4 цифры), pasp_number (6 цифр), pasp_issued_by (кем выдан), pasp_issued_date (ДД.ММ.ГГГГ), " +
   "pasp_code (код подразделения NNN-NNN), address (адрес регистрации/собственника).\n" +
-  "car_brand (Марка, модель ТС одной строкой), car_vin (VIN, 17 симв.), car_type (тип ТС, напр. «Легковой седан»), " +
+  "car_brand (поле «Марка, модель» ТОЧНО как в документе, одной строкой; НЕ сокращай, НЕ переводи и " +
+  "НЕ нормализуй — напр. «BMW 320I XDRIVE», а НЕ «BMW 3er»), car_vin (VIN, 17 симв.), car_type (тип ТС, напр. «Легковой седан»), " +
   "car_category (только буква категории до «/», напр. из «В/M1» → «B»), car_year (год выпуска/" +
   "изготовления ТС, 4 цифры; НЕ путать с датой выдачи документа), " +
   "car_engine (модель и № двигателя), car_chassis (шасси/рама №, может быть «ОТСУТСТВУЕТ»), " +
@@ -272,7 +273,7 @@ function fillFromText(f, t) {
   if (!T) return f;
   const grab = (re) => { const m = T.match(re); return m ? (m[1] || "").trim() : ""; };
   if (!f.car_vin) { const v = T.match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
-  if (!f.car_brand) { const br = grab(new RegExp("марк[аи][,\\s]*(?:модел[ьи])?[\\s,]*(?:тс)?[\\s:№()]*([A-ZА-Я0-9][A-ZА-Я0-9 .\\-]{2,40}?)" + STOP_LABEL, "i")); if (br) f.car_brand = titleCase(br); }
+  if (!f.car_brand) { const br = grab(new RegExp("марк[аи][,\\s]*(?:модел[ьи])?[\\s,]*(?:тс)?[\\s:№()]*([A-ZА-Я0-9][A-ZА-Я0-9 .\\-]{2,40}?)" + STOP_LABEL, "i")); if (br) f.car_brand = br; }
   if (!f.car_year) { const y = T.match(/год\s*(?:выпуска|изготовлени[яе])\s*(?:тс)?\D{0,6}((?:19|20)\d{2})/i); if (y) f.car_year = y[1]; }
   if (!f.car_type) f.car_type = grab(new RegExp("тип\\s*тс[\\s:№]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,40}?)" + STOP_LABEL, "i"));
   if (!f.car_category) f.car_category = grab(/категори[ия]\s*(?:тс\s*)?[:№(]*\s*([ABCDEMАВСЕДМ]{1,2}\d?)\b/i);
@@ -318,7 +319,7 @@ function mapSts(entities, fullText) {
   const brand = find("car_brand", "_brand", "make");
   const model = find("car_model", "_model");
   const f = {
-    car_brand: titleCase([brand, model].filter(Boolean).join(" ")),
+    car_brand: [brand, model].filter(Boolean).join(" "),
     car_vin: find("vin").toUpperCase(),
     car_type: find("car_type", "vehicle_type"),
     car_category: find("category"),
