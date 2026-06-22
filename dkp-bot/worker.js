@@ -143,7 +143,8 @@ const GPT_PROMPT =
   "pasp_series (4 цифры), pasp_number (6 цифр), pasp_issued_by (кем выдан), pasp_issued_date (ДД.ММ.ГГГГ), " +
   "pasp_code (код подразделения NNN-NNN), address (адрес регистрации/собственника).\n" +
   "car_brand (Марка, модель ТС одной строкой), car_vin (VIN, 17 симв.), car_type (тип ТС, напр. «Легковой седан»), " +
-  "car_category (только буква категории до «/», напр. из «В/M1» → «B»), car_year (год выпуска, 4 цифры), " +
+  "car_category (только буква категории до «/», напр. из «В/M1» → «B»), car_year (год выпуска/" +
+  "изготовления ТС, 4 цифры; НЕ путать с датой выдачи документа), " +
   "car_engine (модель и № двигателя), car_chassis (шасси/рама №, может быть «ОТСУТСТВУЕТ»), " +
   "car_body (кузов №), car_color (цвет), car_power (мощность В ЛОШАДИНЫХ СИЛАХ — если указано «л.с./кВт» " +
   "или «кВт/л.с.», бери ЛОШАДИНЫЕ силы = БОЛЬШЕЕ из двух чисел), car_volume (рабочий объём, куб.см), " +
@@ -272,7 +273,7 @@ function fillFromText(f, t) {
   const grab = (re) => { const m = T.match(re); return m ? (m[1] || "").trim() : ""; };
   if (!f.car_vin) { const v = T.match(/\b[A-HJ-NPR-Z0-9]{17}\b/); if (v) f.car_vin = v[0]; }
   if (!f.car_brand) { const br = grab(new RegExp("марк[аи][,\\s]*(?:модел[ьи])?[\\s,]*(?:тс)?[\\s:№()]*([A-ZА-Я0-9][A-ZА-Я0-9 .\\-]{2,40}?)" + STOP_LABEL, "i")); if (br) f.car_brand = titleCase(br); }
-  if (!f.car_year) { const y = T.match(/год[а-я ]*выпуска\D{0,8}((?:19|20)\d{2})/i) || T.match(/\b(19\d{2}|20\d{2})\b/); if (y) f.car_year = y[1] || y[0]; }
+  if (!f.car_year) { const y = T.match(/год\s*(?:выпуска|изготовлени[яе])\s*(?:тс)?\D{0,6}((?:19|20)\d{2})/i); if (y) f.car_year = y[1]; }
   if (!f.car_type) f.car_type = grab(new RegExp("тип\\s*тс[\\s:№]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,40}?)" + STOP_LABEL, "i"));
   if (!f.car_category) f.car_category = grab(/категори[ия]\s*(?:тс\s*)?[:№(]*\s*([ABCDEMАВСЕДМ]{1,2}\d?)\b/i);
   if (!f.car_color) f.car_color = grab(new RegExp("цвет[\\s:а-яё]*([А-Яа-яЁё][А-Яа-яЁё \\-]{2,30}?)" + STOP_LABEL, "i"));
