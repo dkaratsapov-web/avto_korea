@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Оформление ДКП</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.7/dist/pizzip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.50.0/build/docxtemplater.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/pdfmake.min.js"></script>
@@ -103,6 +104,41 @@
 const tg = window.Telegram?.WebApp; tg?.ready(); tg?.expand();
 // Адрес задеплоенного воркера ДКП-бота:
 const WORKER = "https://dkp-bot.d-karatsapov.workers.dev";
+
+/* ---------- Подписка (CloudPayments) ---------- */
+let subCfg = { subEnabled: false, cpPublicId: "", price: 0, days: 30 };
+let subIsActive = true;
+async function loadSub() {
+  try {
+    subCfg = await (await fetch(WORKER + "/api/config")).json();
+    if (!subCfg.subEnabled) { subIsActive = true; return; }
+    const s = await (await fetch(WORKER + "/api/sub-status", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ initData: tg?.initData || "" }),
+    })).json();
+    subIsActive = !!s.active;
+  } catch { subIsActive = true; }
+}
+loadSub();
+function payAndSubscribe() {
+  if (!subCfg.cpPublicId || !window.cp) { tg?.showAlert?.("Оплата временно недоступна."); return; }
+  const uid = String(tg?.initDataUnsafe?.user?.id || "");
+  const widget = new cp.CloudPayments();
+  widget.pay("charge", {
+    publicId: subCfg.cpPublicId,
+    description: `Подписка ДКП-бот, ${subCfg.days} дн.`,
+    amount: subCfg.price, currency: "RUB",
+    accountId: uid, invoiceId: "dkp-" + uid + "-" + Date.now(),
+    skin: "mini",
+  }, {
+    onSuccess: async () => {
+      tg?.showAlert?.("Оплата прошла, активируем доступ…");
+      for (let i = 0; i < 12 && !subIsActive; i++) { await new Promise((r) => setTimeout(r, 1500)); await loadSub(); }
+      tg?.showAlert?.(subIsActive ? "Подписка активна! Можно формировать договор." : "Оплата получена. Доступ появится в течение минуты.");
+    },
+    onFail: (reason) => { tg?.showAlert?.("Оплата не завершена: " + (reason || "")); },
+  });
+}
 
 /* ---------- описание полей ---------- */
 const PASSPORT_FIELDS = [
@@ -459,6 +495,15 @@ function closePreview() {
   document.getElementById("preview").style.display = "none";
 }
 async function sendGenerated() {
+  // Платный режим: без активной подписки — предлагаем оплату вместо отправки.
+  if (subCfg.subEnabled && !subIsActive) {
+    await loadSub();
+    if (!subIsActive) {
+      tg?.showConfirm?.(`Для получения договора нужна подписка — ${subCfg.price} ₽ на ${subCfg.days} дней. Оплатить сейчас?`,
+        (ok) => { if (ok) payAndSubscribe(); });
+      return;
+    }
+  }
   const sb = document.getElementById("sendBtn");
   sb.textContent = "Отправляю…"; sb.disabled = true;
   try {
@@ -469,6 +514,7 @@ async function sendGenerated() {
         docx_base64: bufToB64(gen.docx), pdf_base64: bufToB64(gen.pdf),
       }),
     });
+    if (r.status === 402) { await loadSub(); tg?.showConfirm?.(`Нужна подписка — ${subCfg.price} ₽ на ${subCfg.days} дней. Оплатить?`, (ok) => { if (ok) payAndSubscribe(); }); return; }
     const out = await r.json();
     if (out.ok) { closePreview(); tg?.showAlert?.("Готово! Договор отправлен в чат."); tg?.close?.(); }
     else tg?.showAlert?.("Не удалось отправить: " + (out.error || "ошибка"));

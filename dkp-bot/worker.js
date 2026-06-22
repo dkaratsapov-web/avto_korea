@@ -391,6 +391,33 @@ async function recognizeAnthropic(env, mediaType, data, kind) {
   }
 }
 
+/* ---------- Подписка (Cloudflare KV + CloudPayments) ---------- */
+// Платный режим включён, только когда заданы KV-биндинг SUBS и Public ID CloudPayments.
+function subEnabled(env) { return !!(env.SUBS && env.CP_PUBLIC_ID); }
+async function subUntil(env, userId) {
+  if (!env.SUBS) return 0;
+  return Number(await env.SUBS.get("sub:" + userId)) || 0;
+}
+async function subActive(env, userId) { return (await subUntil(env, userId)) > Date.now(); }
+// Выдать/продлить подписку на N дней (продление — от текущего конца, если ещё активна).
+async function grantSub(env, userId, days) {
+  const ms = (Number(days) || 30) * 86400000;
+  const cur = await subUntil(env, userId);
+  const until = (cur > Date.now() ? cur : Date.now()) + ms;
+  await env.SUBS.put("sub:" + userId, String(until),
+    { expirationTtl: Math.ceil((until - Date.now()) / 1000) + 86400 });
+  return until;
+}
+// Проверка подписи уведомления CloudPayments: base64(HMAC-SHA256(rawBody, ApiSecret)).
+async function cpVerify(env, rawBody, hmacHeader) {
+  if (!env.CP_API_SECRET || !hmacHeader) return false;
+  const key = await crypto.subtle.importKey("raw", enc.encode(env.CP_API_SECRET),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(rawBody)));
+  let bin = ""; for (const b of sig) bin += String.fromCharCode(b);
+  return btoa(bin) === hmacHeader;
+}
+
 /* ---------- Webhook (сообщения боту) ---------- */
 async function handleUpdate(env, update) {
   const msg = update.message;
@@ -453,11 +480,52 @@ export default {
       return json(res, res.error ? 422 : 200);
     }
 
+    // Публичный конфиг для мини-аппа (Public ID, цена, срок, включён ли платный режим)
+    if (url.pathname === "/api/config") {
+      return json({
+        subEnabled: subEnabled(env), cpPublicId: env.CP_PUBLIC_ID || "",
+        price: Number(env.SUB_PRICE) || 0, days: Number(env.SUB_DAYS) || 30,
+      });
+    }
+
+    // Статус подписки текущего пользователя
+    if (url.pathname === "/api/sub-status" && request.method === "POST") {
+      const b = await request.json().catch(() => ({}));
+      const auth = await verifyInitData(b.initData, env.TELEGRAM_BOT_TOKEN);
+      if (!auth.ok) return json({ error: "unauthorized" }, 401);
+      if (!subEnabled(env)) return json({ enabled: false, active: true });
+      const until = await subUntil(env, auth.user.id);
+      return json({ enabled: true, active: until > Date.now(), until });
+    }
+
+    // Уведомление CloudPayments об оплате (Pay). Доступ выдаётся ТОЛЬКО здесь.
+    if (url.pathname === "/api/cp/webhook" && request.method === "POST") {
+      const raw = await request.text();
+      const hmac = request.headers.get("Content-HMAC") || request.headers.get("X-Content-HMAC") || "";
+      if (!(await cpVerify(env, raw, hmac))) return json({ code: 13 });
+      const p = new URLSearchParams(raw);
+      const status = p.get("Status");
+      const amount = Number(p.get("Amount") || 0);
+      const userId = p.get("AccountId");
+      const minPrice = Number(env.SUB_PRICE) || 0;
+      if (env.SUBS && userId && (status === "Completed" || status === "Authorized") && amount >= minPrice) {
+        await grantSub(env, userId, env.SUB_DAYS);
+        await tg(env, "sendMessage", {
+          chat_id: userId,
+          text: "✅ Оплата получена. Подписка активна 30 дней — можно оформлять договоры. /start",
+        }).catch(() => {});
+      }
+      return json({ code: 0 });
+    }
+
     // Отправка готового договора в чат пользователю
     if (url.pathname === "/api/send" && request.method === "POST") {
       const b = await request.json().catch(() => ({}));
       const auth = await verifyInitData(b.initData, env.TELEGRAM_BOT_TOKEN);
       if (!auth.ok) return json({ error: "unauthorized" }, 401);
+      // Платный режим: без активной подписки договор не отдаём.
+      if (subEnabled(env) && !(await subActive(env, auth.user.id)))
+        return json({ error: "sub_required" }, 402);
       const base = b.filename || "ДКП";
       if (b.docx_base64)
         await sendDocument(env, auth.user.id, `${base}.docx`, b.docx_base64, "📄 Договор (Word)");
