@@ -1,0 +1,48 @@
+# Сборка сайта (Vite) и выгрузка в Yandex Object Storage (статический хостинг).
+# Включается переменной ENABLE_YC_SITE=true.
+#
+# Нужны (Settings → Secrets and variables → Actions):
+#   Secrets:   YC_ACCESS_KEY_ID, YC_SECRET_ACCESS_KEY  (статический ключ сервисного аккаунта YC)
+#   Variables: YC_BUCKET (имя бакета), ENABLE_YC_SITE=true
+
+name: Deploy site to Yandex
+
+on:
+  push:
+    branches: [main, claude/beautiful-goodall-irzq2f]
+    paths-ignore:
+      - "dkp-bot/**"
+      - ".github/workflows/deploy-dkp-bot.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ vars.ENABLE_YC_SITE == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ru-central1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_BASE: "/"
+      - name: Sync dist → Object Storage
+        run: |
+          # Ассеты с хэшем — кэшируем надолго
+          aws s3 sync dist "s3://${{ vars.YC_BUCKET }}" \
+            --endpoint-url=https://storage.yandexcloud.net \
+            --delete --no-progress \
+            --exclude "index.html" --exclude "*.json" \
+            --cache-control "public, max-age=31536000, immutable"
+          # HTML/JSON — без кэша, чтобы обновления подхватывались сразу
+          aws s3 sync dist "s3://${{ vars.YC_BUCKET }}" \
+            --endpoint-url=https://storage.yandexcloud.net \
+            --no-progress \
+            --exclude "*" --include "index.html" --include "*.json" \
+            --cache-control "no-cache"
