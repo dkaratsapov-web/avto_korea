@@ -10,9 +10,6 @@ name: Deploy site to Yandex
 on:
   push:
     branches: [main, claude/beautiful-goodall-irzq2f]
-    paths-ignore:
-      - "dkp-bot/**"
-      - ".github/workflows/deploy-dkp-bot.yml"
   workflow_dispatch:
 
 jobs:
