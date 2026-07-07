@@ -250,6 +250,7 @@ const need = {
   "broadcast.send": "owner",
   "drafts.list": "manager",
   "drafts.remove": "manager",
+  "drafts.update": "manager",
   "admins.list": "owner",
   "admins.set": "owner",
   "admins.remove": "owner",
@@ -965,6 +966,21 @@ async function handleAdmin(env, action, payload, role, user) {
       const list = ((await kvGet(env, "drafts", [])) || []).filter(
         (d) => d.id !== payload?.id,
       );
+      await kvPut(env, "drafts", list);
+      return json({ ok: true, drafts: list });
+    }
+
+    case "drafts.update": {
+      // Редактирование фото черновика: порядок и удаление (payload.fileIds).
+      if (!Array.isArray(payload?.fileIds))
+        return json({ ok: false, error: "bad_payload" }, 400);
+      const fileIds = payload.fileIds
+        .filter((x) => typeof x === "string")
+        .slice(0, 30);
+      const list = (await kvGet(env, "drafts", [])) || [];
+      const d = list.find((x) => x.id === payload?.id);
+      if (!d) return json({ ok: false, error: "not_found" }, 404);
+      d.fileIds = fileIds;
       await kvPut(env, "drafts", list);
       return json({ ok: true, drafts: list });
     }

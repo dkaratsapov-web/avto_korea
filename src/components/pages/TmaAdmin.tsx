@@ -236,6 +236,14 @@ function DraftsTab({ tg, initData }: { tg: TG | null; initData: string }) {
     if (r.ok) setDrafts(r.drafts);
   }
 
+  // Редактирование фото черновика (порядок/удаление) — оптимистично + на сервер.
+  async function updatePhotos(draftId: string, fileIds: string[]) {
+    setDrafts((p) =>
+      p ? p.map((d) => (d.id === draftId ? { ...d, fileIds } : d)) : p,
+    );
+    await adminCall(initData, "drafts.update", { id: draftId, fileIds });
+  }
+
   if (editing)
     return (
       <CarEditor
@@ -280,23 +288,11 @@ function DraftsTab({ tg, initData }: { tg: TG | null; initData: string }) {
               <div className="text-[11px] text-[#8C97A1]">{d.fileIds.length} фото</div>
             </div>
           </div>
-          {d.fileIds.length > 1 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {d.fileIds.map((fid, i) => (
-                <div
-                  key={fid + i}
-                  className="h-14 w-14 flex-none overflow-hidden rounded-[8px] bg-black"
-                >
-                  {/* eslint-disable-next-line */}
-                  <img
-                    src={`${API_BASE}/api/tgphoto?id=${encodeURIComponent(fid)}`}
-                    alt=""
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ))}
-            </div>
+          {d.fileIds.length > 0 ? (
+            <PhotoStrip
+              fileIds={d.fileIds}
+              onChange={(ids) => updatePhotos(d.id, ids)}
+            />
           ) : null}
           <div className="mt-2 flex gap-2">
             <button
@@ -314,6 +310,82 @@ function DraftsTab({ tg, initData }: { tg: TG | null; initData: string }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// Лента фото черновика: перетаскивание для порядка (первое — главное) + удаление.
+function PhotoStrip({
+  fileIds,
+  onChange,
+}: {
+  fileIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [drag, setDrag] = useState<number | null>(null);
+  const [over, setOver] = useState<number | null>(null);
+
+  function move(from: number, to: number) {
+    if (from === to) return;
+    const next = fileIds.slice();
+    const [x] = next.splice(from, 1);
+    next.splice(to, 0, x);
+    onChange(next);
+  }
+
+  return (
+    <div className="mt-2">
+      <div className="mb-1 text-[10px] uppercase tracking-wide text-[#8C97A1]">
+        Фото · перетащите для порядка · первое — главное
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {fileIds.map((fid, i) => (
+          <div
+            key={fid + i}
+            draggable
+            onDragStart={() => setDrag(i)}
+            onDragEnter={() => setOver(i)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => {
+              if (drag !== null) move(drag, i);
+              setDrag(null);
+              setOver(null);
+            }}
+            onDragEnd={() => {
+              setDrag(null);
+              setOver(null);
+            }}
+            className={`group relative h-16 w-16 flex-none cursor-grab overflow-hidden rounded-[8px] bg-black ring-2 transition active:cursor-grabbing ${
+              over === i && drag !== null
+                ? "ring-chrome"
+                : i === 0
+                  ? "ring-bordeaux-bright"
+                  : "ring-transparent"
+            } ${drag === i ? "opacity-40" : ""}`}
+          >
+            {/* eslint-disable-next-line */}
+            <img
+              src={`${API_BASE}/api/tgphoto?id=${encodeURIComponent(fid)}`}
+              alt=""
+              loading="lazy"
+              className="pointer-events-none h-full w-full object-cover"
+            />
+            {i === 0 ? (
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-bordeaux/90 text-center text-[8px] font-bold uppercase text-white">
+                главное
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => onChange(fileIds.filter((_, k) => k !== i))}
+              aria-label="Удалить фото"
+              className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-bl-[8px] bg-black/70 text-white transition-colors hover:bg-bordeaux"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
