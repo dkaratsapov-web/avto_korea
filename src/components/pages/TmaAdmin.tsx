@@ -155,7 +155,7 @@ export function TmaAdmin({
         </span>
       </div>
 
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="mb-4 flex flex-wrap gap-2">
         {tabs
           .filter((t) => rank >= t.min)
           .map((t) => (
@@ -165,7 +165,7 @@ export function TmaAdmin({
                 haptic(tg);
                 setTab(t.id);
               }}
-              className={`flex flex-none items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold ${
+              className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold ${
                 tab === t.id
                   ? "border-bordeaux-bright bg-bordeaux text-white"
                   : "border-line-dark text-chrome"
