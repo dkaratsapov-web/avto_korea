@@ -665,16 +665,28 @@ function parseCaption(text) {
   const yearM = raw.match(/\b(19|20)\d{2}\b/);
   const year = yearM ? Number(yearM[0]) : new Date().getFullYear();
 
-  // Цена — сперва из строки с меткой «цена/₽/руб», иначе первое число ≥ 100000
+  // Цена — различаем город (до Твери / до Москвы), иначе одна цена на всё.
+  // Диапазон 100 000…99 999 999 отсекает телефоны (11 цифр) и мусор.
+  const isPrice = (n) => n >= 100000 && n <= 99999999;
   let price = 0;
-  const priceLine = lines.find((l) => /цена|стоимость|price|₽|руб/i.test(l));
-  if (priceLine) price = pickNumber(priceLine);
-  if (price < 100000) {
-    const nums = (raw.match(/\d[\d\s. ]*\d|\d/g) || [])
-      .map((s) => Number(s.replace(/[^\d]/g, "")))
-      .filter(Boolean);
-    price = nums.find((n) => n >= 100000) || price;
+  let priceTver = 0;
+  let priceMoscow = 0;
+  for (const l of lines) {
+    const n = pickNumber(l);
+    if (!isPrice(n)) continue;
+    if (/твер/i.test(l)) priceTver = priceTver || n;
+    else if (/москв/i.test(l)) priceMoscow = priceMoscow || n;
+    else if (/цена|стоимост|price|₽|руб|под\s*ключ/i.test(l)) price = price || n;
   }
+  if (!price) {
+    const nums = (raw.match(/\d[\d\s. ]*\d|\d/g) || [])
+      .map((x) => Number(x.replace(/[^\d]/g, "")))
+      .filter(isPrice);
+    price = nums[0] || 0;
+  }
+  price = price || priceTver || priceMoscow || 0;
+  priceTver = priceTver || price;
+  priceMoscow = priceMoscow || price;
 
   // Двигатель: объём (л) и мощность (л.с.)
   let engineCc = 0;
@@ -708,12 +720,39 @@ function parseCaption(text) {
     : /электро|electric|ev\b/i.test(raw) ? "Электро"
     : /дизел/i.test(raw) ? "Дизель"
     : /бензин/i.test(raw) ? "Бензин" : "";
-  const colorM = raw.match(/цвет[:\s—-]+([^\n,.;]+)/i);
-  const color = colorM ? cleanLine(colorM[1]).slice(0, 40) : "";
+  // Цвет — по словарю (надёжнее меток): ищем цвет-слово где угодно в тексте.
+  const COLORS = [
+    [/серебр|silver/i, "Серебристый"],
+    [/бел(ый|ая|ое|о)|white|перлам/i, "Белый"],
+    [/ч[ёе]рн|black/i, "Чёрный"],
+    [/сер(ый|ая|ое|о[-\s]|\b)|gr[ae]y/i, "Серый"],
+    [/син(ий|яя|ее|е)|blue|тёмно-син/i, "Синий"],
+    [/голуб/i, "Голубой"],
+    [/красн|red/i, "Красный"],
+    [/бордов|вишн|бургунд/i, "Бордовый"],
+    [/зел[ёе]н|green/i, "Зелёный"],
+    [/коричнев|шоколад|brown/i, "Коричневый"],
+    [/беж|beige/i, "Бежевый"],
+    [/золот|gold/i, "Золотистый"],
+    [/ж[ёе]лт|yellow/i, "Жёлтый"],
+    [/оранж|orange/i, "Оранжевый"],
+    [/фиолет|пурпур|purple/i, "Фиолетовый"],
+    [/розов|pink/i, "Розовый"],
+  ];
+  let color = "";
+  for (const [re, label] of COLORS) {
+    if (re.test(raw)) { color = label; break; }
+  }
+  if (!color) {
+    const colorM = raw.match(/цвет[а-яё]*\s*[:：—-]?\s*([а-яё][а-яё\s-]{2,29})/i);
+    if (colorM) color = cleanLine(colorM[1]).slice(0, 40);
+  }
 
   return {
     model,
     price,
+    priceTver,
+    priceMoscow,
     year,
     engineCc,
     powerHp,

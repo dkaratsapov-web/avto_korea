@@ -103,8 +103,8 @@ function carFromDraft(d: Draft): Car {
     mileage: mileageKm > 0 ? `${mileageKm.toLocaleString("ru-RU")} км` : base.mileage,
     isNew: !(mileageKm > 0),
     priceRub: price,
-    priceTverRub: price,
-    priceMoscowRub: price,
+    priceTverRub: p.priceTver || price,
+    priceMoscowRub: p.priceMoscow || price,
     images: d.fileIds.map(
       (fid) => `${API_BASE}/api/tgphoto?id=${encodeURIComponent(fid)}`,
     ),

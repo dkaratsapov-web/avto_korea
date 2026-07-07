@@ -26,6 +26,8 @@ export type Draft = {
   parsed: {
     model: string;
     price: number;
+    priceTver?: number;
+    priceMoscow?: number;
     year: number;
     engineCc?: number;
     powerHp?: number;
