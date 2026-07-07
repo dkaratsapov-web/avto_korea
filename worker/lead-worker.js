@@ -630,6 +630,9 @@ function hasLetters(s) {
 // Метки-ярлыки строк характеристик — такие строки не могут быть моделью.
 const LABEL_RE =
   /^(цена|стоимость|price|год|year|двигатель|мотор|объ[её]м|мощность|пробег|mileage|коробк|кпп|акпп|мкпп|трансмисс|привод|drive|цвет|color|кузов|топлив|компле|таможн|растаможк|под\s*ключ|итог|наличи|заказ|в\s*пути)/i;
+// Строки-заголовки объявления — тоже не модель («НОВЫЙ АВТОМОБИЛЬ!!!!» и т.п.).
+const HEADER_RE =
+  /^(нов(ый|ое|ая|инка)|прода|поступил|в\s*наличии|в\s*пути|под\s*заказ|срочно|торг|обмен|автомобиль\b|авто\b|new\b|продан)/i;
 
 function pickNumber(str) {
   const m = String(str).match(/\d[\d\s. ]*\d|\d/);
@@ -651,11 +654,12 @@ function parseCaption(text) {
   for (const l of clean) {
     if (!hasLetters(l)) continue; // «!!!!!!», «———», голые числа — пропускаем
     if (LABEL_RE.test(l)) continue; // «Цена: …», «Пробег: …» — не модель
+    if (HEADER_RE.test(l)) continue; // «НОВЫЙ АВТОМОБИЛЬ» — заголовок, не модель
     if (l.length < 2) continue;
     model = l.replace(/\s*[—\-–,]?\s*(19|20)\d{2}\s*(г(од)?\.?|year)?\s*$/i, "").trim();
     if (model) break;
   }
-  if (!model) model = clean[0] || "";
+  if (!model) model = clean.find((l) => hasLetters(l)) || "";
 
   // Год
   const yearM = raw.match(/\b(19|20)\d{2}\b/);
@@ -675,7 +679,7 @@ function parseCaption(text) {
   // Двигатель: объём (л) и мощность (л.с.)
   let engineCc = 0;
   let powerHp = 0;
-  const volM = raw.match(/(\d(?:[.,]\d)?)\s*л(?![а-я])/i); // «2.0 л», «1,6 л»
+  const volM = raw.match(/(\d(?:[.,]\d)?)\s*[лl](?![а-яa-z.])/i); // «2.0 л», «1,6 л», «1.5L»
   if (volM) engineCc = Math.round(Number(volM[1].replace(",", ".")) * 1000);
   const ccM = raw.match(/(\d{3,4})\s*(?:куб|см³|cc)/i);
   if (!engineCc && ccM) engineCc = Number(ccM[1]);
@@ -719,7 +723,10 @@ function parseCaption(text) {
     bodyType: bodyType ? bodyType[0].toUpperCase() + bodyType.slice(1) : "",
     fuelType,
     color,
-    highlights: clean,
+    // В подсказки-буллеты — только осмысленные строки: без заголовка и без цены.
+    highlights: clean.filter(
+      (l) => hasLetters(l) && !HEADER_RE.test(l) && !/цена|стоимость|price/i.test(l),
+    ),
   };
 }
 
