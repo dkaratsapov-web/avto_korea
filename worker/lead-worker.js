@@ -634,6 +634,11 @@ const LABEL_RE =
 const HEADER_RE =
   /^(нов(ый|ое|ая|инка)|прода|поступил|в\s*наличии|в\s*пути|под\s*заказ|срочно|торг|обмен|автомобиль\b|авто\b|new\b|продан)/i;
 
+// Начало подписи-футера поста: ссылки, адрес, «Забронировать», «Мы в …» —
+// всё, что ниже такой строки, в описание авто не тянем.
+const FOOTER_RE =
+  /^(мы\s+в\s|ссылк|http|t\.me|www\.|@[a-zа-я]|забронир|бронир|наш\s+адрес|^адрес\s*[:—-]|тел[:.\s]|телефон|whats|instagram|insta\b|vk\.com|подпис|звони|наш\s+канал|наш\s+сайт|наш\s+telegram|записа|график\s+работ|режим\s+работ|г\.?\s*твер|ул\.?\s)/i;
+
 function pickNumber(str) {
   const m = String(str).match(/\d[\d\s. ]*\d|\d/);
   return m ? Number(m[0].replace(/[^\d]/g, "")) : 0;
@@ -647,22 +652,26 @@ function parseCaption(text) {
     .filter(Boolean);
   const clean = lines.map(cleanLine).filter(Boolean);
 
-  // Модель — первая осмысленная строка: есть буквы, не строка-характеристика,
-  // не только цена/год. Заголовок вроде «Kia Sportage 2021» — оставляем как есть,
-  // но обрезаем хвостовой год.
+  // Отсекаем подпись-футер поста — всё, что ниже, в авто не тянем.
+  const cutIdx = clean.findIndex((l) => FOOTER_RE.test(l));
+  const body = cutIdx >= 0 ? clean.slice(0, cutIdx) : clean;
+  const bodyRaw = body.join("\n");
+
+  // Модель — первая осмысленная строка body: есть буквы, не характеристика,
+  // не заголовок. «Kia Sportage 2021» оставляем, хвостовой год обрезаем.
   let model = "";
-  for (const l of clean) {
-    if (!hasLetters(l)) continue; // «!!!!!!», «———», голые числа — пропускаем
-    if (LABEL_RE.test(l)) continue; // «Цена: …», «Пробег: …» — не модель
-    if (HEADER_RE.test(l)) continue; // «НОВЫЙ АВТОМОБИЛЬ» — заголовок, не модель
+  for (const l of body) {
+    if (!hasLetters(l)) continue;
+    if (LABEL_RE.test(l)) continue;
+    if (HEADER_RE.test(l)) continue;
     if (l.length < 2) continue;
     model = l.replace(/\s*[—\-–,]?\s*(19|20)\d{2}\s*(г(од)?\.?|year)?\s*$/i, "").trim();
     if (model) break;
   }
-  if (!model) model = clean.find((l) => hasLetters(l)) || "";
+  if (!model) model = body.find((l) => hasLetters(l)) || "";
 
   // Год
-  const yearM = raw.match(/\b(19|20)\d{2}\b/);
+  const yearM = bodyRaw.match(/\b(19|20)\d{2}\b/);
   const year = yearM ? Number(yearM[0]) : new Date().getFullYear();
 
   // Цена — различаем город (до Твери / до Москвы), иначе одна цена на всё.
@@ -671,7 +680,7 @@ function parseCaption(text) {
   let price = 0;
   let priceTver = 0;
   let priceMoscow = 0;
-  for (const l of lines) {
+  for (const l of body) {
     const n = pickNumber(l);
     if (!isPrice(n)) continue;
     if (/твер/i.test(l)) priceTver = priceTver || n;
@@ -679,7 +688,7 @@ function parseCaption(text) {
     else if (/цена|стоимост|price|₽|руб|под\s*ключ/i.test(l)) price = price || n;
   }
   if (!price) {
-    const nums = (raw.match(/\d[\d\s. ]*\d|\d/g) || [])
+    const nums = (bodyRaw.match(/\d[\d\s. ]*\d|\d/g) || [])
       .map((x) => Number(x.replace(/[^\d]/g, "")))
       .filter(isPrice);
     price = nums[0] || 0;
@@ -691,42 +700,43 @@ function parseCaption(text) {
   // Двигатель: объём (л) и мощность (л.с.)
   let engineCc = 0;
   let powerHp = 0;
-  const volM = raw.match(/(\d(?:[.,]\d)?)\s*[лl](?![а-яa-z.])/i); // «2.0 л», «1,6 л», «1.5L»
+  const volM = bodyRaw.match(/(\d(?:[.,]\d)?)\s*[лl](?![а-яa-z.])/i);
   if (volM) engineCc = Math.round(Number(volM[1].replace(",", ".")) * 1000);
-  const ccM = raw.match(/(\d{3,4})\s*(?:куб|см³|cc)/i);
+  const ccM = bodyRaw.match(/(\d{3,4})\s*(?:куб|см³|cc)/i);
   if (!engineCc && ccM) engineCc = Number(ccM[1]);
-  const hpM = raw.match(/(\d{2,4})\s*(?:л\.?\s*с\.?|hp|л\.с)/i);
+  const hpM = bodyRaw.match(/(\d{2,4})\s*(?:л\.?\s*с\.?|hp|л\.с)/i);
   if (hpM) powerHp = Number(hpM[1]);
 
   // Пробег
   let mileageKm = 0;
-  const mileM = raw.match(/пробег[^\d]*([\d\s ]+)\s*(?:км|km|тыс)/i)
-    || raw.match(/([\d\s ]{4,})\s*(?:км|km)\b/i);
+  const mileM = bodyRaw.match(/пробег[^\d]*([\d\s ]+)\s*(?:км|km|тыс)/i)
+    || bodyRaw.match(/([\d\s ]{4,})\s*(?:км|km)\b/i);
   if (mileM) {
     mileageKm = Number(mileM[1].replace(/[^\d]/g, ""));
     if (/тыс/i.test(mileM[0])) mileageKm *= 1000;
   }
 
-  // Коробка / привод / цвет / кузов / топливо
-  const gearbox = /вариатор|cvt/i.test(raw) ? "Вариатор"
-    : /робот|dsg|dct/i.test(raw) ? "Робот"
-    : /механик|мкпп|manual/i.test(raw) ? "МКПП"
-    : /автомат|акпп|a\/t|at\b/i.test(raw) ? "АКПП" : "";
-  const drive = /полн|awd|4wd|4x4|4matic|quattro/i.test(raw) ? "Полный"
-    : /задн|rwd/i.test(raw) ? "Задний"
-    : /перед|fwd/i.test(raw) ? "Передний" : "";
-  const bodyType = (raw.match(/седан|кроссовер|внедорожник|хэтчбек|хетчбек|универсал|купе|минивэн|пикап|лифтбек|кабриолет/i) || [""])[0];
-  const fuelType = /гибрид|hybrid/i.test(raw) ? "Гибрид"
-    : /электро|electric|ev\b/i.test(raw) ? "Электро"
-    : /дизел/i.test(raw) ? "Дизель"
-    : /бензин/i.test(raw) ? "Бензин" : "";
-  // Цвет — по словарю (надёжнее меток): ищем цвет-слово где угодно в тексте.
+  // Коробка / привод / кузов / топливо
+  const gearbox = /вариатор|cvt/i.test(bodyRaw) ? "Вариатор"
+    : /робот|dsg|dct/i.test(bodyRaw) ? "Робот"
+    : /механик|мкпп|manual/i.test(bodyRaw) ? "МКПП"
+    : /автомат|акпп|a\/t|at\b/i.test(bodyRaw) ? "АКПП" : "";
+  const drive = /полн|awd|4wd|4x4|4matic|quattro/i.test(bodyRaw) ? "Полный"
+    : /задн|rwd/i.test(bodyRaw) ? "Задний"
+    : /перед|fwd/i.test(bodyRaw) ? "Передний" : "";
+  const bodyTypeM = (bodyRaw.match(/седан|кроссовер|внедорожник|хэтчбек|хетчбек|универсал|купе|минивэн|пикап|лифтбек|кабриолет/i) || [""])[0];
+  const fuelType = /гибрид|hybrid/i.test(bodyRaw) ? "Гибрид"
+    : /электро|electric|ev\b/i.test(bodyRaw) ? "Электро"
+    : /дизел/i.test(bodyRaw) ? "Дизель"
+    : /бензин/i.test(bodyRaw) ? "Бензин" : "";
+
+  // Цвет — по словарю (надёжнее меток): ищем цвет-слово в теле поста.
   const COLORS = [
     [/серебр|silver/i, "Серебристый"],
     [/бел(ый|ая|ое|о)|white|перлам/i, "Белый"],
     [/ч[ёе]рн|black/i, "Чёрный"],
     [/сер(ый|ая|ое|о[-\s]|\b)|gr[ae]y/i, "Серый"],
-    [/син(ий|яя|ее|е)|blue|тёмно-син/i, "Синий"],
+    [/син(ий|яя|ее|е)|blue/i, "Синий"],
     [/голуб/i, "Голубой"],
     [/красн|red/i, "Красный"],
     [/бордов|вишн|бургунд/i, "Бордовый"],
@@ -741,10 +751,10 @@ function parseCaption(text) {
   ];
   let color = "";
   for (const [re, label] of COLORS) {
-    if (re.test(raw)) { color = label; break; }
+    if (re.test(bodyRaw)) { color = label; break; }
   }
   if (!color) {
-    const colorM = raw.match(/цвет[а-яё]*\s*[:：—-]?\s*([а-яё][а-яё\s-]{2,29})/i);
+    const colorM = bodyRaw.match(/цвет[а-яё]*\s*[:：—-]?\s*([а-яё][а-яё\s-]{2,29})/i);
     if (colorM) color = cleanLine(colorM[1]).slice(0, 40);
   }
 
@@ -759,11 +769,11 @@ function parseCaption(text) {
     mileageKm,
     gearbox,
     drive,
-    bodyType: bodyType ? bodyType[0].toUpperCase() + bodyType.slice(1) : "",
+    bodyType: bodyTypeM ? bodyTypeM[0].toUpperCase() + bodyTypeM.slice(1) : "",
     fuelType,
     color,
-    // В подсказки-буллеты — только осмысленные строки: без заголовка и без цены.
-    highlights: clean.filter(
+    // Буллеты-описание: строки тела без заголовка и без цены.
+    highlights: body.filter(
       (l) => hasLetters(l) && !HEADER_RE.test(l) && !/цена|стоимость|price/i.test(l),
     ),
   };
