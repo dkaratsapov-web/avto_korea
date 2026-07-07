@@ -262,6 +262,25 @@ export default {
     if (request.method === "OPTIONS")
       return new Response(null, { headers: cors });
 
+    // --- Разовая привязка вебхука: открыть в браузере ---
+    if (url.pathname === "/setup") {
+      if (!env.TELEGRAM_BOT_TOKEN)
+        return json({ error: "no TELEGRAM_BOT_TOKEN" }, 400);
+      const hook = `${url.origin}/tg`;
+      const r = await api(env, "setWebhook", {
+        url: hook,
+        allowed_updates: [
+          "message",
+          "edited_message",
+          "channel_post",
+          "edited_channel_post",
+          "callback_query",
+        ],
+      });
+      const out = await r.json().catch(() => ({}));
+      return json({ setWebhook: hook, telegram: out });
+    }
+
     // --- Telegram webhook ---
     if (url.pathname === "/tg" && request.method === "POST") {
       let upd;
@@ -291,6 +310,23 @@ export default {
       }
 
       const msg = upd.message || upd.edited_message;
+
+      // Импорт поста пересылкой боту (для приватного канала: пересылаете пост
+      // из канала в личку боту → создаётся черновик авто). Только для админов.
+      const forwarded = msg && (msg.forward_from_chat || msg.forward_origin);
+      if (forwarded && (msg.caption || msg.text || (Array.isArray(msg.photo) && msg.photo.length))) {
+        const role = await roleOf(env, msg.from?.id);
+        if (role) {
+          await handleChannelPost(env, msg);
+          if (!msg.media_group_id) {
+            await api(env, "sendMessage", {
+              chat_id: msg.chat.id,
+              text: "🆕 Черновик из пересланного поста добавлен — проверьте в админке → «Черновики».",
+            });
+          }
+          return new Response("ok");
+        }
+      }
 
       // заявка из мини-аппа (reply-кнопка)
       if (msg?.web_app_data?.data) {
