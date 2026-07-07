@@ -17,6 +17,7 @@ import {
   BarChart3,
   FileStack,
   Upload,
+  Sparkles,
 } from "lucide-react";
 import { useCars } from "@/lib/carsStore";
 import { type Car, type CarStatus, formatPrice } from "@/data/cars";
@@ -120,6 +121,35 @@ function carFromDraft(d: Draft): Car {
     ),
     highlights: p.highlights || [],
   };
+}
+
+// Собирает аккуратное описание-чеклист из характеристик авто (без AI/сети).
+function genHighlights(c: Car): string[] {
+  const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+  const out: string[] = [];
+
+  const vol = c.engineCc ? `${(c.engineCc / 1000).toFixed(1).replace(".", ",")} л` : "";
+  const power = c.powerHp ? `${c.powerHp} л.с.` : "";
+  const fuel = c.fuelType ? c.fuelType.toLowerCase() : "";
+  const eng = [vol, power, fuel].filter(Boolean).join(", ");
+  if (eng) out.push(`Двигатель ${eng}`);
+
+  const trans = [c.gearbox, c.drive ? `${c.drive.toLowerCase()} привод` : ""]
+    .filter(Boolean)
+    .join(", ");
+  if (trans) out.push(cap(trans));
+
+  if (c.bodyType) out.push(cap(c.bodyType));
+  if (c.trim) out.push(`Комплектация ${c.trim}`);
+  if (c.color) out.push(`Цвет ${c.color.toLowerCase()}`);
+
+  if (c.isNew || !c.mileageKm) out.push("Новый автомобиль, без пробега по РФ");
+  else out.push(`Пробег ${c.mileageKm.toLocaleString("ru-RU")} км`);
+
+  out.push("Доставка, растаможка и оформление под ключ");
+  out.push("Честная цена без скрытых наценок");
+
+  return out;
 }
 
 export function TmaAdmin({
@@ -1158,7 +1188,16 @@ function CarEditor({
         />
       </label>
       <label>
-        <span className={lab}>Описание (по пункту в строке)</span>
+        <div className="mb-1 flex items-center justify-between">
+          <span className={lab + " mb-0"}>Описание (по пункту в строке)</span>
+          <button
+            type="button"
+            onClick={() => set("highlights", genHighlights(f))}
+            className="flex items-center gap-1 rounded-full border border-bordeaux-bright/60 bg-bordeaux/15 px-2.5 py-1 text-[11px] font-bold text-bordeaux-bright"
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Собрать из характеристик
+          </button>
+        </div>
         <textarea
           className="field-dark min-h-[80px]"
           value={f.highlights.join("\n")}
