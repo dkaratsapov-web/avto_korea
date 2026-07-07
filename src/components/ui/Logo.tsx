@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
-import { CarSilhouette } from "@/components/icons/CarSilhouette";
 
+// Логотип «ДиАвто69» — фирменная эмблема (public/logo.png|webp).
+// Размер задаётся через className (высота), напр. "h-9 w-auto".
 export function Logo({
-  withIcon = true,
-  className = "",
+  className = "h-9 w-auto",
 }: {
+  /** оставлено для обратной совместимости, не используется */
   withIcon?: boolean;
   className?: string;
 }) {
@@ -13,14 +14,18 @@ export function Logo({
       to="/"
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       aria-label="ДиАвто69 — на главную"
-      className={`flex items-baseline gap-px font-display text-[26px] font-extrabold tracking-[0.02em] text-white ${className}`}
+      className="inline-flex items-center"
     >
-      {withIcon ? (
-        <CarSilhouette className="mr-2 h-[18px] w-[30px] self-center" />
-      ) : null}
-      <span className="text-chrome">Ди</span>
-      <span>Авто</span>
-      <span className="text-bordeaux-bright">69</span>
+      <picture>
+        <source srcSet="/logo.webp" type="image/webp" />
+        <img
+          src="/logo.png"
+          alt="ДиАвто69"
+          className={`block ${className}`}
+          loading="eager"
+          decoding="async"
+        />
+      </picture>
     </Link>
   );
 }

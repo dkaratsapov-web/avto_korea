@@ -16,7 +16,7 @@ export function Footer() {
 
       <div className="wrap relative grid gap-10 py-14 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
-          <Logo />
+          <Logo className="h-11 w-auto" />
           <p className="mt-4 flex max-w-xs flex-wrap items-center gap-1.5 text-[14px] leading-relaxed">
             Импорт авто из
             <Flag code="kr" className="h-3.5 w-5" />

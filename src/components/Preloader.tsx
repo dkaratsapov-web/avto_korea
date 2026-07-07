@@ -292,7 +292,7 @@ export function Preloader({ onDone }: { onDone: () => void }) {
       <div className="glow-blob right-[12%] bottom-[12%] h-64 w-64 animate-glow-pan bg-steel/15 [animation-delay:-7s]" aria-hidden />
 
       <div className="relative animate-fade-up">
-        <Logo />
+        <Logo className="h-16 w-auto md:h-20" />
       </div>
 
       <canvas ref={canvasRef} className="relative" />
