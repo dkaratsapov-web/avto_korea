@@ -255,10 +255,18 @@ export function TmaApp() {
               haptic(tgRef.current);
               setView({ name: "home" });
             }}
-            className="flex items-baseline gap-px font-display text-[22px] font-extrabold text-white"
+            aria-label="ДиАвто69 — на главную"
+            className="flex items-center"
           >
-            <span className="text-chrome">Ди</span>Авто
-            <span className="text-bordeaux-bright">69</span>
+            <picture>
+              <source srcSet="/logo.webp" type="image/webp" />
+              <img
+                src="/logo.png"
+                alt="ДиАвто69"
+                className="block h-10 w-auto"
+                decoding="async"
+              />
+            </picture>
           </button>
           <div className="flex items-center gap-2">
           {adminRole ? (
