@@ -82,6 +82,15 @@ function slug(s: string) {
   );
 }
 
+// Запасной разбор строки описания по метке (для черновиков, созданных до
+// появления нового поля в парсере — берём значение прямо из highlights).
+function fromHighlights(highlights: string[] | undefined, re: RegExp): string {
+  const line = (highlights || []).find((l) => re.test(l));
+  if (!line) return "";
+  const m = line.match(new RegExp(re.source + "[а-яё]*\\s*[:：—-]?\\s*(.+)", "i"));
+  return m ? m[1].trim().slice(0, 60) : "";
+}
+
 function carFromDraft(d: Draft): Car {
   const p = d.parsed;
   const price = p.price || 0;
@@ -99,7 +108,7 @@ function carFromDraft(d: Draft): Car {
     bodyType: p.bodyType || base.bodyType,
     fuelType: p.fuelType || base.fuelType,
     color: p.color || base.color,
-    trim: p.trim || base.trim,
+    trim: p.trim || fromHighlights(p.highlights, /комплектац/i) || base.trim,
     mileageKm,
     mileage: mileageKm > 0 ? `${mileageKm.toLocaleString("ru-RU")} км` : base.mileage,
     isNew: !(mileageKm > 0),
