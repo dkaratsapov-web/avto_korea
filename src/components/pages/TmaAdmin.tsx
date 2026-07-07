@@ -83,19 +83,32 @@ function slug(s: string) {
 }
 
 function carFromDraft(d: Draft): Car {
-  const price = d.parsed.price || 0;
+  const p = d.parsed;
+  const price = p.price || 0;
+  const base = emptyCar();
+  const mileageKm = p.mileageKm ?? 0;
   return {
-    ...emptyCar(),
+    ...base,
     id: "",
-    model: d.parsed.model || "Авто из канала",
-    year: d.parsed.year || new Date().getFullYear(),
+    model: p.model || "Авто из канала",
+    year: p.year || new Date().getFullYear(),
+    engineCc: p.engineCc || base.engineCc,
+    powerHp: p.powerHp || base.powerHp,
+    gearbox: p.gearbox || base.gearbox,
+    drive: p.drive || base.drive,
+    bodyType: p.bodyType || base.bodyType,
+    fuelType: p.fuelType || base.fuelType,
+    color: p.color || base.color,
+    mileageKm,
+    mileage: mileageKm > 0 ? `${mileageKm.toLocaleString("ru-RU")} км` : base.mileage,
+    isNew: !(mileageKm > 0),
     priceRub: price,
     priceTverRub: price,
     priceMoscowRub: price,
     images: d.fileIds.map(
       (fid) => `${API_BASE}/api/tgphoto?id=${encodeURIComponent(fid)}`,
     ),
-    highlights: d.parsed.highlights || [],
+    highlights: p.highlights || [],
   };
 }
 

@@ -23,7 +23,20 @@ export type Draft = {
   id: string;
   caption: string;
   fileIds: string[];
-  parsed: { model: string; price: number; year: number; highlights: string[] };
+  parsed: {
+    model: string;
+    price: number;
+    year: number;
+    engineCc?: number;
+    powerHp?: number;
+    mileageKm?: number;
+    gearbox?: string;
+    drive?: string;
+    bodyType?: string;
+    fuelType?: string;
+    color?: string;
+    highlights: string[];
+  };
   ts: number;
 };
 

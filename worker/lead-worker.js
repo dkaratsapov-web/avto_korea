@@ -616,19 +616,111 @@ async function storeLead(env, d) {
 }
 
 /* ---------- Черновики из канала ---------- */
+// Строки постов часто украшены эмодзи/символами (🔥, ▪️, «!!!!!!» и т.п.).
+// Чистим их с краёв, чтобы не тянуть мусор в модель и характеристики.
+function cleanLine(s) {
+  return String(s || "")
+    .replace(/^[\s\p{Extended_Pictographic}\p{So}\p{Sk}\p{P}]+/u, "")
+    .replace(/[\s\p{Extended_Pictographic}\p{So}\p{Sk}]+$/u, "")
+    .trim();
+}
+function hasLetters(s) {
+  return /[a-zа-я]/i.test(s);
+}
+// Метки-ярлыки строк характеристик — такие строки не могут быть моделью.
+const LABEL_RE =
+  /^(цена|стоимость|price|год|year|двигатель|мотор|объ[её]м|мощность|пробег|mileage|коробк|кпп|акпп|мкпп|трансмисс|привод|drive|цвет|color|кузов|топлив|компле|таможн|растаможк|под\s*ключ|итог|наличи|заказ|в\s*пути)/i;
+
+function pickNumber(str) {
+  const m = String(str).match(/\d[\d\s. ]*\d|\d/);
+  return m ? Number(m[0].replace(/[^\d]/g, "")) : 0;
+}
+
 function parseCaption(text) {
-  const lines = String(text || "")
+  const raw = String(text || "");
+  const lines = raw
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
-  const model = lines[0] || "";
-  const nums = (String(text).match(/\d[\d\s.]*\d|\d/g) || [])
-    .map((s) => Number(s.replace(/[^\d]/g, "")))
-    .filter(Boolean);
-  const price = nums.find((n) => n >= 100000) || 0;
-  const yearM = String(text).match(/\b(19|20)\d{2}\b/);
+  const clean = lines.map(cleanLine).filter(Boolean);
+
+  // Модель — первая осмысленная строка: есть буквы, не строка-характеристика,
+  // не только цена/год. Заголовок вроде «Kia Sportage 2021» — оставляем как есть,
+  // но обрезаем хвостовой год.
+  let model = "";
+  for (const l of clean) {
+    if (!hasLetters(l)) continue; // «!!!!!!», «———», голые числа — пропускаем
+    if (LABEL_RE.test(l)) continue; // «Цена: …», «Пробег: …» — не модель
+    if (l.length < 2) continue;
+    model = l.replace(/\s*[—\-–,]?\s*(19|20)\d{2}\s*(г(од)?\.?|year)?\s*$/i, "").trim();
+    if (model) break;
+  }
+  if (!model) model = clean[0] || "";
+
+  // Год
+  const yearM = raw.match(/\b(19|20)\d{2}\b/);
   const year = yearM ? Number(yearM[0]) : new Date().getFullYear();
-  return { model, price, year, highlights: lines };
+
+  // Цена — сперва из строки с меткой «цена/₽/руб», иначе первое число ≥ 100000
+  let price = 0;
+  const priceLine = lines.find((l) => /цена|стоимость|price|₽|руб/i.test(l));
+  if (priceLine) price = pickNumber(priceLine);
+  if (price < 100000) {
+    const nums = (raw.match(/\d[\d\s. ]*\d|\d/g) || [])
+      .map((s) => Number(s.replace(/[^\d]/g, "")))
+      .filter(Boolean);
+    price = nums.find((n) => n >= 100000) || price;
+  }
+
+  // Двигатель: объём (л) и мощность (л.с.)
+  let engineCc = 0;
+  let powerHp = 0;
+  const volM = raw.match(/(\d(?:[.,]\d)?)\s*л(?![а-я])/i); // «2.0 л», «1,6 л»
+  if (volM) engineCc = Math.round(Number(volM[1].replace(",", ".")) * 1000);
+  const ccM = raw.match(/(\d{3,4})\s*(?:куб|см³|cc)/i);
+  if (!engineCc && ccM) engineCc = Number(ccM[1]);
+  const hpM = raw.match(/(\d{2,4})\s*(?:л\.?\s*с\.?|hp|л\.с)/i);
+  if (hpM) powerHp = Number(hpM[1]);
+
+  // Пробег
+  let mileageKm = 0;
+  const mileM = raw.match(/пробег[^\d]*([\d\s ]+)\s*(?:км|km|тыс)/i)
+    || raw.match(/([\d\s ]{4,})\s*(?:км|km)\b/i);
+  if (mileM) {
+    mileageKm = Number(mileM[1].replace(/[^\d]/g, ""));
+    if (/тыс/i.test(mileM[0])) mileageKm *= 1000;
+  }
+
+  // Коробка / привод / цвет / кузов / топливо
+  const gearbox = /вариатор|cvt/i.test(raw) ? "Вариатор"
+    : /робот|dsg|dct/i.test(raw) ? "Робот"
+    : /механик|мкпп|manual/i.test(raw) ? "МКПП"
+    : /автомат|акпп|a\/t|at\b/i.test(raw) ? "АКПП" : "";
+  const drive = /полн|awd|4wd|4x4|4matic|quattro/i.test(raw) ? "Полный"
+    : /задн|rwd/i.test(raw) ? "Задний"
+    : /перед|fwd/i.test(raw) ? "Передний" : "";
+  const bodyType = (raw.match(/седан|кроссовер|внедорожник|хэтчбек|хетчбек|универсал|купе|минивэн|пикап|лифтбек|кабриолет/i) || [""])[0];
+  const fuelType = /гибрид|hybrid/i.test(raw) ? "Гибрид"
+    : /электро|electric|ev\b/i.test(raw) ? "Электро"
+    : /дизел/i.test(raw) ? "Дизель"
+    : /бензин/i.test(raw) ? "Бензин" : "";
+  const colorM = raw.match(/цвет[:\s—-]+([^\n,.;]+)/i);
+  const color = colorM ? cleanLine(colorM[1]).slice(0, 40) : "";
+
+  return {
+    model,
+    price,
+    year,
+    engineCc,
+    powerHp,
+    mileageKm,
+    gearbox,
+    drive,
+    bodyType: bodyType ? bodyType[0].toUpperCase() + bodyType.slice(1) : "",
+    fuelType,
+    color,
+    highlights: clean,
+  };
 }
 
 async function handleChannelPost(env, post) {
