@@ -32,6 +32,8 @@ export type Car = {
   isNew?: boolean;
   images: string[];
   highlights: string[];
+  /** Связное текстовое описание (абзац). Показывается на карточке авто. */
+  description?: string;
 };
 
 export const statusLabels: Record<CarStatus, string> = {

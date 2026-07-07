@@ -518,6 +518,12 @@ export function CarView({
         ) : null}
       </div>
 
+      {car.description ? (
+        <p className="mt-4 text-[14px] leading-relaxed text-[#C7CFD6]">
+          {car.description}
+        </p>
+      ) : null}
+
       <ul className="mt-4 space-y-1.5">
         {car.highlights.map((h) => (
           <li key={h} className="flex items-start gap-2 text-[13.5px] text-[#C7CFD6]">

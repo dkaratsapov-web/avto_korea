@@ -97,7 +97,7 @@ function carFromDraft(d: Draft): Car {
   const price = p.price || 0;
   const base = emptyCar();
   const mileageKm = p.mileageKm ?? 0;
-  return {
+  const car: Car = {
     ...base,
     id: "",
     model: p.model || "Авто из канала",
@@ -119,37 +119,52 @@ function carFromDraft(d: Draft): Car {
     images: d.fileIds.map(
       (fid) => `${API_BASE}/api/tgphoto?id=${encodeURIComponent(fid)}`,
     ),
-    highlights: p.highlights || [],
+    // Сырые строки поста не тянем в галочки — всё уходит в текстовое описание.
+    highlights: [],
   };
+  // Сразу кладём готовое текстовое описание — менеджер может поправить.
+  car.description = genDescription(car);
+  return car;
 }
 
-// Собирает аккуратное описание-чеклист из характеристик авто (без AI/сети).
-function genHighlights(c: Car): string[] {
+// Собирает связное текстовое описание (абзац) из характеристик авто.
+// Без AI/сети — детерминированно, мгновенно, работает офлайн.
+function genDescription(c: Car): string {
   const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
-  const out: string[] = [];
+  const seg: string[] = [];
 
+  // 1) марка, год
+  const head = [c.model.trim(), c.year ? `${c.year} года` : ""]
+    .filter(Boolean)
+    .join(" ");
+  if (head) seg.push(head);
+
+  // 2) техника: кузов, двигатель, топливо, коробка, привод
+  const tech: string[] = [];
+  if (c.bodyType) tech.push(c.bodyType.toLowerCase());
   const vol = c.engineCc ? `${(c.engineCc / 1000).toFixed(1).replace(".", ",")} л` : "";
   const power = c.powerHp ? `${c.powerHp} л.с.` : "";
-  const fuel = c.fuelType ? c.fuelType.toLowerCase() : "";
-  const eng = [vol, power, fuel].filter(Boolean).join(", ");
-  if (eng) out.push(`Двигатель ${eng}`);
+  const engine = [vol, power].filter(Boolean).join(", ");
+  if (engine) tech.push(`двигатель ${engine}`);
+  if (c.fuelType) tech.push(c.fuelType.toLowerCase());
+  if (c.gearbox) tech.push(/акпп|автомат/i.test(c.gearbox) ? "автомат" : c.gearbox.toLowerCase());
+  if (c.drive) tech.push(`${c.drive.toLowerCase()} привод`);
+  if (tech.length) seg.push(cap(tech.join(", ")));
 
-  const trans = [c.gearbox, c.drive ? `${c.drive.toLowerCase()} привод` : ""]
-    .filter(Boolean)
-    .join(", ");
-  if (trans) out.push(cap(trans));
+  // 3) состояние, комплектация, цвет
+  const st: string[] = [];
+  if (c.trim) st.push(`комплектация ${c.trim}`);
+  if (c.color) st.push(`цвет ${c.color.toLowerCase()}`);
+  if (c.isNew || !c.mileageKm) st.push("новый, без пробега по РФ");
+  else st.push(`пробег ${c.mileageKm.toLocaleString("ru-RU")} км`);
+  if (st.length) seg.push(cap(st.join(", ")));
 
-  if (c.bodyType) out.push(cap(c.bodyType));
-  if (c.trim) out.push(`Комплектация ${c.trim}`);
-  if (c.color) out.push(`Цвет ${c.color.toLowerCase()}`);
+  // 4) продающее
+  seg.push(
+    "Привезём под ключ: доставка, растаможка и оформление включены — честная цена без скрытых наценок",
+  );
 
-  if (c.isNew || !c.mileageKm) out.push("Новый автомобиль, без пробега по РФ");
-  else out.push(`Пробег ${c.mileageKm.toLocaleString("ru-RU")} км`);
-
-  out.push("Доставка, растаможка и оформление под ключ");
-  out.push("Честная цена без скрытых наценок");
-
-  return out;
+  return seg.join(". ") + ".";
 }
 
 export function TmaAdmin({
@@ -1189,17 +1204,26 @@ function CarEditor({
       </label>
       <label>
         <div className="mb-1 flex items-center justify-between">
-          <span className={lab + " mb-0"}>Описание (по пункту в строке)</span>
+          <span className={lab + " mb-0"}>Описание текстом</span>
           <button
             type="button"
-            onClick={() => set("highlights", genHighlights(f))}
+            onClick={() => set("description", genDescription(f))}
             className="flex items-center gap-1 rounded-full border border-bordeaux-bright/60 bg-bordeaux/15 px-2.5 py-1 text-[11px] font-bold text-bordeaux-bright"
           >
-            <Sparkles className="h-3.5 w-3.5" /> Собрать из характеристик
+            <Sparkles className="h-3.5 w-3.5" /> Сгенерировать
           </button>
         </div>
         <textarea
-          className="field-dark min-h-[80px]"
+          className="field-dark min-h-[96px]"
+          value={f.description || ""}
+          onChange={(e) => set("description", e.target.value)}
+          placeholder="Связный текст-описание авто для карточки"
+        />
+      </label>
+      <label>
+        <span className={lab}>Пункты-галочки (по строке, необязательно)</span>
+        <textarea
+          className="field-dark min-h-[64px]"
           value={f.highlights.join("\n")}
           onChange={(e) =>
             set("highlights", e.target.value.split("\n").map((s) => s.trim()).filter(Boolean))
