@@ -730,6 +730,10 @@ function parseCaption(text) {
     : /дизел/i.test(bodyRaw) ? "Дизель"
     : /бензин/i.test(bodyRaw) ? "Бензин" : "";
 
+  // Комплектация (trim) — по метке «Комплектация: …»
+  const trimM = bodyRaw.match(/комплектац[а-яё]*\s*[:：—-]?\s*([^\n]+)/i);
+  const trim = trimM ? cleanLine(trimM[1]).slice(0, 60) : "";
+
   // Цвет — по словарю (надёжнее меток): ищем цвет-слово в теле поста.
   const COLORS = [
     [/серебр|silver/i, "Серебристый"],
@@ -772,6 +776,7 @@ function parseCaption(text) {
     bodyType: bodyTypeM ? bodyTypeM[0].toUpperCase() + bodyTypeM.slice(1) : "",
     fuelType,
     color,
+    trim,
     // Буллеты-описание: строки тела без заголовка и без цены.
     highlights: body.filter(
       (l) => hasLetters(l) && !HEADER_RE.test(l) && !/цена|стоимость|price/i.test(l),

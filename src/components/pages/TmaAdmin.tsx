@@ -99,6 +99,7 @@ function carFromDraft(d: Draft): Car {
     bodyType: p.bodyType || base.bodyType,
     fuelType: p.fuelType || base.fuelType,
     color: p.color || base.color,
+    trim: p.trim || base.trim,
     mileageKm,
     mileage: mileageKm > 0 ? `${mileageKm.toLocaleString("ru-RU")} км` : base.mileage,
     isNew: !(mileageKm > 0),
@@ -279,6 +280,24 @@ function DraftsTab({ tg, initData }: { tg: TG | null; initData: string }) {
               <div className="text-[11px] text-[#8C97A1]">{d.fileIds.length} фото</div>
             </div>
           </div>
+          {d.fileIds.length > 1 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {d.fileIds.map((fid, i) => (
+                <div
+                  key={fid + i}
+                  className="h-14 w-14 flex-none overflow-hidden rounded-[8px] bg-black"
+                >
+                  {/* eslint-disable-next-line */}
+                  <img
+                    src={`${API_BASE}/api/tgphoto?id=${encodeURIComponent(fid)}`}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
           <div className="mt-2 flex gap-2">
             <button
               onClick={() => setEditing({ car: carFromDraft(d), draftId: d.id })}

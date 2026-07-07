@@ -37,6 +37,7 @@ export type Draft = {
     bodyType?: string;
     fuelType?: string;
     color?: string;
+    trim?: string;
     highlights: string[];
   };
   ts: number;
