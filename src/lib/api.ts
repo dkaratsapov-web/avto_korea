@@ -3,7 +3,13 @@ import type { Car } from "@/data/cars";
 
 // VITE_LEAD_ENDPOINT = https://diauto-bot.<acc>.workers.dev/lead
 // База API = тот же воркер без /lead.
-const LEAD = (import.meta.env.VITE_LEAD_ENDPOINT as string | undefined) || "";
+// Прод-фолбэк: если переменная не задана при сборке (например статический
+// экспорт сайта на Яндекс), всё равно ходим в публичный воркер — иначе сайт
+// не подхватит общий каталог, обновляемый из бота. URL воркера не секрет.
+const DEFAULT_WORKER = "https://diauto-bot.d-karatsapov.workers.dev";
+const LEAD =
+  (import.meta.env.VITE_LEAD_ENDPOINT as string | undefined) ||
+  `${DEFAULT_WORKER}/lead`;
 export const API_BASE = LEAD.replace(/\/lead\/?$/, "");
 export const hasBackend = !!API_BASE;
 
