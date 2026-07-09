@@ -1455,16 +1455,20 @@ function AdminsTab({ initData }: { initData: string }) {
       showToast("ID — только цифры (узнать через @userinfobot)", "error");
       return;
     }
-    const res = await adminCall<{ admins: AdminsMap }>(initData, "admins.set", {
-      id: id.trim(),
-      role: r,
-      name,
-    });
+    const res = await adminCall<{ admins: AdminsMap; notified?: boolean }>(
+      initData,
+      "admins.set",
+      { id: id.trim(), role: r, name },
+    );
     if (res.ok) {
       setAdmins(res.admins);
       setId("");
       setName("");
-      showToast("Админ добавлен");
+      showToast(
+        res.notified
+          ? "Админ добавлен — уведомление отправлено"
+          : "Админ добавлен. Уведомление не дошло: пусть он сначала запустит бота (кнопка «Старт»)",
+      );
     } else showToast("Ошибка: " + (res.error || ""), "error");
   }
 

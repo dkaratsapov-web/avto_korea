@@ -1016,9 +1016,29 @@ async function handleAdmin(env, action, payload, role, user) {
       if (!/^\d+$/.test(id) || (r !== "manager" && r !== "viewer"))
         return json({ ok: false, error: "bad_payload" }, 400);
       const admins = (await kvGet(env, "admins", {})) || {};
+      const existed = !!admins[id];
       admins[id] = { role: r, name: payload?.name || "", addedAt: Date.now() };
       await kvPut(env, "admins", admins);
-      return json({ ok: true, admins });
+
+      // Уведомление новому админу. Сработает, только если он уже запускал бота
+      // (Telegram не даёт писать первым тем, кто не открывал чат с ботом).
+      let notified = false;
+      try {
+        const roleLabel = r === "manager" ? "менеджер" : "наблюдатель";
+        const text = existed
+          ? `🔧 Ваша роль в админке *ДиАвто69* изменена: *${roleLabel}*.`
+          : `✅ Вам выдан доступ в админку *ДиАвто69*.\nРоль: *${roleLabel}*.\n\nОткройте мини-приложение бота и нажмите значок щита 🛡 в правом верхнем углу.`;
+        const resp = await api(env, "sendMessage", {
+          chat_id: id,
+          text,
+          parse_mode: "Markdown",
+        });
+        const jr = await resp.json().catch(() => ({}));
+        notified = !!jr.ok;
+      } catch {
+        /* не доставлено — новый админ ещё не запускал бота */
+      }
+      return json({ ok: true, admins, notified });
     }
 
     case "admins.remove": {
