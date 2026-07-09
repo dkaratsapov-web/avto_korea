@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
-import { useTilt } from "@/lib/useTilt";
+
+// Углы «прикнопленных» бумажек — лёгкий рваный ритм, как на реальной доске.
+const ROT = [-2.2, 1.6, -1.4, 2, -1.2, 1.7];
 
 const items = [
   {
@@ -47,60 +49,75 @@ const items = [
   },
 ];
 
+// Красная кнопка-пин над бумажкой.
+function Pushpin() {
+  return (
+    <span
+      aria-hidden
+      className="absolute -top-2.5 left-1/2 z-20 h-[18px] w-[18px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#ff6a5d,#9c1a12_70%)] shadow-[0_4px_7px_rgba(0,0,0,0.5)] ring-2 ring-white/60"
+    >
+      <span className="absolute left-1/2 top-[3px] h-[5px] w-[5px] -translate-x-1/2 rounded-full bg-white/85" />
+      <span className="absolute left-1/2 top-full h-[10px] w-[2px] -translate-x-1/2 rounded-b bg-black/30" />
+    </span>
+  );
+}
+
 function AdvantageCard({
   icon: Icon,
   title,
   text,
   featured = false,
+  rot = 0,
 }: {
   icon: LucideIcon;
   title: string;
   text: string;
   featured?: boolean;
+  rot?: number;
 }) {
-  const tilt = useTilt(featured ? 4 : 6);
-
-  if (featured) {
-    return (
-      <div
-        ref={tilt.ref}
-        onPointerMove={tilt.onMove}
-        onPointerLeave={tilt.onLeave}
-        className="group relative flex h-full flex-col justify-between overflow-hidden rounded-card border border-bordeaux-bright/30 bg-[linear-gradient(135deg,#3a0f0c_0%,#1B222B_55%)] p-7 text-white transition-[transform,box-shadow] duration-300 [transform-style:preserve-3d] hover:shadow-glow"
-      >
-        <div className="glow-blob -right-6 -top-6 h-44 w-44 animate-glow-pan bg-bordeaux/30" aria-hidden />
-        <span className="pointer-events-none absolute inset-0 z-10 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-        <div className="relative mb-10 flex h-14 w-14 items-center justify-center rounded-[16px] bg-bordeaux text-white transition-transform duration-300 group-hover:-rotate-6">
-          <Icon className="h-7 w-7" />
-        </div>
-        <div className="relative">
-          <h3 className="mb-2 text-[24px] normal-case tracking-[0.01em] text-shine">
-            {title}
-          </h3>
-          <p className="max-w-md text-[15px] leading-relaxed text-[#C7CFD6]">
-            {text}
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const common =
+    "group relative h-full rounded-[14px] p-6 will-change-transform";
+  const skin = featured
+    ? "flex flex-col justify-between overflow-hidden border border-bordeaux-bright/30 bg-[linear-gradient(135deg,#3a0f0c_0%,#1B222B_55%)] p-7 text-white shadow-[0_18px_44px_-14px_rgba(0,0,0,0.65)]"
+    : "border border-black/[0.06] bg-[#fbfaf5] shadow-[0_14px_34px_-14px_rgba(20,25,32,0.55)] [background-image:repeating-linear-gradient(0deg,transparent,transparent_27px,rgba(30,40,55,0.05)_28px)]";
 
   return (
-    <div
-      ref={tilt.ref}
-      onPointerMove={tilt.onMove}
-      onPointerLeave={tilt.onLeave}
-      className="group relative h-full overflow-hidden rounded-card border border-line bg-paper p-6 transition-[transform,box-shadow,border-color] duration-300 [transform-style:preserve-3d] hover:border-[#d4d8de] hover:shadow-card"
+    <motion.div
+      initial={{ opacity: 0, y: 52, rotate: rot * 3 }}
+      whileInView={{ opacity: 1, y: 0, rotate: rot }}
+      whileHover={{ rotate: 0, y: -8, transition: { type: "spring", stiffness: 300, damping: 18 } }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ type: "spring", stiffness: 90, damping: 12, delay: 0.04 }}
+      className={`${common} ${skin}`}
     >
-      <span className="absolute inset-x-0 top-0 h-[2px] scale-x-0 bg-gradient-to-r from-bordeaux-deep via-bordeaux-bright to-chrome transition-transform duration-300 group-hover:scale-x-100" />
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-graphite text-chrome transition-all duration-300 group-hover:-rotate-6 group-hover:bg-bordeaux group-hover:text-white">
-        <Icon className="h-6 w-6" />
-      </div>
-      <h3 className="mb-2 text-[20px] normal-case tracking-[0.01em] text-ink">
-        {title}
-      </h3>
-      <p className="text-[15px] leading-relaxed text-ink-2">{text}</p>
-    </div>
+      <Pushpin />
+      {featured ? (
+        <>
+          <div className="glow-blob -right-6 -top-6 h-44 w-44 animate-glow-pan bg-bordeaux/30" aria-hidden />
+          <div className="relative mb-10 flex h-14 w-14 items-center justify-center rounded-[16px] bg-bordeaux text-white transition-transform duration-300 group-hover:-rotate-6">
+            <Icon className="h-7 w-7" />
+          </div>
+          <div className="relative">
+            <h3 className="mb-2 text-[24px] normal-case tracking-[0.01em] text-shine">
+              {title}
+            </h3>
+            <p className="max-w-md text-[15px] leading-relaxed text-[#C7CFD6]">
+              {text}
+            </p>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-graphite text-chrome transition-all duration-300 group-hover:-rotate-6 group-hover:bg-bordeaux group-hover:text-white">
+            <Icon className="h-6 w-6" />
+          </div>
+          <h3 className="mb-2 text-[20px] normal-case tracking-[0.01em] text-ink">
+            {title}
+          </h3>
+          <p className="text-[15px] leading-relaxed text-ink-2">{text}</p>
+        </>
+      )}
+    </motion.div>
   );
 }
 
@@ -151,7 +168,7 @@ function MobileScrollCards() {
               key={item.title}
               className="h-[360px] w-[80vw] max-w-[320px] flex-none snap-start"
             >
-              <AdvantageCard {...item} featured={i === 0} />
+              <AdvantageCard {...item} featured={i === 0} rot={ROT[i % ROT.length]} />
             </div>
           ))}
         </div>
@@ -179,7 +196,7 @@ function MobileScrollCards() {
               key={item.title}
               className="h-[56svh] max-h-[440px] w-[78vw] max-w-[330px] flex-none"
             >
-              <AdvantageCard {...item} featured={i === 0} />
+              <AdvantageCard {...item} featured={i === 0} rot={ROT[i % ROT.length]} />
             </div>
           ))}
         </motion.div>
@@ -195,7 +212,7 @@ export function Advantages() {
       <section className="hidden overflow-x-clip bg-gradient-to-b from-white to-paper pb-10 pt-[72px] md:block">
         <div className="wrap">
           <ContainerScroll titleComponent={heading}>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {items.map((item, i) => {
                 const featured = i === 0 || i === 5;
                 return (
@@ -203,7 +220,11 @@ export function Advantages() {
                     key={item.title}
                     className={featured ? "sm:col-span-2 lg:col-span-2" : ""}
                   >
-                    <AdvantageCard {...item} featured={featured} />
+                    <AdvantageCard
+                      {...item}
+                      featured={featured}
+                      rot={ROT[i % ROT.length]}
+                    />
                   </div>
                 );
               })}
