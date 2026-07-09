@@ -85,7 +85,7 @@ export function Header() {
         <div
           className={`${capsule} ${h} flex -rotate-1 items-center px-4 hover:rotate-0 sm:px-5`}
         >
-          <Logo variant="wordmark" className="h-8 w-auto" />
+          <Logo variant="full" className="h-10 w-auto" />
         </div>
 
         {/* Каталог — отдельная яркая пульсирующая кнопка */}
