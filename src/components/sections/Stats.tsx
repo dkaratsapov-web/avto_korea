@@ -20,7 +20,7 @@ function StatItem({ stat, delay }: { stat: Stat; delay: number }) {
   const { ref, value } = useCountUp(stat.value);
   return (
     <Reveal direction="up" delay={delay} className="text-center">
-      <div className="font-num text-[clamp(40px,6vw,68px)] font-bold leading-none text-white">
+      <div className="font-num text-[clamp(22px,3vw,34px)] font-bold leading-none text-white">
         <span className="text-bordeaux-bright">{stat.prefix}</span>
         <span ref={ref}>{value}</span>
         <span className="text-chrome">{stat.suffix}</span>
