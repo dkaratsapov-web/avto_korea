@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { ArrowRight, Loader2, Paperclip } from "lucide-react";
+import { ArrowRight, Loader2, Paperclip, Send, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { showToast } from "@/lib/toast";
-import { countries } from "@/lib/site";
+import { countries, site } from "@/lib/site";
 
 type Layout = "compact" | "full";
 type Tone = "dark" | "light";
@@ -50,6 +50,8 @@ export type LeadFormProps = {
   defaultCountry?: keyof typeof countries;
   /** Показывать поле «Марка и модель» в compact-форме (на карточке авто не нужно). */
   withCar?: boolean;
+  /** Показывать быстрые кнопки-мессенджеры (MAX / Telegram / WhatsApp). */
+  withContacts?: boolean;
 };
 
 export function LeadForm({
@@ -60,6 +62,7 @@ export function LeadForm({
   className = "",
   defaultCountry,
   withCar = true,
+  withContacts = false,
 }: LeadFormProps) {
   const [loading, setLoading] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -175,6 +178,41 @@ export function LeadForm({
             ) : null}
             {submitLabel}
           </Button>
+
+          {withContacts ? (
+            <div className="flex w-full basis-full flex-wrap items-center gap-2 border-t border-line-dark pt-3">
+              <span className="text-[12.5px] font-semibold text-[#8C97A1]">
+                Или напишите:
+              </span>
+              <a
+                href={site.maxHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Написать в MAX"
+                className="inline-flex items-center gap-1.5 rounded-full border border-line-dark bg-white/[0.05] px-3.5 py-2 text-[13px] font-bold text-white transition-colors hover:border-steel hover:bg-white/[0.1]"
+              >
+                <span className="font-extrabold text-[#2B7FFF]">MAX</span>
+              </a>
+              <a
+                href={site.telegramHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Написать в Telegram"
+                className="inline-flex items-center gap-1.5 rounded-full border border-line-dark bg-white/[0.05] px-3.5 py-2 text-[13px] font-bold text-white transition-colors hover:border-steel hover:bg-white/[0.1]"
+              >
+                <Send className="h-4 w-4 text-[#29A9EB]" /> Telegram
+              </a>
+              <a
+                href={site.whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Написать в WhatsApp"
+                className="inline-flex items-center gap-1.5 rounded-full border border-line-dark bg-white/[0.05] px-3.5 py-2 text-[13px] font-bold text-white transition-colors hover:border-steel hover:bg-white/[0.1]"
+              >
+                <MessageCircle className="h-4 w-4 text-[#25D366]" /> WhatsApp
+              </a>
+            </div>
+          ) : null}
         </form>
         {consentNote}
       </div>

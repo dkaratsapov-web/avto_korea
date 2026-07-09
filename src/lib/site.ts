@@ -16,6 +16,9 @@ export const site = {
   telegram: "@Dmitriicarexport",
   telegramHref: "https://t.me/Dmitriicarexport",
 
+  // Мессенджер MAX. TODO: подставить реальную ссылку профиля/канала MAX.
+  maxHref: "https://max.ru/",
+
   // TODO: подтвердить наличие WhatsApp и e-mail.
   whatsappHref: "https://wa.me/74822006969",
   email: "info@diauto69.ru",

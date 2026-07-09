@@ -126,7 +126,8 @@ export function CatalogPage() {
       {/* Премиальная шапка */}
       <section className="grain relative overflow-hidden bg-[radial-gradient(900px_420px_at_80%_-10%,#27313d,#11151A_60%)] pb-12 pt-[120px] text-white">
         <div className="glow-blob right-[10%] top-0 hidden h-72 w-72 animate-glow-pan bg-bordeaux/25 md:block" aria-hidden />
-        <div className="wrap relative">
+        <div className="wrap relative lg:flex lg:items-end lg:justify-between lg:gap-10">
+          <div className="lg:max-w-xl">
           <nav className="mb-5 flex items-center gap-1.5 text-[13px] font-semibold text-[#9AA4B2]">
             <Link to="/" className="transition-colors hover:text-white">
               Главная
@@ -144,9 +145,10 @@ export function CatalogPage() {
             Цена уже под ключ в РФ — с доставкой, растаможкой, утильсбором и ЭПТС.
             Подберите по параметрам и откройте карточку с фото.
           </p>
+          </div>
 
-          {/* Табы по стране */}
-          <div className="mt-7 flex flex-wrap gap-2">
+          {/* Табы по стране — справа, заполняют пустое место у заголовка */}
+          <div className="mt-7 flex flex-wrap gap-2 lg:mt-0 lg:max-w-[440px] lg:justify-end">
             <Tab active={countryTab === "all"} onClick={() => setCountryTab("all")}>
               Все страны
             </Tab>
@@ -168,7 +170,7 @@ export function CatalogPage() {
       <div className="wrap mt-8 grid gap-8 lg:grid-cols-[280px_1fr]">
         {/* Фильтры */}
         <aside className={filtersOpen ? "block" : "hidden lg:block"}>
-          <div className="space-y-6 rounded-card border border-line bg-white p-5 lg:sticky lg:top-[100px]">
+          <div className="space-y-6 rounded-card border border-line bg-white p-5 lg:sticky lg:top-[100px] lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto lg:overscroll-contain">
             <div className="flex items-center justify-between">
               <span className="font-display text-[18px] uppercase text-ink">
                 Фильтры

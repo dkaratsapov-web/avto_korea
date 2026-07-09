@@ -112,7 +112,11 @@ export function Hero() {
           </div>
 
           <div id="hero-form" className="scroll-mt-24">
-            <LeadForm source="Hero — первый экран" submitLabel="Получить расчёт" />
+            <LeadForm
+              source="Hero — первый экран"
+              submitLabel="Получить расчёт"
+              withContacts
+            />
           </div>
 
           <div className="mt-[26px] flex items-center gap-2.5 text-[14px] text-[#AEB7BE]">
