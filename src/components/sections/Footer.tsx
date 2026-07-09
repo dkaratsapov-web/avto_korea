@@ -1,6 +1,7 @@
-import { Phone, Send, MessageCircle, Mail, MapPin } from "lucide-react";
+import { Phone, MessageCircle, Mail, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Logo } from "@/components/ui/Logo";
+import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { CarSilhouette } from "@/components/icons/CarSilhouette";
 import { Flag } from "@/components/icons/Flag";
 import { nav, site } from "@/lib/site";
@@ -68,7 +69,7 @@ export function Footer() {
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 transition-colors hover:text-white"
               >
-                <Send className="h-4 w-4 text-steel" /> Telegram {site.telegram}
+                <TelegramIcon className="h-4 w-4" /> Telegram {site.telegram}
               </a>
             </li>
             <li>

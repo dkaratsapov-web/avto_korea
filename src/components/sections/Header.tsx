@@ -3,7 +3,6 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import {
   Menu,
   X,
-  Send,
   Phone,
   MessageCircle,
   ArrowRight,
@@ -11,6 +10,7 @@ import {
   Car,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { Button } from "@/components/ui/Button";
 import { Magnetic } from "@/components/ui/Magnetic";
 import { nav, site } from "@/lib/site";
@@ -229,7 +229,7 @@ export function Header() {
                 aria-label="Telegram"
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome hover:text-white"
               >
-                <Send className="h-5 w-5" />
+                <TelegramIcon className="h-5 w-5" />
               </a>
               <a
                 href={site.whatsappHref}

@@ -4,8 +4,8 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Send,
 } from "lucide-react";
+import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { Modal } from "@/components/ui/Modal";
 import { LeadForm } from "@/components/LeadForm";
 import { Button } from "@/components/ui/Button";
@@ -172,7 +172,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
               variant="ghost"
               className="flex-1"
             >
-              <Send className="h-[18px] w-[18px]" />
+              <TelegramIcon className="h-[18px] w-[18px]" />
               В Telegram
             </Button>
           </div>

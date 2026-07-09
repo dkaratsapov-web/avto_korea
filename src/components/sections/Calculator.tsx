@@ -5,12 +5,12 @@ import {
   Landmark,
   Wrench,
   Equal,
-  Send,
   ArrowRight,
   ShieldCheck,
   Clock,
   Lock,
 } from "lucide-react";
+import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { LeadForm } from "@/components/LeadForm";
 import { Reveal } from "@/components/ui/Reveal";
 import { site } from "@/lib/site";
@@ -191,7 +191,7 @@ export function Calculator() {
           >
             <span className="flex items-center gap-3">
               <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-bordeaux text-white">
-                <Send className="h-5 w-5" />
+                <TelegramIcon className="h-5 w-5" />
               </span>
               <span>
                 <span className="block text-[14px] font-bold text-white">

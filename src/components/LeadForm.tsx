@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowRight, Loader2, Paperclip, Send, MessageCircle } from "lucide-react";
+import { ArrowRight, Loader2, Paperclip, MessageCircle } from "lucide-react";
+import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { Button } from "@/components/ui/Button";
 import { showToast } from "@/lib/toast";
 import { countries, site } from "@/lib/site";
@@ -200,7 +201,7 @@ export function LeadForm({
                 aria-label="Написать в Telegram"
                 className="inline-flex items-center gap-1.5 rounded-full border border-line-dark bg-white/[0.05] px-3.5 py-2 text-[13px] font-bold text-white transition-colors hover:border-steel hover:bg-white/[0.1]"
               >
-                <Send className="h-4 w-4 text-[#29A9EB]" /> Telegram
+                <TelegramIcon className="h-4 w-4" /> Telegram
               </a>
               <a
                 href={site.whatsappHref}

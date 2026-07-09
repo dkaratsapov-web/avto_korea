@@ -1,4 +1,5 @@
-import { Heart, Trash2, Send, ArrowRight } from "lucide-react";
+import { Heart, Trash2, ArrowRight } from "lucide-react";
+import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { Modal } from "@/components/ui/Modal";
 import { CarModal } from "@/components/CarModal";
 import { LeadForm } from "@/components/LeadForm";
@@ -126,7 +127,7 @@ export function ModalHost() {
             rel="noopener noreferrer"
             variant="ghost"
           >
-            <Send className="h-[18px] w-[18px]" />
+            <TelegramIcon className="h-[18px] w-[18px]" />
             Обсудить в Telegram
           </Button>
         </div>

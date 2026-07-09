@@ -20,6 +20,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
+import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { useCars } from "@/lib/carsStore";
 import { countries, site, type CountryCode } from "@/lib/site";
 import { type Car, formatPrice } from "@/data/cars";
@@ -1467,7 +1468,7 @@ export function FaqView({ onBack }: { onBack: () => void }) {
         rel="noreferrer"
         className="btn btn-primary mt-4 w-full"
       >
-        <Send className="h-[18px] w-[18px]" /> Задать вопрос менеджеру
+        <TelegramIcon className="h-[18px] w-[18px]" /> Задать вопрос менеджеру
       </a>
     </>
   );

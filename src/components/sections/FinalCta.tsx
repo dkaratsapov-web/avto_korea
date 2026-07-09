@@ -1,4 +1,4 @@
-import { Send } from "lucide-react";
+import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { LeadForm } from "@/components/LeadForm";
 import { Button } from "@/components/ui/Button";
 import { CarSilhouette } from "@/components/icons/CarSilhouette";
@@ -32,7 +32,7 @@ export function FinalCta() {
               rel="noopener noreferrer"
               variant="ghost"
             >
-              <Send className="h-[18px] w-[18px]" />
+              <TelegramIcon className="h-[18px] w-[18px]" />
               Написать в Telegram
             </Button>
           </div>
