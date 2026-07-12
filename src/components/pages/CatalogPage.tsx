@@ -163,24 +163,24 @@ export function CatalogPage() {
       {/* Липкая горизонтальная панель фильтров (десктоп) */}
       <div className="sticky top-[64px] z-30 hidden border-b border-line bg-paper/95 shadow-[0_6px_20px_-12px_rgba(0,0,0,0.3)] backdrop-blur md:block">
         <div className="wrap flex flex-wrap items-center gap-2 py-3">
-          {/* Страна */}
-          <Seg active={countryTab === "all"} onClick={() => setCountryTab("all")}>
-            Все страны
-          </Seg>
-          {facets.countries.map((code) => (
-            <Seg
-              key={code}
-              active={countryTab === code}
-              onClick={() =>
-                setCountryTab((v) => (v === code ? "all" : code))
-              }
-            >
-              <Flag code={code} className="h-3.5 w-5" />
-              {countries[code].label}
-            </Seg>
-          ))}
-
-          <Divider />
+          {/* Страна — дропдаун */}
+          <FacetDropdown label="Страна" count={countryTab !== "all" ? 1 : 0}>
+            <div className="flex flex-wrap gap-2">
+              <Chip active={countryTab === "all"} onClick={() => setCountryTab("all")}>
+                Все страны
+              </Chip>
+              {facets.countries.map((code) => (
+                <Chip
+                  key={code}
+                  active={countryTab === code}
+                  onClick={() => setCountryTab(code)}
+                >
+                  <Flag code={code} className="h-3.5 w-5" />
+                  {countries[code].label}
+                </Chip>
+              ))}
+            </div>
+          </FacetDropdown>
 
           {/* В наличии */}
           {facets.statuses.map((s) => (
