@@ -78,7 +78,7 @@ function AdvantageCard({
   const common =
     "group relative h-full rounded-[14px] p-6 will-change-transform";
   const skin = featured
-    ? "flex flex-col justify-between overflow-hidden border border-bordeaux-bright/30 bg-[linear-gradient(135deg,#3a0f0c_0%,#1B222B_55%)] p-7 text-white shadow-[0_18px_44px_-14px_rgba(0,0,0,0.65)]"
+    ? "flex flex-col justify-between border border-bordeaux-bright/30 bg-[linear-gradient(135deg,#3a0f0c_0%,#1B222B_55%)] p-7 text-white shadow-[0_18px_44px_-14px_rgba(0,0,0,0.65)]"
     : "border border-black/[0.06] bg-[#fbfaf5] shadow-[0_14px_34px_-14px_rgba(20,25,32,0.55)] [background-image:repeating-linear-gradient(0deg,transparent,transparent_27px,rgba(30,40,55,0.05)_28px)]";
 
   return (
@@ -93,7 +93,10 @@ function AdvantageCard({
       <Pushpin />
       {featured ? (
         <>
-          <div className="glow-blob -right-6 -top-6 h-44 w-44 animate-glow-pan bg-bordeaux/30" aria-hidden />
+          {/* свечение обрезаем отдельным слоем, чтобы кнопка-пин сверху не срезалась */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[14px]">
+            <div className="glow-blob -right-6 -top-6 h-44 w-44 animate-glow-pan bg-bordeaux/30" aria-hidden />
+          </div>
           <div className="relative mb-10 flex h-14 w-14 items-center justify-center rounded-[16px] bg-bordeaux text-white transition-transform duration-300 group-hover:-rotate-6">
             <Icon className="h-7 w-7" />
           </div>
