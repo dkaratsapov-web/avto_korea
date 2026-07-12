@@ -28,11 +28,13 @@ export const site = {
   region: "Тверь · 69 регион",
 } as const;
 
+// Навигация по реальным страницам (без якорей-секций).
 export const nav = [
-  { href: "#how", label: "Как работаем" },
-  { href: "#calc", label: "Расчёт" },
-  { href: "#reviews", label: "Отзывы" },
-  { href: "#contacts", label: "Контакты" },
+  { href: "/about", label: "О нас" },
+  { href: "/catalog", label: "Каталог" },
+  { href: "/articles", label: "Статьи" },
+  { href: "/reviews", label: "Отзывы" },
+  { href: "/contacts", label: "Контакты" },
 ] as const;
 
 export type CountryCode = "kr" | "cn" | "jp" | "eu";

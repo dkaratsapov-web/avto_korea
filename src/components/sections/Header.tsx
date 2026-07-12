@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import {
   Menu,
   X,
@@ -23,30 +23,13 @@ const capsule =
 export function Header() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [active, setActive] = useState<string>("");
   const { openLead, openFavorites, favCount } = useUI();
-  const navigate = useNavigate();
   const { pathname } = useLocation();
-
-  function scrollToId(id: string) {
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: "smooth" });
-  }
-  function handleNav(href: string) {
-    setOpen(false);
-    if (href === "#catalog") {
-      navigate("/catalog");
-      window.scrollTo({ top: 0 });
-      return;
-    }
-    const id = href.slice(1);
-    if (pathname !== "/") {
-      navigate("/");
-      setTimeout(() => scrollToId(id), 90);
-    } else {
-      scrollToId(id);
-    }
-  }
+  // В шапке-капсуле — страницы, кроме тех, что вынесены отдельными кнопками
+  // (Каталог и Статьи).
+  const pageNav = nav.filter(
+    (n) => n.href !== "/catalog" && n.href !== "/articles",
+  );
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -54,24 +37,6 @@ export function Header() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  useEffect(() => {
-    const ids = nav.map((n) => n.href.slice(1));
-    const els = ids
-      .map((id) => document.getElementById(id))
-      .filter((el): el is HTMLElement => el !== null);
-    if (els.length === 0) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) setActive(e.target.id);
-        });
-      },
-      { rootMargin: "-45% 0px -50% 0px", threshold: 0 },
-    );
-    els.forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
-  }, [pathname]);
 
   const h = scrolled ? "h-12" : "h-[52px]";
 
@@ -106,8 +71,8 @@ export function Header() {
           className={`${capsule} ${h} mx-auto hidden items-center gap-1 px-2 lg:flex`}
           aria-label="Основная навигация"
         >
-          {nav.map((item, i) => {
-            const isActive = active === item.href.slice(1);
+          {pageNav.map((item, i) => {
+            const isActive = pathname === item.href;
             return (
               <span key={item.href} className="flex items-center">
                 {i > 0 ? (
@@ -116,10 +81,9 @@ export function Header() {
                     aria-hidden
                   />
                 ) : null}
-                <button
-                  type="button"
-                  onClick={() => handleNav(item.href)}
-                  aria-current={isActive ? "true" : undefined}
+                <Link
+                  to={item.href}
+                  aria-current={isActive ? "page" : undefined}
                   className={`relative rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors ${
                     isActive
                       ? "bg-white/[0.08] text-white"
@@ -133,7 +97,7 @@ export function Header() {
                       aria-hidden
                     />
                   ) : null}
-                </button>
+                </Link>
               </span>
             );
           })}
@@ -209,13 +173,13 @@ export function Header() {
             >
               <Car className="h-[18px] w-[18px]" /> Каталог
             </Link>
-            {nav.map((item) => {
-              const isActive = active === item.href.slice(1);
+            {pageNav.map((item) => {
+              const isActive = pathname === item.href;
               return (
-                <button
+                <Link
                   key={item.href}
-                  type="button"
-                  onClick={() => handleNav(item.href)}
+                  to={item.href}
+                  onClick={() => setOpen(false)}
                   className={`flex items-center gap-3 rounded-full px-4 py-3 text-left text-[16px] font-semibold transition-colors ${
                     isActive
                       ? "bg-white/[0.08] text-white"
@@ -229,7 +193,7 @@ export function Header() {
                     aria-hidden
                   />
                   {item.label}
-                </button>
+                </Link>
               );
             })}
             <Link

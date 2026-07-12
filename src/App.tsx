@@ -17,6 +17,12 @@ const CatalogPage = lazy(() =>
 const AboutPage = lazy(() =>
   import("@/components/pages/AboutPage").then((m) => ({ default: m.AboutPage })),
 );
+const ReviewsPage = lazy(() =>
+  import("@/components/pages/ReviewsPage").then((m) => ({ default: m.ReviewsPage })),
+);
+const ContactsPage = lazy(() =>
+  import("@/components/pages/ContactsPage").then((m) => ({ default: m.ContactsPage })),
+);
 const ArticlesPage = lazy(() =>
   import("@/components/pages/ArticlesPage").then((m) => ({
     default: m.ArticlesPage,
@@ -58,6 +64,8 @@ export function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/about" element={<AboutPage />} />
+            <Route path="/reviews" element={<ReviewsPage />} />
+            <Route path="/contacts" element={<ContactsPage />} />
             <Route path="/articles" element={<ArticlesPage />} />
             <Route path="/articles/:slug" element={<ArticlePage />} />
           </Route>

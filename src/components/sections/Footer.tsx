@@ -38,12 +38,12 @@ export function Footer() {
           <ul className="space-y-2.5">
             {nav.map((item) => (
               <li key={item.href}>
-                <a
-                  href={item.href}
+                <Link
+                  to={item.href}
                   className="transition-colors hover:text-white"
                 >
                   {item.label}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
