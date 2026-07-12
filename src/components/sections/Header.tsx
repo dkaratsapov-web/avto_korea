@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import {
   Menu,
   X,
+  BookOpen,
   Phone,
   MessageCircle,
   ArrowRight,
@@ -136,6 +137,16 @@ export function Header() {
               </span>
             );
           })}
+          <span
+            className="mx-0.5 h-3.5 w-[5px] -skew-x-[24deg] rounded-[1px] bg-bordeaux-bright/40"
+            aria-hidden
+          />
+          <Link
+            to="/articles"
+            className="ml-1 flex items-center gap-1.5 rounded-full bg-gradient-to-b from-bordeaux-bright to-bordeaux px-3.5 py-2 text-[14px] font-bold text-white shadow-[0_4px_14px_rgba(122,20,16,.45)] transition-transform hover:scale-[1.04]"
+          >
+            <BookOpen className="h-4 w-4" /> Статьи
+          </Link>
         </nav>
 
         {/* Капсула: действия — наклон в другую сторону */}
@@ -221,6 +232,13 @@ export function Header() {
                 </button>
               );
             })}
+            <Link
+              to="/articles"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 rounded-full px-4 py-3 text-left text-[16px] font-semibold text-bordeaux-bright hover:bg-white/5"
+            >
+              <BookOpen className="h-[18px] w-[18px]" /> Полезные статьи
+            </Link>
             <div className="mt-1 flex items-center gap-2 border-t border-line-dark px-2 pt-3">
               <a
                 href={site.telegramHref}

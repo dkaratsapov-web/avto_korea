@@ -140,7 +140,7 @@ export function CatalogPage() {
               Главная
             </Link>
             <ChevronRight className="h-3.5 w-3.5" />
-            <span className="text-chrome">Наличие</span>
+            <span className="text-chrome">Каталог</span>
           </nav>
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
             <div>
@@ -160,9 +160,9 @@ export function CatalogPage() {
         <div className="chrome-line absolute inset-x-0 bottom-0" />
       </section>
 
-      {/* Липкая горизонтальная панель фильтров (десктоп) */}
-      <div className="sticky top-[64px] z-30 hidden border-b border-line bg-paper/95 py-2.5 backdrop-blur md:block">
-        <div className="wrap">
+      {/* Липкая горизонтальная панель фильтров (десктоп) — плавающая капсула без подложки */}
+      <div className="pointer-events-none sticky top-[64px] z-30 hidden py-2.5 md:block">
+        <div className="wrap [&_*]:pointer-events-auto">
           <div className="flex flex-wrap items-center gap-1.5 rounded-[28px] border-2 border-[#cfd4dc] bg-white px-3 py-2 shadow-[0_12px_30px_-18px_rgba(20,25,32,0.5)]">
           {/* Страна — дропдаун */}
           <FacetDropdown label="Страна" count={countryTab !== "all" ? 1 : 0}>

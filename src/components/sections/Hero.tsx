@@ -8,8 +8,8 @@ import type { CountryCode } from "@/lib/site";
 
 const badges = [
   { strong: "15 мин", rest: " — расчёт под ключ" },
-  { strong: "30–45", rest: " дней доставка" },
-  { pre: "Цена ", strong: "с растаможкой" },
+  { strong: "от 25", rest: " дней доставка" },
+  { pre: "Цена ", strong: "под ключ" },
 ];
 
 const flags: { code: CountryCode; title: string }[] = [
@@ -148,7 +148,7 @@ export function Hero() {
       <div className="wrap relative z-10 pb-[72px] max-md:pb-12">
         <Link
           to="/catalog"
-          className="group flex h-[60px] w-full items-center justify-center gap-3 rounded-[16px] border border-chrome/30 bg-white/[0.06] text-[18px] font-extrabold uppercase tracking-[0.03em] text-white backdrop-blur-sm transition-all duration-300 hover:border-chrome hover:bg-white/[0.12] sm:h-[64px] sm:text-[20px]"
+          className="group flex h-[60px] w-full items-center justify-center gap-3 rounded-[16px] border border-chrome/30 bg-white/[0.06] text-[18px] font-extrabold uppercase tracking-[0.03em] text-white backdrop-blur-sm transition-all duration-300 hover:border-bordeaux-bright hover:bg-bordeaux hover:shadow-[0_10px_30px_-8px_rgba(122,20,16,.6)] sm:h-[64px] sm:text-[20px]"
         >
           Перейти в каталог
           <ArrowRight className="h-6 w-6 transition-transform duration-300 group-hover:translate-x-1.5" />

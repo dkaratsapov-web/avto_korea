@@ -14,6 +14,16 @@ const CatalogPage = lazy(() =>
     default: m.CatalogPage,
   })),
 );
+const ArticlesPage = lazy(() =>
+  import("@/components/pages/ArticlesPage").then((m) => ({
+    default: m.ArticlesPage,
+  })),
+);
+const ArticlePage = lazy(() =>
+  import("@/components/pages/ArticlePage").then((m) => ({
+    default: m.ArticlePage,
+  })),
+);
 const AdminPage = lazy(() =>
   import("@/components/pages/AdminPage").then((m) => ({ default: m.AdminPage })),
 );
@@ -44,6 +54,8 @@ export function App() {
           <Route element={<SiteLayout />}>
             <Route path="/" element={<Landing />} />
             <Route path="/catalog" element={<CatalogPage />} />
+            <Route path="/articles" element={<ArticlesPage />} />
+            <Route path="/articles/:slug" element={<ArticlePage />} />
           </Route>
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/tma" element={<TmaApp />} />

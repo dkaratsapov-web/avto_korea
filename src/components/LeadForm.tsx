@@ -147,7 +147,7 @@ export function LeadForm({
             name="name"
             placeholder="Ваше имя"
             aria-label="Имя"
-            className={`${fieldClass} min-w-[140px] flex-1`}
+            className={`${fieldClass} min-w-[104px] flex-1`}
           />
           {withCar ? (
             <input
@@ -155,7 +155,7 @@ export function LeadForm({
               name="car"
               placeholder="Марка и модель"
               aria-label="Авто или бюджет"
-              className={`${fieldClass} min-w-[140px] flex-1`}
+              className={`${fieldClass} min-w-[104px] flex-1`}
             />
           ) : null}
           <input
@@ -166,7 +166,7 @@ export function LeadForm({
             aria-label="Телефон"
             required
             onInput={maskPhone}
-            className={`${fieldClass} min-w-[140px] flex-1`}
+            className={`${fieldClass} min-w-[104px] flex-1`}
           />
           <Button
             type="submit"
