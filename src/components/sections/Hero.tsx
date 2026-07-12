@@ -22,10 +22,16 @@ const flags: { code: CountryCode; title: string }[] = [
 // import.meta.env.BASE_URL учитывает base из vite.config (на GitHub Pages — /avto_korea/).
 // TODO: заменить на фото, на которое у заказчика есть права (см. ТЗ).
 const HERO_IMAGE = `${import.meta.env.BASE_URL}hero-bg.webp`;
+// Фоновый ролик (необязателен): положите файл в public/hero.mp4 — он подхватится
+// автоматически. Пока файла нет, video показывает poster (то же фото HERO_IMAGE).
+const HERO_VIDEO = `${import.meta.env.BASE_URL}hero.mp4`;
 
 export function Hero() {
   const ref = useRef<HTMLElement | null>(null);
   const [pointer, setPointer] = useState({ x: 0.5, y: 0.5, active: false });
+  const reduce =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function onMove(e: PointerEvent<HTMLElement>) {
     if (e.pointerType !== "mouse") return;
@@ -51,17 +57,36 @@ export function Hero() {
       onPointerLeave={() => setPointer((p) => ({ ...p, active: false }))}
       className="relative isolate overflow-hidden bg-graphite text-white after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-[3px] after:bg-[linear-gradient(90deg,transparent,#5C6D76,#AEBAC2,#5C6D76,transparent)] after:content-['']"
     >
-      {/* Фоновое фото + затемняющие слои + параллакс */}
+      {/* Фоновый ролик (poster = фото) + затемняющие слои + параллакс.
+          Нет reduced-motion → video (если есть hero.mp4, иначе poster);
+          reduced-motion → статичное фото. */}
       <div className="absolute inset-0 -z-10">
-        <img
-          src={HERO_IMAGE}
-          alt=""
-          aria-hidden
-          style={{
-            transform: `translate3d(${px * -16}px, ${py * -12}px, 0) scale(1.08)`,
-          }}
-          className="absolute inset-0 h-full w-full object-cover object-[50%_58%] brightness-[.78] saturate-[.9] transition-transform duration-300 ease-out"
-        />
+        {reduce ? (
+          <img
+            src={HERO_IMAGE}
+            alt=""
+            aria-hidden
+            style={{
+              transform: `translate3d(${px * -16}px, ${py * -12}px, 0) scale(1.08)`,
+            }}
+            className="absolute inset-0 h-full w-full object-cover object-[50%_58%] brightness-[.78] saturate-[.9] transition-transform duration-300 ease-out"
+          />
+        ) : (
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            poster={HERO_IMAGE}
+            aria-hidden
+            style={{
+              transform: `translate3d(${px * -16}px, ${py * -12}px, 0) scale(1.08)`,
+            }}
+            className="absolute inset-0 h-full w-full object-cover object-[50%_58%] brightness-[.78] saturate-[.9] transition-transform duration-300 ease-out"
+          >
+            <source src={HERO_VIDEO} type="video/mp4" />
+          </video>
+        )}
         <div className="absolute inset-0 bg-graphite/50" />
         <div className="absolute inset-0 bg-gradient-to-r from-graphite via-graphite/80 to-graphite/55" />
         <div className="absolute inset-0 bg-gradient-to-t from-graphite via-transparent to-graphite/60" />
