@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { LeadForm } from "@/components/LeadForm";
+import { CostQuiz } from "@/components/CostQuiz";
 import { Reveal } from "@/components/ui/Reveal";
 import { site } from "@/lib/site";
 
@@ -150,6 +151,11 @@ export function Calculator() {
                 Итог под ключ в РФ
               </div>
             </div>
+          </div>
+
+          {/* Квиз-расчёт — быстрый путь оставить заявку по шагам */}
+          <div className="mt-6">
+            <CostQuiz />
           </div>
         </Reveal>
 
