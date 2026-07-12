@@ -161,8 +161,9 @@ export function CatalogPage() {
       </section>
 
       {/* Липкая горизонтальная панель фильтров (десктоп) */}
-      <div className="sticky top-[64px] z-30 hidden border-b border-line bg-paper/95 shadow-[0_6px_20px_-12px_rgba(0,0,0,0.3)] backdrop-blur md:block">
-        <div className="wrap flex flex-wrap items-center gap-2 py-3">
+      <div className="sticky top-[64px] z-30 hidden border-b border-line bg-paper/95 py-2.5 backdrop-blur md:block">
+        <div className="wrap">
+          <div className="flex flex-wrap items-center gap-1.5 rounded-[28px] border-2 border-[#cfd4dc] bg-white px-3 py-2 shadow-[0_12px_30px_-18px_rgba(20,25,32,0.5)]">
           {/* Страна — дропдаун */}
           <FacetDropdown label="Страна" count={countryTab !== "all" ? 1 : 0}>
             <div className="flex flex-wrap gap-2">
@@ -275,20 +276,20 @@ export function CatalogPage() {
           ) : null}
 
           {/* Поиск + сортировка + сброс — справа */}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1.5">
             <label className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-2" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Поиск…"
-                className="field-light !h-10 w-[150px] pl-9 text-[14px] focus:w-[200px]"
+                className="field-light !h-9 w-[128px] rounded-full pl-9 text-[13px] focus:w-[176px]"
               />
             </label>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as Sort)}
-              className="field-light !h-10 appearance-none px-3 text-[14px] font-semibold"
+              className="field-light !h-9 appearance-none rounded-full px-3 text-[13px] font-semibold"
             >
               <option value="default">Сортировка</option>
               <option value="price-asc">Дешевле</option>
@@ -298,11 +299,12 @@ export function CatalogPage() {
               <button
                 type="button"
                 onClick={reset}
-                className="flex h-10 items-center gap-1.5 rounded-[11px] border border-bordeaux/25 bg-bordeaux/[0.06] px-3 text-[13px] font-bold text-bordeaux transition-colors hover:bg-bordeaux/10"
+                className="flex h-9 items-center gap-1.5 rounded-full border border-bordeaux/30 bg-bordeaux/[0.06] px-3 text-[12.5px] font-bold text-bordeaux transition-colors hover:bg-bordeaux/10"
               >
                 Сбросить <X className="h-3.5 w-3.5" />
               </button>
             ) : null}
+          </div>
           </div>
         </div>
       </div>
@@ -557,7 +559,7 @@ function Seg({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold transition-colors duration-200 ${
+      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition-colors duration-200 ${
         active
           ? "border-bordeaux-bright bg-bordeaux text-white"
           : "border-line bg-white text-ink-2 hover:border-steel hover:text-ink"
@@ -600,7 +602,7 @@ function FacetDropdown({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold transition-colors duration-200 ${
+        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition-colors duration-200 ${
           count > 0
             ? "border-graphite bg-graphite text-white"
             : open
