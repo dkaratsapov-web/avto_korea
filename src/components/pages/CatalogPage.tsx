@@ -6,17 +6,95 @@ import { CarCard } from "@/components/CarCard";
 import { Flag } from "@/components/icons/Flag";
 import { Button } from "@/components/ui/Button";
 import { useCars } from "@/lib/carsStore";
-import { statusLabels, type CarStatus } from "@/data/cars";
+import { statusLabels, type Car, type CarStatus } from "@/data/cars";
 import { countries, type CountryCode } from "@/lib/site";
 
 type Sort = "default" | "price-asc" | "price-desc";
 type Condition = "all" | "new" | "used";
+
+// Состояние набора фильтров. Пользователь редактирует «черновик» (draft),
+// а к каталогу применяется «applied» — только после кнопки «Показать».
+type Filters = {
+  countryTab: CountryCode | "all";
+  statusTab: CarStatus | "all";
+  brands: string[];
+  bodies: string[];
+  fuels: string[];
+  colors: string[];
+  drives: string[];
+  gear: string[];
+  condition: Condition;
+  yearFrom: number | null;
+  yearTo: number | null;
+  priceFrom: number | null;
+  priceTo: number | null;
+  powerFrom: number | null;
+  powerTo: number | null;
+};
+
+const emptyFilters = (): Filters => ({
+  countryTab: "all",
+  statusTab: "all",
+  brands: [],
+  bodies: [],
+  fuels: [],
+  colors: [],
+  drives: [],
+  gear: [],
+  condition: "all",
+  yearFrom: null,
+  yearTo: null,
+  priceFrom: null,
+  priceTo: null,
+  powerFrom: null,
+  powerTo: null,
+});
 
 function toggle<T>(arr: T[], v: T): T[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 }
 const fmt = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
 const brandOf = (model: string) => model.trim().split(/\s+/)[0];
+
+function matchesCar(c: Car, f: Filters, search: string): boolean {
+  const price = c.priceTverRub ?? c.priceRub;
+  const hp = c.powerHp ?? 0;
+  if (search && !c.model.toLowerCase().includes(search.toLowerCase())) return false;
+  if (f.countryTab !== "all" && c.country !== f.countryTab) return false;
+  if (f.statusTab !== "all" && c.status !== f.statusTab) return false;
+  if (f.brands.length && !f.brands.includes(brandOf(c.model))) return false;
+  if (f.bodies.length && !(c.bodyType && f.bodies.includes(c.bodyType))) return false;
+  if (f.fuels.length && !(c.fuelType && f.fuels.includes(c.fuelType))) return false;
+  if (f.colors.length && !(c.color && f.colors.includes(c.color))) return false;
+  if (f.drives.length && !f.drives.includes(c.drive)) return false;
+  if (f.gear.length && !f.gear.includes(c.gearbox)) return false;
+  if (f.condition === "new" && !c.isNew) return false;
+  if (f.condition === "used" && c.isNew) return false;
+  if (f.yearFrom != null && c.year < f.yearFrom) return false;
+  if (f.yearTo != null && c.year > f.yearTo) return false;
+  if (f.priceFrom != null && price < f.priceFrom) return false;
+  if (f.priceTo != null && price > f.priceTo) return false;
+  if (f.powerFrom != null && hp < f.powerFrom) return false;
+  if (f.powerTo != null && hp > f.powerTo) return false;
+  return true;
+}
+
+function countActive(f: Filters): number {
+  return (
+    (f.countryTab !== "all" ? 1 : 0) +
+    (f.statusTab !== "all" ? 1 : 0) +
+    f.brands.length +
+    f.bodies.length +
+    f.fuels.length +
+    f.colors.length +
+    f.drives.length +
+    f.gear.length +
+    (f.condition !== "all" ? 1 : 0) +
+    (f.yearFrom != null || f.yearTo != null ? 1 : 0) +
+    (f.priceFrom != null || f.priceTo != null ? 1 : 0) +
+    (f.powerFrom != null || f.powerTo != null ? 1 : 0)
+  );
+}
 
 export function CatalogPage() {
   const { cars } = useCars();
@@ -32,54 +110,38 @@ export function CatalogPage() {
       colors: Array.from(new Set(cars.map((c) => c.color).filter(Boolean) as string[])).sort(),
       drives: Array.from(new Set(cars.map((c) => c.drive))),
       gear: Array.from(new Set(cars.map((c) => c.gearbox))),
-      years: Array.from(new Set(cars.map((c) => c.year))).sort((a, b) => b - a),
       statuses: Array.from(new Set(cars.map((c) => c.status))),
       min: prices.length ? Math.min(...prices) : 0,
       max: prices.length ? Math.max(...prices) : 0,
+      yearMin: cars.length ? Math.min(...cars.map((c) => c.year)) : 2010,
+      yearMax: cars.length ? Math.max(...cars.map((c) => c.year)) : 2026,
       powerMin: powers.length ? Math.min(...powers) : 0,
       powerMax: powers.length ? Math.max(...powers) : 0,
     };
   }, [cars]);
 
+  const [draft, setDraft] = useState<Filters>(emptyFilters);
+  const [applied, setApplied] = useState<Filters>(emptyFilters);
   const [search, setSearch] = useState("");
-  const [countryTab, setCountryTab] = useState<CountryCode | "all">("all");
-  const [statusTab, setStatusTab] = useState<CarStatus | "all">("all");
-  const [brands, setBrands] = useState<string[]>([]);
-  const [bodies, setBodies] = useState<string[]>([]);
-  const [fuels, setFuels] = useState<string[]>([]);
-  const [colors, setColors] = useState<string[]>([]);
-  const [drives, setDrives] = useState<string[]>([]);
-  const [gear, setGear] = useState<string[]>([]);
-  const [years, setYears] = useState<number[]>([]);
-  const [condition, setCondition] = useState<Condition>("all");
-  const [priceMax, setPriceMax] = useState<number | null>(null);
-  const [powerMin, setPowerMin] = useState<number | null>(null);
   const [sort, setSort] = useState<Sort>("default");
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const cap = priceMax ?? facets.max;
-  const powCap = powerMin ?? facets.powerMin;
+  const patch = (p: Partial<Filters>) => setDraft((d) => ({ ...d, ...p }));
+  // Мгновенно и в черновик, и в применённые (для быстрого снятия активного фильтра).
+  const commit = (p: Partial<Filters>) => {
+    setDraft((d) => ({ ...d, ...p }));
+    setApplied((a) => ({ ...a, ...p }));
+  };
+  const applyDraft = () => setApplied(draft);
+  function reset() {
+    setDraft(emptyFilters());
+    setApplied(emptyFilters());
+    setSearch("");
+    setSort("default");
+  }
 
   const result = useMemo(() => {
-    let list = cars.filter((c) => {
-      const price = c.priceTverRub ?? c.priceRub;
-      if (search && !c.model.toLowerCase().includes(search.toLowerCase()))
-        return false;
-      if (countryTab !== "all" && c.country !== countryTab) return false;
-      if (statusTab !== "all" && c.status !== statusTab) return false;
-      if (brands.length && !brands.includes(brandOf(c.model))) return false;
-      if (bodies.length && !(c.bodyType && bodies.includes(c.bodyType))) return false;
-      if (fuels.length && !(c.fuelType && fuels.includes(c.fuelType))) return false;
-      if (colors.length && !(c.color && colors.includes(c.color))) return false;
-      if (drives.length && !drives.includes(c.drive)) return false;
-      if (gear.length && !gear.includes(c.gearbox)) return false;
-      if (years.length && !years.includes(c.year)) return false;
-      if (condition === "new" && !c.isNew) return false;
-      if (condition === "used" && c.isNew) return false;
-      if (price > cap) return false;
-      if (powCap && (c.powerHp ?? 0) < powCap) return false;
-      return true;
-    });
+    let list = cars.filter((c) => matchesCar(c, applied, search));
     if (sort === "price-asc")
       list = [...list].sort(
         (a, b) => (a.priceTverRub ?? a.priceRub) - (b.priceTverRub ?? b.priceRub),
@@ -89,46 +151,132 @@ export function CatalogPage() {
         (a, b) => (b.priceTverRub ?? b.priceRub) - (a.priceTverRub ?? a.priceRub),
       );
     return list;
-  }, [cars, search, countryTab, statusTab, brands, bodies, fuels, colors, drives, gear, years, condition, cap, powCap, sort]);
+  }, [cars, applied, search, sort]);
 
-  const activeCount =
-    brands.length +
-    bodies.length +
-    fuels.length +
-    colors.length +
-    drives.length +
-    gear.length +
-    years.length +
-    (condition !== "all" ? 1 : 0) +
-    (priceMax !== null ? 1 : 0) +
-    (powerMin !== null ? 1 : 0) +
-    (statusTab !== "all" ? 1 : 0) +
-    (countryTab !== "all" ? 1 : 0) +
-    (search ? 1 : 0);
+  // Сколько покажет текущий черновик (для кнопки «Показать N»).
+  const draftCount = useMemo(
+    () => cars.filter((c) => matchesCar(c, draft, search)).length,
+    [cars, draft, search],
+  );
 
-  function reset() {
-    setSearch("");
-    setCountryTab("all");
-    setStatusTab("all");
-    setBrands([]);
-    setBodies([]);
-    setFuels([]);
-    setColors([]);
-    setDrives([]);
-    setGear([]);
-    setYears([]);
-    setCondition("all");
-    setPriceMax(null);
-    setPowerMin(null);
-    setSort("default");
-  }
+  const draftActive = countActive(draft) + (search ? 1 : 0);
+  const hasPending = JSON.stringify(draft) !== JSON.stringify(applied);
 
-  // Общий набор групп фильтров — рендерим и в дропдаунах (десктоп), и в шторке (моб.)
   const conditionOpts = [
     ["all", "Любое"],
     ["new", "Новые"],
     ["used", "С пробегом"],
   ] as const;
+
+  // Блок фильтров-дропдаунов (переиспользуем на десктопе и в шторке).
+  const facetControls = (
+    <>
+      <FacetDropdown label="Страна" count={draft.countryTab !== "all" ? 1 : 0}>
+        <div className="flex flex-wrap gap-2">
+          <Chip active={draft.countryTab === "all"} onClick={() => patch({ countryTab: "all" })}>
+            Все страны
+          </Chip>
+          {facets.countries.map((code) => (
+            <Chip key={code} active={draft.countryTab === code} onClick={() => patch({ countryTab: code })}>
+              <Flag code={code} className="h-3.5 w-5" />
+              {countries[code].label}
+            </Chip>
+          ))}
+        </div>
+      </FacetDropdown>
+
+      <FacetDropdown label="Наличие" count={draft.statusTab !== "all" ? 1 : 0}>
+        <div className="flex flex-wrap gap-2">
+          <Chip active={draft.statusTab === "all"} onClick={() => patch({ statusTab: "all" })}>
+            Все
+          </Chip>
+          {facets.statuses.map((s) => (
+            <Chip key={s} active={draft.statusTab === s} onClick={() => patch({ statusTab: s })}>
+              {statusLabels[s]}
+            </Chip>
+          ))}
+        </div>
+      </FacetDropdown>
+
+      <FacetDropdown label="Марка" count={draft.brands.length}>
+        <Chips opts={facets.brands} sel={draft.brands} onToggle={(v) => patch({ brands: toggle(draft.brands, v) })} />
+      </FacetDropdown>
+
+      {facets.bodies.length ? (
+        <FacetDropdown label="Кузов" count={draft.bodies.length}>
+          <Chips opts={facets.bodies} sel={draft.bodies} onToggle={(v) => patch({ bodies: toggle(draft.bodies, v) })} />
+        </FacetDropdown>
+      ) : null}
+
+      {facets.fuels.length ? (
+        <FacetDropdown label="Топливо" count={draft.fuels.length}>
+          <Chips opts={facets.fuels} sel={draft.fuels} onToggle={(v) => patch({ fuels: toggle(draft.fuels, v) })} />
+        </FacetDropdown>
+      ) : null}
+
+      {facets.colors.length ? (
+        <FacetDropdown label="Цвет" count={draft.colors.length}>
+          <Chips opts={facets.colors} sel={draft.colors} onToggle={(v) => patch({ colors: toggle(draft.colors, v) })} />
+        </FacetDropdown>
+      ) : null}
+
+      <FacetDropdown label="Состояние" count={draft.condition !== "all" ? 1 : 0}>
+        <div className="flex flex-wrap gap-2">
+          {conditionOpts.map(([v, label]) => (
+            <Chip key={v} active={draft.condition === v} onClick={() => patch({ condition: v })}>
+              {label}
+            </Chip>
+          ))}
+        </div>
+      </FacetDropdown>
+
+      <FacetDropdown label="Привод" count={draft.drives.length}>
+        <Chips opts={facets.drives} sel={draft.drives} onToggle={(v) => patch({ drives: toggle(draft.drives, v) })} />
+      </FacetDropdown>
+
+      <FacetDropdown label="Коробка" count={draft.gear.length}>
+        <Chips opts={facets.gear} sel={draft.gear} onToggle={(v) => patch({ gear: toggle(draft.gear, v) })} />
+      </FacetDropdown>
+
+      <FacetDropdown label="Год" count={draft.yearFrom != null || draft.yearTo != null ? 1 : 0}>
+        <DualRange
+          min={facets.yearMin}
+          max={facets.yearMax}
+          step={1}
+          from={draft.yearFrom}
+          to={draft.yearTo}
+          onChange={(from, to) => patch({ yearFrom: from, yearTo: to })}
+          fmt={(n) => String(n)}
+        />
+      </FacetDropdown>
+
+      <FacetDropdown label="Цена" count={draft.priceFrom != null || draft.priceTo != null ? 1 : 0}>
+        <DualRange
+          min={facets.min}
+          max={facets.max}
+          step={10000}
+          from={draft.priceFrom}
+          to={draft.priceTo}
+          onChange={(from, to) => patch({ priceFrom: from, priceTo: to })}
+          fmt={(n) => `${fmt(n)} ₽`}
+        />
+      </FacetDropdown>
+
+      {facets.powerMax > facets.powerMin ? (
+        <FacetDropdown label="Мощность" count={draft.powerFrom != null || draft.powerTo != null ? 1 : 0}>
+          <DualRange
+            min={facets.powerMin}
+            max={facets.powerMax}
+            step={5}
+            from={draft.powerFrom}
+            to={draft.powerTo}
+            onChange={(from, to) => patch({ powerFrom: from, powerTo: to })}
+            fmt={(n) => `${n} л.с.`}
+          />
+        </FacetDropdown>
+      ) : null}
+    </>
+  );
 
   return (
     <main className="bg-paper pb-[96px]">
@@ -136,9 +284,7 @@ export function CatalogPage() {
       <section className="grain relative overflow-hidden bg-[radial-gradient(760px_360px_at_82%_-20%,#27313d,#11151A_60%)] pb-5 pt-[96px] text-white">
         <div className="wrap relative">
           <nav className="mb-3 flex items-center gap-1.5 text-[12.5px] font-semibold text-[#9AA4B2]">
-            <Link to="/" className="transition-colors hover:text-white">
-              Главная
-            </Link>
+            <Link to="/" className="transition-colors hover:text-white">Главная</Link>
             <ChevronRight className="h-3.5 w-3.5" />
             <span className="text-chrome">Каталог</span>
           </nav>
@@ -160,151 +306,53 @@ export function CatalogPage() {
         <div className="chrome-line absolute inset-x-0 bottom-0" />
       </section>
 
-      {/* Липкая горизонтальная панель фильтров (десктоп) — плавающая капсула без подложки */}
+      {/* Липкая горизонтальная панель фильтров (десктоп) — плавающая капсула */}
       <div className="pointer-events-none sticky top-[64px] z-30 hidden py-2.5 md:block">
         <div className="wrap [&_*]:pointer-events-auto">
           <div className="flex flex-wrap items-center gap-1.5 rounded-[28px] border-2 border-[#cfd4dc] bg-white px-3 py-2 shadow-[0_12px_30px_-18px_rgba(20,25,32,0.5)]">
-          {/* Страна — дропдаун */}
-          <FacetDropdown label="Страна" count={countryTab !== "all" ? 1 : 0}>
-            <div className="flex flex-wrap gap-2">
-              <Chip active={countryTab === "all"} onClick={() => setCountryTab("all")}>
-                Все страны
-              </Chip>
-              {facets.countries.map((code) => (
-                <Chip
-                  key={code}
-                  active={countryTab === code}
-                  onClick={() => setCountryTab(code)}
+            {facetControls}
+
+            <div className="ml-auto flex items-center gap-1.5">
+              <label className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-2" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Поиск…"
+                  className="field-light !h-9 w-[124px] rounded-full pl-9 text-[13px] focus:w-[168px]"
+                />
+              </label>
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as Sort)}
+                className="field-light !h-9 appearance-none rounded-full px-3 text-[13px] font-semibold"
+              >
+                <option value="default">Сортировка</option>
+                <option value="price-asc">Дешевле</option>
+                <option value="price-desc">Дороже</option>
+              </select>
+              {draftActive > 0 ? (
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="flex h-9 items-center gap-1.5 rounded-full border border-bordeaux/30 bg-bordeaux/[0.06] px-3 text-[12.5px] font-bold text-bordeaux transition-colors hover:bg-bordeaux/10"
                 >
-                  <Flag code={code} className="h-3.5 w-5" />
-                  {countries[code].label}
-                </Chip>
-              ))}
-            </div>
-          </FacetDropdown>
-
-          {/* В наличии */}
-          {facets.statuses.map((s) => (
-            <Seg
-              key={s}
-              active={statusTab === s}
-              onClick={() => setStatusTab((v) => (v === s ? "all" : s))}
-            >
-              {statusLabels[s]}
-            </Seg>
-          ))}
-
-          <Divider />
-
-          {/* Дропдауны характеристик */}
-          <FacetDropdown label="Марка" count={brands.length}>
-            <Chips opts={facets.brands} sel={brands} onToggle={(v) => setBrands((p) => toggle(p, v))} />
-          </FacetDropdown>
-
-          {facets.bodies.length ? (
-            <FacetDropdown label="Кузов" count={bodies.length}>
-              <Chips opts={facets.bodies} sel={bodies} onToggle={(v) => setBodies((p) => toggle(p, v))} />
-            </FacetDropdown>
-          ) : null}
-
-          {facets.fuels.length ? (
-            <FacetDropdown label="Топливо" count={fuels.length}>
-              <Chips opts={facets.fuels} sel={fuels} onToggle={(v) => setFuels((p) => toggle(p, v))} />
-            </FacetDropdown>
-          ) : null}
-
-          {facets.colors.length ? (
-            <FacetDropdown label="Цвет" count={colors.length}>
-              <Chips opts={facets.colors} sel={colors} onToggle={(v) => setColors((p) => toggle(p, v))} />
-            </FacetDropdown>
-          ) : null}
-
-          <FacetDropdown label="Состояние" count={condition !== "all" ? 1 : 0}>
-            <div className="flex flex-wrap gap-2">
-              {conditionOpts.map(([v, label]) => (
-                <Chip key={v} active={condition === v} onClick={() => setCondition(v)}>
-                  {label}
-                </Chip>
-              ))}
-            </div>
-          </FacetDropdown>
-
-          <FacetDropdown label="Привод" count={drives.length}>
-            <Chips opts={facets.drives} sel={drives} onToggle={(v) => setDrives((p) => toggle(p, v))} />
-          </FacetDropdown>
-
-          <FacetDropdown label="Коробка" count={gear.length}>
-            <Chips opts={facets.gear} sel={gear} onToggle={(v) => setGear((p) => toggle(p, v))} />
-          </FacetDropdown>
-
-          <FacetDropdown label="Год" count={years.length}>
-            <div className="flex flex-wrap gap-2">
-              {facets.years.map((y) => (
-                <Chip key={y} active={years.includes(y)} onClick={() => setYears((p) => toggle(p, y))}>
-                  {y}
-                </Chip>
-              ))}
-            </div>
-          </FacetDropdown>
-
-          <FacetDropdown label="Цена" count={priceMax !== null ? 1 : 0}>
-            <RangeControl
-              title={`До ${fmt(cap)} ₽`}
-              min={facets.min}
-              max={facets.max}
-              step={10000}
-              value={cap}
-              onChange={setPriceMax}
-              fmtMin={`${fmt(facets.min)} ₽`}
-              fmtMax={`${fmt(facets.max)} ₽`}
-            />
-          </FacetDropdown>
-
-          {facets.powerMax > facets.powerMin ? (
-            <FacetDropdown label="Мощность" count={powerMin !== null ? 1 : 0}>
-              <RangeControl
-                title={`От ${powCap} л.с.`}
-                min={facets.powerMin}
-                max={facets.powerMax}
-                step={5}
-                value={powCap}
-                onChange={setPowerMin}
-                fmtMin={`${facets.powerMin} л.с.`}
-                fmtMax={`${facets.powerMax} л.с.`}
-              />
-            </FacetDropdown>
-          ) : null}
-
-          {/* Поиск + сортировка + сброс — справа */}
-          <div className="ml-auto flex items-center gap-1.5">
-            <label className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-2" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Поиск…"
-                className="field-light !h-9 w-[128px] rounded-full pl-9 text-[13px] focus:w-[176px]"
-              />
-            </label>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as Sort)}
-              className="field-light !h-9 appearance-none rounded-full px-3 text-[13px] font-semibold"
-            >
-              <option value="default">Сортировка</option>
-              <option value="price-asc">Дешевле</option>
-              <option value="price-desc">Дороже</option>
-            </select>
-            {activeCount > 0 ? (
+                  Сбросить <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={reset}
-                className="flex h-9 items-center gap-1.5 rounded-full border border-bordeaux/30 bg-bordeaux/[0.06] px-3 text-[12.5px] font-bold text-bordeaux transition-colors hover:bg-bordeaux/10"
+                onClick={applyDraft}
+                disabled={!hasPending}
+                className={`flex h-9 items-center rounded-full px-4 text-[13px] font-extrabold transition-colors ${
+                  hasPending
+                    ? "bg-bordeaux text-white hover:bg-bordeaux-bright"
+                    : "cursor-default bg-graphite/90 text-white/70"
+                }`}
               >
-                Сбросить <X className="h-3.5 w-3.5" />
+                Показать {draftCount}
               </button>
-            ) : null}
-          </div>
+            </div>
           </div>
         </div>
       </div>
@@ -327,9 +375,9 @@ export function CatalogPage() {
             className="relative flex h-11 items-center gap-2 rounded-[11px] border border-line bg-white px-4 font-bold text-ink"
           >
             <SlidersHorizontal className="h-[18px] w-[18px]" />
-            {activeCount > 0 ? (
+            {countActive(applied) > 0 ? (
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-bordeaux px-1 font-num text-[11px] text-white">
-                {activeCount}
+                {countActive(applied)}
               </span>
             ) : null}
           </button>
@@ -338,7 +386,6 @@ export function CatalogPage() {
 
       {/* Контент */}
       <div className="wrap mt-6">
-        {/* Счётчик + активные фильтры */}
         <div className="mb-5 flex flex-wrap items-center gap-2">
           <span className="text-[14px] font-semibold text-ink-2">
             Найдено:{" "}
@@ -351,32 +398,47 @@ export function CatalogPage() {
               {result.length}
             </motion.span>
           </span>
-          {brands.map((b) => (
-            <RemoveChip key={b} onClick={() => setBrands((p) => toggle(p, b))}>{b}</RemoveChip>
+          {applied.brands.map((b) => (
+            <RemoveChip key={b} onClick={() => commit({ brands: applied.brands.filter((x) => x !== b) })}>{b}</RemoveChip>
           ))}
-          {bodies.map((b) => (
-            <RemoveChip key={b} onClick={() => setBodies((p) => toggle(p, b))}>{b}</RemoveChip>
+          {applied.bodies.map((b) => (
+            <RemoveChip key={b} onClick={() => commit({ bodies: applied.bodies.filter((x) => x !== b) })}>{b}</RemoveChip>
           ))}
-          {fuels.map((f) => (
-            <RemoveChip key={f} onClick={() => setFuels((p) => toggle(p, f))}>{f}</RemoveChip>
+          {applied.fuels.map((f) => (
+            <RemoveChip key={f} onClick={() => commit({ fuels: applied.fuels.filter((x) => x !== f) })}>{f}</RemoveChip>
           ))}
-          {colors.map((c) => (
-            <RemoveChip key={c} onClick={() => setColors((p) => toggle(p, c))}>{c}</RemoveChip>
+          {applied.colors.map((c) => (
+            <RemoveChip key={c} onClick={() => commit({ colors: applied.colors.filter((x) => x !== c) })}>{c}</RemoveChip>
           ))}
-          {condition !== "all" ? (
-            <RemoveChip onClick={() => setCondition("all")}>
-              {condition === "new" ? "Новые" : "С пробегом"}
+          {applied.drives.map((d) => (
+            <RemoveChip key={d} onClick={() => commit({ drives: applied.drives.filter((x) => x !== d) })}>{d}</RemoveChip>
+          ))}
+          {applied.gear.map((g) => (
+            <RemoveChip key={g} onClick={() => commit({ gear: applied.gear.filter((x) => x !== g) })}>{g}</RemoveChip>
+          ))}
+          {applied.condition !== "all" ? (
+            <RemoveChip onClick={() => commit({ condition: "all" })}>
+              {applied.condition === "new" ? "Новые" : "С пробегом"}
             </RemoveChip>
           ) : null}
-          {drives.map((d) => (
-            <RemoveChip key={d} onClick={() => setDrives((p) => toggle(p, d))}>{d}</RemoveChip>
-          ))}
-          {gear.map((g) => (
-            <RemoveChip key={g} onClick={() => setGear((p) => toggle(p, g))}>{g}</RemoveChip>
-          ))}
-          {years.map((y) => (
-            <RemoveChip key={y} onClick={() => setYears((p) => toggle(p, y))}>{y}</RemoveChip>
-          ))}
+          {applied.countryTab !== "all" ? (
+            <RemoveChip onClick={() => commit({ countryTab: "all" })}>{countries[applied.countryTab].label}</RemoveChip>
+          ) : null}
+          {applied.yearFrom != null || applied.yearTo != null ? (
+            <RemoveChip onClick={() => commit({ yearFrom: null, yearTo: null })}>
+              Год: {applied.yearFrom ?? facets.yearMin}–{applied.yearTo ?? facets.yearMax}
+            </RemoveChip>
+          ) : null}
+          {applied.priceFrom != null || applied.priceTo != null ? (
+            <RemoveChip onClick={() => commit({ priceFrom: null, priceTo: null })}>
+              {fmt(applied.priceFrom ?? facets.min)}–{fmt(applied.priceTo ?? facets.max)} ₽
+            </RemoveChip>
+          ) : null}
+          {applied.powerFrom != null || applied.powerTo != null ? (
+            <RemoveChip onClick={() => commit({ powerFrom: null, powerTo: null })}>
+              {applied.powerFrom ?? facets.powerMin}–{applied.powerTo ?? facets.powerMax} л.с.
+            </RemoveChip>
+          ) : null}
         </div>
 
         {result.length > 0 ? (
@@ -413,7 +475,7 @@ export function CatalogPage() {
         )}
       </div>
 
-      {/* Мобильная шторка с фильтрами */}
+      {/* Мобильная шторка */}
       <AnimatePresence>
         {sheetOpen ? (
           <>
@@ -434,7 +496,7 @@ export function CatalogPage() {
               <div className="mb-4 flex items-center justify-between">
                 <span className="font-display text-[18px] uppercase text-ink">Фильтры</span>
                 <div className="flex items-center gap-3">
-                  {activeCount > 0 ? (
+                  {draftActive > 0 ? (
                     <button type="button" onClick={reset} className="text-[13px] font-bold text-bordeaux">
                       Сбросить
                     </button>
@@ -451,85 +513,75 @@ export function CatalogPage() {
 
               <div className="space-y-5">
                 <FilterGroup title="Страна">
-                  <Chip active={countryTab === "all"} onClick={() => setCountryTab("all")}>Все</Chip>
+                  <Chip active={draft.countryTab === "all"} onClick={() => patch({ countryTab: "all" })}>Все</Chip>
                   {facets.countries.map((code) => (
-                    <Chip key={code} active={countryTab === code} onClick={() => setCountryTab(code)}>
+                    <Chip key={code} active={draft.countryTab === code} onClick={() => patch({ countryTab: code })}>
                       {countries[code].label}
                     </Chip>
                   ))}
                 </FilterGroup>
                 <FilterGroup title="Наличие">
-                  <Chip active={statusTab === "all"} onClick={() => setStatusTab("all")}>Все</Chip>
+                  <Chip active={draft.statusTab === "all"} onClick={() => patch({ statusTab: "all" })}>Все</Chip>
                   {facets.statuses.map((s) => (
-                    <Chip key={s} active={statusTab === s} onClick={() => setStatusTab(s)}>
+                    <Chip key={s} active={draft.statusTab === s} onClick={() => patch({ statusTab: s })}>
                       {statusLabels[s]}
                     </Chip>
                   ))}
                 </FilterGroup>
                 <FilterGroup title="Марка">
-                  <Chips opts={facets.brands} sel={brands} onToggle={(v) => setBrands((p) => toggle(p, v))} />
+                  <Chips opts={facets.brands} sel={draft.brands} onToggle={(v) => patch({ brands: toggle(draft.brands, v) })} />
                 </FilterGroup>
                 {facets.bodies.length ? (
                   <FilterGroup title="Тип кузова">
-                    <Chips opts={facets.bodies} sel={bodies} onToggle={(v) => setBodies((p) => toggle(p, v))} />
+                    <Chips opts={facets.bodies} sel={draft.bodies} onToggle={(v) => patch({ bodies: toggle(draft.bodies, v) })} />
                   </FilterGroup>
                 ) : null}
                 {facets.fuels.length ? (
                   <FilterGroup title="Топливо">
-                    <Chips opts={facets.fuels} sel={fuels} onToggle={(v) => setFuels((p) => toggle(p, v))} />
+                    <Chips opts={facets.fuels} sel={draft.fuels} onToggle={(v) => patch({ fuels: toggle(draft.fuels, v) })} />
                   </FilterGroup>
                 ) : null}
                 {facets.colors.length ? (
                   <FilterGroup title="Цвет">
-                    <Chips opts={facets.colors} sel={colors} onToggle={(v) => setColors((p) => toggle(p, v))} />
+                    <Chips opts={facets.colors} sel={draft.colors} onToggle={(v) => patch({ colors: toggle(draft.colors, v) })} />
                   </FilterGroup>
                 ) : null}
                 <FilterGroup title="Состояние">
                   {conditionOpts.map(([v, label]) => (
-                    <Chip key={v} active={condition === v} onClick={() => setCondition(v)}>{label}</Chip>
+                    <Chip key={v} active={draft.condition === v} onClick={() => patch({ condition: v })}>{label}</Chip>
                   ))}
                 </FilterGroup>
                 <FilterGroup title="Привод">
-                  <Chips opts={facets.drives} sel={drives} onToggle={(v) => setDrives((p) => toggle(p, v))} />
+                  <Chips opts={facets.drives} sel={draft.drives} onToggle={(v) => patch({ drives: toggle(draft.drives, v) })} />
                 </FilterGroup>
                 <FilterGroup title="Коробка">
-                  <Chips opts={facets.gear} sel={gear} onToggle={(v) => setGear((p) => toggle(p, v))} />
+                  <Chips opts={facets.gear} sel={draft.gear} onToggle={(v) => patch({ gear: toggle(draft.gear, v) })} />
                 </FilterGroup>
-                <FilterGroup title="Год">
-                  {facets.years.map((y) => (
-                    <Chip key={y} active={years.includes(y)} onClick={() => setYears((p) => toggle(p, y))}>{y}</Chip>
-                  ))}
-                </FilterGroup>
-                <RangeControl
-                  title={`Цена до ${fmt(cap)} ₽`}
-                  min={facets.min}
-                  max={facets.max}
-                  step={10000}
-                  value={cap}
-                  onChange={setPriceMax}
-                  fmtMin={`${fmt(facets.min)} ₽`}
-                  fmtMax={`${fmt(facets.max)} ₽`}
-                />
+                <div>
+                  <div className="mb-2.5 text-[13px] font-extrabold uppercase tracking-[0.08em] text-ink-2">Год</div>
+                  <DualRange min={facets.yearMin} max={facets.yearMax} step={1} from={draft.yearFrom} to={draft.yearTo} onChange={(from, to) => patch({ yearFrom: from, yearTo: to })} fmt={(n) => String(n)} />
+                </div>
+                <div>
+                  <div className="mb-2.5 text-[13px] font-extrabold uppercase tracking-[0.08em] text-ink-2">Цена</div>
+                  <DualRange min={facets.min} max={facets.max} step={10000} from={draft.priceFrom} to={draft.priceTo} onChange={(from, to) => patch({ priceFrom: from, priceTo: to })} fmt={(n) => `${fmt(n)} ₽`} />
+                </div>
                 {facets.powerMax > facets.powerMin ? (
-                  <RangeControl
-                    title={`Мощность от ${powCap} л.с.`}
-                    min={facets.powerMin}
-                    max={facets.powerMax}
-                    step={5}
-                    value={powCap}
-                    onChange={setPowerMin}
-                    fmtMin={`${facets.powerMin} л.с.`}
-                    fmtMax={`${facets.powerMax} л.с.`}
-                  />
+                  <div>
+                    <div className="mb-2.5 text-[13px] font-extrabold uppercase tracking-[0.08em] text-ink-2">Мощность</div>
+                    <DualRange min={facets.powerMin} max={facets.powerMax} step={5} from={draft.powerFrom} to={draft.powerTo} onChange={(from, to) => patch({ powerFrom: from, powerTo: to })} fmt={(n) => `${n} л.с.`} />
+                  </div>
                 ) : null}
               </div>
 
               <Button
                 variant="primary"
-                onClick={() => setSheetOpen(false)}
+                onClick={() => {
+                  applyDraft();
+                  setSheetOpen(false);
+                }}
                 className="mt-6 w-full"
               >
-                Показать {result.length}
+                Показать {draftCount}
               </Button>
             </motion.div>
           </>
@@ -540,35 +592,6 @@ export function CatalogPage() {
 }
 
 /* ---------- Мелкие части ---------- */
-
-function Divider() {
-  return <span className="mx-1 hidden h-6 w-px bg-line lg:block" aria-hidden />;
-}
-
-function Seg({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition-colors duration-200 ${
-        active
-          ? "border-bordeaux-bright bg-bordeaux text-white"
-          : "border-line bg-white text-ink-2 hover:border-steel hover:text-ink"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 // Кнопка-дропдаун с поповером; закрывается по клику вне.
 function FacetDropdown({
@@ -621,7 +644,7 @@ function FacetDropdown({
         />
       </button>
       {open ? (
-        <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-[264px] rounded-card border border-line bg-white p-3.5 shadow-[0_18px_44px_-16px_rgba(20,25,32,0.5)]">
+        <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-[280px] rounded-card border border-line bg-white p-3.5 shadow-[0_18px_44px_-16px_rgba(20,25,32,0.5)]">
           {children}
         </div>
       ) : null}
@@ -629,42 +652,61 @@ function FacetDropdown({
   );
 }
 
-function RangeControl({
-  title,
+// Диапазон «от/до» на двух ползунках. null = граница не задана (весь диапазон).
+function DualRange({
   min,
   max,
   step,
-  value,
+  from,
+  to,
   onChange,
-  fmtMin,
-  fmtMax,
+  fmt: fmtVal,
 }: {
-  title: string;
   min: number;
   max: number;
   step: number;
-  value: number;
-  onChange: (v: number) => void;
-  fmtMin: string;
-  fmtMax: string;
+  from: number | null;
+  to: number | null;
+  onChange: (from: number | null, to: number | null) => void;
+  fmt: (n: number) => string;
 }) {
+  const lo = from ?? min;
+  const hi = to ?? max;
   return (
     <div>
-      <div className="mb-2 text-[13px] font-extrabold uppercase tracking-[0.06em] text-ink-2">
-        {title}
+      <div className="mb-2 flex items-center justify-between text-[13px] font-bold text-ink">
+        <span>от {fmtVal(lo)}</span>
+        <span>до {fmtVal(hi)}</span>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-bordeaux"
-      />
+      <div className="space-y-1.5">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={lo}
+          onChange={(e) => {
+            const v = Math.min(Number(e.target.value), hi);
+            onChange(v <= min ? null : v, to);
+          }}
+          className="w-full accent-bordeaux"
+        />
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={hi}
+          onChange={(e) => {
+            const v = Math.max(Number(e.target.value), lo);
+            onChange(from, v >= max ? null : v);
+          }}
+          className="w-full accent-bordeaux"
+        />
+      </div>
       <div className="mt-1 flex justify-between font-num text-[12px] text-ink-2">
-        <span>{fmtMin}</span>
-        <span>{fmtMax}</span>
+        <span>{fmtVal(min)}</span>
+        <span>{fmtVal(max)}</span>
       </div>
     </div>
   );
