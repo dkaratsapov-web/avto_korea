@@ -9,26 +9,19 @@ import { Flag } from "@/components/icons/Flag";
 import { type Car, statusLabels, formatPrice } from "@/data/cars";
 import { countries } from "@/lib/site";
 import { useUI } from "@/lib/ui";
-import { useTilt } from "@/lib/useTilt";
 
 export function CarCard({ car }: { car: Car }) {
   const country = countries[car.country];
   const { isFav, toggleFav, openCar, isCompare, toggleCompare } = useUI();
-  const tilt = useTilt(4);
   const fav = isFav(car.id);
   const cmp = isCompare(car.id);
 
   return (
     <article
       onClick={() => openCar(car.id)}
-      className="group h-full cursor-pointer overflow-hidden rounded-card border border-line bg-white transition-[box-shadow,border-color] duration-300 hover:border-[#d4d8de] hover:shadow-card"
+      className="group h-full cursor-pointer overflow-hidden rounded-card border border-line bg-white transition-[box-shadow,border-color,transform] duration-300 hover:-translate-y-1 hover:border-[#d4d8de] hover:shadow-card"
     >
-      <div
-        ref={tilt.ref}
-        onPointerMove={tilt.onMove}
-        onPointerLeave={tilt.onLeave}
-        className="flex h-full flex-col transition-transform duration-300 [transform-style:preserve-3d]"
-      >
+      <div className="flex h-full flex-col">
       <div className="relative aspect-[16/10] overflow-hidden bg-graphite">
         {/* eslint-disable-next-line */}
         <img
