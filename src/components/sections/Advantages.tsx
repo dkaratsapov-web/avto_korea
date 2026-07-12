@@ -82,15 +82,17 @@ function AdvantageCard({
     : "border border-black/[0.06] bg-[#fbfaf5] shadow-[0_14px_34px_-14px_rgba(20,25,32,0.55)] [background-image:repeating-linear-gradient(0deg,transparent,transparent_27px,rgba(30,40,55,0.05)_28px)]";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 52, rotate: rot * 3 }}
-      whileInView={{ opacity: 1, y: 0, rotate: rot }}
-      whileHover={{ rotate: 0, y: -8, transition: { type: "spring", stiffness: 300, damping: 18 } }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ type: "spring", stiffness: 90, damping: 12, delay: 0.04 }}
-      className={`${common} ${skin}`}
-    >
-      <Pushpin />
+    // Пин закреплён на месте (статичный), а листок «качается» вокруг него —
+    // вращение с origin-top, без вертикального сдвига, поэтому верх у пина не уходит.
+    <div className="relative h-full">
+      <motion.div
+        initial={{ opacity: 0, rotate: rot * 4 }}
+        whileInView={{ opacity: 1, rotate: rot }}
+        whileHover={{ rotate: 0, scale: 1.015, transition: { type: "spring", stiffness: 300, damping: 18 } }}
+        viewport={{ once: true, margin: "-60px" }}
+        transition={{ type: "spring", stiffness: 80, damping: 11, delay: 0.04 }}
+        className={`${common} origin-top ${skin}`}
+      >
       {featured ? (
         <>
           {/* свечение обрезаем отдельным слоем, чтобы кнопка-пин сверху не срезалась */}
@@ -120,7 +122,9 @@ function AdvantageCard({
           <p className="text-[15px] leading-relaxed text-ink-2">{text}</p>
         </>
       )}
-    </motion.div>
+      </motion.div>
+      <Pushpin />
+    </div>
   );
 }
 
