@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { Header } from "@/components/sections/Header";
 import { Footer } from "@/components/sections/Footer";
 import { FloatingTelegram } from "@/components/FloatingTelegram";
+import { CompareTray } from "@/components/CompareTray";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { CursorGlow } from "@/components/ui/CursorGlow";
 import { ModalHost } from "@/components/ModalHost";
@@ -41,6 +42,7 @@ export function SiteLayout() {
       <Outlet />
       <Footer />
       <FloatingTelegram />
+      <CompareTray />
       <ModalHost />
     </>
   );

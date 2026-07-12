@@ -2,6 +2,7 @@ import { Heart, Trash2, ArrowRight } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { Modal } from "@/components/ui/Modal";
 import { CarModal } from "@/components/CarModal";
+import { CompareModal } from "@/components/CompareModal";
 import { LeadForm } from "@/components/LeadForm";
 import { Button } from "@/components/ui/Button";
 import { formatPrice } from "@/data/cars";
@@ -11,7 +12,7 @@ import { useUI } from "@/lib/ui";
 import { useCars } from "@/lib/carsStore";
 
 export function ModalHost() {
-  const { modal, close, favorites, removeFav, openCar } = useUI();
+  const { modal, close, favorites, removeFav, openCar, compare } = useUI();
   const { cars } = useCars();
   if (!modal) return null;
 
@@ -19,6 +20,13 @@ export function ModalHost() {
     const car = cars.find((c) => c.id === modal.carId);
     if (!car) return null;
     return <CarModal car={car} onClose={close} />;
+  }
+
+  if (modal.type === "compare") {
+    const cmpCars = compare
+      .map((id) => cars.find((c) => c.id === id))
+      .filter((c): c is NonNullable<typeof c> => Boolean(c));
+    return <CompareModal cars={cmpCars} onClose={close} />;
   }
 
   if (modal.type === "lead") {

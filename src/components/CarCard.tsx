@@ -1,4 +1,4 @@
-import { Heart, ArrowRight } from "lucide-react";
+import { Heart, ArrowRight, Scale } from "lucide-react";
 import {
   EngineIcon,
   MileageIcon,
@@ -13,9 +13,10 @@ import { useTilt } from "@/lib/useTilt";
 
 export function CarCard({ car }: { car: Car }) {
   const country = countries[car.country];
-  const { isFav, toggleFav, openCar } = useUI();
+  const { isFav, toggleFav, openCar, isCompare, toggleCompare } = useUI();
   const tilt = useTilt(4);
   const fav = isFav(car.id);
+  const cmp = isCompare(car.id);
 
   return (
     <article
@@ -43,22 +44,40 @@ export function CarCard({ car }: { car: Car }) {
           {country.label}
         </span>
 
-        <button
-          type="button"
-          aria-label={fav ? "Убрать из избранного" : "В избранное"}
-          aria-pressed={fav}
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFav(car.id);
-          }}
-          className={`absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full backdrop-blur transition-colors ${
-            fav
-              ? "bg-bordeaux text-white"
-              : "bg-white/85 text-ink hover:bg-white"
-          }`}
-        >
-          <Heart className={`h-[18px] w-[18px] ${fav ? "fill-white" : ""}`} />
-        </button>
+        <div className="absolute right-3 top-3 flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={cmp ? "Убрать из сравнения" : "Добавить к сравнению"}
+            aria-pressed={cmp}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleCompare(car.id);
+            }}
+            className={`flex h-9 w-9 items-center justify-center rounded-full backdrop-blur transition-colors ${
+              cmp
+                ? "bg-graphite text-white"
+                : "bg-white/85 text-ink hover:bg-white"
+            }`}
+          >
+            <Scale className="h-[18px] w-[18px]" />
+          </button>
+          <button
+            type="button"
+            aria-label={fav ? "Убрать из избранного" : "В избранное"}
+            aria-pressed={fav}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFav(car.id);
+            }}
+            className={`flex h-9 w-9 items-center justify-center rounded-full backdrop-blur transition-colors ${
+              fav
+                ? "bg-bordeaux text-white"
+                : "bg-white/85 text-ink hover:bg-white"
+            }`}
+          >
+            <Heart className={`h-[18px] w-[18px] ${fav ? "fill-white" : ""}`} />
+          </button>
+        </div>
 
         <span className="absolute bottom-3 left-3 rounded-full bg-bordeaux px-[11px] py-[5px] text-[12px] font-extrabold uppercase tracking-[0.04em] text-white">
           {car.isNew ? "Новинка" : statusLabels[car.status]}
