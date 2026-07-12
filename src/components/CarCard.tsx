@@ -83,12 +83,12 @@ export function CarCard({ car }: { car: Car }) {
             <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.09em] text-ink-2">
               Под ключ до Твери
             </div>
-            <div className="font-num text-[26px] font-bold text-bordeaux">
-              {formatPrice(car.priceTverRub ?? car.priceRub)}{" "}
-              <small className="text-[15px] font-semibold text-ink-2">₽</small>
+            <div className="whitespace-nowrap font-num text-[26px] font-bold text-bordeaux">
+              {formatPrice(car.priceTverRub ?? car.priceRub)}
+              <small className="ml-1 text-[15px] font-semibold text-ink-2">₽</small>
             </div>
           </div>
-          <span className="flex h-[46px] items-center gap-2 rounded-[11px] bg-graphite px-4 text-[14px] font-bold text-white transition-colors group-hover:bg-bordeaux">
+          <span className="flex h-[46px] flex-none items-center gap-2 rounded-[11px] bg-graphite px-4 text-[14px] font-bold text-white transition-colors group-hover:bg-bordeaux">
             Подробнее
             <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
           </span>
