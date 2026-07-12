@@ -23,7 +23,7 @@ export function Marquee({
         <div
           key={copy}
           aria-hidden={copy === 1}
-          className={`flex shrink-0 items-center gap-10 pr-10 animate-marquee ${
+          className={`flex shrink-0 transform-gpu items-center gap-10 pr-10 animate-marquee will-change-transform [backface-visibility:hidden] ${
             reverse ? "[animation-direction:reverse]" : ""
           } motion-reduce:animate-none`}
         >

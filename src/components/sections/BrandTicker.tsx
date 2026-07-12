@@ -5,7 +5,7 @@ const phrases = [
   "с растаможкой",
   "реальный расчёт",
   "без накруток",
-  "доставка 30–45 дней",
+  "доставка от 25 дней",
   "проверка перед покупкой",
   "фиксированная цена",
 ];
@@ -13,7 +13,8 @@ const phrases = [
 function Item({ text }: { text: string }) {
   return (
     <span className="flex items-center gap-10">
-      <span className="font-display text-[clamp(22px,3vw,40px)] font-extrabold uppercase tracking-[0.02em] text-shine">
+      {/* Сплошной цвет (без анимированного градиента) — иначе маркиза лагает */}
+      <span className="font-display text-[clamp(22px,3vw,40px)] font-extrabold uppercase tracking-[0.02em] text-[#C7CFD6]">
         {text}
       </span>
       <span className="h-2.5 w-2.5 rotate-45 bg-bordeaux-bright" aria-hidden />
