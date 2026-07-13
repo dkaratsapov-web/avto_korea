@@ -4,6 +4,7 @@ import {
   Menu,
   X,
   BookOpen,
+  MapPin,
   Phone,
   MessageCircle,
   ArrowRight,
@@ -118,6 +119,16 @@ export function Header() {
           className={`${capsule} ${h} ml-auto flex rotate-1 items-center gap-1 px-2 hover:rotate-0 lg:ml-0`}
         >
           <a
+            href={site.mapHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Адрес на карте"
+            className="hidden items-center gap-1.5 px-3 text-[13px] font-semibold text-[#C3CBD2] transition-colors hover:text-white 2xl:flex"
+          >
+            <MapPin className="h-3.5 w-3.5 text-bordeaux-bright" />
+            {site.address}
+          </a>
+          <a
             href={site.phoneHref}
             className="hidden items-center gap-1.5 px-3 font-num text-[15px] font-bold tracking-[0.02em] text-white transition-colors hover:text-chrome xl:flex"
           >
@@ -229,6 +240,15 @@ export function Header() {
                 {site.phone}
               </a>
             </div>
+            <a
+              href={site.mapHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 px-2 pt-2 text-[14px] font-semibold text-[#C3CBD2] hover:text-white"
+            >
+              <MapPin className="h-4 w-4 text-bordeaux-bright" /> {site.addressFull}
+            </a>
           </nav>
         </div>
       ) : null}
