@@ -140,6 +140,7 @@ export function Hero() {
             <LeadForm
               source="Hero — первый экран"
               submitLabel="Получить расчёт"
+              withCar={false}
               withContacts
             />
           </div>
