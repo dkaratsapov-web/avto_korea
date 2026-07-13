@@ -282,7 +282,7 @@ export function CatalogPage() {
     <main className="bg-paper pb-[96px]">
       {/* Компактная шапка */}
       <section className="grain relative overflow-hidden bg-[radial-gradient(760px_360px_at_82%_-20%,#27313d,#11151A_60%)] pb-5 pt-[96px] text-white">
-        <div className="wrap relative">
+        <div className="mx-auto w-full max-w-[1600px] px-6 relative">
           <nav className="mb-3 flex items-center gap-1.5 text-[12.5px] font-semibold text-[#9AA4B2]">
             <Link to="/" className="transition-colors hover:text-white">Главная</Link>
             <ChevronRight className="h-3.5 w-3.5" />
@@ -308,7 +308,7 @@ export function CatalogPage() {
 
       {/* Липкая горизонтальная панель фильтров (десктоп) — плавающая капсула */}
       <div className="pointer-events-none sticky top-[64px] z-30 hidden py-2.5 md:block">
-        <div className="wrap [&_*]:pointer-events-auto">
+        <div className="mx-auto w-full max-w-[1600px] px-6 [&_*]:pointer-events-auto">
           <div className="flex flex-wrap items-center gap-1.5 rounded-[28px] border-2 border-[#cfd4dc] bg-white px-3 py-2 shadow-[0_12px_30px_-18px_rgba(20,25,32,0.5)]">
             {facetControls}
 
@@ -359,7 +359,7 @@ export function CatalogPage() {
 
       {/* Мобильная липкая панель */}
       <div className="sticky top-[62px] z-30 border-b border-line bg-paper/95 backdrop-blur md:hidden">
-        <div className="wrap flex items-center gap-2 py-2.5">
+        <div className="mx-auto w-full max-w-[1600px] px-6 flex items-center gap-2 py-2.5">
           <label className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-2" />
             <input
@@ -385,7 +385,7 @@ export function CatalogPage() {
       </div>
 
       {/* Контент */}
-      <div className="wrap mt-6">
+      <div className="mx-auto w-full max-w-[1600px] px-6 mt-6">
         <div className="mb-5 flex flex-wrap items-center gap-2">
           <span className="text-[14px] font-semibold text-ink-2">
             Найдено:{" "}

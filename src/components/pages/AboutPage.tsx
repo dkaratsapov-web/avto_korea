@@ -188,7 +188,7 @@ export function AboutPage() {
             Оставьте заявку — покажем реальную цену под ключ с доставкой и
             растаможкой и ответим на все вопросы.
           </p>
-          <LeadForm source="Страница «О нас»" submitLabel="Получить расчёт" withContacts />
+          <LeadForm source="Страница «О нас»" submitLabel="Получить расчёт" withCar={false} withContacts />
         </div>
       </section>
     </main>

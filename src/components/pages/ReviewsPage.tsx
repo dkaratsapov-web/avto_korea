@@ -105,7 +105,7 @@ export function ReviewsPage() {
           <p className="mb-5 mt-2 max-w-xl text-[14px] text-[#9AA4B2]">
             Оставьте заявку — подберём авто под ваш бюджет и посчитаем честную цену под ключ.
           </p>
-          <LeadForm source="Страница «Отзывы»" submitLabel="Получить расчёт" withContacts />
+          <LeadForm source="Страница «Отзывы»" submitLabel="Получить расчёт" withCar={false} withContacts />
         </div>
       </div>
     </main>

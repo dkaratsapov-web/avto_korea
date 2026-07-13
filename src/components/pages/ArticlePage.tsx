@@ -121,7 +121,7 @@ export function ArticlePage() {
             Оставьте контакты — покажем реальную цену конкретного авто с
             доставкой и растаможкой, без скрытых наценок.
           </p>
-          <LeadForm source={`Статья: ${article.title}`} submitLabel="Получить расчёт" />
+          <LeadForm source={`Статья: ${article.title}`} submitLabel="Получить расчёт" withCar={false} />
         </div>
       </article>
 
