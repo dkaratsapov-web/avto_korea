@@ -118,16 +118,10 @@ export function Header() {
         <div
           className={`${capsule} ${h} ml-auto flex rotate-1 items-center gap-1 px-2 hover:rotate-0 lg:ml-0`}
         >
-          <a
-            href={site.mapHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Адрес на карте"
-            className="hidden items-center gap-1.5 px-3 text-[13px] font-semibold text-[#C3CBD2] transition-colors hover:text-white 2xl:flex"
-          >
+          <span className="hidden items-center gap-1.5 px-3 text-[13px] font-semibold text-[#C3CBD2] 2xl:flex">
             <MapPin className="h-3.5 w-3.5 text-bordeaux-bright" />
             {site.address}
-          </a>
+          </span>
           <a
             href={site.phoneHref}
             className="hidden items-center gap-1.5 px-3 font-num text-[15px] font-bold tracking-[0.02em] text-white transition-colors hover:text-chrome xl:flex"

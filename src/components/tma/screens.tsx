@@ -23,7 +23,7 @@ import { Flag } from "@/components/icons/Flag";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { useCars } from "@/lib/carsStore";
 import { countries, site, type CountryCode } from "@/lib/site";
-import { type Car, formatPrice } from "@/data/cars";
+import { type Car, type CarStatus, statusLabels, formatPrice } from "@/data/cars";
 import { showToast } from "@/lib/toast";
 import {
   subscribe as apiSubscribe,
@@ -67,22 +67,39 @@ export function ListView({
 }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | CountryCode>("all");
+  const [statusTab, setStatusTab] = useState<CarStatus | "all">("all");
   const [open, setOpen] = useState(false);
   const [brands, setBrands] = useState<string[]>([]);
   const [bodies, setBodies] = useState<string[]>([]);
   const [fuels, setFuels] = useState<string[]>([]);
+  const [colors, setColors] = useState<string[]>([]);
   const [drives, setDrives] = useState<string[]>([]);
-  const [priceMax, setPriceMax] = useState<number | null>(null);
+  const [gear, setGear] = useState<string[]>([]);
+  const [condition, setCondition] = useState<"all" | "new" | "used">("all");
+  const [priceFrom, setPriceFrom] = useState<number | null>(null);
+  const [priceTo, setPriceTo] = useState<number | null>(null);
+  const [yearFrom, setYearFrom] = useState<number | null>(null);
+  const [yearTo, setYearTo] = useState<number | null>(null);
+  const [powerFrom, setPowerFrom] = useState<number | null>(null);
+  const [powerTo, setPowerTo] = useState<number | null>(null);
 
   const facets = useMemo(() => {
     const prices = cars.map((c) => c.priceTverRub ?? c.priceRub);
+    const powers = cars.map((c) => c.powerHp ?? 0).filter(Boolean);
     return {
       brands: Array.from(new Set(cars.map((c) => c.model.trim().split(/\s+/)[0]))).sort(),
       bodies: Array.from(new Set(cars.map((c) => c.bodyType).filter(Boolean) as string[])).sort(),
       fuels: Array.from(new Set(cars.map((c) => c.fuelType).filter(Boolean) as string[])).sort(),
+      colors: Array.from(new Set(cars.map((c) => c.color).filter(Boolean) as string[])).sort(),
       drives: Array.from(new Set(cars.map((c) => c.drive))),
+      gear: Array.from(new Set(cars.map((c) => c.gearbox))),
+      statuses: Array.from(new Set(cars.map((c) => c.status))),
       min: prices.length ? Math.min(...prices) : 0,
       max: prices.length ? Math.max(...prices) : 0,
+      yearMin: cars.length ? Math.min(...cars.map((c) => c.year)) : 2010,
+      yearMax: cars.length ? Math.max(...cars.map((c) => c.year)) : 2026,
+      powerMin: powers.length ? Math.min(...powers) : 0,
+      powerMax: powers.length ? Math.max(...powers) : 0,
     };
   }, [cars]);
 
@@ -94,19 +111,33 @@ export function ListView({
     ];
   }, [cars]);
 
-  const cap = priceMax ?? facets.max;
   const activeCount =
-    brands.length + bodies.length + fuels.length + drives.length + (priceMax !== null ? 1 : 0);
+    brands.length + bodies.length + fuels.length + colors.length + drives.length +
+    gear.length + (condition !== "all" ? 1 : 0) + (statusTab !== "all" ? 1 : 0) +
+    (priceFrom != null || priceTo != null ? 1 : 0) +
+    (yearFrom != null || yearTo != null ? 1 : 0) +
+    (powerFrom != null || powerTo != null ? 1 : 0);
 
   const list = cars.filter((c) => {
     const price = c.priceTverRub ?? c.priceRub;
+    const hp = c.powerHp ?? 0;
     if (filter !== "all" && c.country !== filter) return false;
+    if (statusTab !== "all" && c.status !== statusTab) return false;
     if (!c.model.toLowerCase().includes(q.toLowerCase())) return false;
     if (brands.length && !brands.includes(c.model.trim().split(/\s+/)[0])) return false;
     if (bodies.length && !(c.bodyType && bodies.includes(c.bodyType))) return false;
     if (fuels.length && !(c.fuelType && fuels.includes(c.fuelType))) return false;
+    if (colors.length && !(c.color && colors.includes(c.color))) return false;
     if (drives.length && !drives.includes(c.drive)) return false;
-    if (price > cap) return false;
+    if (gear.length && !gear.includes(c.gearbox)) return false;
+    if (condition === "new" && !c.isNew) return false;
+    if (condition === "used" && c.isNew) return false;
+    if (priceFrom != null && price < priceFrom) return false;
+    if (priceTo != null && price > priceTo) return false;
+    if (yearFrom != null && c.year < yearFrom) return false;
+    if (yearTo != null && c.year > yearTo) return false;
+    if (powerFrom != null && hp < powerFrom) return false;
+    if (powerTo != null && hp > powerTo) return false;
     return true;
   });
 
@@ -114,8 +145,17 @@ export function ListView({
     setBrands([]);
     setBodies([]);
     setFuels([]);
+    setColors([]);
     setDrives([]);
-    setPriceMax(null);
+    setGear([]);
+    setCondition("all");
+    setStatusTab("all");
+    setPriceFrom(null);
+    setPriceTo(null);
+    setYearFrom(null);
+    setYearTo(null);
+    setPowerFrom(null);
+    setPowerTo(null);
   }
 
   const pill = (active: boolean) =>
@@ -187,6 +227,21 @@ export function ListView({
             ) : null}
           </div>
 
+          <FilterRow label="Наличие">
+            <button onClick={() => setStatusTab("all")} className={pill(statusTab === "all")}>Все</button>
+            {facets.statuses.map((s) => (
+              <button key={s} onClick={() => setStatusTab(statusTab === s ? "all" : s)} className={pill(statusTab === s)}>
+                {statusLabels[s]}
+              </button>
+            ))}
+          </FilterRow>
+
+          <FilterRow label="Состояние">
+            {([["all", "Любое"], ["new", "Новые"], ["used", "С пробегом"]] as const).map(([v, l]) => (
+              <button key={v} onClick={() => setCondition(v)} className={pill(condition === v)}>{l}</button>
+            ))}
+          </FilterRow>
+
           {facets.bodies.length ? (
             <FilterRow label="Кузов">
               {facets.bodies.map((b) => (
@@ -207,10 +262,28 @@ export function ListView({
             </FilterRow>
           ) : null}
 
+          {facets.colors.length ? (
+            <FilterRow label="Цвет">
+              {facets.colors.map((c) => (
+                <button key={c} onClick={() => setColors((p) => mtoggle(p, c))} className={pill(colors.includes(c))}>
+                  {c}
+                </button>
+              ))}
+            </FilterRow>
+          ) : null}
+
           <FilterRow label="Привод">
             {facets.drives.map((d) => (
               <button key={d} onClick={() => setDrives((p) => mtoggle(p, d))} className={pill(drives.includes(d))}>
                 {d}
+              </button>
+            ))}
+          </FilterRow>
+
+          <FilterRow label="Коробка">
+            {facets.gear.map((g) => (
+              <button key={g} onClick={() => setGear((p) => mtoggle(p, g))} className={pill(gear.includes(g))}>
+                {g}
               </button>
             ))}
           </FilterRow>
@@ -223,24 +296,13 @@ export function ListView({
             ))}
           </FilterRow>
 
-          {facets.max > facets.min ? (
-            <div>
-              <div className="mb-1 text-[12px] font-bold uppercase tracking-wide text-[#8C97A1]">
-                Цена до{" "}
-                <span className="font-num text-bordeaux-bright">
-                  {formatPrice(cap)} ₽
-                </span>
-              </div>
-              <input
-                type="range"
-                min={facets.min}
-                max={facets.max}
-                step={10000}
-                value={cap}
-                onChange={(e) => setPriceMax(Number(e.target.value))}
-                className="w-full accent-bordeaux"
-              />
-            </div>
+          <MiniRange label="Год" min={facets.yearMin} max={facets.yearMax} step={1}
+            from={yearFrom} to={yearTo} onFrom={setYearFrom} onTo={setYearTo} fmt={(n) => String(n)} />
+          <MiniRange label="Цена" min={facets.min} max={facets.max} step={10000}
+            from={priceFrom} to={priceTo} onFrom={setPriceFrom} onTo={setPriceTo} fmt={(n) => `${formatPrice(n)} ₽`} />
+          {facets.powerMax > facets.powerMin ? (
+            <MiniRange label="Мощность" min={facets.powerMin} max={facets.powerMax} step={5}
+              from={powerFrom} to={powerTo} onFrom={setPowerFrom} onTo={setPowerTo} fmt={(n) => `${n} л.с.`} />
           ) : null}
         </div>
       ) : null}
@@ -1586,6 +1648,64 @@ function FilterRow({
         {label}
       </div>
       <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+// Диапазон «от/до» на двух ползунках (мини-апп). null = граница не задана.
+function MiniRange({
+  label,
+  min,
+  max,
+  step,
+  from,
+  to,
+  onFrom,
+  onTo,
+  fmt,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  from: number | null;
+  to: number | null;
+  onFrom: (v: number | null) => void;
+  onTo: (v: number | null) => void;
+  fmt: (n: number) => string;
+}) {
+  const lo = from ?? min;
+  const hi = to ?? max;
+  return (
+    <div>
+      <div className="mb-1 flex justify-between text-[12px] font-bold uppercase tracking-wide text-[#8C97A1]">
+        <span>{label}: от <span className="font-num text-bordeaux-bright">{fmt(lo)}</span></span>
+        <span>до <span className="font-num text-bordeaux-bright">{fmt(hi)}</span></span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={lo}
+        onChange={(e) => {
+          const v = Math.min(Number(e.target.value), hi);
+          onFrom(v <= min ? null : v);
+        }}
+        className="w-full accent-bordeaux"
+      />
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={hi}
+        onChange={(e) => {
+          const v = Math.max(Number(e.target.value), lo);
+          onTo(v >= max ? null : v);
+        }}
+        className="w-full accent-bordeaux"
+      />
     </div>
   );
 }
