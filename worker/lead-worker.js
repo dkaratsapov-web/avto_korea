@@ -36,7 +36,7 @@ const DEFAULT_SETTINGS = {
   quizButtonText: "🧩 Подбор по бюджету (5 вопросов)",
   managerButtonText: "💬 Написать менеджеру",
   managerUrl: "https://t.me/Dmitriicarexport",
-  mapButtonText: "📍 Как к нам проехать?",
+  mapButtonText: "📍 Мы на Яндекс Картах",
   mapUrl: "https://yandex.com/maps/-/CTAf5Lo-",
   map2gisButtonText: "🗺 Мы в 2ГИС",
   map2gisUrl: "https://2gis.ru/tver/firm/70000001110299440",
