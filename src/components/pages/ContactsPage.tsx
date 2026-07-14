@@ -84,9 +84,24 @@ export function ContactsPage() {
               <MapPin className="mt-0.5 h-5 w-5 flex-none text-steel" />
               <div>
                 <div className="text-[12px] font-bold uppercase tracking-wide text-ink-2">Адрес</div>
-                <div className="font-bold text-ink">{site.region}</div>
-                <div className="mt-0.5 text-[13px] text-ink-2">
-                  [ЗАГЛУШКА: точный адрес офиса/шоурума, если есть]
+                <div className="font-bold text-ink">{site.addressFull}</div>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  <a
+                    href={site.mapHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-line px-3 py-1 text-[12.5px] font-bold text-ink-2 transition-colors hover:border-steel hover:text-ink"
+                  >
+                    Яндекс.Карты
+                  </a>
+                  <a
+                    href={site.map2gisHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-line px-3 py-1 text-[12.5px] font-bold text-ink-2 transition-colors hover:border-steel hover:text-ink"
+                  >
+                    2ГИС
+                  </a>
                 </div>
               </div>
             </div>

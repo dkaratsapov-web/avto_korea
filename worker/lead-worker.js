@@ -38,6 +38,8 @@ const DEFAULT_SETTINGS = {
   managerUrl: "https://t.me/Dmitriicarexport",
   mapButtonText: "📍 Как к нам проехать?",
   mapUrl: "https://yandex.com/maps/-/CTAf5Lo-",
+  map2gisButtonText: "🗺 Мы в 2ГИС",
+  map2gisUrl: "https://2gis.ru/tver/firm/70000001110299440",
 };
 
 /* ---------- Telegram API ---------- */
@@ -369,6 +371,8 @@ export default {
         rows.push([{ text: settings.managerButtonText, url: settings.managerUrl }]);
         if (settings.mapUrl)
           rows.push([{ text: settings.mapButtonText, url: settings.mapUrl }]);
+        if (settings.map2gisUrl)
+          rows.push([{ text: settings.map2gisButtonText, url: settings.map2gisUrl }]);
         const r = await api(env, "sendMessage", {
           chat_id: msg.chat.id,
           text: settings.welcomeText,
@@ -855,6 +859,8 @@ async function handleAdmin(env, action, payload, role, user) {
         "managerUrl",
         "mapButtonText",
         "mapUrl",
+        "map2gisButtonText",
+        "map2gisUrl",
         "miniAppUrl",
       ];
       const next = { ...cur };

@@ -29,6 +29,7 @@ export const site = {
   address: "ул. Коминтерна, 71",
   addressFull: "Тверь, ул. Коминтерна, 71",
   mapHref: "https://yandex.ru/maps/?text=Тверь%2C%20улица%20Коминтерна%2C%2071",
+  map2gisHref: "https://2gis.ru/tver/firm/70000001110299440",
 } as const;
 
 // Навигация по реальным страницам (без якорей-секций).
