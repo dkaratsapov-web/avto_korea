@@ -49,7 +49,25 @@ export type Draft = {
   ts: number;
 };
 
-export type AdminRole = "owner" | "manager" | "viewer";
+export type AdminRole = "owner" | "admin" | "manager" | "viewer";
+export type AdminCap =
+  | "catalog"
+  | "leads"
+  | "reviews"
+  | "subs"
+  | "stats"
+  | "bot"
+  | "broadcast";
+export const ALL_CAPS: { key: AdminCap; label: string }[] = [
+  { key: "catalog", label: "Каталог и черновики" },
+  { key: "leads", label: "Заявки" },
+  { key: "reviews", label: "Отзывы" },
+  { key: "subs", label: "Подписки" },
+  { key: "stats", label: "Статистика" },
+  { key: "bot", label: "Настройки бота" },
+  { key: "broadcast", label: "Рассылка" },
+];
+export type AdminMe = { owner: boolean; caps: AdminCap[] };
 
 export type Lead = {
   name: string;
@@ -59,7 +77,10 @@ export type Lead = {
   ts: number;
 };
 
-export type AdminsMap = Record<string, { role: "manager" | "viewer"; name?: string; addedAt?: number }>;
+export type AdminsMap = Record<
+  string,
+  { caps?: string[]; role?: string; name?: string; addedAt?: number }
+>;
 
 export type Review = {
   id: string;

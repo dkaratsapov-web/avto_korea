@@ -224,39 +224,59 @@ async function verifyInitData(initData, botToken) {
   return { ok: true, user };
 }
 
-// Роль пользователя: owner (env) > запись в KV admins > null.
-async function roleOf(env, userId) {
-  const owners = String(env.ADMIN_IDS || "")
-    .split(/[,\s]+/)
-    .filter(Boolean);
-  if (owners.includes(String(userId))) return "owner";
-  const admins = (await kvGet(env, "admins", {})) || {};
-  return admins[String(userId)]?.role || null;
-}
+// Тумблеры прав. Владелец (env ADMIN_IDS) имеет все + управление админами.
+const CAPS = ["catalog", "leads", "reviews", "subs", "stats", "bot", "broadcast"];
 
-const RANK = { viewer: 1, manager: 2, owner: 3 };
-const need = {
-  "me": "viewer",
-  "catalog.get": "viewer",
-  "leads.list": "manager",
-  "settings.get": "viewer",
-  "catalog.save": "manager",
-  "settings.save": "manager",
-  "subs.list": "manager",
-  "reviews.list": "viewer",
-  "reviews.save": "manager",
-  "reviews.remove": "manager",
-  "faq.get": "viewer",
-  "faq.save": "manager",
-  "stats.get": "manager",
-  "broadcast.send": "owner",
-  "drafts.list": "manager",
-  "drafts.remove": "manager",
-  "drafts.update": "manager",
+// Какое право нужно для действия. null = любому админу; "owner" = только владелец.
+const NEED_CAP = {
+  "me": null,
+  "catalog.get": "catalog",
+  "catalog.save": "catalog",
+  "drafts.list": "catalog",
+  "drafts.remove": "catalog",
+  "drafts.update": "catalog",
+  "settings.get": "bot",
+  "settings.save": "bot",
+  "faq.get": "bot",
+  "faq.save": "bot",
+  "leads.list": "leads",
+  "subs.list": "subs",
+  "reviews.list": "reviews",
+  "reviews.save": "reviews",
+  "reviews.remove": "reviews",
+  "stats.get": "stats",
+  "broadcast.send": "broadcast",
   "admins.list": "owner",
   "admins.set": "owner",
   "admins.remove": "owner",
 };
+
+// Любой ли это админ (owner из env или запись в KV) — для гейта пересылки постов.
+async function roleOf(env, userId) {
+  const perm = await permsOf(env, userId);
+  return perm ? (perm.owner ? "owner" : "admin") : null;
+}
+
+// Права пользователя: { owner:bool, caps:Set<string> } или null.
+async function permsOf(env, userId) {
+  const owners = String(env.ADMIN_IDS || "")
+    .split(/[,\s]+/)
+    .filter(Boolean);
+  if (owners.includes(String(userId)))
+    return { owner: true, caps: new Set([...CAPS, "admins"]) };
+  const admins = (await kvGet(env, "admins", {})) || {};
+  const rec = admins[String(userId)];
+  if (!rec) return null;
+  let caps = rec.caps;
+  if (!Array.isArray(caps)) {
+    // миграция со старых ролей на тумблеры
+    if (rec.role === "admin") caps = CAPS.slice();
+    else if (rec.role === "manager")
+      caps = ["catalog", "leads", "reviews", "subs", "stats", "bot"];
+    else caps = ["leads", "reviews"]; // бывший viewer
+  }
+  return { owner: false, caps: new Set(caps.filter((c) => CAPS.includes(c))) };
+}
 
 /* ---------- Маршруты ---------- */
 export default {
@@ -577,15 +597,18 @@ export default {
       const { initData, action, payload } = body || {};
       const auth = await verifyInitData(initData, env.TELEGRAM_BOT_TOKEN);
       if (!auth.ok) return json({ ok: false, error: "unauthorized" }, 401);
-      const role = await roleOf(env, auth.user.id);
-      if (!role) return json({ ok: false, error: "forbidden" }, 403);
+      const perm = await permsOf(env, auth.user.id);
+      if (!perm) return json({ ok: false, error: "forbidden" }, 403);
 
-      const required = need[action];
-      if (!required) return json({ ok: false, error: "unknown_action" }, 400);
-      if (RANK[role] < RANK[required])
+      if (!(action in NEED_CAP))
+        return json({ ok: false, error: "unknown_action" }, 400);
+      const req = NEED_CAP[action];
+      if (req === "owner" && !perm.owner)
+        return json({ ok: false, error: "no_permission" }, 403);
+      if (req && req !== "owner" && !perm.owner && !perm.caps.has(req))
         return json({ ok: false, error: "no_permission" }, 403);
 
-      return handleAdmin(env, action, payload, role, auth.user);
+      return handleAdmin(env, action, payload, perm, auth.user);
     }
 
     return new Response("DiAvto69 worker is running", { headers: cors });
@@ -830,10 +853,15 @@ async function handleChannelPost(env, post) {
 }
 
 /* ---------- Обработчики админ-действий ---------- */
-async function handleAdmin(env, action, payload, role, user) {
+async function handleAdmin(env, action, payload, perm, user) {
   switch (action) {
     case "me":
-      return json({ ok: true, role, user: { id: user.id, name: user.first_name } });
+      return json({
+        ok: true,
+        owner: perm.owner,
+        caps: CAPS.filter((c) => perm.caps.has(c)),
+        user: { id: user.id, name: user.first_name },
+      });
 
     case "catalog.get":
       return json({ ok: true, catalog: await kvGet(env, "catalog", null) });
@@ -1018,22 +1046,33 @@ async function handleAdmin(env, action, payload, role, user) {
 
     case "admins.set": {
       const id = String(payload?.id || "").trim();
-      const r = payload?.role;
-      if (!/^\d+$/.test(id) || (r !== "manager" && r !== "viewer"))
+      const caps = Array.isArray(payload?.caps)
+        ? payload.caps.filter((c) => CAPS.includes(c))
+        : [];
+      if (!/^\d+$/.test(id))
         return json({ ok: false, error: "bad_payload" }, 400);
       const admins = (await kvGet(env, "admins", {})) || {};
       const existed = !!admins[id];
-      admins[id] = { role: r, name: payload?.name || "", addedAt: Date.now() };
+      const name = payload?.name || admins[id]?.name || "";
+      admins[id] = { caps, name, addedAt: admins[id]?.addedAt || Date.now() };
       await kvPut(env, "admins", admins);
 
-      // Уведомление новому админу. Сработает, только если он уже запускал бота
-      // (Telegram не даёт писать первым тем, кто не открывал чат с ботом).
+      // Уведомление админу (только если он уже запускал бота).
       let notified = false;
+      const CAP_LABEL = {
+        catalog: "каталог",
+        leads: "заявки",
+        reviews: "отзывы",
+        subs: "подписки",
+        stats: "статистика",
+        bot: "настройки бота",
+        broadcast: "рассылка",
+      };
       try {
-        const roleLabel = r === "manager" ? "менеджер" : "наблюдатель";
+        const list = caps.map((c) => CAP_LABEL[c]).filter(Boolean).join(", ") || "—";
         const text = existed
-          ? `🔧 Ваша роль в админке *ДиАвто69* изменена: *${roleLabel}*.`
-          : `✅ Вам выдан доступ в админку *ДиАвто69*.\nРоль: *${roleLabel}*.\n\nОткройте мини-приложение бота и нажмите значок щита 🛡 в правом верхнем углу.`;
+          ? `🔧 Ваши права в админке *ДиАвто69* обновлены.\nДоступ: ${list}.`
+          : `✅ Вам выдан доступ в админку *ДиАвто69*.\nДоступ: ${list}.\n\nОткройте мини-приложение бота и нажмите значок щита 🛡 в правом верхнем углу.`;
         const resp = await api(env, "sendMessage", {
           chat_id: id,
           text,
@@ -1042,7 +1081,7 @@ async function handleAdmin(env, action, payload, role, user) {
         const jr = await resp.json().catch(() => ({}));
         notified = !!jr.ok;
       } catch {
-        /* не доставлено — новый админ ещё не запускал бота */
+        /* не доставлено — админ ещё не запускал бота */
       }
       return json({ ok: true, admins, notified });
     }

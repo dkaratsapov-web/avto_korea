@@ -5,7 +5,7 @@ import { useUI } from "@/lib/ui";
 import { site } from "@/lib/site";
 import { showToast } from "@/lib/toast";
 import { loadTelegram, haptic, type TG } from "@/lib/telegram";
-import { adminCall, pingUser, logView, type AdminRole } from "@/lib/api";
+import { adminCall, pingUser, logView, type AdminMe } from "@/lib/api";
 import { TmaAdmin } from "@/components/pages/TmaAdmin";
 import {
   HomeView,
@@ -57,7 +57,7 @@ export function TmaApp() {
   });
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const initDataRef = useRef<string>("");
-  const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
+  const [admin, setAdmin] = useState<AdminMe | null>(null);
   const [adminOpen, setAdminOpen] = useState(false);
   const [intro, setIntro] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -91,8 +91,9 @@ export function TmaApp() {
         initDataRef.current = initData;
         if (initData) {
           pingUser(initData);
-          adminCall<{ role: AdminRole }>(initData, "me").then((r) => {
-            if (mounted && r.ok && r.role) setAdminRole(r.role);
+          adminCall<AdminMe>(initData, "me").then((r) => {
+            if (mounted && r.ok && (r.owner || (r.caps && r.caps.length)))
+              setAdmin({ owner: !!r.owner, caps: r.caps || [] });
           });
         }
       }
@@ -218,14 +219,15 @@ export function TmaApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, ready, adminOpen]);
 
-  if (adminOpen && adminRole) {
+  if (adminOpen && admin) {
     return (
       <div className="min-h-screen bg-graphite text-white">
         <div className="mx-auto max-w-md px-4 pb-28 pt-4">
           <TmaAdmin
             tg={tgRef.current}
             initData={initDataRef.current}
-            role={adminRole}
+            owner={admin.owner}
+            caps={admin.caps}
             onExit={() => setAdminOpen(false)}
           />
         </div>
@@ -269,7 +271,7 @@ export function TmaApp() {
             </picture>
           </button>
           <div className="flex items-center gap-2">
-          {adminRole ? (
+          {admin ? (
             <button
               type="button"
               onClick={() => {

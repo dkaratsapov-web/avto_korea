@@ -10,8 +10,8 @@ export const site = {
   url: import.meta.env.VITE_SITE_URL ?? "https://diauto69.ru",
 
   // TODO: уточнить реальный номер у заказчика (сейчас плейсхолдер).
-  phone: "+7 (482) 200-69-69",
-  phoneHref: "tel:+74822006969",
+  phone: "+7 (482) 236-87-77",
+  phoneHref: "tel:+74822368777",
 
   telegram: "@Dmitriicarexport",
   telegramHref: "https://t.me/Dmitriicarexport",

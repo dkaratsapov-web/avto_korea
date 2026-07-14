@@ -27,7 +27,8 @@ import { showToast } from "@/lib/toast";
 import {
   adminCall,
   API_BASE,
-  type AdminRole,
+  ALL_CAPS,
+  type AdminCap,
   type BotSettings,
   type Lead,
   type AdminsMap,
@@ -170,27 +171,37 @@ function genDescription(c: Car): string {
 export function TmaAdmin({
   tg,
   initData,
-  role,
+  owner,
+  caps,
   onExit,
 }: {
   tg: TG | null;
   initData: string;
-  role: AdminRole;
+  owner: boolean;
+  caps: AdminCap[];
   onExit: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>("catalog");
-  const tabs: { id: Tab; label: string; icon: typeof CarIcon; min: number }[] = [
-    { id: "catalog", label: "Каталог", icon: CarIcon, min: 1 },
-    { id: "drafts", label: "Черновики", icon: FileStack, min: 2 },
-    { id: "bot", label: "Бот", icon: Bot, min: 1 },
-    { id: "leads", label: "Заявки", icon: Inbox, min: 2 },
-    { id: "reviews", label: "Отзывы", icon: Star, min: 1 },
-    { id: "subs", label: "Подписки", icon: Bell, min: 2 },
-    { id: "stats", label: "Статистика", icon: BarChart3, min: 2 },
-    { id: "broadcast", label: "Рассылка", icon: Megaphone, min: 3 },
-    { id: "admins", label: "Админы", icon: Users, min: 3 },
+  const can = (cap: AdminCap) => owner || caps.includes(cap);
+  const tabs: {
+    id: Tab;
+    label: string;
+    icon: typeof CarIcon;
+    cap: AdminCap | "admins";
+  }[] = [
+    { id: "catalog", label: "Каталог", icon: CarIcon, cap: "catalog" },
+    { id: "drafts", label: "Черновики", icon: FileStack, cap: "catalog" },
+    { id: "bot", label: "Бот", icon: Bot, cap: "bot" },
+    { id: "leads", label: "Заявки", icon: Inbox, cap: "leads" },
+    { id: "reviews", label: "Отзывы", icon: Star, cap: "reviews" },
+    { id: "subs", label: "Подписки", icon: Bell, cap: "subs" },
+    { id: "stats", label: "Статистика", icon: BarChart3, cap: "stats" },
+    { id: "broadcast", label: "Рассылка", icon: Megaphone, cap: "broadcast" },
+    { id: "admins", label: "Админы", icon: Users, cap: "admins" },
   ];
-  const rank = role === "owner" ? 3 : role === "manager" ? 2 : 1;
+  const visible = tabs.filter((t) =>
+    t.cap === "admins" ? owner : can(t.cap as AdminCap),
+  );
+  const [tab, setTab] = useState<Tab>(() => visible[0]?.id ?? "catalog");
 
   return (
     <div className="mx-auto max-w-md">
@@ -206,51 +217,49 @@ export function TmaAdmin({
         </button>
         <h1 className="text-[18px] font-extrabold uppercase">Админка</h1>
         <span className="ml-auto rounded-full border border-line-dark px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-chrome">
-          {role}
+          {owner ? "owner" : "admin"}
         </span>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
-        {tabs
-          .filter((t) => rank >= t.min)
-          .map((t) => (
-            <button
-              key={t.id}
-              onClick={() => {
-                haptic(tg);
-                setTab(t.id);
-              }}
-              className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold ${
-                tab === t.id
-                  ? "border-bordeaux-bright bg-bordeaux text-white"
-                  : "border-line-dark text-chrome"
-              }`}
-            >
-              <t.icon className="h-4 w-4" />
-              {t.label}
-            </button>
-          ))}
+        {visible.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => {
+              haptic(tg);
+              setTab(t.id);
+            }}
+            className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold ${
+              tab === t.id
+                ? "border-bordeaux-bright bg-bordeaux text-white"
+                : "border-line-dark text-chrome"
+            }`}
+          >
+            <t.icon className="h-4 w-4" />
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {tab === "catalog" ? (
-        <CatalogTab tg={tg} initData={initData} canEdit={rank >= 2} />
+      {tab === "catalog" && can("catalog") ? (
+        <CatalogTab tg={tg} initData={initData} canEdit />
       ) : null}
-      {tab === "drafts" && rank >= 2 ? (
+      {tab === "drafts" && can("catalog") ? (
         <DraftsTab tg={tg} initData={initData} />
       ) : null}
-      {tab === "bot" ? (
-        <BotTab tg={tg} initData={initData} canEdit={rank >= 2} />
+      {tab === "bot" && can("bot") ? (
+        <BotTab tg={tg} initData={initData} canEdit />
       ) : null}
-      {tab === "leads" && rank >= 2 ? <LeadsTab initData={initData} /> : null}
-      {tab === "reviews" ? (
-        <ReviewsTab tg={tg} initData={initData} canEdit={rank >= 2} />
+      {tab === "leads" && can("leads") ? <LeadsTab initData={initData} /> : null}
+      {tab === "reviews" && can("reviews") ? (
+        <ReviewsTab tg={tg} initData={initData} canEdit />
       ) : null}
-      {tab === "subs" && rank >= 2 ? <SubsTab initData={initData} /> : null}
-      {tab === "stats" && rank >= 2 ? <StatsTab initData={initData} /> : null}
-      {tab === "broadcast" && rank >= 3 ? (
+      {tab === "subs" && can("subs") ? <SubsTab initData={initData} /> : null}
+      {tab === "stats" && can("stats") ? <StatsTab initData={initData} /> : null}
+      {tab === "broadcast" && can("broadcast") ? (
         <BroadcastTab tg={tg} initData={initData} />
       ) : null}
-      {tab === "admins" && rank >= 3 ? <AdminsTab initData={initData} /> : null}
+      {tab === "admins" && owner ? <AdminsTab initData={initData} /> : null}
     </div>
   );
 }
@@ -1434,7 +1443,7 @@ function AdminsTab({ initData }: { initData: string }) {
   const [owners, setOwners] = useState<string[]>([]);
   const [id, setId] = useState("");
   const [name, setName] = useState("");
-  const [r, setR] = useState<"manager" | "viewer">("manager");
+  const [sel, setSel] = useState<AdminCap[]>(["catalog", "leads"]);
   const lab = "block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1] mb-1";
 
   function load() {
@@ -1450,18 +1459,43 @@ function AdminsTab({ initData }: { initData: string }) {
   }
   useEffect(load, [initData]);
 
+  const toggleSel = (c: AdminCap) =>
+    setSel((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c]));
+
+  // Права админа: из caps, либо миграция со старой роли.
+  function recCaps(a: AdminsMap[string]): string[] {
+    if (Array.isArray(a.caps)) return a.caps;
+    if (a.role === "admin") return ALL_CAPS.map((c) => c.key);
+    if (a.role === "manager") return ["catalog", "leads", "reviews", "subs", "stats", "bot"];
+    if (a.role) return ["leads", "reviews"];
+    return [];
+  }
+
+  async function save(uid: string, caps: string[], nm?: string) {
+    const res = await adminCall<{ admins: AdminsMap; notified?: boolean }>(
+      initData,
+      "admins.set",
+      { id: uid, caps, name: nm },
+    );
+    if (res.ok) {
+      setAdmins(res.admins);
+      return res;
+    }
+    showToast("Ошибка: " + (res.error || ""), "error");
+    return null;
+  }
+
   async function add() {
     if (!/^\d+$/.test(id.trim())) {
       showToast("ID — только цифры (узнать через @userinfobot)", "error");
       return;
     }
-    const res = await adminCall<{ admins: AdminsMap; notified?: boolean }>(
-      initData,
-      "admins.set",
-      { id: id.trim(), role: r, name },
-    );
-    if (res.ok) {
-      setAdmins(res.admins);
+    if (!sel.length) {
+      showToast("Отметьте хотя бы одно право", "error");
+      return;
+    }
+    const res = await save(id.trim(), sel, name);
+    if (res) {
       setId("");
       setName("");
       showToast(
@@ -1469,7 +1503,7 @@ function AdminsTab({ initData }: { initData: string }) {
           ? "Админ добавлен — уведомление отправлено"
           : "Админ добавлен. Уведомление не дошло: пусть он сначала запустит бота (кнопка «Старт»)",
       );
-    } else showToast("Ошибка: " + (res.error || ""), "error");
+    }
   }
 
   async function remove(uid: string) {
@@ -1501,27 +1535,34 @@ function AdminsTab({ initData }: { initData: string }) {
             onChange={(e) => setName(e.target.value)}
             placeholder="Имя (для себя)"
           />
-          <div className="flex gap-2">
-            {(["manager", "viewer"] as const).map((opt) => (
-              <button
-                key={opt}
-                onClick={() => setR(opt)}
-                className={`flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${
-                  r === opt
-                    ? "border-bordeaux-bright bg-bordeaux text-white"
-                    : "border-line-dark text-chrome"
-                }`}
-              >
-                {opt === "manager" ? "Менеджер" : "Наблюдатель"}
-              </button>
-            ))}
+          <div>
+            <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+              Доступ к разделам
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {ALL_CAPS.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => toggleSel(c.key)}
+                  className={`rounded-full border px-3 py-1.5 text-[12.5px] font-bold ${
+                    sel.includes(c.key)
+                      ? "border-bordeaux-bright bg-bordeaux text-white"
+                      : "border-line-dark text-chrome"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
           </div>
           <button onClick={add} className="btn btn-primary w-full">
             <Plus className="h-[18px] w-[18px]" /> Добавить
           </button>
         </div>
         <p className="mt-2 text-[11px] text-[#8C97A1]">
-          Менеджер — правит каталог и тексты бота. Наблюдатель — видит заявки.
+          Отметьте разделы, к которым будет доступ. Управлять админами может
+          только владелец.
         </p>
       </div>
 
@@ -1554,30 +1595,56 @@ function AdminsTab({ initData }: { initData: string }) {
           {Object.keys(admins).length === 0 ? (
             <p className="text-[13px] text-[#8C97A1]">Пока никого.</p>
           ) : (
-            Object.entries(admins).map(([uid, a]) => (
-              <div
-                key={uid}
-                className="flex items-center gap-2 rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-bold">
-                    {a.name || "—"}{" "}
-                    <span className="font-num text-[12px] text-[#8C97A1]">
-                      #{uid}
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-bold uppercase text-chrome">
-                    {a.role === "manager" ? "менеджер" : "наблюдатель"}
-                  </span>
-                </div>
-                <button
-                  onClick={() => remove(uid)}
-                  className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-line-dark text-bordeaux-bright"
+            Object.entries(admins).map(([uid, a]) => {
+              const caps = recCaps(a);
+              return (
+                <div
+                  key={uid}
+                  className="rounded-[14px] border border-line-dark bg-graphite-2 p-3"
                 >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1 truncate font-bold">
+                      {a.name || "—"}{" "}
+                      <span className="font-num text-[12px] text-[#8C97A1]">
+                        #{uid}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => remove(uid)}
+                      className="flex h-8 w-8 flex-none items-center justify-center rounded-full border border-line-dark text-bordeaux-bright"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {/* тумблеры прав — клик меняет доступ сразу */}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {ALL_CAPS.map((c) => {
+                      const on = caps.includes(c.key);
+                      return (
+                        <button
+                          key={c.key}
+                          type="button"
+                          onClick={() =>
+                            save(
+                              uid,
+                              on ? caps.filter((x) => x !== c.key) : [...caps, c.key],
+                              a.name,
+                            )
+                          }
+                          className={`rounded-full border px-2.5 py-1 text-[11.5px] font-bold ${
+                            on
+                              ? "border-bordeaux-bright bg-bordeaux text-white"
+                              : "border-line-dark text-[#8C97A1]"
+                          }`}
+                        >
+                          {c.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
