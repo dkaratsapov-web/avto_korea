@@ -186,7 +186,7 @@ export function TmaAdmin({
     id: Tab;
     label: string;
     icon: typeof CarIcon;
-    cap: AdminCap | "admins";
+    cap: AdminCap;
   }[] = [
     { id: "catalog", label: "Каталог", icon: CarIcon, cap: "catalog" },
     { id: "drafts", label: "Черновики", icon: FileStack, cap: "catalog" },
@@ -198,9 +198,7 @@ export function TmaAdmin({
     { id: "broadcast", label: "Рассылка", icon: Megaphone, cap: "broadcast" },
     { id: "admins", label: "Админы", icon: Users, cap: "admins" },
   ];
-  const visible = tabs.filter((t) =>
-    t.cap === "admins" ? owner : can(t.cap as AdminCap),
-  );
+  const visible = tabs.filter((t) => can(t.cap));
   const [tab, setTab] = useState<Tab>(() => visible[0]?.id ?? "catalog");
 
   return (
@@ -259,7 +257,9 @@ export function TmaAdmin({
       {tab === "broadcast" && can("broadcast") ? (
         <BroadcastTab tg={tg} initData={initData} />
       ) : null}
-      {tab === "admins" && owner ? <AdminsTab initData={initData} /> : null}
+      {tab === "admins" && can("admins") ? (
+        <AdminsTab initData={initData} owner={owner} />
+      ) : null}
     </div>
   );
 }
@@ -1438,13 +1438,15 @@ function LeadsTab({ initData }: { initData: string }) {
 }
 
 /* ---------- Админы ---------- */
-function AdminsTab({ initData }: { initData: string }) {
+function AdminsTab({ initData, owner }: { initData: string; owner: boolean }) {
   const [admins, setAdmins] = useState<AdminsMap | null>(null);
   const [owners, setOwners] = useState<string[]>([]);
   const [id, setId] = useState("");
   const [name, setName] = useState("");
   const [sel, setSel] = useState<AdminCap[]>(["catalog", "leads"]);
   const lab = "block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1] mb-1";
+  // Право «Управление админами» может выдавать только владелец.
+  const capList = owner ? ALL_CAPS : ALL_CAPS.filter((c) => c.key !== "admins");
 
   function load() {
     adminCall<{ admins: AdminsMap; owners: string[] }>(
@@ -1465,7 +1467,8 @@ function AdminsTab({ initData }: { initData: string }) {
   // Права админа: из caps, либо миграция со старой роли.
   function recCaps(a: AdminsMap[string]): string[] {
     if (Array.isArray(a.caps)) return a.caps;
-    if (a.role === "admin") return ALL_CAPS.map((c) => c.key);
+    if (a.role === "admin")
+      return ALL_CAPS.map((c) => c.key).filter((k) => k !== "admins");
     if (a.role === "manager") return ["catalog", "leads", "reviews", "subs", "stats", "bot"];
     if (a.role) return ["leads", "reviews"];
     return [];
@@ -1540,7 +1543,7 @@ function AdminsTab({ initData }: { initData: string }) {
               Доступ к разделам
             </div>
             <div className="flex flex-wrap gap-2">
-              {ALL_CAPS.map((c) => (
+              {capList.map((c) => (
                 <button
                   key={c.key}
                   type="button"
@@ -1618,7 +1621,7 @@ function AdminsTab({ initData }: { initData: string }) {
                   </div>
                   {/* тумблеры прав — клик меняет доступ сразу */}
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {ALL_CAPS.map((c) => {
+                    {capList.map((c) => {
                       const on = caps.includes(c.key);
                       return (
                         <button

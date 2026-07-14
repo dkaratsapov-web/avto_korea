@@ -224,8 +224,9 @@ async function verifyInitData(initData, botToken) {
   return { ok: true, user };
 }
 
-// Тумблеры прав. Владелец (env ADMIN_IDS) имеет все + управление админами.
-const CAPS = ["catalog", "leads", "reviews", "subs", "stats", "bot", "broadcast"];
+// Тумблеры прав. Владелец (env ADMIN_IDS) имеет все права.
+// "admins" — право добавлять/удалять админов и менять их права.
+const CAPS = ["catalog", "leads", "reviews", "subs", "stats", "bot", "broadcast", "admins"];
 
 // Какое право нужно для действия. null = любому админу; "owner" = только владелец.
 const NEED_CAP = {
@@ -246,9 +247,9 @@ const NEED_CAP = {
   "reviews.remove": "reviews",
   "stats.get": "stats",
   "broadcast.send": "broadcast",
-  "admins.list": "owner",
-  "admins.set": "owner",
-  "admins.remove": "owner",
+  "admins.list": "admins",
+  "admins.set": "admins",
+  "admins.remove": "admins",
 };
 
 // Любой ли это админ (owner из env или запись в KV) — для гейта пересылки постов.
@@ -263,7 +264,7 @@ async function permsOf(env, userId) {
     .split(/[,\s]+/)
     .filter(Boolean);
   if (owners.includes(String(userId)))
-    return { owner: true, caps: new Set([...CAPS, "admins"]) };
+    return { owner: true, caps: new Set(CAPS) };
   const admins = (await kvGet(env, "admins", {})) || {};
   const rec = admins[String(userId)];
   if (!rec) return null;
@@ -1067,6 +1068,7 @@ async function handleAdmin(env, action, payload, perm, user) {
         stats: "статистика",
         bot: "настройки бота",
         broadcast: "рассылка",
+        admins: "управление админами",
       };
       try {
         const list = caps.map((c) => CAP_LABEL[c]).filter(Boolean).join(", ") || "—";

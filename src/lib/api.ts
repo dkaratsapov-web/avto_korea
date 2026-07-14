@@ -57,7 +57,8 @@ export type AdminCap =
   | "subs"
   | "stats"
   | "bot"
-  | "broadcast";
+  | "broadcast"
+  | "admins";
 export const ALL_CAPS: { key: AdminCap; label: string }[] = [
   { key: "catalog", label: "Каталог и черновики" },
   { key: "leads", label: "Заявки" },
@@ -66,6 +67,7 @@ export const ALL_CAPS: { key: AdminCap; label: string }[] = [
   { key: "stats", label: "Статистика" },
   { key: "bot", label: "Настройки бота" },
   { key: "broadcast", label: "Рассылка" },
+  { key: "admins", label: "Управление админами" },
 ];
 export type AdminMe = { owner: boolean; caps: AdminCap[] };
 
