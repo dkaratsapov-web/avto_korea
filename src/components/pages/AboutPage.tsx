@@ -163,32 +163,40 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* Реквизиты — заглушка (нужно по 152-ФЗ/оферте) */}
+      {/* Реквизиты */}
       <section className="wrap mt-14">
         <div className="rounded-card border border-line bg-white p-6">
           <h2 className="text-[20px] font-extrabold uppercase text-ink">Реквизиты</h2>
-          <div className="mt-3 grid gap-2 text-[14px] text-ink-2 sm:grid-cols-2">
-            <div>ИП: <b className="text-ink">[ЗАГЛУШКА: ФИО ИП]</b></div>
-            <div>ИНН: <b className="text-ink">[ЗАГЛУШКА]</b></div>
-            <div>ОГРНИП: <b className="text-ink">[ЗАГЛУШКА]</b></div>
-            <div>Адрес: <b className="text-ink">{site.region}</b></div>
+          <div className="mt-3 grid gap-x-8 gap-y-2 text-[14px] text-ink-2 sm:grid-cols-2">
+            <div>Организация: <b className="text-ink">{site.requisites.nameFull}</b></div>
+            <div>ИНН: <b className="text-ink">{site.requisites.inn}</b></div>
+            <div>ОГРНИП: <b className="text-ink">{site.requisites.ogrnip}</b></div>
+            <div className="sm:col-span-2">Юридический адрес: <b className="text-ink">{site.requisites.legalAddress}</b></div>
             <div>Телефон: <b className="text-ink">{site.phone}</b></div>
             <div>E-mail: <b className="text-ink">{site.email}</b></div>
+            <div>Расчётный счёт: <b className="text-ink">{site.requisites.account}</b></div>
+            <div>Банк: <b className="text-ink">{site.requisites.bank}</b></div>
+            <div>БИК: <b className="text-ink">{site.requisites.bik}</b></div>
+            <div>Корр. счёт: <b className="text-ink">{site.requisites.corrAccount}</b></div>
+            <div>ИНН банка: <b className="text-ink">{site.requisites.bankInn}</b></div>
+            <div className="sm:col-span-2">Адрес банка: <b className="text-ink">{site.requisites.bankAddress}</b></div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CTA — по центру */}
       <section className="wrap mt-14">
-        <div className="rounded-card border border-line bg-graphite p-6 text-white sm:p-8">
+        <div className="rounded-card border border-line bg-graphite p-6 text-center text-white sm:p-10">
           <h2 className="text-[24px] font-extrabold uppercase text-white">
             Готовы подобрать ваше авто
           </h2>
-          <p className="mb-5 mt-2 max-w-xl text-[14px] text-[#9AA4B2]">
+          <p className="mx-auto mb-6 mt-2 max-w-xl text-[14px] text-[#9AA4B2]">
             Оставьте заявку — покажем реальную цену под ключ с доставкой и
             растаможкой и ответим на все вопросы.
           </p>
-          <LeadForm source="Страница «О нас»" submitLabel="Получить расчёт" withCar={false} withContacts />
+          <div className="mx-auto max-w-[560px] text-left">
+            <LeadForm source="Страница «О нас»" submitLabel="Получить расчёт" withCar={false} withContacts />
+          </div>
         </div>
       </section>
     </main>

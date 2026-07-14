@@ -95,15 +95,22 @@ export function Footer() {
       </div>
 
       <div className="chrome-line opacity-40" />
-      <div className="wrap relative flex flex-wrap items-center justify-between gap-3 py-6 text-[13px]">
-        <span>© 2026 ДиАвто69. Импорт авто под ключ.</span>
-        {/* TODO: подключить страницы политики и реквизитов после подтверждения. */}
-        <span className="flex items-center gap-3 text-[#6f7884]">
-          Реквизиты и политика — TODO
-          <Link to="/admin" className="transition-colors hover:text-chrome">
-            Админ
-          </Link>
-        </span>
+      <div className="wrap relative py-6 text-[13px]">
+        <p className="max-w-4xl text-[12px] leading-relaxed text-[#6f7884]">
+          {site.requisites.name} · ИНН {site.requisites.inn} · ОГРНИП{" "}
+          {site.requisites.ogrnip} · {site.requisites.legalAddress}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <span>© 2026 ДиАвто69. Импорт авто под ключ.</span>
+          <span className="flex items-center gap-3 text-[#6f7884]">
+            <Link to="/contacts" className="transition-colors hover:text-chrome">
+              Реквизиты
+            </Link>
+            <Link to="/admin" className="transition-colors hover:text-chrome">
+              Админ
+            </Link>
+          </span>
+        </div>
       </div>
     </footer>
   );
