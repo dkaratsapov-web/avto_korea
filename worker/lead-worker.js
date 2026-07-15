@@ -40,6 +40,8 @@ const DEFAULT_SETTINGS = {
   mapUrl: "https://yandex.com/maps/-/CTAf5Lo-",
   map2gisButtonText: "🗺 Мы в 2ГИС",
   map2gisUrl: "https://2gis.ru/tver/firm/70000001110299440",
+  // Авто-публикация постов канала прямо в каталог (без черновиков).
+  autoPublish: false,
 };
 
 /* ---------- Telegram API ---------- */
@@ -313,10 +315,14 @@ export default {
       } catch {
         return new Response("ok");
       }
-      // пост из канала → черновик авто (для подтверждения в админке)
+      // пост из канала → авто-публикация в каталог (если включено) или черновик
       const post = upd.channel_post || upd.edited_channel_post;
       if (post) {
-        await handleChannelPost(env, post);
+        const st = await getSettings(env);
+        await handleChannelPost(env, post, {
+          auto: !!st.autoPublish,
+          origin: url.origin,
+        });
         return new Response("ok");
       }
 
@@ -791,6 +797,12 @@ function parseCaption(text) {
     if (colorM) color = cleanLine(colorM[1]).slice(0, 40);
   }
 
+  // Страна — по всему тексту (в т.ч. подпись «из Китая» и т.п.).
+  const country = /коре|korea/i.test(raw) ? "kr"
+    : /кита|china/i.test(raw) ? "cn"
+    : /япон|japan/i.test(raw) ? "jp"
+    : /европ|герман|\bес\b|\beu\b/i.test(raw) ? "eu" : null;
+
   return {
     model,
     price,
@@ -806,6 +818,7 @@ function parseCaption(text) {
     fuelType,
     color,
     trim,
+    country,
     // Буллеты-описание: строки тела без заголовка и без цены.
     highlights: body.filter(
       (l) => hasLetters(l) && !HEADER_RE.test(l) && !/цена|стоимость|price/i.test(l),
@@ -813,7 +826,103 @@ function parseCaption(text) {
   };
 }
 
-async function handleChannelPost(env, post) {
+function photoUrl(origin, fileId) {
+  return `${origin}/api/tgphoto?id=${encodeURIComponent(fileId)}`;
+}
+
+// Связное описание из характеристик (серверная копия клиентского генератора).
+function genDescriptionSrv(c) {
+  const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+  const seg = [];
+  const head = [c.model.trim(), c.year ? `${c.year} года` : ""].filter(Boolean).join(" ");
+  if (head) seg.push(head);
+  const tech = [];
+  if (c.bodyType) tech.push(c.bodyType.toLowerCase());
+  const vol = c.engineCc ? `${(c.engineCc / 1000).toFixed(1).replace(".", ",")} л` : "";
+  const power = c.powerHp ? `${c.powerHp} л.с.` : "";
+  const engine = [vol, power].filter(Boolean).join(", ");
+  if (engine) tech.push(`двигатель ${engine}`);
+  if (c.fuelType) tech.push(c.fuelType.toLowerCase());
+  if (c.gearbox) tech.push(/акпп|автомат/i.test(c.gearbox) ? "автомат" : c.gearbox.toLowerCase());
+  if (c.drive) tech.push(`${c.drive.toLowerCase()} привод`);
+  if (tech.length) seg.push(cap(tech.join(", ")));
+  const st = [];
+  if (c.trim) st.push(`комплектация ${c.trim}`);
+  if (c.color) st.push(`цвет ${c.color.toLowerCase()}`);
+  if (c.isNew || !c.mileageKm) st.push("новый, без пробега по РФ");
+  else st.push(`пробег ${c.mileageKm.toLocaleString("ru-RU")} км`);
+  if (st.length) seg.push(cap(st.join(", ")));
+  seg.push("Привезём под ключ: доставка, растаможка и оформление включены — честная цена без скрытых наценок");
+  return seg.join(". ") + ".";
+}
+
+// Полная карточка авто из поста канала (с стабильным id для правок).
+function carFromPost(p, id, images) {
+  const price = p.price || 0;
+  const mileageKm = p.mileageKm || 0;
+  const eng =
+    [
+      p.engineCc ? `${(p.engineCc / 1000).toFixed(1).replace(".", ",")} л` : "",
+      p.powerHp ? `${p.powerHp} л.с.` : "",
+    ].filter(Boolean).join(" · ") || "—";
+  const car = {
+    id,
+    model: p.model || "Авто из канала",
+    year: p.year || new Date().getFullYear(),
+    country: p.country || "kr",
+    engine: eng,
+    trim: p.trim || "",
+    mileage: mileageKm > 0 ? `${mileageKm.toLocaleString("ru-RU")} км` : "Новый, 0 км",
+    gearbox: p.gearbox || "АКПП",
+    drive: p.drive || "Передний",
+    bodyType: p.bodyType || "",
+    fuelType: p.fuelType || "Бензин",
+    engineCc: p.engineCc || 0,
+    powerHp: p.powerHp || 0,
+    mileageKm,
+    color: p.color || "",
+    priceRub: price,
+    priceTverRub: p.priceTver || price,
+    priceMoscowRub: p.priceMoscow || price,
+    status: "in_stock",
+    isNew: !(mileageKm > 0),
+    images,
+    highlights: [],
+  };
+  car.description = genDescriptionSrv(car);
+  return car;
+}
+
+// Авто-публикация: пост канала → карточка в каталоге (upsert по стабильному id).
+async function publishFromPost(env, post, caption, fileId, groupId, origin) {
+  const srcId = "tg-" + (groupId || post.message_id);
+  const url = fileId ? photoUrl(origin, fileId) : null;
+  let catalog = (await kvGet(env, "catalog", [])) || [];
+  if (!Array.isArray(catalog)) catalog = [];
+  let car = catalog.find((c) => c.id === srcId);
+  const isNewCar = !car;
+
+  if (!car) {
+    car = carFromPost(parseCaption(caption), srcId, url ? [url] : []);
+    catalog.push(car);
+  } else {
+    if (url && !car.images.includes(url)) car.images.push(url);
+    if (caption) {
+      const imgs = car.images;
+      Object.assign(car, carFromPost(parseCaption(caption), srcId, imgs));
+      car.images = imgs;
+    }
+  }
+  await kvPut(env, "catalog", catalog);
+  if (isNewCar && env.TELEGRAM_CHAT_ID) {
+    await api(env, "sendMessage", {
+      chat_id: env.TELEGRAM_CHAT_ID,
+      text: `✅ Авто из канала опубликовано в каталог: ${car.model}${car.priceRub ? ` · ${car.priceRub.toLocaleString("ru-RU")} ₽` : ""}`,
+    });
+  }
+}
+
+async function handleChannelPost(env, post, opts = {}) {
   if (!env.STORE) return;
   const caption = (post.caption || post.text || "").trim();
   const fileId =
@@ -821,9 +930,16 @@ async function handleChannelPost(env, post) {
       ? post.photo[post.photo.length - 1].file_id
       : null;
   const groupId = post.media_group_id || null;
-  const drafts = (await kvGet(env, "drafts", [])) || [];
+  if (!fileId && !caption) return;
 
-  // альбом: добавляем фото к уже созданному черновику той же группы
+  // Полностью автоматический режим — сразу в каталог.
+  if (opts.auto) {
+    await publishFromPost(env, post, caption, fileId, groupId, opts.origin);
+    return;
+  }
+
+  // Иначе — черновик для ручной проверки (прежнее поведение).
+  const drafts = (await kvGet(env, "drafts", [])) || [];
   if (groupId) {
     const ex = drafts.find((d) => d.groupId === groupId);
     if (ex) {
@@ -836,8 +952,6 @@ async function handleChannelPost(env, post) {
       return;
     }
   }
-
-  if (!fileId && !caption) return;
   drafts.unshift({
     id: "d" + Date.now() + Math.random().toString(36).slice(2, 6),
     groupId,
@@ -895,6 +1009,8 @@ async function handleAdmin(env, action, payload, perm, user) {
       const next = { ...cur };
       for (const k of allowed)
         if (typeof payload?.[k] === "string") next[k] = payload[k];
+      if (typeof payload?.autoPublish === "boolean")
+        next.autoPublish = payload.autoPublish;
       await kvPut(env, "settings", next);
       return json({ ok: true, settings: next });
     }

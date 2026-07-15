@@ -1286,6 +1286,31 @@ function BotTab({
 
   return (
     <div className="space-y-3">
+      {/* Авто-публикация каталога из канала */}
+      <div className="rounded-[14px] border border-bordeaux-bright/40 bg-bordeaux/10 p-3.5">
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            disabled={!canEdit}
+            checked={!!s.autoPublish}
+            onChange={(e) =>
+              setS((p) => (p ? { ...p, autoPublish: e.target.checked } : p))
+            }
+            className="mt-0.5 h-5 w-5 flex-none accent-bordeaux"
+          />
+          <span>
+            <span className="block font-bold text-white">
+              Авто-публикация из канала
+            </span>
+            <span className="mt-0.5 block text-[12px] leading-snug text-[#9AA4B2]">
+              Новые посты канала сразу попадают в каталог (без черновиков).
+              Правки поста обновляют карточку. Удаление поста в канале Telegram
+              не присылает — такие авто убирайте вручную во вкладке «Каталог».
+            </span>
+          </span>
+        </label>
+      </div>
+
       <label>
         <span className={lab}>Приветствие (Markdown)</span>
         <textarea

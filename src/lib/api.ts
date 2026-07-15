@@ -23,6 +23,7 @@ export type BotSettings = {
   mapButtonText: string;
   mapUrl: string;
   miniAppUrl?: string;
+  autoPublish?: boolean;
 };
 
 export type Draft = {
