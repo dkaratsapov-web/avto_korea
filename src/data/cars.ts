@@ -30,16 +30,8 @@ export type Car = {
   priceRub: number;
   priceMoscowRub?: number;
   priceTverRub?: number;
-  /** Старая цена до скидки, ₽ (если указана — показываем зачёркнутой). */
-  priceOldRub?: number;
   status: CarStatus;
   isNew?: boolean;
-  /** VIN автомобиля. */
-  vin?: string;
-  /** Число владельцев. */
-  owners?: number;
-  /** Растаможен / ЭПТС оформлен. */
-  customsPaid?: boolean;
   images: string[];
   highlights: string[];
   /** Связное текстовое описание (абзац). Показывается на карточке авто. */

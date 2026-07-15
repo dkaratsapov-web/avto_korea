@@ -304,7 +304,7 @@ export function Preloader({ onDone }: { onDone: () => void }) {
 
       <div className="relative text-center">
         <p className="font-display text-[clamp(18px,3vw,26px)] font-extrabold uppercase tracking-[0.02em] text-shine">
-          Возим из Кореи в Россию — под ключ
+          Возим из Китая в Россию — под ключ
         </p>
         <p className="mt-2 text-[13px] font-semibold uppercase tracking-[0.18em] text-steel">
           Готовим витрину…

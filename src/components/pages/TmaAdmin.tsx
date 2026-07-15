@@ -20,7 +20,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useCars } from "@/lib/carsStore";
-import { type Car, type CarStatus, formatPrice } from "@/data/cars";
+import { type Car, formatPrice } from "@/data/cars";
 import { countries, type CountryCode } from "@/lib/site";
 import { Flag } from "@/components/icons/Flag";
 import { showToast } from "@/lib/toast";
@@ -127,11 +127,7 @@ function carFromDraft(d: Draft): Car {
     priceRub: price,
     priceTverRub: p.priceTver || price,
     priceMoscowRub: p.priceMoscow || price,
-    priceOldRub: p.priceOld && p.priceOld > price ? p.priceOld : undefined,
-    status: (p.status as Car["status"]) || base.status,
-    vin: p.vin || undefined,
-    owners: p.owners || undefined,
-    customsPaid: p.customsPaid || undefined,
+    status: base.status,
     images: d.fileIds.map(
       (fid) => `${API_BASE}/api/tgphoto?id=${encodeURIComponent(fid)}`,
     ),
@@ -174,11 +170,9 @@ function genDescription(c: Car): string {
   if (c.color) st.push(`цвет ${c.color.toLowerCase()}`);
   if (c.isNew || !c.mileageKm) st.push("новый, без пробега по РФ");
   else st.push(`пробег ${c.mileageKm.toLocaleString("ru-RU")} км`);
-  if (c.owners) st.push(`${c.owners} владелец по ПТС`);
   if (st.length) seg.push(cap(st.join(", ")));
 
-  // 4) растаможка / продающее
-  if (c.customsPaid) seg.push("Растаможен, ЭПТС оформлен");
+  // 4) продающее
   seg.push(
     "Привезём под ключ: доставка, растаможка и оформление включены — честная цена без скрытых наценок",
   );
@@ -1209,64 +1203,15 @@ function CarEditor({
           />
         </label>
         <label>
-          <span className={lab}>Статус</span>
+          <span className={lab}>Состояние</span>
           <select
             className="field-dark"
-            value={f.status}
-            onChange={(e) => set("status", e.target.value as CarStatus)}
+            value={f.isNew ? "new" : "used"}
+            onChange={(e) => set("isNew", e.target.value === "new")}
           >
-            <option value="in_stock">В наличии</option>
-            <option value="in_transit">В пути</option>
-            <option value="on_order">Под заказ</option>
+            <option value="new">Новый</option>
+            <option value="used">С пробегом</option>
           </select>
-        </label>
-        <label>
-          <span className={lab}>Старая цена, ₽ (зачёркнутая)</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            className="field-dark"
-            value={f.priceOldRub || 0}
-            onChange={(e) => set("priceOldRub", Number(e.target.value) || undefined)}
-          />
-        </label>
-        <label>
-          <span className={lab}>Владельцев по ПТС</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            className="field-dark"
-            value={f.owners || 0}
-            onChange={(e) => set("owners", Number(e.target.value) || undefined)}
-          />
-        </label>
-        <label>
-          <span className={lab}>VIN</span>
-          <input
-            className="field-dark"
-            value={f.vin ?? ""}
-            onChange={(e) => set("vin", e.target.value || undefined)}
-          />
-        </label>
-      </div>
-      <div className="flex flex-wrap gap-x-6 gap-y-2">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={!!f.isNew}
-            onChange={(e) => set("isNew", e.target.checked)}
-            className="h-4 w-4 accent-bordeaux"
-          />
-          <span className="text-[14px] font-semibold">Новинка (бейдж)</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={!!f.customsPaid}
-            onChange={(e) => set("customsPaid", e.target.checked)}
-            className="h-4 w-4 accent-bordeaux"
-          />
-          <span className="text-[14px] font-semibold">Растаможен, ЭПТС оформлен</span>
         </label>
       </div>
       <label>

@@ -34,27 +34,27 @@ export function CompareModal({
     <Modal onClose={onClose} label="Сравнение авто" className="max-w-5xl">
       {cars.length < 2 ? (
         <div className="px-2 py-10 text-center">
-          <p className="text-[17px] font-bold text-ink">
+          <p className="text-[17px] font-bold text-white">
             Добавьте минимум 2 авто
           </p>
-          <p className="mx-auto mt-2 max-w-md text-[14px] text-ink-2">
+          <p className="mx-auto mt-2 max-w-md text-[14px] text-[#9AA4B2]">
             В каталоге нажмите значок «весы» на карточке — выбранные авто
             появятся здесь для сравнения бок о бок.
           </p>
-          <Button variant="ghost-light" onClick={onClose} className="mt-5">
+          <Button variant="ghost" onClick={onClose} className="mt-5">
             В каталог
           </Button>
         </div>
       ) : (
-        <>
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-[14px] font-semibold text-ink-2">
+        <div className="p-5 sm:p-6">
+          <div className="mb-3 flex items-center justify-between pr-10">
+            <span className="text-[14px] font-semibold text-[#9AA4B2]">
               Сравниваем {cars.length}
             </span>
             <button
               type="button"
               onClick={clearCompare}
-              className="flex items-center gap-1.5 text-[13px] font-bold text-bordeaux hover:underline"
+              className="flex items-center gap-1.5 text-[13px] font-bold text-bordeaux-bright hover:underline"
             >
               <Trash2 className="h-4 w-4" /> Очистить
             </button>
@@ -64,7 +64,7 @@ export function CompareModal({
             <table className="w-full min-w-[560px] border-collapse text-[14px]">
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 w-[128px] bg-white" />
+                  <th className="sticky left-0 z-10 w-[128px] bg-graphite-2" />
                   {cars.map((car) => (
                     <th key={car.id} className="p-2 align-top">
                       <div className="relative">
@@ -87,7 +87,7 @@ export function CompareModal({
                             alt={car.model}
                             className="mb-2 aspect-[16/10] w-full rounded-[10px] object-cover"
                           />
-                          <span className="flex items-center gap-1.5 text-[12px] font-bold text-ink-2">
+                          <span className="flex items-center gap-1.5 text-[12px] font-bold text-white">
                             <Flag code={car.country} className="h-3 w-4" />
                             {car.model}
                           </span>
@@ -97,7 +97,7 @@ export function CompareModal({
                   ))}
                 </tr>
                 <tr>
-                  <td className="sticky left-0 z-10 bg-white py-2 text-[12px] font-extrabold uppercase tracking-wide text-ink-2">
+                  <td className="sticky left-0 z-10 bg-graphite-2 py-2 text-[12px] font-extrabold uppercase tracking-wide text-[#9AA4B2]">
                     Цена
                   </td>
                   {cars.map((car) => {
@@ -107,7 +107,7 @@ export function CompareModal({
                       <td
                         key={car.id}
                         className={`whitespace-nowrap px-3 py-2 text-center font-num text-[17px] font-bold ${
-                          best ? "text-success" : "text-bordeaux"
+                          best ? "text-success" : "text-bordeaux-bright"
                         }`}
                       >
                         {formatPrice(p)} ₽
@@ -123,14 +123,14 @@ export function CompareModal({
               </thead>
               <tbody>
                 {ROWS.map((row, i) => (
-                  <tr key={row.label} className={i % 2 ? "bg-paper" : ""}>
-                    <td className={`sticky left-0 z-10 py-2.5 pr-3 text-[13px] font-semibold text-ink-2 ${i % 2 ? "bg-paper" : "bg-white"}`}>
+                  <tr key={row.label} className={i % 2 ? "bg-graphite-3" : ""}>
+                    <td className={`sticky left-0 z-10 py-2.5 pl-1 pr-3 text-[13px] font-semibold text-[#9AA4B2] ${i % 2 ? "bg-graphite-3" : "bg-graphite-2"}`}>
                       {row.label}
                     </td>
                     {cars.map((car) => (
                       <td
                         key={car.id}
-                        className="px-3 py-2.5 text-center text-[14px] text-ink"
+                        className="px-3 py-2.5 text-center text-[14px] text-white"
                       >
                         {row.get(car)}
                       </td>
@@ -140,7 +140,7 @@ export function CompareModal({
               </tbody>
             </table>
           </div>
-        </>
+        </div>
       )}
     </Modal>
   );

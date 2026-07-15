@@ -6,7 +6,7 @@ import {
   DriveIcon,
 } from "@/components/icons/SpecIcons";
 import { Flag } from "@/components/icons/Flag";
-import { type Car, statusLabels, formatPrice } from "@/data/cars";
+import { type Car, formatPrice } from "@/data/cars";
 import { countries } from "@/lib/site";
 import { useUI } from "@/lib/ui";
 
@@ -78,11 +78,13 @@ export function CarCard({ car }: { car: Car }) {
           </button>
         </div>
 
-        <span
-          className={`absolute bottom-3 left-3 rounded-full border px-[11px] py-[5px] text-[11.5px] font-extrabold uppercase tracking-[0.05em] ${statusPill}`}
-        >
-          {car.isNew ? "Новинка" : statusLabels[car.status]}
-        </span>
+        {car.isNew ? (
+          <span
+            className={`absolute bottom-3 left-3 rounded-full border px-[11px] py-[5px] text-[11.5px] font-extrabold uppercase tracking-[0.05em] ${statusPill}`}
+          >
+            Новинка
+          </span>
+        ) : null}
       </div>
 
       <div className="flex flex-1 flex-col p-5">
@@ -106,16 +108,9 @@ export function CarCard({ car }: { car: Car }) {
             <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.1em] text-ink-2">
               Под ключ до Твери
             </div>
-            <div className="flex items-baseline gap-2 whitespace-nowrap">
-              <div className="font-num text-[26px] font-extrabold text-bordeaux">
-                {formatPrice(car.priceTverRub ?? car.priceRub)}
-                <small className="ml-1 text-[15px] font-semibold text-ink-2">₽</small>
-              </div>
-              {car.priceOldRub && car.priceOldRub > (car.priceTverRub ?? car.priceRub) ? (
-                <div className="font-num text-[14px] font-semibold text-ink-2 line-through decoration-bordeaux/60">
-                  {formatPrice(car.priceOldRub)}
-                </div>
-              ) : null}
+            <div className="whitespace-nowrap font-num text-[26px] font-extrabold text-bordeaux">
+              {formatPrice(car.priceTverRub ?? car.priceRub)}
+              <small className="ml-1 text-[15px] font-semibold text-ink-2">₽</small>
             </div>
           </div>
           <span className="flex h-[46px] flex-none items-center gap-2 rounded-[13px] bg-gradient-to-b from-graphite-2 to-graphite px-4 text-[14px] font-bold text-white shadow-[0_8px_20px_-10px_rgba(17,21,26,0.7)] transition-all duration-300 group-hover:from-bordeaux-bright group-hover:to-bordeaux">
