@@ -41,19 +41,38 @@ export function CarsProvider({ children }: { children: ReactNode }) {
 
   // Общий каталог из бэкенда (KV) — источник правды для всех посетителей.
   // localStorage остаётся кэшем для мгновенного рендера/офлайна.
+  // Периодически обновляем, чтобы новые авто из бота подхватывались без
+  // перезагрузки страницы. Обновляем состояние только при реальных изменениях.
   useEffect(() => {
     let alive = true;
-    fetchSharedCatalog().then((shared) => {
-      if (!alive || !shared || !Array.isArray(shared)) return;
-      setCars(shared);
-      try {
-        window.localStorage.setItem(KEY, JSON.stringify(shared));
-      } catch {
-        /* ignore */
-      }
-    });
+    let last = "";
+
+    const sync = () => {
+      fetchSharedCatalog().then((shared) => {
+        if (!alive || !shared || !Array.isArray(shared)) return;
+        const next = JSON.stringify(shared);
+        if (next === last) return;
+        last = next;
+        setCars(shared);
+        try {
+          window.localStorage.setItem(KEY, JSON.stringify(shared));
+        } catch {
+          /* ignore */
+        }
+      });
+    };
+
+    sync();
+    const id = window.setInterval(sync, 120000); // каждые 2 минуты
+    const onVisible = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       alive = false;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
