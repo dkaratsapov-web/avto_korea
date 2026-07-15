@@ -34,10 +34,11 @@ jobs:
           VITE_LEAD_ENDPOINT: ${{ vars.VITE_LEAD_ENDPOINT || 'https://diauto-bot.d-karatsapov.workers.dev/lead' }}
       - name: Sync dist → Object Storage
         run: |
-          # Ассеты с хэшем — кэшируем надолго
+          # Ассеты с хэшем — кэшируем надолго. БЕЗ --delete: старые чанки
+          # остаются, чтобы открытые вкладки не ломались после нового деплоя.
           aws s3 sync dist "s3://${{ vars.YC_BUCKET }}" \
             --endpoint-url=https://storage.yandexcloud.net \
-            --delete --no-progress \
+            --no-progress \
             --exclude "index.html" --exclude "*.json" \
             --cache-control "public, max-age=31536000, immutable"
           # HTML/JSON — без кэша, чтобы обновления подхватывались сразу
@@ -46,3 +47,11 @@ jobs:
             --no-progress \
             --exclude "*" --include "index.html" --include "*.json" \
             --cache-control "no-cache"
+      - name: SPA fallback (404 → index.html)
+        run: |
+          # Любой маршрут (/about, /catalog, /articles/…) отдаёт index.html,
+          # чтобы прямые ссылки и обновление страницы работали.
+          aws s3 website "s3://${{ vars.YC_BUCKET }}" \
+            --endpoint-url=https://storage.yandexcloud.net \
+            --index-document index.html \
+            --error-document index.html

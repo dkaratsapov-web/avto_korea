@@ -6,6 +6,32 @@ import { UIProvider } from "@/lib/ui";
 import { CarsProvider } from "@/lib/carsStore";
 import "@/index.css";
 
+// Самовосстановление при устаревшем деплое: если динамический чанк страницы
+// не подгрузился (старая вкладка + новый деплой удалил старые чанки),
+// перезагружаем страницу автоматически — без «пустого экрана».
+if (typeof window !== "undefined") {
+  const reloadOnce = () => {
+    const KEY = "diauto:chunk-reload";
+    if (sessionStorage.getItem(KEY)) return; // защита от цикла
+    sessionStorage.setItem(KEY, "1");
+    window.location.reload();
+  };
+  window.addEventListener("vite:preloadError", (e) => {
+    e.preventDefault();
+    reloadOnce();
+  });
+  window.addEventListener("error", (e) => {
+    const msg = String(e?.message || "");
+    if (/dynamically imported module|Importing a module script failed|Failed to fetch dynamically/i.test(msg))
+      reloadOnce();
+  });
+  // Успешная загрузка страницы — снимаем флаг, чтобы будущие сбои снова
+  // могли перезагрузить.
+  window.addEventListener("load", () =>
+    sessionStorage.removeItem("diauto:chunk-reload"),
+  );
+}
+
 const basename = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 createRoot(document.getElementById("root")!).render(
