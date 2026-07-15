@@ -118,6 +118,7 @@ function carFromDraft(d: Draft): Car {
     drive: p.drive || base.drive,
     bodyType: p.bodyType || base.bodyType,
     fuelType: p.fuelType || base.fuelType,
+    steering: p.steering || base.steering,
     color: p.color || base.color,
     trim: p.trim || fromHighlights(p.highlights, /комплектац/i) || base.trim,
     mileageKm,
@@ -126,6 +127,11 @@ function carFromDraft(d: Draft): Car {
     priceRub: price,
     priceTverRub: p.priceTver || price,
     priceMoscowRub: p.priceMoscow || price,
+    priceOldRub: p.priceOld && p.priceOld > price ? p.priceOld : undefined,
+    status: (p.status as Car["status"]) || base.status,
+    vin: p.vin || undefined,
+    owners: p.owners || undefined,
+    customsPaid: p.customsPaid || undefined,
     images: d.fileIds.map(
       (fid) => `${API_BASE}/api/tgphoto?id=${encodeURIComponent(fid)}`,
     ),
@@ -159,6 +165,7 @@ function genDescription(c: Car): string {
   if (c.fuelType) tech.push(c.fuelType.toLowerCase());
   if (c.gearbox) tech.push(/акпп|автомат/i.test(c.gearbox) ? "автомат" : c.gearbox.toLowerCase());
   if (c.drive) tech.push(`${c.drive.toLowerCase()} привод`);
+  if (c.steering) tech.push(`${c.steering.toLowerCase()} руль`);
   if (tech.length) seg.push(cap(tech.join(", ")));
 
   // 3) состояние, комплектация, цвет
@@ -167,9 +174,11 @@ function genDescription(c: Car): string {
   if (c.color) st.push(`цвет ${c.color.toLowerCase()}`);
   if (c.isNew || !c.mileageKm) st.push("новый, без пробега по РФ");
   else st.push(`пробег ${c.mileageKm.toLocaleString("ru-RU")} км`);
+  if (c.owners) st.push(`${c.owners} владелец по ПТС`);
   if (st.length) seg.push(cap(st.join(", ")));
 
-  // 4) продающее
+  // 4) растаможка / продающее
+  if (c.customsPaid) seg.push("Растаможен, ЭПТС оформлен");
   seg.push(
     "Привезём под ключ: доставка, растаможка и оформление включены — честная цена без скрытых наценок",
   );
@@ -1160,6 +1169,18 @@ function CarEditor({
           />
         </label>
         <label>
+          <span className={lab}>Руль</span>
+          <select
+            className="field-dark"
+            value={f.steering ?? ""}
+            onChange={(e) => set("steering", e.target.value)}
+          >
+            <option value="">—</option>
+            <option value="Левый">Левый</option>
+            <option value="Правый">Правый</option>
+          </select>
+        </label>
+        <label>
           <span className={lab}>Цена до Твери, ₽</span>
           <input
             type="number"
@@ -1199,16 +1220,55 @@ function CarEditor({
             <option value="on_order">Под заказ</option>
           </select>
         </label>
+        <label>
+          <span className={lab}>Старая цена, ₽ (зачёркнутая)</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="field-dark"
+            value={f.priceOldRub || 0}
+            onChange={(e) => set("priceOldRub", Number(e.target.value) || undefined)}
+          />
+        </label>
+        <label>
+          <span className={lab}>Владельцев по ПТС</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="field-dark"
+            value={f.owners || 0}
+            onChange={(e) => set("owners", Number(e.target.value) || undefined)}
+          />
+        </label>
+        <label>
+          <span className={lab}>VIN</span>
+          <input
+            className="field-dark"
+            value={f.vin ?? ""}
+            onChange={(e) => set("vin", e.target.value || undefined)}
+          />
+        </label>
       </div>
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={!!f.isNew}
-          onChange={(e) => set("isNew", e.target.checked)}
-          className="h-4 w-4 accent-bordeaux"
-        />
-        <span className="text-[14px] font-semibold">Новинка (бейдж)</span>
-      </label>
+      <div className="flex flex-wrap gap-x-6 gap-y-2">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={!!f.isNew}
+            onChange={(e) => set("isNew", e.target.checked)}
+            className="h-4 w-4 accent-bordeaux"
+          />
+          <span className="text-[14px] font-semibold">Новинка (бейдж)</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={!!f.customsPaid}
+            onChange={(e) => set("customsPaid", e.target.checked)}
+            className="h-4 w-4 accent-bordeaux"
+          />
+          <span className="text-[14px] font-semibold">Растаможен, ЭПТС оформлен</span>
+        </label>
+      </div>
       <label>
         <span className={lab}>Фото (по ссылке в строке)</span>
         <textarea

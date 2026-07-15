@@ -723,9 +723,14 @@ function parseCaption(text) {
   }
   if (!model) model = body.find((l) => hasLetters(l)) || "";
 
-  // Год
-  const yearM = bodyRaw.match(/\b(19|20)\d{2}\b/);
-  const year = yearM ? Number(yearM[0]) : new Date().getFullYear();
+  // Год выпуска — сперва по метке «Год выпуска: 2026», иначе первое 19xx/20xx.
+  const yearLabeled = bodyRaw.match(/год(?:\s*выпуска)?[:\s—-]*((?:19|20)\d{2})/i);
+  const yearAny = bodyRaw.match(/\b(19|20)\d{2}\b/);
+  const year = yearLabeled
+    ? Number(yearLabeled[1])
+    : yearAny
+      ? Number(yearAny[0])
+      : new Date().getFullYear();
 
   // Цена — различаем город (до Твери / до Москвы), иначе одна цена на всё.
   // Диапазон 100 000…99 999 999 отсекает телефоны (11 цифр) и мусор.
@@ -783,6 +788,10 @@ function parseCaption(text) {
     : /дизел/i.test(bodyRaw) ? "Дизель"
     : /бензин/i.test(bodyRaw) ? "Бензин" : "";
 
+  // Руль: левый / правый (частая характеристика для авто из Японии).
+  const steering = /руль[:\s—-]*прав|правый\s*руль|правостор|\brhd\b/i.test(bodyRaw) ? "Правый"
+    : /руль[:\s—-]*лев|левый\s*руль|левостор|\blhd\b/i.test(bodyRaw) ? "Левый" : "";
+
   // Комплектация (trim) — по метке «Комплектация: …»
   const trimM = bodyRaw.match(/комплектац[а-яё]*\s*[:：—-]?\s*([^\n]+)/i);
   const trim = trimM ? cleanLine(trimM[1]).slice(0, 60) : "";
@@ -836,11 +845,32 @@ function parseCaption(text) {
   };
   const country = byText || BRAND_COUNTRY[brand] || null;
 
+  // Статус наличия
+  const status = /в\s*пути|в\s*доставке|в\s*дороге/i.test(bodyRaw) ? "in_transit"
+    : /под\s*заказ|на\s*заказ|заказ\b/i.test(bodyRaw) ? "on_order"
+    : /в\s*налич|наличие|в\s*наличии|на\s*стоянк/i.test(bodyRaw) ? "in_stock" : null;
+
+  // VIN (по метке)
+  const vinM = bodyRaw.match(/\bvin[:\s№#-]*([a-hj-npr-z0-9]{11,17})\b/i);
+  const vin = vinM ? vinM[1].toUpperCase() : "";
+
+  // Старая цена / скидка
+  const oldM = bodyRaw.match(/(?:было|старая\s*цена|цена\s*без\s*скидки|old)[^\d]*(\d[\d\s]{5,})/i);
+  const priceOld = oldM ? Number(oldM[1].replace(/[^\d]/g, "")) : 0;
+
+  // Число владельцев
+  const ownM = bodyRaw.match(/(\d)\s*владел|владел[а-я]*[:\s]*(\d)/i);
+  const owners = ownM ? Number(ownM[1] || ownM[2]) : 0;
+
+  // Растаможен / ЭПТС
+  const customsPaid = /растаможен|растаможк[а-я]*\s*оплач|эптс\s*оформл|с\s*эптс|птс\s*(есть|оформл)|таможн[а-я]*\s*оплач/i.test(bodyRaw);
+
   return {
     model,
     price,
     priceTver,
     priceMoscow,
+    priceOld,
     year,
     engineCc,
     powerHp,
@@ -849,9 +879,14 @@ function parseCaption(text) {
     drive,
     bodyType: bodyTypeM ? bodyTypeM[0].toUpperCase() + bodyTypeM.slice(1) : "",
     fuelType,
+    steering,
     color,
     trim,
     country,
+    status,
+    vin,
+    owners,
+    customsPaid,
     // Буллеты-описание: строки тела без заголовка и без цены.
     highlights: body.filter(
       (l) => hasLetters(l) && !HEADER_RE.test(l) && !/цена|стоимость|price/i.test(l),
@@ -878,13 +913,16 @@ function genDescriptionSrv(c) {
   if (c.fuelType) tech.push(c.fuelType.toLowerCase());
   if (c.gearbox) tech.push(/акпп|автомат/i.test(c.gearbox) ? "автомат" : c.gearbox.toLowerCase());
   if (c.drive) tech.push(`${c.drive.toLowerCase()} привод`);
+  if (c.steering) tech.push(`${c.steering.toLowerCase()} руль`);
   if (tech.length) seg.push(cap(tech.join(", ")));
   const st = [];
   if (c.trim) st.push(`комплектация ${c.trim}`);
   if (c.color) st.push(`цвет ${c.color.toLowerCase()}`);
   if (c.isNew || !c.mileageKm) st.push("новый, без пробега по РФ");
   else st.push(`пробег ${c.mileageKm.toLocaleString("ru-RU")} км`);
+  if (c.owners) st.push(`${c.owners} владелец по ПТС`);
   if (st.length) seg.push(cap(st.join(", ")));
+  if (c.customsPaid) seg.push("Растаможен, ЭПТС оформлен");
   seg.push("Привезём под ключ: доставка, растаможка и оформление включены — честная цена без скрытых наценок");
   return seg.join(". ") + ".";
 }
@@ -910,6 +948,7 @@ function carFromPost(p, id, images) {
     drive: p.drive || "Передний",
     bodyType: p.bodyType || "",
     fuelType: p.fuelType || "Бензин",
+    steering: p.steering || "",
     engineCc: p.engineCc || 0,
     powerHp: p.powerHp || 0,
     mileageKm,
@@ -917,8 +956,12 @@ function carFromPost(p, id, images) {
     priceRub: price,
     priceTverRub: p.priceTver || price,
     priceMoscowRub: p.priceMoscow || price,
-    status: "in_stock",
+    priceOldRub: p.priceOld && p.priceOld > price ? p.priceOld : 0,
+    status: p.status || "in_stock",
     isNew: !(mileageKm > 0),
+    vin: p.vin || "",
+    owners: p.owners || 0,
+    customsPaid: !!p.customsPaid,
     images,
     highlights: [],
   };

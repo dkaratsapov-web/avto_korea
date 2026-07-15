@@ -129,13 +129,51 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
             ))}
           </ul>
 
+          {car.fuelType || car.steering || car.customsPaid || car.owners || car.vin ? (
+            <div className="flex flex-wrap gap-2">
+              {car.fuelType ? (
+                <span className="rounded-full border border-line-dark bg-white/[0.04] px-3 py-1 text-[12px] font-semibold text-[#C7CFD6]">
+                  {car.fuelType}
+                </span>
+              ) : null}
+              {car.steering ? (
+                <span className="rounded-full border border-line-dark bg-white/[0.04] px-3 py-1 text-[12px] font-semibold text-[#C7CFD6]">
+                  {car.steering} руль
+                </span>
+              ) : null}
+              {car.customsPaid ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-[12px] font-semibold text-success">
+                  <Check className="h-3.5 w-3.5" />
+                  Растаможен, ЭПТС оформлен
+                </span>
+              ) : null}
+              {car.owners ? (
+                <span className="rounded-full border border-line-dark bg-white/[0.04] px-3 py-1 text-[12px] font-semibold text-[#C7CFD6]">
+                  {car.owners} владелец по ПТС
+                </span>
+              ) : null}
+              {car.vin ? (
+                <span className="rounded-full border border-line-dark bg-white/[0.04] px-3 py-1 text-[12px] font-semibold tracking-[0.04em] text-[#9AA4B2]">
+                  VIN {car.vin}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="mt-auto grid grid-cols-2 gap-3">
             <div className="min-w-0 rounded-card border border-line-dark bg-white/[0.03] px-4 py-3">
               <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-2">
                 Под ключ до Твери
               </div>
-              <div className="font-num text-[20px] font-bold text-bordeaux-bright sm:text-[24px]">
-                {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+              <div className="flex items-baseline gap-2">
+                <div className="font-num text-[20px] font-bold text-bordeaux-bright sm:text-[24px]">
+                  {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+                </div>
+                {car.priceOldRub && car.priceOldRub > (car.priceTverRub ?? car.priceRub) ? (
+                  <div className="font-num text-[13px] font-semibold text-[#9AA4B2] line-through decoration-bordeaux-bright/60">
+                    {formatPrice(car.priceOldRub)} ₽
+                  </div>
+                ) : null}
               </div>
             </div>
             {car.priceMoscowRub ? (

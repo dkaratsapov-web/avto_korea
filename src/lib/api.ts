@@ -43,9 +43,15 @@ export type Draft = {
     drive?: string;
     bodyType?: string;
     fuelType?: string;
+    steering?: string;
     color?: string;
     trim?: string;
     country?: string | null;
+    priceOld?: number;
+    status?: string | null;
+    vin?: string;
+    owners?: number;
+    customsPaid?: boolean;
     highlights: string[];
   };
   ts: number;

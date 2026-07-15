@@ -16,6 +16,8 @@ export type Car = {
   bodyType?: string;
   /** Тип топлива: «Бензин», «Дизель», «Гибрид», «Электро». */
   fuelType?: string;
+  /** Расположение руля: «Левый» / «Правый». */
+  steering?: string;
   /** Объём двигателя, см³ (для фильтра по объёму). */
   engineCc?: number;
   /** Мощность, л.с. */
@@ -28,8 +30,16 @@ export type Car = {
   priceRub: number;
   priceMoscowRub?: number;
   priceTverRub?: number;
+  /** Старая цена до скидки, ₽ (если указана — показываем зачёркнутой). */
+  priceOldRub?: number;
   status: CarStatus;
   isNew?: boolean;
+  /** VIN автомобиля. */
+  vin?: string;
+  /** Число владельцев. */
+  owners?: number;
+  /** Растаможен / ЭПТС оформлен. */
+  customsPaid?: boolean;
   images: string[];
   highlights: string[];
   /** Связное текстовое описание (абзац). Показывается на карточке авто. */
