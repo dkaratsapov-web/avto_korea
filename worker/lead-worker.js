@@ -341,6 +341,24 @@ export default {
 
       const msg = upd.message || upd.edited_message;
 
+      // Пост с фото в группе/супергруппе (если источник — не канал, а группа):
+      // при включённой авто-публикации сразу публикуем в каталог.
+      const chatType = msg?.chat?.type;
+      if (
+        msg &&
+        (chatType === "group" || chatType === "supergroup") &&
+        Array.isArray(msg.photo) &&
+        msg.photo.length &&
+        !msg.forward_from_chat &&
+        !msg.forward_origin
+      ) {
+        const st = await getSettings(env);
+        if (st.autoPublish) {
+          await handleChannelPost(env, msg, { auto: true, origin: url.origin });
+        }
+        return new Response("ok");
+      }
+
       // Импорт поста пересылкой боту (для приватного канала: пересылаете пост
       // из канала в личку боту → создаётся черновик авто). Только для админов.
       const forwarded = msg && (msg.forward_from_chat || msg.forward_origin);
