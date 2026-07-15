@@ -7,8 +7,6 @@ import { Stats } from "@/components/sections/Stats";
 import { Advantages } from "@/components/sections/Advantages";
 import { HowItWorks } from "@/components/sections/HowItWorks";
 import { Calculator } from "@/components/sections/Calculator";
-import { Credit } from "@/components/sections/Credit";
-import { Geography } from "@/components/sections/Geography";
 import { Reviews } from "@/components/sections/Reviews";
 import { Faq } from "@/components/sections/Faq";
 import { FinalCta } from "@/components/sections/FinalCta";
@@ -43,8 +41,6 @@ export function Landing() {
       <Advantages />
       <HowItWorks />
       <Calculator />
-      <Credit />
-      <Geography />
       <Reviews />
       <Faq />
       <FinalCta />
