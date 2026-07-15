@@ -27,27 +27,27 @@ export function Hero() {
       <div className="glow-blob bottom-[6%] left-[2%] h-56 w-56 animate-glow-pan bg-steel/15 [animation-delay:-6s]" aria-hidden />
       <div className="grain absolute inset-0" aria-hidden />
 
-      <div className="wrap relative z-10 grid items-center gap-8 pb-8 pt-[96px] md:grid-cols-[1.05fr_0.95fr] md:pb-9 md:pt-[104px]">
+      <div className="wrap relative z-10 grid items-center gap-6 pb-6 pt-[84px] md:grid-cols-[1.05fr_0.95fr] md:pb-6 md:pt-[90px]">
         <div className="animate-fade-up">
-          <div className="mb-4 inline-flex items-center gap-3 rounded-full border border-line-dark bg-graphite-2/50 py-1.5 pl-2 pr-4 text-[12.5px] font-bold uppercase tracking-[0.14em] text-chrome">
+          <div className="mb-2.5 inline-flex items-center gap-2.5 rounded-full border border-line-dark bg-graphite-2/50 py-1 pl-2 pr-3.5 text-[12px] font-bold uppercase tracking-[0.14em] text-chrome">
             <span className="slash" aria-hidden /> Импорт авто под ключ · 69 регион
           </div>
 
-          <h1 className="mb-3.5 text-[clamp(30px,4.2vw,54px)] leading-[1.03] text-white [text-shadow:0_2px_20px_rgba(0,0,0,.4)]">
+          <h1 className="mb-2.5 text-[clamp(26px,3.6vw,44px)] leading-[1.02] text-white [text-shadow:0_2px_20px_rgba(0,0,0,.4)]">
             Авто из Кореи, Китая и Японии{" "}
             <em className="not-italic text-shine">под ключ</em>
           </h1>
 
-          <p className="mb-5 max-w-[520px] text-[16px] text-[#D2D9DF]">
+          <p className="mb-3.5 max-w-[480px] text-[14.5px] text-[#D2D9DF]">
             Считаем честно и показываем реальную цену с доставкой и растаможкой —
             без скрытых наценок.
           </p>
 
-          <div className="mb-5 flex flex-wrap gap-2">
+          <div className="mb-3.5 flex flex-wrap gap-2">
             {badges.map((b, i) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-2 rounded-full border border-line-dark bg-graphite-2/60 px-[13px] py-2 text-[13.5px] font-semibold text-[#DCE2E7]"
+                className="inline-flex items-center gap-2 rounded-full border border-line-dark bg-graphite-2/60 px-3 py-1.5 text-[13px] font-semibold text-[#DCE2E7]"
               >
                 {b.pre}
                 <b className="text-chrome">{b.strong}</b>
@@ -65,7 +65,7 @@ export function Hero() {
             />
           </div>
 
-          <div className="mt-4 flex items-center gap-2.5 text-[13.5px] text-[#AEB7BE]">
+          <div className="mt-3 flex items-center gap-2.5 text-[13px] text-[#AEB7BE]">
             Возим из:
             {flags.map((f) => (
               <Flag key={f.code} code={f.code} className="h-4 w-6" />
@@ -75,9 +75,9 @@ export function Hero() {
 
         {/* Мокап сметы под ключ с печатью */}
         <div className="hidden items-center justify-center md:flex">
-          <div className="relative">
+          <div className="relative origin-center scale-[0.92]">
             <div
-              className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 animate-spin-slow rounded-full border border-chrome/15 [border-style:dashed]"
+              className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 animate-spin-slow rounded-full border border-chrome/15 [border-style:dashed]"
               aria-hidden
             />
             <div className="animate-fade-up">

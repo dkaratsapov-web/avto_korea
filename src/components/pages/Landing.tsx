@@ -3,7 +3,6 @@ import { ArrowRight } from "lucide-react";
 import { Hero } from "@/components/sections/Hero";
 import { CatalogBrowser } from "@/components/catalog/CatalogBrowser";
 import { BrandTicker } from "@/components/sections/BrandTicker";
-import { Stats } from "@/components/sections/Stats";
 import { Advantages } from "@/components/sections/Advantages";
 import { HowItWorks } from "@/components/sections/HowItWorks";
 import { Calculator } from "@/components/sections/Calculator";
@@ -37,7 +36,6 @@ export function Landing() {
       </section>
 
       <BrandTicker />
-      <Stats />
       <Advantages />
       <HowItWorks />
       <Calculator />
