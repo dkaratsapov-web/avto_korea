@@ -98,13 +98,22 @@ function carFromDraft(d: Draft): Car {
   const price = p.price || 0;
   const base = emptyCar();
   const mileageKm = p.mileageKm ?? 0;
+  const engineCc = p.engineCc || base.engineCc;
+  const powerHp = p.powerHp || base.powerHp;
+  const engine =
+    [
+      engineCc ? `${(engineCc / 1000).toFixed(1).replace(".", ",")} л` : "",
+      powerHp ? `${powerHp} л.с.` : "",
+    ].filter(Boolean).join(" · ") || base.engine;
   const car: Car = {
     ...base,
     id: "",
     model: p.model || "Авто из канала",
     year: p.year || new Date().getFullYear(),
-    engineCc: p.engineCc || base.engineCc,
-    powerHp: p.powerHp || base.powerHp,
+    country: (p.country as Car["country"]) || base.country,
+    engine,
+    engineCc,
+    powerHp,
     gearbox: p.gearbox || base.gearbox,
     drive: p.drive || base.drive,
     bodyType: p.bodyType || base.bodyType,

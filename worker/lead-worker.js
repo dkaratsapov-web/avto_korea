@@ -797,11 +797,26 @@ function parseCaption(text) {
     if (colorM) color = cleanLine(colorM[1]).slice(0, 40);
   }
 
-  // Страна — по всему тексту (в т.ч. подпись «из Китая» и т.п.).
-  const country = /коре|korea/i.test(raw) ? "kr"
+  // Страна — по всему тексту (в т.ч. подпись «из Китая»), иначе по марке.
+  const byText = /коре|korea/i.test(raw) ? "kr"
     : /кита|china/i.test(raw) ? "cn"
     : /япон|japan/i.test(raw) ? "jp"
     : /европ|герман|\bес\b|\beu\b/i.test(raw) ? "eu" : null;
+  const brand = (model.trim().split(/\s+/)[0] || "").toLowerCase();
+  const BRAND_COUNTRY = {
+    haval: "cn", geely: "cn", chery: "cn", changan: "cn", exeed: "cn", omoda: "cn",
+    jaecoo: "cn", tank: "cn", gac: "cn", byd: "cn", zeekr: "cn", li: "cn", nio: "cn",
+    jetour: "cn", voyah: "cn", hongqi: "cn", jac: "cn", faw: "cn", dongfeng: "cn",
+    foton: "cn", baic: "cn", wey: "cn", xpeng: "cn", avatr: "cn", ora: "cn",
+    roewe: "cn", mg: "cn", lynk: "cn", jetta: "cn", tharu: "cn", teramont: "cn",
+    vw: "cn", volkswagen: "cn",
+    hyundai: "kr", kia: "kr", genesis: "kr", ssangyong: "kr", daewoo: "kr",
+    toyota: "jp", honda: "jp", nissan: "jp", mazda: "jp", mitsubishi: "jp",
+    subaru: "jp", suzuki: "jp", lexus: "jp", infiniti: "jp", acura: "jp",
+    bmw: "eu", mercedes: "eu", audi: "eu", porsche: "eu", volvo: "eu", skoda: "eu",
+    peugeot: "eu", opel: "eu", mini: "eu", jaguar: "eu", bentley: "eu",
+  };
+  const country = byText || BRAND_COUNTRY[brand] || null;
 
   return {
     model,

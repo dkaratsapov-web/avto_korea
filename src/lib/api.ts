@@ -45,6 +45,7 @@ export type Draft = {
     fuelType?: string;
     color?: string;
     trim?: string;
+    country?: string | null;
     highlights: string[];
   };
   ts: number;
