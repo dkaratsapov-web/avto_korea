@@ -16,23 +16,29 @@ export function CarCard({ car }: { car: Car }) {
   const fav = isFav(car.id);
   const cmp = isCompare(car.id);
 
+  const statusPill = car.isNew
+    ? "border-transparent bg-gradient-to-b from-bordeaux-bright to-bordeaux text-white shadow-[0_6px_16px_-4px_rgba(122,20,16,.6)]"
+    : "border-white/15 bg-black/55 text-white backdrop-blur";
+
   return (
     <article
       onClick={() => openCar(car.id)}
-      className="group h-full cursor-pointer overflow-hidden rounded-card border border-line bg-white transition-[box-shadow,border-color,transform] duration-300 hover:-translate-y-1 hover:border-[#d4d8de] hover:shadow-card"
+      className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[20px] border border-black/[0.06] bg-white shadow-[0_2px_12px_-6px_rgba(20,25,32,0.22)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_54px_-26px_rgba(20,25,32,0.55)]"
     >
-      <div className="flex h-full flex-col">
+      {/* верхняя акцент-линия при наведении */}
+      <span className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[3px] scale-x-0 bg-gradient-to-r from-bordeaux-deep via-bordeaux-bright to-chrome transition-transform duration-500 group-hover:scale-x-100" />
+
       <div className="relative aspect-[16/10] overflow-hidden bg-graphite">
         {/* eslint-disable-next-line */}
         <img
           src={car.images[0]}
           alt={`${car.model}, ${car.year}`}
           loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+          className="h-full w-full object-cover transition-transform duration-[600ms] ease-out group-hover:scale-[1.06]"
         />
-        <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
+        <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-black/10" />
 
-        <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-white/[0.92] px-[11px] py-[5px] text-[13px] font-bold text-ink">
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-white/60 bg-white/85 px-2.5 py-[5px] text-[12.5px] font-bold text-ink shadow-[0_4px_14px_rgba(0,0,0,0.25)] backdrop-blur">
           <Flag code={car.country} className="h-3.5 w-5" />
           {country.label}
         </span>
@@ -46,13 +52,13 @@ export function CarCard({ car }: { car: Car }) {
               e.stopPropagation();
               toggleCompare(car.id);
             }}
-            className={`flex h-9 w-9 items-center justify-center rounded-full backdrop-blur transition-colors ${
+            className={`flex h-9 w-9 items-center justify-center rounded-full border shadow-sm backdrop-blur transition-colors ${
               cmp
-                ? "bg-graphite text-white"
-                : "bg-white/85 text-ink hover:bg-white"
+                ? "border-transparent bg-graphite text-white"
+                : "border-white/60 bg-white/80 text-ink hover:bg-white"
             }`}
           >
-            <Scale className="h-[18px] w-[18px]" />
+            <Scale className="h-[17px] w-[17px]" />
           </button>
           <button
             type="button"
@@ -62,50 +68,54 @@ export function CarCard({ car }: { car: Car }) {
               e.stopPropagation();
               toggleFav(car.id);
             }}
-            className={`flex h-9 w-9 items-center justify-center rounded-full backdrop-blur transition-colors ${
+            className={`flex h-9 w-9 items-center justify-center rounded-full border shadow-sm backdrop-blur transition-colors ${
               fav
-                ? "bg-bordeaux text-white"
-                : "bg-white/85 text-ink hover:bg-white"
+                ? "border-transparent bg-bordeaux text-white"
+                : "border-white/60 bg-white/80 text-ink hover:bg-white"
             }`}
           >
-            <Heart className={`h-[18px] w-[18px] ${fav ? "fill-white" : ""}`} />
+            <Heart className={`h-[17px] w-[17px] ${fav ? "fill-white" : ""}`} />
           </button>
         </div>
 
-        <span className="absolute bottom-3 left-3 rounded-full bg-bordeaux px-[11px] py-[5px] text-[12px] font-extrabold uppercase tracking-[0.04em] text-white">
+        <span
+          className={`absolute bottom-3 left-3 rounded-full border px-[11px] py-[5px] text-[11.5px] font-extrabold uppercase tracking-[0.05em] ${statusPill}`}
+        >
           {car.isNew ? "Новинка" : statusLabels[car.status]}
         </span>
       </div>
 
-      <div className="flex flex-1 flex-col p-[18px] pb-5">
-        <h3 className="text-[22px] tracking-[0.01em] text-ink">{car.model}</h3>
-        <div className="mb-[14px] mt-0.5 text-[14px] font-semibold text-ink-2">
-          {car.year} · {car.trim}
+      <div className="flex flex-1 flex-col p-5">
+        <h3 className="font-display text-[21px] font-extrabold leading-tight tracking-[0.01em] text-ink">
+          {car.model}
+        </h3>
+        <div className="mt-1 text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
+          {car.year}
+          {car.trim ? ` · ${car.trim}` : ""}
         </div>
 
-        <div className="grid grid-cols-2 gap-x-[14px] gap-y-[10px] border-y border-line py-[14px]">
+        <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2.5 border-t border-line pt-4">
           <Spec icon={<EngineIcon />} text={car.engine} />
           <Spec icon={<MileageIcon />} text={car.mileage} />
           <Spec icon={<GearboxIcon />} text={car.gearbox} />
           <Spec icon={<DriveIcon />} text={car.drive} />
         </div>
 
-        <div className="mt-4 flex items-end justify-between gap-3">
+        <div className="mt-auto flex items-end justify-between gap-3 pt-5">
           <div className="leading-none">
-            <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.09em] text-ink-2">
+            <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.1em] text-ink-2">
               Под ключ до Твери
             </div>
-            <div className="whitespace-nowrap font-num text-[26px] font-bold text-bordeaux">
+            <div className="whitespace-nowrap font-num text-[26px] font-extrabold text-bordeaux">
               {formatPrice(car.priceTverRub ?? car.priceRub)}
               <small className="ml-1 text-[15px] font-semibold text-ink-2">₽</small>
             </div>
           </div>
-          <span className="flex h-[46px] flex-none items-center gap-2 rounded-[11px] bg-graphite px-4 text-[14px] font-bold text-white transition-colors group-hover:bg-bordeaux">
+          <span className="flex h-[46px] flex-none items-center gap-2 rounded-[13px] bg-gradient-to-b from-graphite-2 to-graphite px-4 text-[14px] font-bold text-white shadow-[0_8px_20px_-10px_rgba(17,21,26,0.7)] transition-all duration-300 group-hover:from-bordeaux-bright group-hover:to-bordeaux">
             Подробнее
             <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
           </span>
         </div>
-      </div>
       </div>
     </article>
   );
@@ -113,11 +123,11 @@ export function CarCard({ car }: { car: Car }) {
 
 function Spec({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <div className="flex items-center gap-[9px] text-[13.5px] font-semibold text-[#3c444d]">
-      <span className="flex-none text-steel [&>svg]:h-[18px] [&>svg]:w-[18px]">
+    <div className="flex items-center gap-2.5 text-[13px] font-semibold text-[#2c333b]">
+      <span className="flex h-7 w-7 flex-none items-center justify-center rounded-[9px] bg-paper text-steel [&>svg]:h-[16px] [&>svg]:w-[16px]">
         {icon}
       </span>
-      {text}
+      <span className="truncate">{text}</span>
     </div>
   );
 }
