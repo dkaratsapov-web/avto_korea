@@ -11,6 +11,7 @@ import { timer } from "d3-timer";
 import { Logo } from "@/components/ui/Logo";
 
 const SEOUL: [number, number] = [126.98, 37.57];
+const BEIJING: [number, number] = [116.4, 39.9];
 const MOSCOW: [number, number] = [37.62, 55.75];
 // Контур суши лежит локально (public/), грузится с нашего же хоста — без задержек
 // и без зависимости от GitHub (важно для РФ-сетей).
@@ -154,8 +155,9 @@ export function Preloader({ onDone }: { onDone: () => void }) {
       }
     };
 
-    const drawArc = (elapsed: number) => {
-      const interp = geoInterpolate(SEOUL, MOSCOW);
+    // Дуга-маршрут из origin в Москву + стрелка на конце.
+    const drawRoute = (origin: [number, number]) => {
+      const interp = geoInterpolate(origin, MOSCOW);
       const N = 80;
       ctx.lineWidth = 2.5;
       ctx.strokeStyle = "#9C1A12";
@@ -202,9 +204,15 @@ export function Preloader({ onDone }: { onDone: () => void }) {
           ctx.fill();
         }
       }
+    };
+
+    const drawArc = (elapsed: number) => {
+      drawRoute(SEOUL);
+      drawRoute(BEIJING);
 
       const pulse = 3 + Math.sin(elapsed / 280) * 1.6;
-      // Корея у правого края — подпись рисуем слева от точки, иначе обрежется.
+      // Азия у правого края — подписи рисуем слева от точек, иначе обрежутся.
+      drawPoint(BEIJING, "КИТАЙ", pulse, "left");
       drawPoint(SEOUL, "КОРЕЯ", pulse, "right");
       drawPoint(MOSCOW, "РОССИЯ", pulse, "right");
     };
