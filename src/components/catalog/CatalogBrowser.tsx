@@ -292,7 +292,7 @@ export function CatalogBrowser() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Поиск…"
-                  className="field-light !h-9 w-[124px] rounded-full pl-9 text-[13px] focus:w-[168px]"
+                  className="field-light !h-9 w-[120px] rounded-full pl-9 text-[13px]"
                 />
               </label>
               <select
@@ -308,9 +308,11 @@ export function CatalogBrowser() {
                 <button
                   type="button"
                   onClick={reset}
-                  className="flex h-9 items-center gap-1.5 rounded-full border border-bordeaux/30 bg-bordeaux/[0.06] px-3 text-[12.5px] font-bold text-bordeaux transition-colors hover:bg-bordeaux/10"
+                  aria-label="Сбросить фильтры"
+                  title="Сбросить фильтры"
+                  className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-bordeaux/30 bg-bordeaux/[0.06] text-bordeaux transition-colors hover:bg-bordeaux/10"
                 >
-                  Сбросить <X className="h-3.5 w-3.5" />
+                  <X className="h-4 w-4" />
                 </button>
               ) : null}
               <button

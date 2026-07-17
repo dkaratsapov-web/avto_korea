@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { ArrowRight, Loader2, Paperclip, MessageCircle } from "lucide-react";
+import { ArrowRight, Loader2, Paperclip } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
+import { MaxIcon } from "@/components/icons/MaxIcon";
 import { Button } from "@/components/ui/Button";
 import { showToast } from "@/lib/toast";
 import { countries, site } from "@/lib/site";
@@ -181,7 +183,7 @@ export function LeadForm({
           </Button>
 
           {withContacts ? (
-            <div className="flex w-full basis-full flex-wrap items-center gap-2 border-t border-line-dark pt-3">
+            <div className="flex w-full basis-full flex-wrap items-center gap-2.5 border-t border-line-dark pt-3">
               <span className="text-[12.5px] font-semibold text-[#8C97A1]">
                 Или напишите:
               </span>
@@ -190,27 +192,30 @@ export function LeadForm({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Написать в MAX"
-                className="inline-flex items-center gap-1.5 rounded-full border border-line-dark bg-white/[0.05] px-3.5 py-2 text-[13px] font-bold text-white transition-colors hover:border-steel hover:bg-white/[0.1]"
+                title="MAX"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-dark bg-white/[0.05] transition-colors hover:border-steel hover:bg-white/[0.1]"
               >
-                <span className="font-extrabold text-[#2B7FFF]">MAX</span>
+                <MaxIcon className="h-[22px] w-[22px]" />
               </a>
               <a
                 href={site.telegramHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Написать в Telegram"
-                className="inline-flex items-center gap-1.5 rounded-full border border-line-dark bg-white/[0.05] px-3.5 py-2 text-[13px] font-bold text-white transition-colors hover:border-steel hover:bg-white/[0.1]"
+                title="Telegram"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-dark bg-white/[0.05] transition-colors hover:border-steel hover:bg-white/[0.1]"
               >
-                <TelegramIcon className="h-4 w-4" /> Telegram
+                <TelegramIcon className="h-[22px] w-[22px]" />
               </a>
               <a
                 href={site.whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Написать в WhatsApp"
-                className="inline-flex items-center gap-1.5 rounded-full border border-line-dark bg-white/[0.05] px-3.5 py-2 text-[13px] font-bold text-white transition-colors hover:border-steel hover:bg-white/[0.1]"
+                title="WhatsApp"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-dark bg-white/[0.05] transition-colors hover:border-steel hover:bg-white/[0.1]"
               >
-                <MessageCircle className="h-4 w-4 text-[#25D366]" /> WhatsApp
+                <WhatsAppIcon className="h-[22px] w-[22px]" />
               </a>
             </div>
           ) : null}
