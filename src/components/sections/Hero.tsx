@@ -1,11 +1,12 @@
+import { Wallet, Truck, ReceiptText } from "lucide-react";
 import { LeadForm } from "@/components/LeadForm";
 import { Flag } from "@/components/icons/Flag";
 import type { CountryCode } from "@/lib/site";
 
 const badges = [
-  { strong: "15 мин", rest: " — расчёт под ключ" },
-  { strong: "от 25", rest: " дней доставка" },
-  { pre: "Цена ", strong: "под ключ" },
+  { icon: Wallet, label: "Под любой бюджет" },
+  { icon: Truck, label: "Доставка до 25 дней" },
+  { icon: ReceiptText, label: "Прозрачная смета" },
 ];
 
 const flags: { code: CountryCode; title: string }[] = [
@@ -44,14 +45,15 @@ export function Hero() {
           </p>
 
           <div className="mb-4 flex flex-wrap gap-2">
-            {badges.map((b, i) => (
+            {badges.map(({ icon: Icon, label }, i) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-2 rounded-full border border-line-dark bg-graphite-2/60 px-3 py-1.5 text-[13px] font-semibold text-[#DCE2E7]"
+                className="inline-flex items-center gap-2 rounded-full border border-line-dark bg-graphite-2/60 py-1.5 pl-2 pr-3.5 text-[13px] font-semibold text-[#DCE2E7]"
               >
-                {b.pre}
-                <b className="text-chrome">{b.strong}</b>
-                {b.rest}
+                <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-bordeaux/15 text-bordeaux-bright">
+                  <Icon className="h-[15px] w-[15px]" />
+                </span>
+                {label}
               </span>
             ))}
           </div>
