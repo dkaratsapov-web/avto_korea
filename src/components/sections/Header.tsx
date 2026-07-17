@@ -51,6 +51,7 @@ export function Header() {
         {/* Капсула: логотип — с лёгким наклоном (рваный ритм) */}
         <div
           className={`${capsule} ${h} flex -rotate-1 items-center px-4 hover:rotate-0 sm:px-5`}
+          style={{ background: "rgba(206, 214, 221, 0.22)" }}
         >
           <Logo variant="full" className="h-10 w-auto" />
         </div>

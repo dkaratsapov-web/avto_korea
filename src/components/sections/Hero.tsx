@@ -1,5 +1,4 @@
 import { LeadForm } from "@/components/LeadForm";
-import { EstimateMockup } from "@/components/HeroEstimate";
 import { Flag } from "@/components/icons/Flag";
 import type { CountryCode } from "@/lib/site";
 
@@ -16,7 +15,8 @@ const flags: { code: CountryCode; title: string }[] = [
   { code: "eu", title: "ЕС" },
 ];
 
-// Узкий hero без фонового изображения — тёмная подложка, форма и мокап сметы.
+// Узкий hero без фонового изображения: слева — оффер, справа — форма заявки.
+// Мокап сметы (HeroEstimate) временно убран — оставлен для размещения позже.
 export function Hero() {
   return (
     <section
@@ -27,13 +27,13 @@ export function Hero() {
       <div className="glow-blob bottom-[6%] left-[2%] h-56 w-56 animate-glow-pan bg-steel/15 [animation-delay:-6s]" aria-hidden />
       <div className="grain absolute inset-0" aria-hidden />
 
-      <div className="wrap relative z-10 grid items-center gap-6 pb-6 pt-[84px] md:grid-cols-[1.05fr_0.95fr] md:pb-6 md:pt-[90px]">
+      <div className="wrap relative z-10 grid items-center gap-x-10 gap-y-6 pb-5 pt-[76px] md:grid-cols-[1.05fr_0.95fr] md:pb-5 md:pt-[82px]">
         <div className="animate-fade-up">
           <div className="mb-2.5 inline-flex items-center gap-2.5 rounded-full border border-line-dark bg-graphite-2/50 py-1 pl-2 pr-3.5 text-[12px] font-bold uppercase tracking-[0.14em] text-chrome">
             <span className="slash" aria-hidden /> Импорт авто под ключ · 69 регион
           </div>
 
-          <h1 className="mb-2.5 text-[clamp(26px,3.6vw,44px)] leading-[1.02] text-white [text-shadow:0_2px_20px_rgba(0,0,0,.4)]">
+          <h1 className="mb-2.5 text-[clamp(25px,3.4vw,42px)] leading-[1.02] text-white [text-shadow:0_2px_20px_rgba(0,0,0,.4)]">
             Авто из Кореи, Китая и Японии{" "}
             <em className="not-italic text-shine">под ключ</em>
           </h1>
@@ -43,7 +43,7 @@ export function Hero() {
             без скрытых наценок.
           </p>
 
-          <div className="mb-3.5 flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
             {badges.map((b, i) => (
               <span
                 key={i}
@@ -56,16 +56,7 @@ export function Hero() {
             ))}
           </div>
 
-          <div id="hero-form" className="scroll-mt-24">
-            <LeadForm
-              source="Hero — первый экран"
-              submitLabel="Получить расчёт"
-              withCar={false}
-              withContacts
-            />
-          </div>
-
-          <div className="mt-3 flex items-center gap-2.5 text-[13px] text-[#AEB7BE]">
+          <div className="flex items-center gap-2.5 text-[13px] text-[#AEB7BE]">
             Возим из:
             {flags.map((f) => (
               <Flag key={f.code} code={f.code} className="h-4 w-6" />
@@ -73,16 +64,23 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Мокап сметы под ключ с печатью */}
-        <div className="hidden items-center justify-center md:flex">
-          <div className="relative origin-center scale-[0.92]">
-            <div
-              className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 animate-spin-slow rounded-full border border-chrome/15 [border-style:dashed]"
-              aria-hidden
-            />
-            <div className="animate-fade-up">
-              <EstimateMockup />
+        {/* Форма заявки — на месте бывшего мокапа сметы */}
+        <div id="hero-form" className="scroll-mt-24 animate-fade-up">
+          <div className="rounded-[20px] border border-line-dark bg-graphite-2/60 p-5 shadow-[0_24px_60px_-30px_rgba(0,0,0,.8)] backdrop-blur-sm sm:p-6">
+            <div className="mb-3.5">
+              <div className="text-[17px] font-extrabold text-white">
+                Рассчитать под ключ
+              </div>
+              <div className="text-[13px] text-[#AEB7BE]">
+                Перезвоним в течение 15 минут с честной ценой.
+              </div>
             </div>
+            <LeadForm
+              source="Hero — первый экран"
+              submitLabel="Получить расчёт"
+              withCar={false}
+              withContacts
+            />
           </div>
         </div>
       </div>
