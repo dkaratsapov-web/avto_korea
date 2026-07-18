@@ -171,7 +171,6 @@ export function AboutPage() {
             <div>Организация: <b className="text-ink">{site.requisites.nameFull}</b></div>
             <div>ИНН: <b className="text-ink">{site.requisites.inn}</b></div>
             <div>ОГРНИП: <b className="text-ink">{site.requisites.ogrnip}</b></div>
-            <div className="sm:col-span-2">Юридический адрес: <b className="text-ink">{site.requisites.legalAddress}</b></div>
             <div>Телефон: <b className="text-ink">{site.phone}</b></div>
             <div>E-mail: <b className="text-ink">{site.email}</b></div>
             <div>Расчётный счёт: <b className="text-ink">{site.requisites.account}</b></div>

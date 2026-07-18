@@ -98,7 +98,7 @@ export function Footer() {
       <div className="wrap relative py-6 text-[13px]">
         <p className="max-w-4xl text-[12px] leading-relaxed text-[#6f7884]">
           {site.requisites.name} · ИНН {site.requisites.inn} · ОГРНИП{" "}
-          {site.requisites.ogrnip} · {site.requisites.legalAddress}
+          {site.requisites.ogrnip}
         </p>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <span>© 2026 ДиАвто69. Импорт авто под ключ.</span>
