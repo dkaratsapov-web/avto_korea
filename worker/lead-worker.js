@@ -41,7 +41,8 @@ const DEFAULT_SETTINGS = {
   map2gisButtonText: "🗺 Мы в 2ГИС",
   map2gisUrl: "https://2gis.ru/tver/firm/70000001110299440",
   // Авто-публикация постов канала прямо в каталог (без черновиков).
-  autoPublish: false,
+  // По умолчанию включена — это основной сценарий (полностью авто-обновление).
+  autoPublish: true,
 };
 
 /* ---------- Telegram API ---------- */
