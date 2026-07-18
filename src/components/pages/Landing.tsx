@@ -5,7 +5,6 @@ import { CatalogBrowser } from "@/components/catalog/CatalogBrowser";
 import { BrandTicker } from "@/components/sections/BrandTicker";
 import { Advantages } from "@/components/sections/Advantages";
 import { HowItWorks } from "@/components/sections/HowItWorks";
-import { Calculator } from "@/components/sections/Calculator";
 import { Reviews } from "@/components/sections/Reviews";
 import { Faq } from "@/components/sections/Faq";
 import { FinalCta } from "@/components/sections/FinalCta";
@@ -38,7 +37,6 @@ export function Landing() {
       <BrandTicker />
       <Advantages />
       <HowItWorks />
-      <Calculator />
       <Reviews />
       <Faq />
       <FinalCta />
