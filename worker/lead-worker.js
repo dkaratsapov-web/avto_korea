@@ -475,6 +475,45 @@ export default {
       return json({ ok: true, catalog });
     }
 
+    // --- Диагностика авто-публикации (без секретов) ---
+    // Открыть в браузере: /api/diag — покажет, включена ли авто-публикация,
+    // сколько авто в каталоге и слушает ли вебхук посты канала.
+    if (url.pathname === "/api/diag" && request.method === "GET") {
+      const st = await getSettings(env);
+      const catalog = (await kvGet(env, "catalog", [])) || [];
+      const drafts = (await kvGet(env, "drafts", [])) || [];
+      let webhook = null;
+      try {
+        const r = await api(env, "getWebhookInfo", {});
+        const d = await r.json();
+        const w = d.result || {};
+        webhook = {
+          url: w.url || null,
+          has_channel_post: Array.isArray(w.allowed_updates)
+            ? w.allowed_updates.includes("channel_post")
+            : "default(all)",
+          allowed_updates: w.allowed_updates || "default(all)",
+          pending_update_count: w.pending_update_count,
+          last_error_message: w.last_error_message || null,
+          last_error_date: w.last_error_date || null,
+        };
+      } catch (e) {
+        webhook = { error: String(e) };
+      }
+      return json({
+        ok: true,
+        autoPublish: !!st.autoPublish,
+        hasBotToken: !!env.TELEGRAM_BOT_TOKEN,
+        hasStore: !!env.STORE,
+        catalogCount: Array.isArray(catalog) ? catalog.length : 0,
+        autoCarsFromChannel: Array.isArray(catalog)
+          ? catalog.filter((c) => String(c.id).startsWith("tg-")).length
+          : 0,
+        draftsCount: Array.isArray(drafts) ? drafts.length : 0,
+        webhook,
+      });
+    }
+
     // --- Курс валют ЦБ РФ (для калькулятора) ---
     if (url.pathname === "/api/rates" && request.method === "GET") {
       try {
