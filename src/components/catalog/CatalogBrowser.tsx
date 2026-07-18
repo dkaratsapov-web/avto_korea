@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import { CarCard } from "@/components/CarCard";
@@ -282,10 +283,13 @@ export function CatalogBrowser() {
       {/* Липкая горизонтальная панель фильтров (десктоп) — плавающая капсула */}
       <div className="pointer-events-none sticky top-[64px] z-30 hidden py-2.5 md:block">
         <div className="mx-auto w-full max-w-[1600px] px-6 [&_*]:pointer-events-auto">
-          <div className="flex flex-wrap items-center gap-1.5 rounded-[28px] border-2 border-[#cfd4dc] bg-white px-3 py-2 shadow-[0_12px_30px_-18px_rgba(20,25,32,0.5)]">
-            {facetControls}
+          <div className="flex flex-nowrap items-center gap-2 rounded-[28px] border-2 border-[#cfd4dc] bg-white px-3 py-2 shadow-[0_12px_30px_-18px_rgba(20,25,32,0.5)]">
+            {/* Лента фильтров — прокручивается по горизонтали, не переносится */}
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {facetControls}
+            </div>
 
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="flex flex-none items-center gap-1.5 border-l border-line pl-2">
               <label className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-2" />
                 <input
@@ -579,25 +583,49 @@ function FacetDropdown({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
+
+  // Меню рендерим в портал (position: fixed), чтобы горизонтальный скролл
+  // ленты фильтров его не обрезал. Координаты считаем от кнопки.
+  const place = () => {
+    const b = btnRef.current?.getBoundingClientRect();
+    if (!b) return;
+    const width = 280;
+    const left = Math.min(Math.max(8, b.left), window.innerWidth - width - 8);
+    setPos({ left, top: b.bottom + 8 });
+  };
+
+  useLayoutEffect(() => {
+    if (open) place();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
     };
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const reflow = () => place();
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onEsc);
+    window.addEventListener("resize", reflow);
+    window.addEventListener("scroll", reflow, true);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onEsc);
+      window.removeEventListener("resize", reflow);
+      window.removeEventListener("scroll", reflow, true);
     };
   }, [open]);
 
   return (
-    <div ref={ref} className="relative">
+    <div className="relative flex-none">
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition-colors duration-200 ${
@@ -618,11 +646,18 @@ function FacetDropdown({
           className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
-      {open ? (
-        <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-[280px] rounded-card border border-line bg-white p-3.5 shadow-[0_18px_44px_-16px_rgba(20,25,32,0.5)]">
-          {children}
-        </div>
-      ) : null}
+      {open
+        ? createPortal(
+            <div
+              ref={menuRef}
+              style={{ position: "fixed", left: pos.left, top: pos.top, width: 280 }}
+              className="z-[60] rounded-card border border-line bg-white p-3.5 shadow-[0_18px_44px_-16px_rgba(20,25,32,0.5)]"
+            >
+              {children}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
