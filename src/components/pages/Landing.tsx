@@ -17,7 +17,7 @@ export function Landing() {
 
       {/* Каталог с полными фильтрами — сразу под hero */}
       <section id="catalog" className="scroll-mt-20 bg-paper pt-8">
-        <div className="mx-auto w-full max-w-[1600px] px-6">
+        <div className="mx-auto w-full max-w-[1760px] px-6">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <h2 className="text-[clamp(24px,3vw,36px)] font-extrabold uppercase text-ink">
               Каталог автомобилей

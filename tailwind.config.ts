@@ -24,7 +24,7 @@ const config: Config = {
         btn: "12px",
       },
       maxWidth: {
-        container: "1400px",
+        container: "1760px",
       },
       boxShadow: {
         card: "0 22px 44px rgba(20,25,33,.14)",

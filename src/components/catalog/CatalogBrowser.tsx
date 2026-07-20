@@ -282,7 +282,7 @@ export function CatalogBrowser() {
     <>
       {/* Липкая горизонтальная панель фильтров (десктоп) — плавающая капсула */}
       <div className="pointer-events-none sticky top-[64px] z-30 hidden py-2.5 md:block">
-        <div className="mx-auto w-full max-w-[1600px] px-6 [&_*]:pointer-events-auto">
+        <div className="mx-auto w-full max-w-[1760px] px-6 [&_*]:pointer-events-auto">
           <div className="flex flex-nowrap items-center gap-2 rounded-[28px] border-2 border-[#cfd4dc] bg-white px-3 py-2 shadow-[0_12px_30px_-18px_rgba(20,25,32,0.5)]">
             {/* Лента фильтров — прокручивается по горизонтали, не переносится */}
             <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -338,7 +338,7 @@ export function CatalogBrowser() {
 
       {/* Мобильная липкая панель */}
       <div className="sticky top-[62px] z-30 border-b border-line bg-paper/95 backdrop-blur md:hidden">
-        <div className="mx-auto w-full max-w-[1600px] px-6 flex items-center gap-2 py-2.5">
+        <div className="mx-auto w-full max-w-[1760px] px-6 flex items-center gap-2 py-2.5">
           <label className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-2" />
             <input
@@ -364,7 +364,7 @@ export function CatalogBrowser() {
       </div>
 
       {/* Контент */}
-      <div className="mx-auto w-full max-w-[1600px] px-6 mt-6">
+      <div className="mx-auto w-full max-w-[1760px] px-6 mt-6">
         <div className="mb-5 flex flex-wrap items-center gap-2">
           <span className="text-[14px] font-semibold text-ink-2">
             Найдено:{" "}

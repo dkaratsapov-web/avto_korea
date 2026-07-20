@@ -28,13 +28,6 @@ function useMeta(title: string, description: string) {
   }, [title, description]);
 }
 
-const stats = [
-  { value: "500+", label: "авто привезли под ключ", note: "[ЗАГЛУШКА: цифра]" },
-  { value: "от 25", label: "дней средний срок доставки" },
-  { value: "4", label: "страны: Корея, Китай, Япония, ЕС" },
-  { value: "69", label: "регион — Тверь и область" },
-];
-
 const values = [
   { icon: HandCoins, title: "Честная цена под ключ", text: "Раскладываем стоимость на составляющие и фиксируем в договоре — без доплат в процессе." },
   { icon: Search, title: "Проверка до выкупа", text: "Осмотр, диагностика и история автомобиля до того, как за него внесены деньги." },
@@ -99,17 +92,6 @@ export function AboutPage() {
         <div className="chrome-line absolute inset-x-0 bottom-0" />
       </section>
 
-      {/* Цифры */}
-      <section className="wrap mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {stats.map((s) => (
-          <div key={s.label} className="rounded-card border border-line bg-white p-5 text-center">
-            <div className="font-num text-[clamp(26px,3vw,38px)] font-bold text-ink">{s.value}</div>
-            <div className="mt-1 text-[13.5px] font-semibold text-ink-2">{s.label}</div>
-            {s.note ? <div className="mt-0.5 text-[11px] text-bordeaux">{s.note}</div> : null}
-          </div>
-        ))}
-      </section>
-
       {/* Ценности */}
       <section className="wrap mt-14">
         <h2 className="text-[clamp(24px,3vw,36px)] font-extrabold uppercase text-ink">
@@ -163,12 +145,12 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* Реквизиты */}
-      <section className="wrap mt-14">
+      {/* Реквизиты + форма — рядом, по половине экрана */}
+      <section className="wrap mt-14 grid items-stretch gap-4 lg:grid-cols-2">
         <div className="rounded-card border border-line bg-white p-6">
           <h2 className="text-[20px] font-extrabold uppercase text-ink">Реквизиты</h2>
           <div className="mt-3 grid gap-x-8 gap-y-2 text-[14px] text-ink-2 sm:grid-cols-2">
-            <div>Организация: <b className="text-ink">{site.requisites.nameFull}</b></div>
+            <div className="sm:col-span-2">Организация: <b className="text-ink">{site.requisites.nameFull}</b></div>
             <div>ИНН: <b className="text-ink">{site.requisites.inn}</b></div>
             <div>ОГРНИП: <b className="text-ink">{site.requisites.ogrnip}</b></div>
             <div>Телефон: <b className="text-ink">{site.phone}</b></div>
@@ -181,21 +163,16 @@ export function AboutPage() {
             <div className="sm:col-span-2">Адрес банка: <b className="text-ink">{site.requisites.bankAddress}</b></div>
           </div>
         </div>
-      </section>
 
-      {/* CTA — по центру */}
-      <section className="wrap mt-14">
-        <div className="rounded-card border border-line bg-graphite p-6 text-center text-white sm:p-10">
+        <div className="flex flex-col justify-center rounded-card border border-line bg-graphite p-6 text-white sm:p-8">
           <h2 className="text-[24px] font-extrabold uppercase text-white">
             Готовы подобрать ваше авто
           </h2>
-          <p className="mx-auto mb-6 mt-2 max-w-xl text-[14px] text-[#9AA4B2]">
+          <p className="mb-6 mt-2 max-w-xl text-[14px] text-[#9AA4B2]">
             Оставьте заявку — покажем реальную цену под ключ с доставкой и
             растаможкой и ответим на все вопросы.
           </p>
-          <div className="mx-auto max-w-[560px] text-left">
-            <LeadForm source="Страница «О нас»" submitLabel="Получить расчёт" withCar={false} withContacts />
-          </div>
+          <LeadForm source="Страница «О нас»" submitLabel="Получить расчёт" withCar={false} withContacts />
         </div>
       </section>
     </main>

@@ -69,7 +69,7 @@ export function Footer() {
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 transition-colors hover:text-white"
               >
-                <TelegramIcon className="h-4 w-4" /> Telegram {site.telegram}
+                <TelegramIcon className="h-4 w-4" /> Telegram
               </a>
             </li>
             <li>

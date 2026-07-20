@@ -110,14 +110,19 @@ export function ContactsPage() {
               <div>
                 <div className="text-[12px] font-bold uppercase tracking-wide text-ink-2">Часы работы</div>
                 <div className="font-bold text-ink">Ежедневно 9:00–21:00</div>
-                <div className="mt-0.5 text-[13px] text-ink-2">[ЗАГЛУШКА: уточнить график]</div>
               </div>
             </div>
           </div>
 
-          {/* Карта — заглушка (встроим Яндекс.Карту по готовности адреса) */}
-          <div className="flex h-[220px] items-center justify-center rounded-card border border-dashed border-line bg-white text-center text-[13px] text-ink-2">
-            [ЗАГЛУШКА: карта проезда — вставим Яндекс.Карту, когда подтвердите адрес]
+          {/* Карта проезда — Яндекс.Карты */}
+          <div className="overflow-hidden rounded-card border border-line bg-white">
+            <iframe
+              src={site.mapEmbed}
+              title="ДиАвто69 на карте — Тверь, ул. Коминтерна, 71"
+              className="h-[300px] w-full border-0"
+              loading="lazy"
+              allowFullScreen
+            />
           </div>
         </div>
 

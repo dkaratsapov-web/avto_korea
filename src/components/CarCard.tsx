@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Heart, ArrowRight, Scale } from "lucide-react";
 import {
   EngineIcon,
@@ -6,9 +7,34 @@ import {
   DriveIcon,
 } from "@/components/icons/SpecIcons";
 import { Flag } from "@/components/icons/Flag";
+import { CarSilhouette } from "@/components/icons/CarSilhouette";
 import { type Car, formatPrice } from "@/data/cars";
 import { countries } from "@/lib/site";
 import { useUI } from "@/lib/ui";
+
+// Фото авто с запасным вариантом: если картинка не загрузилась или её нет —
+// показываем фирменный силуэт вместо чёрного прямоугольника.
+function CarImage({ car }: { car: Car }) {
+  const [broken, setBroken] = useState(false);
+  const src = car.images?.[0];
+  if (!src || broken) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-graphite-2 to-graphite">
+        <CarSilhouette className="h-[46%] w-[70%] opacity-40" />
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line
+    <img
+      src={src}
+      alt={`${car.model}, ${car.year}`}
+      loading="lazy"
+      onError={() => setBroken(true)}
+      className="h-full w-full object-cover transition-transform duration-[600ms] ease-out group-hover:scale-[1.06]"
+    />
+  );
+}
 
 export function CarCard({ car }: { car: Car }) {
   const country = countries[car.country];
@@ -29,13 +55,7 @@ export function CarCard({ car }: { car: Car }) {
       <span className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[3px] scale-x-0 bg-gradient-to-r from-bordeaux-deep via-bordeaux-bright to-chrome transition-transform duration-500 group-hover:scale-x-100" />
 
       <div className="relative aspect-[16/10] overflow-hidden bg-graphite">
-        {/* eslint-disable-next-line */}
-        <img
-          src={car.images[0]}
-          alt={`${car.model}, ${car.year}`}
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-[600ms] ease-out group-hover:scale-[1.06]"
-        />
+        <CarImage car={car} />
         <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-black/10" />
 
         <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-white/60 bg-white/85 px-2.5 py-[5px] text-[12.5px] font-bold text-ink shadow-[0_4px_14px_rgba(0,0,0,0.25)] backdrop-blur">

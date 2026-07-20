@@ -7,7 +7,7 @@ export function CatalogPage() {
     <main className="bg-paper pb-[96px]">
       {/* Компактная шапка */}
       <section className="grain relative overflow-hidden bg-[radial-gradient(760px_360px_at_82%_-20%,#27313d,#11151A_60%)] pb-5 pt-[96px] text-white">
-        <div className="relative mx-auto w-full max-w-[1600px] px-6">
+        <div className="relative mx-auto w-full max-w-[1760px] px-6">
           <nav className="mb-3 flex items-center gap-1.5 text-[12.5px] font-semibold text-[#9AA4B2]">
             <Link to="/" className="transition-colors hover:text-white">Главная</Link>
             <ChevronRight className="h-3.5 w-3.5" />
