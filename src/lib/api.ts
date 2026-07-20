@@ -24,6 +24,7 @@ export type BotSettings = {
   mapUrl: string;
   miniAppUrl?: string;
   autoPublish?: boolean;
+  reviewsChatId?: string;
 };
 
 export type Draft = {
@@ -93,6 +94,10 @@ export type Review = {
   text: string;
   car?: string;
   rating: number;
+  /** Фото из поста-отзыва (через прокси). */
+  media?: string;
+  /** Видео из поста-отзыва (через прокси). */
+  video?: string;
   ts: number;
 };
 export type Faq = { q: string; a: string };

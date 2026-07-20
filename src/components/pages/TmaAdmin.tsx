@@ -1326,6 +1326,22 @@ function BotTab({
       </div>
 
       <label>
+        <span className={lab}>Chat id канала отзывов</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.reviewsChatId ?? ""}
+          onChange={(e) => set("reviewsChatId", e.target.value)}
+          placeholder="-100…"
+        />
+        <span className="mt-1 block text-[11px] leading-snug text-[#8C97A1]">
+          Посты из этого канала идут в блок «Отзывы» (с фото/видео), а не в
+          каталог. Узнать id: опубликуйте пост в канале и посмотрите
+          lastUpdate.chatId в /api/diag. Бот должен быть админом канала.
+        </span>
+      </label>
+
+      <label>
         <span className={lab}>Приветствие (Markdown)</span>
         <textarea
           disabled={!canEdit}

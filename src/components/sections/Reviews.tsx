@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,6 +11,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
 import { Flag } from "@/components/icons/Flag";
 import { countries } from "@/lib/site";
+import { fetchReviews, type Review as ApiReview } from "@/lib/api";
 
 type Review = {
   name: string;
@@ -66,8 +67,52 @@ const reviews: Review[] = [
   },
 ];
 
+type Card = {
+  key: string;
+  name: string;
+  text: string;
+  media?: string;
+  video?: string;
+  city?: string;
+  car?: string;
+  country?: keyof typeof countries;
+  term?: string;
+  price?: string;
+};
+
 export function Reviews() {
   const track = useRef<HTMLDivElement>(null);
+  const [remote, setRemote] = useState<ApiReview[] | null>(null);
+
+  useEffect(() => {
+    fetchReviews()
+      .then((rs) => setRemote(rs))
+      .catch(() => {});
+  }, []);
+
+  // Если из канала отзывов пришли реальные отзывы — показываем их; иначе
+  // остаётся витрина-заглушка с кейсами.
+  const cards: Card[] =
+    remote && remote.length
+      ? remote.map((r) => ({
+          key: r.id,
+          name: r.name,
+          text: r.text,
+          media: r.media || undefined,
+          video: r.video || undefined,
+        }))
+      : reviews.map((r) => ({
+          key: r.name + r.car,
+          name: r.name,
+          text: r.text,
+          media: r.media,
+          video: r.video,
+          city: r.city,
+          car: r.car,
+          country: r.country,
+          term: r.term,
+          price: r.price,
+        }));
 
   function scrollBy(dir: 1 | -1) {
     const el = track.current;
@@ -94,19 +139,28 @@ export function Reviews() {
           ref={track}
           className="mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {reviews.map((r) => {
+          {cards.map((r) => {
             return (
               <article
-                key={r.name + r.car}
+                key={r.key}
                 className="flex w-[88%] flex-none snap-start flex-col overflow-hidden rounded-card border border-line bg-white sm:w-[420px]"
               >
-                {/* Медиа кейса: фото или видео */}
+                {/* Медиа кейса: видео (плеер) → фото → заглушка */}
                 <div className="relative aspect-[16/10] overflow-hidden bg-graphite">
-                  {r.media ? (
+                  {r.video ? (
+                    <video
+                      src={r.video}
+                      poster={r.media}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="h-full w-full bg-black object-contain"
+                    />
+                  ) : r.media ? (
                     // eslint-disable-next-line
                     <img
                       src={r.media}
-                      alt={r.car}
+                      alt={r.car || r.name}
                       loading="lazy"
                       className="h-full w-full object-cover"
                     />
@@ -121,51 +175,50 @@ export function Reviews() {
                       </span>
                     </div>
                   )}
-                  <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-white/90 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
-                    <CheckCircle2 className="h-4 w-4" /> Доставлено
-                  </span>
-                  <span className="absolute right-3 top-3">
-                    <Flag code={r.country} className="h-5 w-7" />
-                  </span>
-                  {r.video ? (
-                    <a
-                      href={r.video}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="Смотреть видео-отзыв"
-                      className="absolute inset-0 flex items-center justify-center"
-                    >
-                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-bordeaux/90 text-white shadow-lg transition-transform hover:scale-105">
-                        <Play className="h-6 w-6 fill-white" />
-                      </span>
-                    </a>
+                  {!r.video ? (
+                    <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-white/90 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
+                      <CheckCircle2 className="h-4 w-4" /> Доставлено
+                    </span>
+                  ) : null}
+                  {r.country ? (
+                    <span className="pointer-events-none absolute right-3 top-3">
+                      <Flag code={r.country} className="h-5 w-7" />
+                    </span>
                   ) : null}
                 </div>
 
                 <div className="flex flex-1 flex-col p-6">
                 <Quote className="mb-2 h-6 w-6 text-chrome" />
-                <p className="flex-1 text-[15px] leading-relaxed text-ink">
+                <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-ink">
                   {r.text}
                 </p>
 
                 <div className="mt-5 border-t border-line pt-4">
                   <div className="font-bold text-ink">{r.name}</div>
-                  <div className="text-[13.5px] text-ink-2">
-                    {r.city} · {r.car}
-                  </div>
-                  <div className="mt-3 flex items-end justify-between gap-3">
-                    <div className="text-[13px] font-semibold text-ink-2">
-                      Срок: <span className="font-num text-ink">{r.term}</span>
+                  {r.city || r.car ? (
+                    <div className="text-[13.5px] text-ink-2">
+                      {[r.city, r.car].filter(Boolean).join(" · ")}
                     </div>
-                    <div className="text-right">
-                      <div className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-ink-2">
-                        Под ключ
-                      </div>
-                      <div className="font-num text-[20px] font-bold text-bordeaux">
-                        {r.price}
-                      </div>
+                  ) : null}
+                  {r.term || r.price ? (
+                    <div className="mt-3 flex items-end justify-between gap-3">
+                      {r.term ? (
+                        <div className="text-[13px] font-semibold text-ink-2">
+                          Срок: <span className="font-num text-ink">{r.term}</span>
+                        </div>
+                      ) : <span />}
+                      {r.price ? (
+                        <div className="text-right">
+                          <div className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-ink-2">
+                            Под ключ
+                          </div>
+                          <div className="font-num text-[20px] font-bold text-bordeaux">
+                            {r.price}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
-                  </div>
+                  ) : null}
                 </div>
                 </div>
               </article>

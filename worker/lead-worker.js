@@ -43,6 +43,9 @@ const DEFAULT_SETTINGS = {
   // Авто-публикация постов канала прямо в каталог (без черновиков).
   // По умолчанию включена — это основной сценарий (полностью авто-обновление).
   autoPublish: true,
+  // Chat id канала отзывов: посты оттуда идут в блок «Отзывы», а не в каталог.
+  // Узнать id: опубликуйте пост в канале и посмотрите lastUpdate.chatId в /api/diag.
+  reviewsChatId: "",
 };
 
 /* ---------- Telegram API ---------- */
@@ -364,14 +367,18 @@ export default {
       } catch {
         /* диагностика не должна ломать обработку */
       }
-      // пост из канала → авто-публикация в каталог (если включено) или черновик
+      // пост из канала → отзывы (если это канал отзывов) или каталог
       const post = upd.channel_post || upd.edited_channel_post;
       if (post) {
         const st = await getSettings(env);
-        await handleChannelPost(env, post, {
-          auto: !!st.autoPublish,
-          origin: url.origin,
-        });
+        if (st.reviewsChatId && String(post.chat?.id) === String(st.reviewsChatId)) {
+          await publishReviewFromPost(env, post, url.origin);
+        } else {
+          await handleChannelPost(env, post, {
+            auto: !!st.autoPublish,
+            origin: url.origin,
+          });
+        }
         return new Response("ok");
       }
 
@@ -416,7 +423,11 @@ export default {
             (await roleOf(env, msg.from?.id)) ||
             (await isChatAdmin(env, msg.chat?.id, msg.from?.id));
           if (trusted) {
-            await handleChannelPost(env, msg, { auto: true, origin: url.origin });
+            if (st.reviewsChatId && String(msg.chat?.id) === String(st.reviewsChatId)) {
+              await publishReviewFromPost(env, msg, url.origin);
+            } else {
+              await handleChannelPost(env, msg, { auto: true, origin: url.origin });
+            }
           }
         }
         return new Response("ok");
@@ -1175,6 +1186,39 @@ async function publishFromPost(env, post, caption, fileId, groupId, origin, vide
   }
 }
 
+// Пост из канала отзывов → карточка отзыва (текст + фото/видео) в KV reviews.
+async function publishReviewFromPost(env, post, origin) {
+  const text = (post.caption || post.text || "").trim();
+  const fileId = bestFileId(post);
+  const videoId = videoFileId(post);
+  if (!text && !fileId && !videoId) return;
+  const groupId = post.media_group_id || null;
+  const srcId = "tg-" + (groupId || post.message_id);
+  const media = fileId ? photoUrl(origin, fileId) : "";
+  const video = videoId ? videoUrl(origin, videoId) : "";
+
+  let reviews = (await kvGet(env, "reviews", [])) || [];
+  if (!Array.isArray(reviews)) reviews = [];
+  const ex = reviews.find((r) => r.id === srcId);
+  if (ex) {
+    // Альбом/правка: дополняем существующий отзыв медиа и текстом.
+    if (text && !ex.text) ex.text = text;
+    if (media && !ex.media) ex.media = media;
+    if (video && !ex.video) ex.video = video;
+  } else {
+    reviews.unshift({
+      id: srcId,
+      name: post.author_signature || "Клиент ДиАвто69",
+      text,
+      rating: 5,
+      media,
+      video,
+      ts: Date.now(),
+    });
+  }
+  await kvPut(env, "reviews", reviews.slice(0, 100));
+}
+
 async function handleChannelPost(env, post, opts = {}) {
   if (!env.STORE) return;
   const caption = (post.caption || post.text || "").trim();
@@ -1256,6 +1300,7 @@ async function handleAdmin(env, action, payload, perm, user) {
         "map2gisButtonText",
         "map2gisUrl",
         "miniAppUrl",
+        "reviewsChatId",
       ];
       const next = { ...cur };
       for (const k of allowed)
