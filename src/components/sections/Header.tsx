@@ -44,7 +44,7 @@ export function Header() {
   return (
     <header className="fixed inset-x-0 top-0 z-50">
       <div
-        className={`wrap flex items-center gap-3 transition-all duration-300 ${
+        className={`mx-auto flex w-full max-w-[1400px] items-center gap-3 px-6 transition-all duration-300 ${
           scrolled ? "py-2.5" : "py-3.5"
         }`}
       >
