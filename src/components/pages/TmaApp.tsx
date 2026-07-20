@@ -250,7 +250,7 @@ export function TmaApp() {
       <div className="min-h-screen bg-graphite text-white">
       <div className="mx-auto max-w-md px-4 pb-28">
         {/* Шапка — фиксируется при скролле */}
-        <div className="sticky top-0 z-40 -mx-4 mb-4 flex items-center justify-between border-b border-line-dark/60 bg-graphite px-4 py-3">
+        <div className="sticky top-0 z-40 -mx-4 mb-4 flex items-center justify-between border-b border-black/10 bg-white px-4 py-3 shadow-[0_2px_10px_-6px_rgba(0,0,0,0.4)]">
           <button
             type="button"
             onClick={() => {
@@ -291,7 +291,7 @@ export function TmaApp() {
               setView({ name: "compare" });
             }}
             aria-label="Сравнение"
-            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-black/15 bg-paper text-graphite"
           >
             <Scale className="h-5 w-5" />
             {compareIds.length > 0 ? (
@@ -306,7 +306,7 @@ export function TmaApp() {
               haptic(tgRef.current);
               setView({ name: "favorites" });
             }}
-            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-black/15 bg-paper text-graphite"
           >
             <Heart className="h-5 w-5" />
             {favorites.length > 0 ? (
