@@ -611,21 +611,34 @@ export default {
       try {
         const gf = await api(env, "getFile", { file_id: id });
         const j = await gf.json();
+        if (!j?.ok) {
+          // Показываем причину прямо в теле — для диагностики «чёрных» фото.
+          return new Response(
+            `getFile failed: ${j?.error_code || "?"} ${j?.description || ""}`,
+            { status: 404, headers: cors },
+          );
+        }
         const path = j?.result?.file_path;
-        if (!path) return new Response("not found", { status: 404, headers: cors });
+        if (!path) return new Response("no file_path", { status: 404, headers: cors });
         const f = await fetch(
           `https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${path}`,
         );
+        if (!f.ok) {
+          return new Response(`download failed: ${f.status}`, {
+            status: 502,
+            headers: cors,
+          });
+        }
         return new Response(f.body, {
-          status: f.status,
+          status: 200,
           headers: {
             ...cors,
             "Content-Type": f.headers.get("content-type") || "image/jpeg",
             "Cache-Control": "public, max-age=604800",
           },
         });
-      } catch {
-        return new Response("error", { status: 500, headers: cors });
+      } catch (e) {
+        return new Response(`error: ${String(e)}`, { status: 500, headers: cors });
       }
     }
 
