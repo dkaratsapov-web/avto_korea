@@ -261,6 +261,21 @@ async function roleOf(env, userId) {
   return perm ? (perm.owner ? "owner" : "admin") : null;
 }
 
+// Является ли пользователь администратором/создателем данного чата (Telegram).
+// Нужно, чтобы в каталог публиковали только те, кто управляет каналом/группой,
+// а не любой участник.
+async function isChatAdmin(env, chatId, userId) {
+  if (!chatId || !userId) return false;
+  try {
+    const r = await api(env, "getChatMember", { chat_id: chatId, user_id: userId });
+    const j = await r.json();
+    const s = j?.result?.status;
+    return s === "creator" || s === "administrator";
+  } catch {
+    return false;
+  }
+}
+
 // Права пользователя: { owner:bool, caps:Set<string> } или null.
 async function permsOf(env, userId) {
   const owners = String(env.ADMIN_IDS || "")
@@ -391,7 +406,18 @@ export default {
       ) {
         const st = await getSettings(env);
         if (st.autoPublish) {
-          await handleChannelPost(env, msg, { auto: true, origin: url.origin });
+          // Публикуем ТОЛЬКО доверенный контент, иначе любой участник группы
+          // может залить что угодно в каталог:
+          //  • авто-пересылка из привязанного канала (контролирует канал), либо
+          //  • отправитель — админ бота (owner/admin из наших списков), либо
+          //  • отправитель — админ/создатель самой группы.
+          const trusted =
+            isAutoForward ||
+            (await roleOf(env, msg.from?.id)) ||
+            (await isChatAdmin(env, msg.chat?.id, msg.from?.id));
+          if (trusted) {
+            await handleChannelPost(env, msg, { auto: true, origin: url.origin });
+          }
         }
         return new Response("ok");
       }
