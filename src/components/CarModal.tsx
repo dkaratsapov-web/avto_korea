@@ -4,6 +4,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Play,
 } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { Modal } from "@/components/ui/Modal";
@@ -26,8 +27,16 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
   const country = countries[car.country];
   const fav = isFav(car.id);
 
-  const prev = () => setIdx((i) => (i - 1 + car.images.length) % car.images.length);
-  const next = () => setIdx((i) => (i + 1) % car.images.length);
+  // Единый список медиа: видео (если есть) первым, затем фото.
+  const media = [
+    ...(car.video ? [{ type: "video" as const, src: car.video }] : []),
+    ...car.images.map((src) => ({ type: "image" as const, src })),
+  ];
+  const count = media.length || 1;
+  const cur = media[idx] ?? media[0];
+  const poster = car.images[0];
+  const prev = () => setIdx((i) => (i - 1 + count) % count);
+  const next = () => setIdx((i) => (i + 1) % count);
 
   return (
     <Modal onClose={onClose} label={car.model} className="max-w-5xl">
@@ -36,13 +45,25 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
         {/* Галерея */}
         <div className="relative bg-graphite p-4 sm:p-5">
           <div className="relative aspect-[16/11] overflow-hidden rounded-[16px] bg-black">
-            {/* eslint-disable-next-line */}
-            <img
-              src={car.images[idx]}
-              alt={`${car.model} — фото ${idx + 1}`}
-              className="h-full w-full object-cover"
-            />
-            <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[13px] font-bold text-ink">
+            {cur?.type === "video" ? (
+              <video
+                key={cur.src}
+                src={cur.src}
+                poster={poster}
+                controls
+                playsInline
+                preload="metadata"
+                className="h-full w-full bg-black object-contain"
+              />
+            ) : (
+              // eslint-disable-next-line
+              <img
+                src={cur?.src}
+                alt={`${car.model} — фото ${idx + 1}`}
+                className="h-full w-full object-cover"
+              />
+            )}
+            <span className="pointer-events-none absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[13px] font-bold text-ink">
               <Flag code={car.country} className="h-3.5 w-5" />
               {country.label}
             </span>
@@ -51,7 +72,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
                 Новинка
               </span>
             ) : null}
-            {car.images.length > 1 ? (
+            {count > 1 ? (
               <>
                 <button
                   type="button"
@@ -74,20 +95,29 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
           </div>
 
           <div className="mt-3 grid grid-cols-5 gap-2 sm:grid-cols-6">
-            {car.images.map((src, i) => (
+            {media.map((m, i) => (
               <button
-                key={src}
+                key={`${m.type}-${i}`}
                 type="button"
                 onClick={() => setIdx(i)}
-                aria-label={`Фото ${i + 1}`}
-                className={`aspect-[4/3] w-full overflow-hidden rounded-[10px] border-2 transition-colors ${
+                aria-label={m.type === "video" ? "Видео" : `Фото ${i + 1}`}
+                className={`relative aspect-[4/3] w-full overflow-hidden rounded-[10px] border-2 transition-colors ${
                   i === idx
                     ? "border-bordeaux-bright"
                     : "border-transparent opacity-70 hover:opacity-100"
                 }`}
               >
                 {/* eslint-disable-next-line */}
-                <img src={src} alt="" className="h-full w-full object-cover" />
+                <img
+                  src={m.type === "video" ? poster : m.src}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+                {m.type === "video" ? (
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <Play className="h-5 w-5 fill-white text-white" />
+                  </span>
+                ) : null}
               </button>
             ))}
           </div>

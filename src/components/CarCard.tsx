@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Heart, ArrowRight, Scale } from "lucide-react";
+import { Heart, ArrowRight, Scale, Play } from "lucide-react";
 import {
   EngineIcon,
   MileageIcon,
@@ -103,6 +103,12 @@ export function CarCard({ car }: { car: Car }) {
             className={`absolute bottom-3 left-3 rounded-full border px-[11px] py-[5px] text-[11.5px] font-extrabold uppercase tracking-[0.05em] ${statusPill}`}
           >
             Новинка
+          </span>
+        ) : null}
+
+        {car.video ? (
+          <span className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/55 px-2.5 py-[5px] text-[11.5px] font-bold text-white backdrop-blur">
+            <Play className="h-3 w-3 fill-white" /> Видео
           </span>
         ) : null}
       </div>

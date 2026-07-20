@@ -33,6 +33,8 @@ export type Car = {
   status: CarStatus;
   isNew?: boolean;
   images: string[];
+  /** Ссылка на видео (из поста Telegram, через прокси). */
+  video?: string;
   highlights: string[];
   /** Связное текстовое описание (абзац). Показывается на карточке авто. */
   description?: string;

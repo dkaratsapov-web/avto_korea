@@ -386,7 +386,7 @@ export default {
       if (
         msg &&
         (chatType === "group" || chatType === "supergroup") &&
-        bestFileId(msg) &&
+        (bestFileId(msg) || videoFileId(msg)) &&
         !isManualForward
       ) {
         const st = await getSettings(env);
@@ -643,6 +643,48 @@ export default {
           headers: {
             ...cors,
             "Content-Type": byExt[ext] || "image/jpeg",
+            "Cache-Control": "public, max-age=604800",
+          },
+        });
+      } catch (e) {
+        return new Response(`error: ${String(e)}`, { status: 500, headers: cors });
+      }
+    }
+
+    // --- Прокси видео из Telegram (лимит Bot API — файлы до 20 МБ) ---
+    if (url.pathname === "/api/tgvideo" && request.method === "GET") {
+      const id = url.searchParams.get("id");
+      if (!id) return new Response("no id", { status: 400, headers: cors });
+      try {
+        const gf = await api(env, "getFile", { file_id: id });
+        const j = await gf.json();
+        if (!j?.ok) {
+          // «file is too big» — видео больше 20 МБ, Bot API его не отдаёт.
+          return new Response(
+            `getFile failed: ${j?.error_code || "?"} ${j?.description || ""}`,
+            { status: 404, headers: cors },
+          );
+        }
+        const path = j?.result?.file_path;
+        if (!path) return new Response("no file_path", { status: 404, headers: cors });
+        const f = await fetch(
+          `https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${path}`,
+        );
+        if (!f.ok)
+          return new Response(`download failed: ${f.status}`, { status: 502, headers: cors });
+        const ext = (path.split(".").pop() || "").toLowerCase();
+        const byExt = {
+          mp4: "video/mp4",
+          mov: "video/quicktime",
+          webm: "video/webm",
+          m4v: "video/mp4",
+        };
+        return new Response(f.body, {
+          status: 200,
+          headers: {
+            ...cors,
+            "Content-Type": byExt[ext] || "video/mp4",
+            "Accept-Ranges": "bytes",
             "Cache-Control": "public, max-age=604800",
           },
         });
@@ -1005,6 +1047,18 @@ function bestFileId(m) {
   return null;
 }
 
+// file_id видео из сообщения (обычное видео или документ с видео-mime).
+function videoFileId(m) {
+  if (m?.video?.file_id) return m.video.file_id;
+  if (m?.document && /^video\//i.test(m.document.mime_type || ""))
+    return m.document.file_id;
+  return null;
+}
+
+function videoUrl(origin, fileId) {
+  return `${origin}/api/tgvideo?id=${encodeURIComponent(fileId)}`;
+}
+
 function photoUrl(origin, fileId) {
   return `${origin}/api/tgphoto?id=${encodeURIComponent(fileId)}`;
 }
@@ -1075,9 +1129,10 @@ function carFromPost(p, id, images) {
 }
 
 // Авто-публикация: пост канала → карточка в каталоге (upsert по стабильному id).
-async function publishFromPost(env, post, caption, fileId, groupId, origin) {
+async function publishFromPost(env, post, caption, fileId, groupId, origin, videoId) {
   const srcId = "tg-" + (groupId || post.message_id);
   const url = fileId ? photoUrl(origin, fileId) : null;
+  const vurl = videoId ? videoUrl(origin, videoId) : null;
   let catalog = (await kvGet(env, "catalog", [])) || [];
   if (!Array.isArray(catalog)) catalog = [];
   let car = catalog.find((c) => c.id === srcId);
@@ -1090,10 +1145,14 @@ async function publishFromPost(env, post, caption, fileId, groupId, origin) {
     if (url && !car.images.includes(url)) car.images.push(url);
     if (caption) {
       const imgs = car.images;
+      const vid = car.video;
       Object.assign(car, carFromPost(parseCaption(caption), srcId, imgs));
       car.images = imgs;
+      if (vid) car.video = vid;
     }
   }
+  // Видео из поста (первое найденное) — прикрепляем к карточке.
+  if (vurl && !car.video) car.video = vurl;
   await kvPut(env, "catalog", catalog);
   if (isNewCar && env.TELEGRAM_CHAT_ID) {
     await api(env, "sendMessage", {
@@ -1107,12 +1166,13 @@ async function handleChannelPost(env, post, opts = {}) {
   if (!env.STORE) return;
   const caption = (post.caption || post.text || "").trim();
   const fileId = bestFileId(post);
+  const videoId = videoFileId(post);
   const groupId = post.media_group_id || null;
-  if (!fileId && !caption) return;
+  if (!fileId && !videoId && !caption) return;
 
   // Полностью автоматический режим — сразу в каталог.
   if (opts.auto) {
-    await publishFromPost(env, post, caption, fileId, groupId, opts.origin);
+    await publishFromPost(env, post, caption, fileId, groupId, opts.origin, videoId);
     return;
   }
 

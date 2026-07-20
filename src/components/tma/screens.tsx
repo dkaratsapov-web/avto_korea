@@ -560,6 +560,17 @@ export function CarView({
         ) : null}
       </div>
 
+      {car.video ? (
+        <video
+          src={car.video}
+          poster={car.images[0]}
+          controls
+          playsInline
+          preload="metadata"
+          className="mt-3 aspect-video w-full rounded-[16px] bg-black object-contain"
+        />
+      ) : null}
+
       <div className="mt-3 flex items-center gap-2">
         <Flag code={car.country} className="h-4 w-6" />
         <span className="text-[14px] font-semibold text-chrome">
