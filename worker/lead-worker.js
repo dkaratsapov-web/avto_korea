@@ -386,8 +386,7 @@ export default {
       if (
         msg &&
         (chatType === "group" || chatType === "supergroup") &&
-        Array.isArray(msg.photo) &&
-        msg.photo.length &&
+        bestFileId(msg) &&
         !isManualForward
       ) {
         const st = await getSettings(env);
@@ -996,6 +995,16 @@ function parseCaption(text) {
   };
 }
 
+// Лучший file_id из сообщения: крупнейшее фото ИЛИ изображение-документ
+// (фото, отправленное «файлом» — без сжатия, в полном качестве).
+function bestFileId(m) {
+  if (Array.isArray(m?.photo) && m.photo.length)
+    return m.photo[m.photo.length - 1].file_id;
+  if (m?.document && /^image\//i.test(m.document.mime_type || ""))
+    return m.document.file_id;
+  return null;
+}
+
 function photoUrl(origin, fileId) {
   return `${origin}/api/tgphoto?id=${encodeURIComponent(fileId)}`;
 }
@@ -1097,10 +1106,7 @@ async function publishFromPost(env, post, caption, fileId, groupId, origin) {
 async function handleChannelPost(env, post, opts = {}) {
   if (!env.STORE) return;
   const caption = (post.caption || post.text || "").trim();
-  const fileId =
-    Array.isArray(post.photo) && post.photo.length
-      ? post.photo[post.photo.length - 1].file_id
-      : null;
+  const fileId = bestFileId(post);
   const groupId = post.media_group_id || null;
   if (!fileId && !caption) return;
 
