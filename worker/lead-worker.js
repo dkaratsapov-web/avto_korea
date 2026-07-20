@@ -629,11 +629,21 @@ export default {
             headers: cors,
           });
         }
+        // Тип определяем по расширению file_path (Telegram часто отдаёт
+        // octet-stream, из-за чего браузер скачивает файл, а не показывает).
+        const ext = (path.split(".").pop() || "").toLowerCase();
+        const byExt = {
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          png: "image/png",
+          webp: "image/webp",
+          gif: "image/gif",
+        };
         return new Response(f.body, {
           status: 200,
           headers: {
             ...cors,
-            "Content-Type": f.headers.get("content-type") || "image/jpeg",
+            "Content-Type": byExt[ext] || "image/jpeg",
             "Cache-Control": "public, max-age=604800",
           },
         });
