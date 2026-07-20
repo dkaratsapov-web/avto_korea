@@ -422,22 +422,9 @@ export default {
         return new Response("ok");
       }
 
-      // Импорт поста пересылкой боту (для приватного канала: пересылаете пост
-      // из канала в личку боту → создаётся черновик авто). Только для админов.
-      const forwarded = msg && (msg.forward_from_chat || msg.forward_origin);
-      if (forwarded && (msg.caption || msg.text || (Array.isArray(msg.photo) && msg.photo.length))) {
-        const role = await roleOf(env, msg.from?.id);
-        if (role) {
-          await handleChannelPost(env, msg);
-          if (!msg.media_group_id) {
-            await api(env, "sendMessage", {
-              chat_id: msg.chat.id,
-              text: "🆕 Черновик из пересланного поста добавлен — проверьте в админке → «Черновики».",
-            });
-          }
-          return new Response("ok");
-        }
-      }
+      // Импорт поста пересылкой/отправкой боту — ОТКЛЮЧЁН по требованию:
+      // раньше пересланный боту пост создавал черновик/карточку. Больше не
+      // обрабатываем — в каталог попадают только доверенные посты канала/группы.
 
       // заявка из мини-аппа (reply-кнопка)
       if (msg?.web_app_data?.data) {
