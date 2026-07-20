@@ -6,7 +6,6 @@ import {
   ChevronRight,
   ArrowLeft,
   Check,
-  Calculator,
   SlidersHorizontal,
   X,
   Car as CarIcon,
@@ -967,7 +966,6 @@ export function HomeView({
     primary?: boolean;
   }[] = [
     { name: "list", label: "Каталог", sub: "Авто в наличии и под заказ", icon: CarIcon, primary: true },
-    { name: "calc", label: "Калькулятор", sub: "Расчёт под ключ", icon: Calculator },
     { name: "subscribe", label: "Подписка", sub: "Сообщим о новинках", icon: Bell },
     { name: "compare", label: "Сравнить", sub: compareCount ? `${compareCount} выбрано` : "До 3 авто", icon: Scale },
     { name: "reviews", label: "Отзывы", sub: "Мнения клиентов", icon: Star },
