@@ -49,7 +49,10 @@ export function CarsProvider({ children }: { children: ReactNode }) {
 
     const sync = () => {
       fetchSharedCatalog().then((shared) => {
-        if (!alive || !shared || !Array.isArray(shared)) return;
+        // Пустой/отсутствующий общий каталог не затираем — оставляем текущие
+        // (демо-каталог по умолчанию), пока не появятся реальные авто из канала.
+        if (!alive || !shared || !Array.isArray(shared) || shared.length === 0)
+          return;
         const next = JSON.stringify(shared);
         if (next === last) return;
         last = next;

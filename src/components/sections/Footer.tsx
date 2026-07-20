@@ -106,9 +106,6 @@ export function Footer() {
             <Link to="/contacts" className="transition-colors hover:text-chrome">
               Реквизиты
             </Link>
-            <Link to="/admin" className="transition-colors hover:text-chrome">
-              Админ
-            </Link>
           </span>
         </div>
       </div>

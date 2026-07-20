@@ -316,6 +316,39 @@ export default {
       } catch {
         return new Response("ok");
       }
+      // Диагностика: запоминаем краткую сводку последнего апдейта, чтобы через
+      // /api/diag увидеть, что реально присылает Telegram (тип чата, фото и т.д.).
+      try {
+        const u =
+          upd.channel_post ||
+          upd.edited_channel_post ||
+          upd.message ||
+          upd.edited_message;
+        if (u && env.STORE) {
+          await env.STORE.put(
+            "diag:last",
+            JSON.stringify({
+              ts: Date.now(),
+              kind: upd.channel_post
+                ? "channel_post"
+                : upd.edited_channel_post
+                  ? "edited_channel_post"
+                  : upd.message
+                    ? "message"
+                    : "edited_message",
+              chatType: u.chat?.type || null,
+              chatId: u.chat?.id || null,
+              chatTitle: u.chat?.title || null,
+              hasPhoto: Array.isArray(u.photo) && u.photo.length > 0,
+              hasCaptionOrText: !!(u.caption || u.text),
+              forwarded: !!(u.forward_from_chat || u.forward_origin),
+              mediaGroup: u.media_group_id || null,
+            }),
+          );
+        }
+      } catch {
+        /* диагностика не должна ломать обработку */
+      }
       // пост из канала → авто-публикация в каталог (если включено) или черновик
       const post = upd.channel_post || upd.edited_channel_post;
       if (post) {
@@ -501,6 +534,7 @@ export default {
       } catch (e) {
         webhook = { error: String(e) };
       }
+      const lastUpdate = await kvGet(env, "diag:last", null);
       return json({
         ok: true,
         autoPublish: !!st.autoPublish,
@@ -512,7 +546,28 @@ export default {
           : 0,
         draftsCount: Array.isArray(drafts) ? drafts.length : 0,
         webhook,
+        lastUpdate,
       });
+    }
+
+    // --- Сброс/очистка каталога (только владелец: ключ = токен бота) ---
+    // /admin/catalog-reset?key=<TELEGRAM_BOT_TOKEN>        — очистить каталог
+    // /admin/catalog-reset?key=<TELEGRAM_BOT_TOKEN>&keepTg=1 — оставить только
+    //   авто, пришедшие из канала (id tg-*), удалить демо-карточки.
+    if (url.pathname === "/admin/catalog-reset" && request.method === "GET") {
+      if (!env.TELEGRAM_BOT_TOKEN || url.searchParams.get("key") !== env.TELEGRAM_BOT_TOKEN)
+        return json({ ok: false, error: "forbidden" }, 403);
+      const keepTg = url.searchParams.get("keepTg") === "1";
+      if (keepTg) {
+        const cur = (await kvGet(env, "catalog", [])) || [];
+        const kept = Array.isArray(cur)
+          ? cur.filter((c) => String(c.id).startsWith("tg-"))
+          : [];
+        await kvPut(env, "catalog", kept);
+        return json({ ok: true, cleared: "demo", kept: kept.length });
+      }
+      await env.STORE.delete("catalog");
+      return json({ ok: true, cleared: "all" });
     }
 
     // --- Курс валют ЦБ РФ (для калькулятора) ---
