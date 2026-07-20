@@ -539,16 +539,21 @@ export default {
         webhook = { error: String(e) };
       }
       const lastUpdate = await kvGet(env, "diag:last", null);
+      const tgCars = Array.isArray(catalog)
+        ? catalog.filter((c) => String(c.id).startsWith("tg-"))
+        : [];
+      const sampleTgCar = tgCars[0]
+        ? { id: tgCars[0].id, model: tgCars[0].model, images: tgCars[0].images }
+        : null;
       return json({
         ok: true,
         autoPublish: !!st.autoPublish,
         hasBotToken: !!env.TELEGRAM_BOT_TOKEN,
         hasStore: !!env.STORE,
         catalogCount: Array.isArray(catalog) ? catalog.length : 0,
-        autoCarsFromChannel: Array.isArray(catalog)
-          ? catalog.filter((c) => String(c.id).startsWith("tg-")).length
-          : 0,
+        autoCarsFromChannel: tgCars.length,
         draftsCount: Array.isArray(drafts) ? drafts.length : 0,
+        sampleTgCar,
         webhook,
         lastUpdate,
       });
@@ -1048,7 +1053,7 @@ async function publishFromPost(env, post, caption, fileId, groupId, origin) {
 
   if (!car) {
     car = carFromPost(parseCaption(caption), srcId, url ? [url] : []);
-    catalog.push(car);
+    catalog.unshift(car); // новые авто — в начало списка
   } else {
     if (url && !car.images.includes(url)) car.images.push(url);
     if (caption) {
