@@ -35,7 +35,8 @@ export function Hero() {
           </div>
 
           <h1 className="mb-2.5 text-[clamp(25px,3.4vw,42px)] leading-[1.02] text-white [text-shadow:0_2px_20px_rgba(0,0,0,.4)]">
-            Авто из Кореи, Китая и Японии{" "}
+            Авто из Кореи, Китая и Японии
+            <br />
             <em className="not-italic text-shine">под ключ</em>
           </h1>
 

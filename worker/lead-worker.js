@@ -375,16 +375,20 @@ export default {
 
       const msg = upd.message || upd.edited_message;
 
-      // Пост с фото в группе/супергруппе (если источник — не канал, а группа):
-      // при включённой авто-публикации сразу публикуем в каталог.
+      // Пост с фото в группе/супергруппе. Публикуем, если это ОРИГИНАЛ (набрали
+      // прямо в группе) ИЛИ авто-пересылка поста из привязанного канала
+      // (is_automatic_forward) — это тоже «свой» контент, а не чужой репост.
+      // Ручные пересылки чужих постов пропускаем (их разбираем ниже как черновик).
       const chatType = msg?.chat?.type;
+      const isAutoForward = !!msg?.is_automatic_forward;
+      const isManualForward =
+        (msg?.forward_from_chat || msg?.forward_origin) && !isAutoForward;
       if (
         msg &&
         (chatType === "group" || chatType === "supergroup") &&
         Array.isArray(msg.photo) &&
         msg.photo.length &&
-        !msg.forward_from_chat &&
-        !msg.forward_origin
+        !isManualForward
       ) {
         const st = await getSettings(env);
         if (st.autoPublish) {
