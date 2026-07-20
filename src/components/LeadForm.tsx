@@ -55,6 +55,8 @@ export type LeadFormProps = {
   withCar?: boolean;
   /** Показывать быстрые кнопки-мессенджеры (MAX / Telegram / WhatsApp). */
   withContacts?: boolean;
+  /** Форма без собственной рамки/подложки и на всю ширину (когда уже внутри карточки). */
+  bare?: boolean;
 };
 
 export function LeadForm({
@@ -66,6 +68,7 @@ export function LeadForm({
   defaultCountry,
   withCar = true,
   withContacts = false,
+  bare = false,
 }: LeadFormProps) {
   const [loading, setLoading] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -142,7 +145,11 @@ export function LeadForm({
       <div className={className}>
         <form
           onSubmit={handleSubmit}
-          className="flex max-w-[560px] flex-wrap items-center gap-[10px] rounded-card border border-line-dark bg-white/[0.04] p-4"
+          className={`flex flex-wrap items-center gap-[10px] ${
+            bare
+              ? "w-full"
+              : "max-w-[560px] rounded-card border border-line-dark bg-white/[0.04] p-4"
+          }`}
         >
           <input
             type="text"

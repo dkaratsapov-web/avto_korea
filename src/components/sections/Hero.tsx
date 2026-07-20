@@ -83,6 +83,7 @@ export function Hero() {
               submitLabel="Получить расчёт"
               withCar={false}
               withContacts
+              bare
             />
           </div>
         </div>
