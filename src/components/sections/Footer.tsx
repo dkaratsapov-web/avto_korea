@@ -102,7 +102,13 @@ export function Footer() {
         </p>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <span>© 2026 ДиАвто69. Импорт авто под ключ.</span>
-          <span className="flex items-center gap-3 text-[#6f7884]">
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[#6f7884]">
+            <Link to="/privacy" className="transition-colors hover:text-chrome">
+              Политика конфиденциальности
+            </Link>
+            <Link to="/consent" className="transition-colors hover:text-chrome">
+              Согласие на обработку ПДн
+            </Link>
             <Link to="/contacts" className="transition-colors hover:text-chrome">
               Реквизиты
             </Link>

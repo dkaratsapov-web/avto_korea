@@ -135,8 +135,16 @@ export function LeadForm({
         tone === "dark" ? "text-[#8C97A1]" : "text-ink-2"
       }`}
     >
-      Нажимая кнопку, вы соглашаетесь с обработкой персональных данных.
-      Перезвоним в течение 15 минут.
+      Нажимая кнопку, вы соглашаетесь с{" "}
+      <a
+        href="/privacy"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline hover:opacity-80"
+      >
+        обработкой персональных данных
+      </a>
+      . Перезвоним в течение 15 минут.
     </p>
   );
 
@@ -357,8 +365,12 @@ export function LeadForm({
           className="mt-0.5 h-4 w-4 flex-none accent-bordeaux"
         />
         <span>
-          Согласен с обработкой персональных данных и{" "}
-          <a href="#contacts" className="underline">
+          Согласен с{" "}
+          <a href="/consent" target="_blank" rel="noopener noreferrer" className="underline">
+            обработкой персональных данных
+          </a>{" "}
+          и{" "}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline">
             политикой конфиденциальности
           </a>
           .
