@@ -927,23 +927,31 @@ function parseCaption(text) {
   // Цена — различаем город (до Твери / до Москвы), иначе одна цена на всё.
   // Диапазон 100 000…99 999 999 отсекает телефоны (11 цифр) и мусор.
   const isPrice = (n) => n >= 100000 && n <= 99999999;
+  // Цену в юанях игнорируем — берём только рублёвые «до Твери / до Москвы».
+  const isYuan = (l) => /[¥￥元]|юан|yuan|cny|rmb/i.test(l);
   let price = 0;
   let priceTver = 0;
   let priceMoscow = 0;
   for (const l of body) {
+    if (isYuan(l)) continue;
     const n = pickNumber(l);
     if (!isPrice(n)) continue;
     if (/твер/i.test(l)) priceTver = priceTver || n;
     else if (/москв/i.test(l)) priceMoscow = priceMoscow || n;
     else if (/цена|стоимост|price|₽|руб|под\s*ключ/i.test(l)) price = price || n;
   }
+  // База цены — город (Тверь в приоритете), затем общая; юань сюда не попадёт.
+  price = priceTver || priceMoscow || price;
   if (!price) {
-    const nums = (bodyRaw.match(/\d[\d\s. ]*\d|\d/g) || [])
-      .map((x) => Number(x.replace(/[^\d]/g, "")))
-      .filter(isPrice);
-    price = nums[0] || 0;
+    for (const l of body) {
+      if (isYuan(l)) continue;
+      const n = pickNumber(l);
+      if (isPrice(n)) {
+        price = n;
+        break;
+      }
+    }
   }
-  price = price || priceTver || priceMoscow || 0;
   priceTver = priceTver || price;
   priceMoscow = priceMoscow || price;
 
@@ -959,8 +967,9 @@ function parseCaption(text) {
 
   // Пробег
   let mileageKm = 0;
-  const mileM = bodyRaw.match(/пробег[^\d]*([\d\s ]+)\s*(?:км|km|тыс)/i)
-    || bodyRaw.match(/([\d\s ]{4,})\s*(?:км|km)\b/i);
+  // Учитываем разделители тысяч (точка/пробел/запятая): «39.700 км» = 39700.
+  const mileM = bodyRaw.match(/пробег[^\d]*([\d\s.,]+?)\s*(?:км|km|тыс)/i)
+    || bodyRaw.match(/([\d][\d\s.,]{2,})\s*(?:км|km)\b/i);
   if (mileM) {
     mileageKm = Number(mileM[1].replace(/[^\d]/g, ""));
     if (/тыс/i.test(mileM[0])) mileageKm *= 1000;
