@@ -50,10 +50,12 @@ export function Header() {
       >
         {/* Капсула: логотип — с лёгким наклоном (рваный ритм) */}
         <div
-          className={`${capsule} ${h} flex -rotate-1 items-center px-4 hover:rotate-0 sm:px-5`}
+          className={`${capsule} flex ${
+            scrolled ? "h-14" : "h-[60px]"
+          } -rotate-1 items-center px-6 hover:rotate-0 sm:px-8`}
           style={{ background: "#ffffff" }}
         >
-          <Logo variant="full" className="h-10 w-auto" />
+          <Logo variant="full" className="h-12 w-auto sm:h-[52px]" />
         </div>
 
         {/* Каталог — отдельная яркая пульсирующая кнопка */}
