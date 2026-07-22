@@ -1167,6 +1167,29 @@ function carFromPost(p, id, images) {
   return car;
 }
 
+// Является ли пост ОБЪЯВЛЕНИЕМ об авто, а не благодарностью/новостью/отчётом.
+// В каталог публикуем только листинги: есть цена и/или набор характеристик.
+function isCarListing(p, caption) {
+  const hasPrice =
+    (p.price || 0) > 0 || (p.priceTver || 0) > 0 || (p.priceMoscow || 0) > 0;
+  const structured = [
+    p.engineCc > 0,
+    p.powerHp > 0,
+    p.mileageKm > 0,
+    !!p.trim,
+    !!p.gearbox,
+    !!p.drive,
+    !!p.bodyType,
+  ].filter(Boolean).length;
+  // Явные НЕ-листинги (без цены): благодарности, отчёты «выкупили/проделанная».
+  const nonListing =
+    /спасибо|благодар|поздрав|проделанн|выполненн|выкупил|отзыв|довери|наш\s*клиент|с\s*праздник|поступлени|видеоотч|отчёт|отчет/i.test(
+      String(caption || ""),
+    );
+  if (nonListing && !hasPrice) return false;
+  return hasPrice || structured >= 2;
+}
+
 // Авто-публикация: пост канала → карточка в каталоге (upsert по стабильному id).
 async function publishFromPost(env, post, caption, fileId, groupId, origin, videoId) {
   const srcId = "tg-" + (groupId || post.message_id);
@@ -1178,7 +1201,11 @@ async function publishFromPost(env, post, caption, fileId, groupId, origin, vide
   const isNewCar = !car;
 
   if (!car) {
-    car = carFromPost(parseCaption(caption), srcId, url ? [url] : []);
+    // Умное распознавание: создаём карточку только из реального объявления
+    // об авто. Благодарности/новости/видеоотчёты в каталог не попадают.
+    const parsed = parseCaption(caption);
+    if (!isCarListing(parsed, caption)) return;
+    car = carFromPost(parsed, srcId, url ? [url] : []);
     catalog.unshift(car); // новые авто — в начало списка
   } else {
     if (url && !car.images.includes(url)) car.images.push(url);
