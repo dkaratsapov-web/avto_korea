@@ -458,7 +458,13 @@ export default {
         return new Response("ok");
       }
 
-      if (msg && typeof msg.text === "string") {
+      // Приветствие с каталогом — ТОЛЬКО в личке с ботом. В группах/каналах
+      // бот на сообщения не отвечает (иначе спамит чат участникам).
+      if (
+        msg &&
+        typeof msg.text === "string" &&
+        msg.chat?.type === "private"
+      ) {
         const isNew = await recordUser(env, msg.from);
         if (isNew) await notifyNewUser(env, msg.from);
         const settings = await getSettings(env);
