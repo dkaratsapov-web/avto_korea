@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, CheckCircle2, Quote, Star, ExternalLink } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { LeadForm } from "@/components/LeadForm";
 import { countries, site } from "@/lib/site";
 import { HeroBackdrop } from "@/components/ui/HeroBackdrop";
+import { fetchReviews, type Review as ApiReview } from "@/lib/api";
 
 function useMeta(title: string, description: string) {
   useEffect(() => {
@@ -45,6 +46,13 @@ export function ReviewsPage() {
     "Отзывы клиентов ДиАвто69 — реальные кейсы доставки авто",
     "Отзывы и кейсы клиентов ДиАвто69: какие авто привезли под ключ из Кореи, Китая, Японии и ЕС, сроки доставки и итоговые цены. Честно, без приукрашиваний.",
   );
+
+  // Реальные отзывы из Telegram (пересылка владельцем боту / канал отзывов).
+  const [remote, setRemote] = useState<ApiReview[] | null>(null);
+  useEffect(() => {
+    fetchReviews().then(setRemote).catch(() => {});
+  }, []);
+  const hasRemote = remote && remote.length > 0;
 
   return (
     <main className="bg-paper pb-[96px]">
@@ -111,33 +119,67 @@ export function ReviewsPage() {
         <div id="reviews-2gis-widget" className="mt-4 empty:hidden" />
       </section>
 
-      <div className="wrap mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {cases.map((r) => (
-          <article key={r.name + r.car} className="flex flex-col rounded-card border border-line bg-white p-6">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
-                <CheckCircle2 className="h-4 w-4" /> Доставлено
-              </span>
-              <Flag code={r.country} className="h-5 w-7" />
-            </div>
-            <Quote className="mb-2 h-6 w-6 text-chrome" />
-            <p className="flex-1 text-[15px] leading-relaxed text-ink">{r.text}</p>
-            <div className="mt-5 border-t border-line pt-4">
-              <div className="font-bold text-ink">{r.name}</div>
-              <div className="text-[13.5px] text-ink-2">{r.city} · {r.car}</div>
-              <div className="mt-3 flex items-end justify-between gap-3">
-                <div className="text-[13px] font-semibold text-ink-2">
-                  Срок: <span className="font-num text-ink">{r.term}</span>
+      {hasRemote ? (
+        <div className="wrap mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {remote!.map((r) => (
+            <article key={r.id} className="flex flex-col overflow-hidden rounded-card border border-line bg-white">
+              {r.video || r.media ? (
+                <div className="relative aspect-[16/10] overflow-hidden bg-graphite">
+                  {r.video ? (
+                    <video
+                      src={r.video}
+                      poster={r.media}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="h-full w-full bg-black object-contain"
+                    />
+                  ) : (
+                    // eslint-disable-next-line
+                    <img src={r.media} alt={r.name} loading="lazy" className="h-full w-full object-cover" />
+                  )}
+                  <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-white/90 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
+                    <CheckCircle2 className="h-4 w-4" /> Доставлено
+                  </span>
                 </div>
-                <div className="text-right">
-                  <div className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-ink-2">Под ключ</div>
-                  <div className="font-num text-[20px] font-bold text-bordeaux">{r.price}</div>
+              ) : null}
+              <div className="flex flex-1 flex-col p-6">
+                <Quote className="mb-2 h-6 w-6 text-chrome" />
+                <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-ink">{r.text}</p>
+                <div className="mt-5 border-t border-line pt-4 font-bold text-ink">{r.name}</div>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="wrap mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {cases.map((r) => (
+            <article key={r.name + r.car} className="flex flex-col rounded-card border border-line bg-white p-6">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
+                  <CheckCircle2 className="h-4 w-4" /> Доставлено
+                </span>
+                <Flag code={r.country} className="h-5 w-7" />
+              </div>
+              <Quote className="mb-2 h-6 w-6 text-chrome" />
+              <p className="flex-1 text-[15px] leading-relaxed text-ink">{r.text}</p>
+              <div className="mt-5 border-t border-line pt-4">
+                <div className="font-bold text-ink">{r.name}</div>
+                <div className="text-[13.5px] text-ink-2">{r.city} · {r.car}</div>
+                <div className="mt-3 flex items-end justify-between gap-3">
+                  <div className="text-[13px] font-semibold text-ink-2">
+                    Срок: <span className="font-num text-ink">{r.term}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-ink-2">Под ключ</div>
+                    <div className="font-num text-[20px] font-bold text-bordeaux">{r.price}</div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </article>
-        ))}
-      </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       <div className="wrap mt-14">
         <div className="rounded-card border border-line bg-graphite p-6 text-white sm:p-8">
