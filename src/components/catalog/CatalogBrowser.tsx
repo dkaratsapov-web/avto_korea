@@ -688,12 +688,49 @@ function DualRange({
 }) {
   const lo = from ?? min;
   const hi = to ?? max;
+  // Группируем разряды только для крупных значений (цена), год/мощность — как есть.
+  const grp = (n: number) => (n >= 10000 ? n.toLocaleString("ru-RU") : String(n));
+  const parse = (s: string) => {
+    const d = s.replace(/[^\d]/g, "");
+    return d ? Number(d) : null;
+  };
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between text-[13px] font-bold text-ink">
-        <span>от {fmtVal(lo)}</span>
-        <span>до {fmtVal(hi)}</span>
+      {/* Ручной ввод «от / до» */}
+      <div className="mb-2.5 flex items-end gap-2">
+        <label className="flex-1">
+          <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-wide text-ink-2">
+            От
+          </span>
+          <input
+            inputMode="numeric"
+            value={from == null ? "" : grp(from)}
+            onChange={(e) => {
+              const v = parse(e.target.value);
+              onChange(v == null ? null : Math.min(v, max), to);
+            }}
+            placeholder={grp(min)}
+            className="field-light !h-9 w-full text-[13px]"
+          />
+        </label>
+        <span className="pb-2 text-ink-2">—</span>
+        <label className="flex-1">
+          <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-wide text-ink-2">
+            До
+          </span>
+          <input
+            inputMode="numeric"
+            value={to == null ? "" : grp(to)}
+            onChange={(e) => {
+              const v = parse(e.target.value);
+              onChange(from, v == null ? null : Math.min(v, max));
+            }}
+            placeholder={grp(max)}
+            className="field-light !h-9 w-full text-[13px]"
+          />
+        </label>
       </div>
+      {/* Ползунки — визуальная альтернатива вводу */}
       <div className="space-y-1.5">
         <input
           type="range"
