@@ -996,7 +996,7 @@ export function HomeView({
     primary?: boolean;
   }[] = [
     { name: "list", label: "Каталог", sub: "Авто в наличии и под заказ", icon: CarIcon, primary: true },
-    { name: "subscribe", label: "Подписка", sub: "Сообщим о новинках", icon: Bell },
+    { name: "subscribe", label: "Оповещения", sub: "О новинках каталога", icon: Bell },
     { name: "compare", label: "Сравнить", sub: compareCount ? `${compareCount} выбрано` : "До 3 авто", icon: Scale },
     { name: "reviews", label: "Отзывы", sub: "Мнения клиентов", icon: Star },
     { name: "faq", label: "Вопросы", sub: "Частые вопросы", icon: HelpCircle },
@@ -1084,10 +1084,9 @@ type QuizState = {
   when?: string;
 };
 const BUDGETS: { label: string; min: number; max: number }[] = [
-  { label: "до 1,5 млн ₽", min: 0, max: 1_500_000 },
-  { label: "1,5–2,5 млн ₽", min: 1_500_000, max: 2_500_000 },
-  { label: "2,5–4 млн ₽", min: 2_500_000, max: 4_000_000 },
-  { label: "от 4 млн ₽", min: 4_000_000, max: Infinity },
+  { label: "1,5–2 млн ₽", min: 1_500_000, max: 2_000_000 },
+  { label: "2–2,5 млн ₽", min: 2_000_000, max: 2_500_000 },
+  { label: "2,5 млн ₽ и больше", min: 2_500_000, max: Infinity },
 ];
 
 export function QuizView({

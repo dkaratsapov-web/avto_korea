@@ -7,6 +7,7 @@ import { BrandTicker } from "@/components/sections/BrandTicker";
 import { Advantages } from "@/components/sections/Advantages";
 import { HowItWorks } from "@/components/sections/HowItWorks";
 import { Team } from "@/components/sections/Team";
+import { Office } from "@/components/sections/Office";
 import { Reviews } from "@/components/sections/Reviews";
 import { Faq } from "@/components/sections/Faq";
 import { FinalCta } from "@/components/sections/FinalCta";
@@ -67,6 +68,7 @@ export function Landing() {
       <Team />
       <Reviews />
       <Faq />
+      <Office />
       <FinalCta />
     </main>
   );

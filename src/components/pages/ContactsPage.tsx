@@ -114,6 +114,17 @@ export function ContactsPage() {
             </div>
           </div>
 
+          {/* Фото офиса */}
+          <div className="overflow-hidden rounded-card border border-line bg-white">
+            {/* eslint-disable-next-line */}
+            <img
+              src={`${import.meta.env.BASE_URL}office.jpg`}
+              alt="Офис ДиАвто69 в Твери"
+              loading="lazy"
+              className="w-full object-cover"
+            />
+          </div>
+
           {/* Карта проезда — Яндекс.Карты */}
           <div className="overflow-hidden rounded-card border border-line bg-white">
             <iframe
