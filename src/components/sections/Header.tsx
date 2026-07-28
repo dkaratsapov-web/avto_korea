@@ -67,20 +67,14 @@ export function Header() {
           scrolled ? "py-2.5" : "py-3.5"
         }`}
       >
-        {/* Логотип + адрес под ним */}
-        <div className="flex flex-none flex-col gap-1">
-          <div
-            className={`${capsule} flex ${
-              scrolled ? "h-14" : "h-[60px]"
-            } -rotate-1 items-center px-6 hover:rotate-0 sm:px-8`}
-            style={{ background: "#ffffff" }}
-          >
-            <Logo variant="full" className="h-12 w-auto shrink-0 sm:h-[52px]" />
-          </div>
-          <span className="hidden items-center gap-1.5 whitespace-nowrap pl-3 text-[11px] font-semibold text-[#C3CBD2] lg:flex">
-            <MapPin className="h-3 w-3 flex-none text-bordeaux-bright" />
-            {site.addressFull}
-          </span>
+        {/* Логотип */}
+        <div
+          className={`${capsule} flex flex-none ${
+            scrolled ? "h-14" : "h-[60px]"
+          } -rotate-1 items-center px-6 hover:rotate-0 sm:px-8`}
+          style={{ background: "#ffffff" }}
+        >
+          <Logo variant="full" className="h-12 w-auto shrink-0 sm:h-[52px]" />
         </div>
 
         {/* Каталог — отдельная яркая пульсирующая кнопка */}
