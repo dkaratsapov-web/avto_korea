@@ -160,19 +160,22 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
           </ul>
 
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-full border border-line-dark bg-white/[0.04] px-3 py-1 text-[12px] font-semibold text-[#C7CFD6]">
-              {car.isNew ? "Новый" : "С пробегом"}
-            </span>
-            {car.fuelType ? (
-                <span className="rounded-full border border-line-dark bg-white/[0.04] px-3 py-1 text-[12px] font-semibold text-[#C7CFD6]">
-                  {car.fuelType}
+            {[
+              car.isNew ? "Новый" : "С пробегом",
+              car.bodyType || "",
+              car.fuelType || "",
+              car.color ? `Цвет: ${car.color}` : "",
+              car.steering ? `${car.steering} руль` : "",
+            ]
+              .filter(Boolean)
+              .map((chip) => (
+                <span
+                  key={chip}
+                  className="rounded-full border border-line-dark bg-white/[0.04] px-3 py-1 text-[12px] font-semibold text-[#C7CFD6]"
+                >
+                  {chip}
                 </span>
-              ) : null}
-            {car.steering ? (
-              <span className="rounded-full border border-line-dark bg-white/[0.04] px-3 py-1 text-[12px] font-semibold text-[#C7CFD6]">
-                {car.steering} руль
-              </span>
-            ) : null}
+              ))}
           </div>
 
           <div className="mt-auto grid grid-cols-2 gap-3">

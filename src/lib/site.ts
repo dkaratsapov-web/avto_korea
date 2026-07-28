@@ -13,6 +13,13 @@ export const site = {
   phone: "+7 (482) 236-87-77",
   phoneHref: "tel:+74822368777",
 
+  // Контактные телефоны сотрудников (выводятся списком в шапке/контактах).
+  phones: [
+    { name: "Дмитрий", role: "Подбор и расчёт", number: "+7 (909) 271-87-77", href: "tel:+79092718777" },
+    { name: "Екатерина", role: "Отдел страхования", number: "+7 (906) 551-07-77", href: "tel:+79065510777" },
+    { name: "Офис", role: "Приём звонков", number: "+7 (482) 236-87-77", href: "tel:+74822368777" },
+  ] as { name: string; role: string; number: string; href: string }[],
+
   telegram: "@Dmitriicarexport",
   telegramHref: "https://t.me/Dmitriicarexport",
 
@@ -57,6 +64,7 @@ export const nav = [
   { href: "/about", label: "О нас" },
   { href: "/catalog", label: "Каталог" },
   { href: "/articles", label: "Статьи" },
+  { href: "/news", label: "Новости" },
   { href: "/reviews", label: "Отзывы" },
   { href: "/contacts", label: "Контакты" },
 ] as const;

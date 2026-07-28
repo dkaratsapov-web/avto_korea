@@ -119,19 +119,29 @@ export function Header() {
 
         {/* Капсула: действия — наклон в другую сторону */}
         <div
-          className={`${capsule} ${h} ml-auto flex rotate-1 items-center gap-1 px-2 hover:rotate-0 lg:ml-0`}
+          className={`${capsule} ml-auto flex min-h-[52px] rotate-1 items-center gap-1 px-2 py-1.5 hover:rotate-0 lg:ml-0`}
         >
           <span className="hidden items-center gap-1.5 px-3 text-[13px] font-semibold text-[#C3CBD2] 2xl:flex">
             <MapPin className="h-3.5 w-3.5 text-bordeaux-bright" />
             {site.address}
           </span>
-          <a
-            href={site.phoneHref}
-            className="hidden items-center gap-1.5 px-3 font-num text-[15px] font-bold tracking-[0.02em] text-white transition-colors hover:text-chrome xl:flex"
-          >
-            <Phone className="h-3.5 w-3.5 text-bordeaux-bright" />
-            {site.phone}
-          </a>
+          <div className="hidden flex-col justify-center gap-[3px] px-3 xl:flex">
+            {site.phones.map((p) => (
+              <a
+                key={p.href}
+                href={p.href}
+                className="flex items-center gap-1.5 leading-none transition-colors hover:text-chrome"
+              >
+                <Phone className="h-3 w-3 flex-none text-bordeaux-bright" />
+                <span className="font-num text-[13px] font-bold tracking-[0.01em] text-white">
+                  {p.number}
+                </span>
+                <span className="text-[10px] font-semibold text-[#9AA4B2]">
+                  {p.name} · {p.role}
+                </span>
+              </a>
+            ))}
+          </div>
           <button
             type="button"
             onClick={openFavorites}
@@ -211,31 +221,40 @@ export function Header() {
             >
               <BookOpen className="h-[18px] w-[18px]" /> Полезные статьи
             </Link>
-            <div className="mt-1 flex items-center gap-2 border-t border-line-dark px-2 pt-3">
-              <a
-                href={site.telegramHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Telegram"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome hover:text-white"
-              >
-                <TelegramIcon className="h-5 w-5" />
-              </a>
-              <a
-                href={site.whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="WhatsApp"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome hover:text-white"
-              >
-                <MessageCircle className="h-5 w-5" />
-              </a>
-              <a
-                href={site.phoneHref}
-                className="ml-1 font-num text-[16px] font-bold text-white"
-              >
-                {site.phone}
-              </a>
+            <div className="mt-1 flex flex-col gap-2 border-t border-line-dark px-2 pt-3">
+              {site.phones.map((p) => (
+                <a
+                  key={p.href}
+                  href={p.href}
+                  className="flex items-baseline gap-2 hover:text-white"
+                >
+                  <Phone className="h-3.5 w-3.5 flex-none translate-y-0.5 text-bordeaux-bright" />
+                  <span className="font-num text-[16px] font-bold text-white">{p.number}</span>
+                  <span className="text-[12px] font-semibold text-[#9AA4B2]">
+                    {p.name} · {p.role}
+                  </span>
+                </a>
+              ))}
+              <div className="mt-1 flex items-center gap-2">
+                <a
+                  href={site.telegramHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Telegram"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome hover:text-white"
+                >
+                  <TelegramIcon className="h-5 w-5" />
+                </a>
+                <a
+                  href={site.whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="WhatsApp"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome hover:text-white"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                </a>
+              </div>
             </div>
             <a
               href={site.mapHref}

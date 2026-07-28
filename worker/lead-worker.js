@@ -608,6 +608,32 @@ export default {
       return json({ ok: true, cleared: "all" });
     }
 
+    // --- Оптимизация существующих карточек (owner: key = токен бота) ---
+    // /admin/catalog-optimize?key=<TELEGRAM_BOT_TOKEN>
+    // Пересобирает по имеющимся данным: описание, флаг новый/с пробегом,
+    // дефолты пустых полей. Исходные посты не хранятся, поэтому марку/цвет,
+    // которых не было при создании, восстановить нельзя — только нормализуем.
+    if (url.pathname === "/admin/catalog-optimize" && request.method === "GET") {
+      if (!env.TELEGRAM_BOT_TOKEN || url.searchParams.get("key") !== env.TELEGRAM_BOT_TOKEN)
+        return json({ ok: false, error: "forbidden" }, 403);
+      let catalog = (await kvGet(env, "catalog", [])) || [];
+      if (!Array.isArray(catalog)) catalog = [];
+      let changed = 0;
+      for (const c of catalog) {
+        const before = JSON.stringify(c);
+        c.isNew = !(c.mileageKm > 0);
+        if (!c.gearbox) c.gearbox = "АКПП";
+        if (!c.drive) c.drive = "Передний";
+        if (!c.fuelType) c.fuelType = "Бензин";
+        if (!c.mileage)
+          c.mileage = c.mileageKm > 0 ? `${c.mileageKm.toLocaleString("ru-RU")} км` : "Новый, 0 км";
+        c.description = genDescriptionSrv(c);
+        if (JSON.stringify(c) !== before) changed++;
+      }
+      await kvPut(env, "catalog", catalog);
+      return json({ ok: true, total: catalog.length, changed });
+    }
+
     // --- Курс валют ЦБ РФ (для калькулятора) ---
     if (url.pathname === "/api/rates" && request.method === "GET") {
       try {
@@ -883,7 +909,7 @@ const LABEL_RE =
   /^(цена|стоимость|price|год|year|двигатель|мотор|объ[её]м|мощность|пробег|mileage|коробк|кпп|акпп|мкпп|трансмисс|привод|drive|цвет|color|кузов|топлив|компле|таможн|растаможк|под\s*ключ|итог|наличи|заказ|в\s*пути)/i;
 // Строки-заголовки объявления — тоже не модель («НОВЫЙ АВТОМОБИЛЬ!!!!» и т.п.).
 const HEADER_RE =
-  /^(нов(ый|ое|ая|инка)|прода|в\s*прода|распрода|поступил|в\s*наличии|в\s*продаже|в\s*пути|под\s*заказ|срочно|торг|обмен|скидк|акци|хит\b|автомобиль\b|авто\b|new\b|sale\b|продан)/i;
+  /^(нов(ый|ое|ая|инка)|прода|в\s*прода|распрода|поступил|в\s*наличии|в\s*продаже|в\s*пути|под\s*заказ|принима|заявк|бронир|срочно|торг|обмен|скидк|акци|хит\b|автомобиль\b|авто\b|new\b|sale\b|продан)/i;
 
 // Начало подписи-футера поста: ссылки, адрес, «Забронировать», «Мы в …» —
 // всё, что ниже такой строки, в описание авто не тянем.

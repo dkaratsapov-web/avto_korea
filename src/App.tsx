@@ -33,6 +33,9 @@ const ArticlePage = lazy(() =>
     default: m.ArticlePage,
   })),
 );
+const NewsPage = lazy(() =>
+  import("@/components/pages/NewsPage").then((m) => ({ default: m.NewsPage })),
+);
 const PrivacyPolicyPage = lazy(() =>
   import("@/components/pages/LegalPage").then((m) => ({
     default: m.PrivacyPolicyPage,
@@ -78,6 +81,7 @@ export function App() {
             <Route path="/contacts" element={<ContactsPage />} />
             <Route path="/articles" element={<ArticlesPage />} />
             <Route path="/articles/:slug" element={<ArticlePage />} />
+            <Route path="/news" element={<NewsPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/consent" element={<ConsentPage />} />
           </Route>

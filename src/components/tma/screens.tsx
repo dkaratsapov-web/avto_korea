@@ -584,6 +584,25 @@ export function CarView({
         {car.year} · {car.engine} · {car.gearbox} · {car.drive}
       </div>
 
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {[
+          car.isNew ? "Новый" : "С пробегом",
+          car.bodyType || "",
+          car.fuelType || "",
+          car.color ? `Цвет: ${car.color}` : "",
+          car.steering ? `${car.steering} руль` : "",
+        ]
+          .filter(Boolean)
+          .map((chip) => (
+            <span
+              key={chip}
+              className="rounded-full border border-line-dark bg-white/[0.04] px-2.5 py-1 text-[12px] font-semibold text-[#C7CFD6]"
+            >
+              {chip}
+            </span>
+          ))}
+      </div>
+
       <div className="mt-4 grid grid-cols-2 gap-2">
         <Price label="до Твери" value={car.priceTverRub ?? car.priceRub} accent />
         {car.priceMoscowRub ? (
