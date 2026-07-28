@@ -5,6 +5,7 @@ import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { LeadForm } from "@/components/LeadForm";
 import { Office } from "@/components/sections/Office";
 import { site } from "@/lib/site";
+import { HeroBackdrop } from "@/components/ui/HeroBackdrop";
 
 function useMeta(title: string, description: string) {
   useEffect(() => {
@@ -35,7 +36,8 @@ export function ContactsPage() {
 
   return (
     <main className="bg-paper pb-[96px]">
-      <section className="grain relative overflow-hidden bg-[radial-gradient(760px_360px_at_82%_-20%,#27313d,#11151A_60%)] pb-8 pt-[104px] text-white">
+      <section className="relative overflow-hidden bg-[radial-gradient(760px_360px_at_82%_-20%,#27313d,#11151A_60%)] pb-8 pt-[104px] text-white">
+        <HeroBackdrop />
         <div className="wrap relative">
           <nav className="mb-3 flex items-center gap-1.5 text-[12.5px] font-semibold text-[#9AA4B2]">
             <Link to="/" className="transition-colors hover:text-white">Главная</Link>

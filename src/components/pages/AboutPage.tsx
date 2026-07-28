@@ -17,6 +17,7 @@ import { HowItWorks } from "@/components/sections/HowItWorks";
 import { Faq } from "@/components/sections/Faq";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { HeroBackdrop } from "@/components/ui/HeroBackdrop";
 import { site } from "@/lib/site";
 
 // СТРАНИЦА-ЧЕРНОВИК. Места с [ЗАГЛУШКА] заполнит заказчик — они помечены на странице.
@@ -52,7 +53,8 @@ export function AboutPage() {
   return (
     <main className="bg-paper pb-[96px]">
       {/* Hero */}
-      <section className="grain relative overflow-hidden bg-[radial-gradient(760px_360px_at_82%_-20%,#27313d,#11151A_60%)] pb-10 pt-[104px] text-white">
+      <section className="relative overflow-hidden bg-[radial-gradient(760px_360px_at_82%_-20%,#27313d,#11151A_60%)] pb-10 pt-[104px] text-white">
+        <HeroBackdrop />
         <div className="wrap relative">
           <nav className="mb-3 flex items-center gap-1.5 text-[12.5px] font-semibold text-[#9AA4B2]">
             <Link to="/" className="transition-colors hover:text-white">Главная</Link>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, CalendarDays, Truck, KeyRound, Ship, Camera, Play } from "lucide-react";
 import { fetchNews, type NewsItem } from "@/lib/api";
+import { HeroBackdrop } from "@/components/ui/HeroBackdrop";
 
 function useMeta(title: string, description: string) {
   useEffect(() => {
@@ -77,7 +78,8 @@ export function NewsPage() {
 
   return (
     <main className="bg-paper pb-[96px]">
-      <section className="grain relative overflow-hidden bg-[radial-gradient(760px_360px_at_82%_-20%,#27313d,#11151A_60%)] pb-8 pt-[104px] text-white">
+      <section className="relative overflow-hidden bg-[radial-gradient(760px_360px_at_82%_-20%,#27313d,#11151A_60%)] pb-8 pt-[104px] text-white">
+        <HeroBackdrop />
         <div className="wrap relative">
           <nav className="mb-3 flex items-center gap-1.5 text-[12.5px] font-semibold text-[#9AA4B2]">
             <Link to="/" className="transition-colors hover:text-white">Главная</Link>

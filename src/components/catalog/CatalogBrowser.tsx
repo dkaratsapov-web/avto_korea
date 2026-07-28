@@ -283,7 +283,7 @@ export function CatalogBrowser() {
       {/* Липкая горизонтальная панель фильтров (десктоп) — плавающая капсула */}
       <div
         className="pointer-events-none sticky z-30 hidden py-2.5 md:block"
-        style={{ top: "calc(var(--header-h, 96px) + 6px)" }}
+        style={{ top: "calc(var(--header-h, 96px) + 6px + var(--cat-extra, 0px))" }}
       >
         <div className="mx-auto w-full max-w-[1760px] px-6 [&_*]:pointer-events-auto">
           <div className="flex flex-nowrap items-center gap-2 rounded-[28px] border-2 border-[#cfd4dc] bg-white px-3 py-2 shadow-[0_12px_30px_-18px_rgba(20,25,32,0.5)]">
