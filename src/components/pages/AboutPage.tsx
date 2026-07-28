@@ -12,6 +12,7 @@ import {
 import { LeadForm } from "@/components/LeadForm";
 import { Flag } from "@/components/icons/Flag";
 import { Team } from "@/components/sections/Team";
+import { HowItWorks } from "@/components/sections/HowItWorks";
 import { site } from "@/lib/site";
 
 // СТРАНИЦА-ЧЕРНОВИК. Места с [ЗАГЛУШКА] заполнит заказчик — они помечены на странице.
@@ -120,6 +121,9 @@ export function AboutPage() {
           ))}
         </div>
       </section>
+
+      {/* Как это работает */}
+      <HowItWorks />
 
       {/* Команда */}
       <Team />
