@@ -40,13 +40,6 @@ const values = [
   { icon: Users, title: "На связи на каждом шаге", text: "Показываем фото и статусы, отвечаем на вопросы до и после сделки." },
 ];
 
-const steps = [
-  { n: "01", t: "Заявка и бриф", d: "Уточняем бюджет под ключ, класс авто и пожелания." },
-  { n: "02", t: "Подбор и проверка", d: "Находим варианты, показываем фото, историю и диагностику." },
-  { n: "03", t: "Выкуп и доставка", d: "Выкупаем, готовим к отправке и везём в Россию." },
-  { n: "04", t: "Растаможка и выдача", d: "Оформляем документы и передаём готовое к учёту авто." },
-];
-
 export function AboutPage() {
   useMeta(
     "О компании ДиАвто69 — импорт авто под ключ",
@@ -107,21 +100,6 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* Как работаем */}
-      <section className="wrap mt-14">
-        <h2 className="text-[clamp(24px,3vw,36px)] font-extrabold uppercase text-ink">
-          Как мы работаем
-        </h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {steps.map((s) => (
-            <div key={s.n} className="rounded-card border border-line bg-white p-6">
-              <div className="font-num text-[30px] font-extrabold text-bordeaux/25">{s.n}</div>
-              <h3 className="mt-2 text-[18px] font-extrabold text-ink">{s.t}</h3>
-              <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{s.d}</p>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* Как это работает */}
       <HowItWorks />
