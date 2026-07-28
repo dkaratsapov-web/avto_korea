@@ -71,11 +71,8 @@ export function ReviewsPage() {
             Реальные кейсы наших клиентов
           </h1>
           <p className="mt-3 max-w-2xl text-[15px] text-[#C7CFD6]">
-            Авто, маршрут, срок и итоговая цена под ключ — без приукрашиваний.
-            <span className="mt-1 block text-[13px] text-[#8C97A1]">
-              [ЗАГЛУШКА: заменим на реальные отзывы, добавим фото и видео
-              доставленных авто.]
-            </span>
+            Реальные видео и фото выдач автомобилей нашим клиентам — без
+            приукрашиваний.
           </p>
         </div>
         <div className="chrome-line absolute inset-x-0 bottom-0" />
