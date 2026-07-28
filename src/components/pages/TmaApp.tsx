@@ -130,11 +130,17 @@ export function TmaApp() {
       return;
     }
     const car = carId ? cars.find((c) => c.id === carId) : undefined;
+    // Ник и id пользователя Telegram — прикладываем автоматически из мини-аппа.
+    const tgUser = (tgRef.current as unknown as {
+      initDataUnsafe?: { user?: { username?: string; id?: number } };
+    })?.initDataUnsafe?.user;
     const payload = {
       type: "lead",
       name: name.trim(),
       phone,
       car: car ? `${car.model} · ${car.id}` : "",
+      username: tgUser?.username ? `@${tgUser.username}` : "",
+      tgUserId: tgUser?.id || undefined,
       source: "Telegram Mini App",
     };
     const tg = tgRef.current;
@@ -249,8 +255,8 @@ export function TmaApp() {
       ) : null}
       <div className="min-h-screen bg-graphite text-white">
       <div className="mx-auto max-w-md px-4 pb-28">
-        {/* Шапка — фиксируется при скролле */}
-        <div className="sticky top-0 z-40 -mx-4 mb-4 flex items-center justify-between border-b border-black/10 bg-white px-4 py-3 shadow-[0_2px_10px_-6px_rgba(0,0,0,0.4)]">
+        {/* Шапка — тёмная в стиле бота; лого в белом чипе для читаемости */}
+        <div className="sticky top-0 z-40 -mx-4 mb-4 flex items-center justify-between border-b border-line-dark/70 bg-graphite/95 px-4 py-2.5 backdrop-blur">
           <button
             type="button"
             onClick={() => {
@@ -258,14 +264,14 @@ export function TmaApp() {
               setView({ name: "home" });
             }}
             aria-label="ДиАвто69 — на главную"
-            className="flex items-center"
+            className="flex items-center rounded-full bg-white px-3 py-1.5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.5)]"
           >
             <picture>
               <source srcSet="/logo.webp" type="image/webp" />
               <img
                 src="/logo.png"
                 alt="ДиАвто69"
-                className="block h-10 w-auto"
+                className="block h-8 w-auto"
                 decoding="async"
               />
             </picture>
@@ -291,7 +297,7 @@ export function TmaApp() {
               setView({ name: "compare" });
             }}
             aria-label="Сравнение"
-            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-black/15 bg-paper text-graphite"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line-dark bg-white/[0.04] text-chrome"
           >
             <Scale className="h-5 w-5" />
             {compareIds.length > 0 ? (
@@ -306,7 +312,7 @@ export function TmaApp() {
               haptic(tgRef.current);
               setView({ name: "favorites" });
             }}
-            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-black/15 bg-paper text-graphite"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line-dark bg-white/[0.04] text-chrome"
           >
             <Heart className="h-5 w-5" />
             {favorites.length > 0 ? (

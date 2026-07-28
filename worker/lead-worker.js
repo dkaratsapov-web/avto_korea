@@ -69,6 +69,7 @@ function leadText(d) {
     `👤 Имя: ${d.name || "—"}`,
     `📞 Телефон: ${d.phone || "—"}`,
   ];
+  if (d.username) lines.push(`✈️ Telegram: ${d.username}`);
   if (d.car) lines.push(`🔎 Авто/бюджет: ${d.car}`);
   if (d.country) lines.push(`🌍 Страна: ${d.country}`);
   if (d.year) lines.push(`📅 Год: ${d.year}`);
@@ -905,6 +906,7 @@ async function storeLead(env, d) {
     leads.unshift({
       name: d.name || "",
       phone: d.phone || "",
+      username: d.username || "",
       car: d.car || "",
       source: d.source || "сайт",
       ts: Date.now(),
