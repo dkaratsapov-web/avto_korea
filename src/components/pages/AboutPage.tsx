@@ -13,6 +13,7 @@ import { LeadForm } from "@/components/LeadForm";
 import { Flag } from "@/components/icons/Flag";
 import { Team } from "@/components/sections/Team";
 import { HowItWorks } from "@/components/sections/HowItWorks";
+import { Faq } from "@/components/sections/Faq";
 import { site } from "@/lib/site";
 
 // СТРАНИЦА-ЧЕРНОВИК. Места с [ЗАГЛУШКА] заполнит заказчик — они помечены на странице.
@@ -127,6 +128,9 @@ export function AboutPage() {
 
       {/* Команда */}
       <Team />
+
+      {/* Вопросы и ответы */}
+      <Faq />
 
       {/* Реквизиты + форма — рядом, по половине экрана */}
       <section className="wrap mt-14 grid items-stretch gap-4 lg:grid-cols-2">

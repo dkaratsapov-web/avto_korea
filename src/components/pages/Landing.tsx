@@ -6,7 +6,6 @@ import { useCars } from "@/lib/carsStore";
 import { BrandTicker } from "@/components/sections/BrandTicker";
 import { Advantages } from "@/components/sections/Advantages";
 import { Office } from "@/components/sections/Office";
-import { Faq } from "@/components/sections/Faq";
 import { FinalCta } from "@/components/sections/FinalCta";
 
 // Превью каталога на главной: последние авто (до 4 рядов по 4) + переход
@@ -61,7 +60,6 @@ export function Landing() {
 
       <BrandTicker />
       <Advantages />
-      <Faq />
       <Office />
       <FinalCta />
     </main>
