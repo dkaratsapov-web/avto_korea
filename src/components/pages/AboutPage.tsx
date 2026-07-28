@@ -14,6 +14,8 @@ import { Flag } from "@/components/icons/Flag";
 import { Team } from "@/components/sections/Team";
 import { HowItWorks } from "@/components/sections/HowItWorks";
 import { Faq } from "@/components/sections/Faq";
+import { Reveal } from "@/components/ui/Reveal";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { site } from "@/lib/site";
 
 // СТРАНИЦА-ЧЕРНОВИК. Места с [ЗАГЛУШКА] заполнит заказчик — они помечены на странице.
@@ -66,12 +68,20 @@ export function AboutPage() {
             Помогаем купить автомобиль из Кореи, Китая, Японии и ЕС с доставкой и
             растаможкой под ключ. Берём на себя весь процесс — от подбора до
             постановки на учёт — и показываем реальную цену без скрытых наценок.
-            <span className="mt-2 block text-[14px] text-[#8C97A1]">
-              [ЗАГЛУШКА: добавить 1–2 предложения истории компании — с какого года
-              на рынке, сколько авто привезли, чем гордитесь.]
-            </span>
           </p>
-          <div className="mt-6 flex items-center gap-2.5 text-[14px] text-[#AEB7BE]">
+          <div className="mt-6 flex flex-wrap gap-2">
+            {["Работаем по договору", "Растаможка под ключ", "Полное сопровождение"].map(
+              (t) => (
+                <span
+                  key={t}
+                  className="rounded-full border border-line-dark bg-white/[0.05] px-3.5 py-1.5 text-[13px] font-semibold text-[#DCE2E7]"
+                >
+                  {t}
+                </span>
+              ),
+            )}
+          </div>
+          <div className="mt-5 flex items-center gap-2.5 text-[14px] text-[#AEB7BE]">
             Возим из:
             <Flag code="kr" className="h-4 w-6" />
             <Flag code="cn" className="h-4 w-6" />
@@ -83,14 +93,23 @@ export function AboutPage() {
       </section>
 
       {/* Ценности */}
-      <section className="wrap mt-14">
-        <h2 className="text-[clamp(24px,3vw,36px)] font-extrabold uppercase text-ink">
-          Почему нам доверяют
-        </h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {values.map((v) => (
-            <div key={v.title} className="rounded-card border border-line bg-white p-6 transition-shadow hover:shadow-card">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-graphite text-chrome">
+      <section className="wrap mt-16">
+        <Reveal>
+          <SectionHeading
+            eyebrow="Почему мы"
+            title="Почему нам доверяют"
+            description="Прозрачность и ответственность на каждом шаге — от первого расчёта до выдачи ключей."
+          />
+        </Reveal>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {values.map((v, i) => (
+            <div
+              key={v.title}
+              className="group relative animate-fade-up overflow-hidden rounded-card border border-line bg-white p-6 [animation-fill-mode:both] transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:shadow-[0_28px_54px_-26px_rgba(20,25,32,0.5)]"
+              style={{ animationDelay: `${i * 70}ms` }}
+            >
+              <span className="pointer-events-none absolute inset-x-0 top-0 h-[3px] scale-x-0 bg-gradient-to-r from-bordeaux-deep via-bordeaux-bright to-chrome transition-transform duration-500 group-hover:scale-x-100" />
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-graphite text-chrome transition-colors duration-300 group-hover:bg-bordeaux group-hover:text-white">
                 <v.icon className="h-6 w-6" />
               </div>
               <h3 className="mb-2 text-[19px] font-extrabold text-ink">{v.title}</h3>
