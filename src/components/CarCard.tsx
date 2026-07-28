@@ -121,6 +121,11 @@ export function CarCard({ car }: { car: Car }) {
           {car.year}
           {car.trim ? ` · ${car.trim}` : ""}
         </div>
+        {car.addedAt ? (
+          <div className="mt-1 text-[11px] font-medium text-ink-2/80">
+            В каталоге с {new Date(car.addedAt).toLocaleDateString("ru-RU")}
+          </div>
+        ) : null}
 
         <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2.5 border-t border-line pt-4">
           <Spec icon={<EngineIcon />} text={car.engine} />

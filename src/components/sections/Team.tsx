@@ -84,9 +84,11 @@ export function Team({ dark = false }: { dark?: boolean }) {
           />
         </Reveal>
         <Reveal className="mt-9">
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-wrap justify-center gap-5">
             {site.team.map((m) => (
-              <Card key={m.name + m.phone} member={m} />
+              <div key={m.name + m.phone} className="w-full sm:w-[330px]">
+                <Card member={m} />
+              </div>
             ))}
           </div>
         </Reveal>

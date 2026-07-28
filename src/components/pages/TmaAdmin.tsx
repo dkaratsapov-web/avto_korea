@@ -73,6 +73,7 @@ const emptyCar = (): Car => ({
   isNew: true,
   images: [],
   highlights: [],
+  addedAt: Date.now(),
 });
 
 function slug(s: string) {

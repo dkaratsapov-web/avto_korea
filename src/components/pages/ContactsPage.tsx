@@ -137,10 +137,10 @@ export function ContactsPage() {
           </div>
         </div>
 
-        {/* Форма */}
-        <div className="rounded-card border border-line bg-graphite p-6 text-white sm:p-8">
+        {/* Форма — прижата к верху, по высоте контента (без пустого низа) */}
+        <div className="self-start rounded-card border border-line bg-graphite p-6 text-white sm:p-7 lg:sticky lg:top-[calc(var(--header-h,96px)+16px)]">
           <h2 className="text-[22px] font-extrabold text-white">Оставить заявку</h2>
-          <p className="mb-6 mt-1 text-[14px] text-[#9AA4B2]">
+          <p className="mb-5 mt-1 text-[14px] text-[#9AA4B2]">
             Заполните, что знаете — остальное уточним. Перезвоним в течение 15 минут.
           </p>
           <LeadForm layout="full" tone="dark" source="Страница «Контакты»" submitLabel="Отправить заявку" />

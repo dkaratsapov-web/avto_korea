@@ -1264,6 +1264,7 @@ async function publishFromPost(env, post, caption, fileId, groupId, origin, vide
     const parsed = parseCaption(caption);
     if (!isCarListing(parsed, caption)) return;
     car = carFromPost(parsed, srcId, url ? [url] : []);
+    car.addedAt = Date.now(); // дата добавления в каталог
     catalog.unshift(car); // новые авто — в начало списка
   } else {
     if (url && !car.images.includes(url)) car.images.push(url);

@@ -135,6 +135,11 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
             <div className="mt-1.5 text-[14px] font-semibold text-[#9AA4B2]">
               {car.year} год · {car.mileage}
             </div>
+            {car.addedAt ? (
+              <div className="mt-1 text-[12.5px] text-[#8C97A1]">
+                В каталоге с {new Date(car.addedAt).toLocaleDateString("ru-RU")}
+              </div>
+            ) : null}
           </div>
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-card border border-line-dark bg-white/[0.03] p-4">

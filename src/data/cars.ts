@@ -35,6 +35,8 @@ export type Car = {
   images: string[];
   /** Ссылка на видео (из поста Telegram, через прокси). */
   video?: string;
+  /** Когда авто добавлено в каталог (timestamp, мс). */
+  addedAt?: number;
   highlights: string[];
   /** Связное текстовое описание (абзац). Показывается на карточке авто. */
   description?: string;

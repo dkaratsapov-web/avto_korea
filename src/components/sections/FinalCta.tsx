@@ -44,7 +44,8 @@ export function FinalCta() {
               layout="compact"
               tone="dark"
               source="Финальный CTA"
-              submitLabel="Получить расчёт"
+              submitLabel="Оставить заявку"
+              withCar={false}
             />
           </div>
         </Reveal>

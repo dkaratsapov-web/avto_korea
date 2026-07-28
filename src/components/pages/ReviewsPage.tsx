@@ -139,11 +139,18 @@ export function ReviewsPage() {
 
       <div className="wrap mt-14">
         <div className="rounded-card border border-line bg-graphite p-6 text-white sm:p-8">
-          <h2 className="text-[24px] font-extrabold uppercase text-white">Станьте следующим кейсом</h2>
-          <p className="mb-5 mt-2 max-w-xl text-[14px] text-[#9AA4B2]">
-            Оставьте заявку — подберём авто под ваш бюджет и посчитаем честную цену под ключ.
-          </p>
-          <LeadForm source="Страница «Отзывы»" submitLabel="Получить расчёт" withCar={false} withContacts />
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="lg:max-w-sm">
+              <h2 className="text-[24px] font-extrabold uppercase text-white">Станьте следующим кейсом</h2>
+              <p className="mt-2 text-[14px] text-[#9AA4B2]">
+                Оставьте заявку — подберём авто под ваш бюджет и посчитаем честную
+                цену под ключ.
+              </p>
+            </div>
+            <div className="w-full lg:max-w-xl">
+              <LeadForm source="Страница «Отзывы»" submitLabel="Получить расчёт" withCar={false} withContacts bare />
+            </div>
+          </div>
         </div>
       </div>
     </main>
