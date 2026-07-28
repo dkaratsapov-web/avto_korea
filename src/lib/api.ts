@@ -25,6 +25,16 @@ export type BotSettings = {
   miniAppUrl?: string;
   autoPublish?: boolean;
   reviewsChatId?: string;
+  newsChatId?: string;
+};
+
+export type NewsItem = {
+  id: string;
+  title: string;
+  text: string;
+  media?: string;
+  video?: string;
+  ts: number;
 };
 
 export type Draft = {
@@ -147,6 +157,18 @@ export async function fetchReviews(): Promise<Review[]> {
     const r = await fetch(`${API_BASE}/api/reviews`, { cache: "no-store" });
     const d = (await r.json()) as { ok: boolean; reviews: Review[] };
     return Array.isArray(d.reviews) ? d.reviews : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Публичные новости (из Telegram-канала). */
+export async function fetchNews(): Promise<NewsItem[]> {
+  if (!API_BASE) return [];
+  try {
+    const r = await fetch(`${API_BASE}/api/news`, { cache: "no-store" });
+    const d = (await r.json()) as { ok: boolean; news: NewsItem[] };
+    return Array.isArray(d.news) ? d.news : [];
   } catch {
     return [];
   }

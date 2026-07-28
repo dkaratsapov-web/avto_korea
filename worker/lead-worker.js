@@ -46,6 +46,8 @@ const DEFAULT_SETTINGS = {
   // Chat id канала отзывов: посты оттуда идут в блок «Отзывы», а не в каталог.
   // Узнать id: опубликуйте пост в канале и посмотрите lastUpdate.chatId в /api/diag.
   reviewsChatId: "",
+  // Chat id канала новостей: посты оттуда идут в раздел «Новости».
+  newsChatId: "",
 };
 
 /* ---------- Telegram API ---------- */
@@ -371,7 +373,10 @@ export default {
       const post = upd.channel_post || upd.edited_channel_post;
       if (post) {
         const st = await getSettings(env);
-        if (st.reviewsChatId && String(post.chat?.id) === String(st.reviewsChatId)) {
+        const cid = String(post.chat?.id);
+        if (st.newsChatId && cid === String(st.newsChatId)) {
+          await publishNewsFromPost(env, post, url.origin);
+        } else if (st.reviewsChatId && cid === String(st.reviewsChatId)) {
           await publishReviewFromPost(env, post, url.origin);
         } else {
           await handleChannelPost(env, post, {
@@ -423,7 +428,10 @@ export default {
             (await roleOf(env, msg.from?.id)) ||
             (await isChatAdmin(env, msg.chat?.id, msg.from?.id));
           if (trusted) {
-            if (st.reviewsChatId && String(msg.chat?.id) === String(st.reviewsChatId)) {
+            const cid = String(msg.chat?.id);
+            if (st.newsChatId && cid === String(st.newsChatId)) {
+              await publishNewsFromPost(env, msg, url.origin);
+            } else if (st.reviewsChatId && cid === String(st.reviewsChatId)) {
               await publishReviewFromPost(env, msg, url.origin);
             } else {
               await handleChannelPost(env, msg, { auto: true, origin: url.origin });
@@ -749,9 +757,12 @@ export default {
       }
     }
 
-    // --- Публичные отзывы / FAQ ---
+    // --- Публичные отзывы / новости / FAQ ---
     if (url.pathname === "/api/reviews" && request.method === "GET") {
       return json({ ok: true, reviews: (await kvGet(env, "reviews", [])) || [] });
+    }
+    if (url.pathname === "/api/news" && request.method === "GET") {
+      return json({ ok: true, news: (await kvGet(env, "news", [])) || [] });
     }
     if (url.pathname === "/api/faq" && request.method === "GET") {
       return json({ ok: true, faq: (await kvGet(env, "faq", DEFAULT_FAQ)) || DEFAULT_FAQ });
@@ -1287,6 +1298,37 @@ async function publishReviewFromPost(env, post, origin) {
   await kvPut(env, "reviews", reviews.slice(0, 100));
 }
 
+// Пост из канала новостей → карточка новости (заголовок + текст + фото/видео).
+async function publishNewsFromPost(env, post, origin) {
+  const raw = (post.caption || post.text || "").trim();
+  const fileId = bestFileId(post);
+  const videoId = videoFileId(post);
+  if (!raw && !fileId && !videoId) return;
+  const groupId = post.media_group_id || null;
+  const srcId = "tg-" + (groupId || post.message_id);
+  const media = fileId ? photoUrl(origin, fileId) : "";
+  const video = videoId ? videoUrl(origin, videoId) : "";
+  // Заголовок — первая содержательная строка, текст — остальное.
+  const lines = raw.split("\n").map((s) => s.trim()).filter(Boolean);
+  const title = (lines[0] || "Новость").slice(0, 120);
+  const text = lines.slice(1).join("\n");
+
+  let news = (await kvGet(env, "news", [])) || [];
+  if (!Array.isArray(news)) news = [];
+  const ex = news.find((n) => n.id === srcId);
+  if (ex) {
+    if (raw && !ex.text && !ex.title) {
+      ex.title = title;
+      ex.text = text;
+    }
+    if (media && !ex.media) ex.media = media;
+    if (video && !ex.video) ex.video = video;
+  } else {
+    news.unshift({ id: srcId, title, text, media, video, ts: Date.now() });
+  }
+  await kvPut(env, "news", news.slice(0, 60));
+}
+
 async function handleChannelPost(env, post, opts = {}) {
   if (!env.STORE) return;
   const caption = (post.caption || post.text || "").trim();
@@ -1369,6 +1411,7 @@ async function handleAdmin(env, action, payload, perm, user) {
         "map2gisUrl",
         "miniAppUrl",
         "reviewsChatId",
+        "newsChatId",
       ];
       const next = { ...cur };
       for (const k of allowed)

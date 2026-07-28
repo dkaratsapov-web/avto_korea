@@ -1342,6 +1342,21 @@ function BotTab({
       </label>
 
       <label>
+        <span className={lab}>Chat id канала новостей</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.newsChatId ?? ""}
+          onChange={(e) => set("newsChatId", e.target.value)}
+          placeholder="-100…"
+        />
+        <span className="mt-1 block text-[11px] leading-snug text-[#8C97A1]">
+          Посты из этого канала идут в раздел «Новости» на сайте. Один канал —
+          один раздел (не указывайте один и тот же id в отзывах и новостях).
+        </span>
+      </label>
+
+      <label>
         <span className={lab}>Приветствие (Markdown)</span>
         <textarea
           disabled={!canEdit}
