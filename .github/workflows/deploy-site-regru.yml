@@ -1,0 +1,52 @@
+# Сборка сайта (Vite) и выгрузка на виртуальный хостинг reg.ru по FTP.
+# Включается переменной ENABLE_REGRU=true.
+#
+# Настроить (GitHub → Settings → Secrets and variables → Actions):
+#   Secrets:
+#     REGRU_FTP_SERVER    — FTP-хост (напр. server123.hosting.reg.ru или IP)
+#     REGRU_FTP_USERNAME  — FTP-логин (напр. u3591059)
+#     REGRU_FTP_PASSWORD  — FTP-пароль
+#   Variables:
+#     ENABLE_REGRU=true
+#     REGRU_FTP_PATH      — папка сайта на хостинге, ДОЛЖНА заканчиваться на /
+#                           (напр. /www/авто-из-кореи-под-ключ.рф/ )
+#     (необяз.) REGRU_FTP_PROTOCOL = ftps | ftp   (по умолчанию ftps)
+#     (необяз.) VITE_SITE_URL      = https://авто-из-кореи-под-ключ.рф
+#     (необяз.) VITE_LEAD_ENDPOINT = URL воркера (бот остаётся на Cloudflare)
+
+name: Deploy site to reg.ru
+
+on:
+  push:
+    branches: [main, claude/beautiful-goodall-irzq2f]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ vars.ENABLE_REGRU == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_BASE: "/"
+          VITE_SITE_URL: ${{ vars.VITE_SITE_URL || 'https://авто-из-кореи-под-ключ.рф' }}
+          # Бот/API остаются на Cloudflare — сайт ходит туда за каталогом и заявками.
+          VITE_LEAD_ENDPOINT: ${{ vars.VITE_LEAD_ENDPOINT || 'https://diauto-bot.d-karatsapov.workers.dev/lead' }}
+
+      - name: Deploy dist → reg.ru (FTP)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.REGRU_FTP_SERVER }}
+          username: ${{ secrets.REGRU_FTP_USERNAME }}
+          password: ${{ secrets.REGRU_FTP_PASSWORD }}
+          protocol: ${{ vars.REGRU_FTP_PROTOCOL || 'ftps' }}
+          # Папка сайта на хостинге (с завершающим слэшем).
+          server-dir: ${{ vars.REGRU_FTP_PATH }}
+          local-dir: ./dist/
+          # Не «чистим» папку целиком — только синхронизируем изменения.
+          dangerous-clean-slate: false
