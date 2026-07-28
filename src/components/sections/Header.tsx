@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import {
   Menu,
@@ -32,6 +32,8 @@ export function Header() {
     (n) => n.href !== "/catalog" && n.href !== "/articles",
   );
 
+  const headerRef = useRef<HTMLElement>(null);
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
     onScroll();
@@ -39,10 +41,27 @@ export function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Реальную высоту шапки отдаём в CSS-переменную, чтобы липкие фильтры
+  // каталога парковались точно под ней (шапка меняет высоту).
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const set = () =>
+      document.documentElement.style.setProperty("--header-h", `${el.offsetHeight}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    window.addEventListener("resize", set);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", set);
+    };
+  }, []);
+
   const h = scrolled ? "h-12" : "h-[52px]";
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50">
+    <header ref={headerRef} className="fixed inset-x-0 top-0 z-50">
       <div
         className={`mx-auto flex w-full max-w-[1400px] items-center gap-3 px-6 transition-all duration-300 ${
           scrolled ? "py-2.5" : "py-3.5"

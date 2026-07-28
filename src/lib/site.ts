@@ -13,6 +13,37 @@ export const site = {
   phone: "+7 (482) 236-87-77",
   phoneHref: "tel:+74822368777",
 
+  // Команда (блок на главной и «О нас»). Фото — в public/team/<file>.
+  // Если фото ещё нет — карточка покажет инициалы. Добавляем по одному.
+  team: [
+    {
+      name: "Дмитрий",
+      role: "Руководитель компании ДиАвто69 — подбор и просчёт автомобилей",
+      phone: "+7 (909) 271-87-77",
+      phoneHref: "tel:+79092718777",
+      telegram: "@Dmitriicarexport",
+      telegramHref: "https://t.me/Dmitriicarexport",
+      photo: "/team/dmitry.jpg",
+    },
+    {
+      name: "Сергей",
+      role: "Координатор логистического направления по России и Китаю",
+      phone: "+7 (910) 538-75-65",
+      phoneHref: "tel:+79105387565",
+      telegram: "@Sergei_Smolin_expert",
+      telegramHref: "https://t.me/Sergei_Smolin_expert",
+      photo: "/team/sergei.jpg",
+    },
+  ] as {
+    name: string;
+    role: string;
+    phone: string;
+    phoneHref: string;
+    telegram?: string;
+    telegramHref?: string;
+    photo?: string;
+  }[],
+
   // Контактные телефоны сотрудников (выводятся списком в шапке/контактах).
   phones: [
     { name: "Дмитрий", role: "Подбор и расчёт", number: "+7 (909) 271-87-77", href: "tel:+79092718777" },

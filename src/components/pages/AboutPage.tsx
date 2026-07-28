@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { LeadForm } from "@/components/LeadForm";
 import { Flag } from "@/components/icons/Flag";
+import { Team } from "@/components/sections/Team";
 import { site } from "@/lib/site";
 
 // СТРАНИЦА-ЧЕРНОВИК. Места с [ЗАГЛУШКА] заполнит заказчик — они помечены на странице.
@@ -42,12 +43,6 @@ const steps = [
   { n: "02", t: "Подбор и проверка", d: "Находим варианты, показываем фото, историю и диагностику." },
   { n: "03", t: "Выкуп и доставка", d: "Выкупаем, готовим к отправке и везём в Россию." },
   { n: "04", t: "Растаможка и выдача", d: "Оформляем документы и передаём готовое к учёту авто." },
-];
-
-const team = [
-  { name: "[ЗАГЛУШКА: имя]", role: "Основатель · подбор и выкуп" },
-  { name: "[ЗАГЛУШКА: имя]", role: "Логистика и таможенное оформление" },
-  { name: "[ЗАГЛУШКА: имя]", role: "Менеджер по работе с клиентами" },
 ];
 
 export function AboutPage() {
@@ -126,24 +121,8 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* Команда — заглушки */}
-      <section className="wrap mt-14">
-        <h2 className="text-[clamp(24px,3vw,36px)] font-extrabold uppercase text-ink">
-          Команда
-        </h2>
-        <p className="mt-2 text-[14px] text-ink-2">
-          [ЗАГЛУШКА: пришлите фото и имена сотрудников — заменю карточки ниже.]
-        </p>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {team.map((m, i) => (
-            <div key={i} className="rounded-card border border-line bg-white p-6">
-              <div className="mb-4 h-20 w-20 rounded-full bg-gradient-to-br from-graphite-2 to-graphite" aria-hidden />
-              <div className="text-[17px] font-extrabold text-ink">{m.name}</div>
-              <div className="mt-1 text-[13.5px] text-ink-2">{m.role}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Команда */}
+      <Team />
 
       {/* Реквизиты + форма — рядом, по половине экрана */}
       <section className="wrap mt-14 grid items-stretch gap-4 lg:grid-cols-2">
