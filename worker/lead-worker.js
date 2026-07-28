@@ -466,6 +466,25 @@ export default {
         return new Response("ok");
       }
 
+      // Отзыв в личку боту от ВЛАДЕЛЬЦА: пересланный/отправленный пост с
+      // фото/видео (или пересланный текст) автоматически публикуется в
+      // «Отзывы» (сайт + бот). Только владелец (ADMIN_IDS) — чужие игнор.
+      if (msg && msg.chat?.type === "private") {
+        const perm = await permsOf(env, msg.from?.id);
+        const hasMedia = bestFileId(msg) || videoFileId(msg);
+        const isForward = !!(msg.forward_from_chat || msg.forward_origin);
+        if (perm?.owner && (hasMedia || isForward)) {
+          await publishReviewFromPost(env, msg, url.origin);
+          if (!msg.media_group_id) {
+            await api(env, "sendMessage", {
+              chat_id: msg.chat.id,
+              text: "✅ Отзыв опубликован на сайте и в боте.",
+            });
+          }
+          return new Response("ok");
+        }
+      }
+
       // Приветствие с каталогом — ТОЛЬКО в личке с ботом. В группах/каналах
       // бот на сообщения не отвечает (иначе спамит чат участникам).
       if (
