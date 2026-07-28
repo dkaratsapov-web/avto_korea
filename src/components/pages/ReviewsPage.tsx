@@ -50,7 +50,14 @@ export function ReviewsPage() {
   // Реальные отзывы из Telegram (пересылка владельцем боту / канал отзывов).
   const [remote, setRemote] = useState<ApiReview[] | null>(null);
   useEffect(() => {
-    fetchReviews().then(setRemote).catch(() => {});
+    fetchReviews()
+      .then((rs) =>
+        // Отсекаем пустые/битые: нужен хотя бы медиа или осмысленный текст.
+        setRemote(
+          rs.filter((r) => r.media || r.video || (r.text || "").trim().length > 2),
+        ),
+      )
+      .catch(() => {});
   }, []);
   const hasRemote = remote && remote.length > 0;
 
@@ -142,8 +149,7 @@ export function ReviewsPage() {
               ) : null}
               <div className="flex flex-1 flex-col p-6">
                 <Quote className="mb-2 h-6 w-6 text-chrome" />
-                <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-ink">{r.text}</p>
-                <div className="mt-5 border-t border-line pt-4 font-bold text-ink">{r.name}</div>
+                <p className="whitespace-pre-line text-[15px] leading-relaxed text-ink">{r.text}</p>
               </div>
             </article>
           ))}

@@ -1479,7 +1479,11 @@ export function SubscribeView({
 export function ReviewsView({ onBack }: { onBack: () => void }) {
   const [reviews, setReviews] = useState<Review[] | null>(null);
   useEffect(() => {
-    fetchReviews().then(setReviews);
+    fetchReviews().then((rs) =>
+      setReviews(
+        rs.filter((r) => r.media || r.video || (r.text || "").trim().length > 2),
+      ),
+    );
   }, []);
   return (
     <>
@@ -1495,20 +1499,32 @@ export function ReviewsView({ onBack }: { onBack: () => void }) {
       ) : (
         <div className="space-y-3">
           {reviews.map((r) => (
-            <div key={r.id} className="rounded-[16px] border border-line-dark bg-graphite-2 p-4">
-              <div className="flex items-center justify-between">
-                <span className="font-bold">{r.name}</span>
-                <span className="flex gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-3.5 w-3.5 ${i < r.rating ? "fill-bordeaux-bright text-bordeaux-bright" : "text-[#3a424c]"}`}
+            <div
+              key={r.id}
+              className="overflow-hidden rounded-[16px] border border-line-dark bg-graphite-2"
+            >
+              {r.video || r.media ? (
+                <div className="aspect-video bg-black">
+                  {r.video ? (
+                    <video
+                      src={r.video}
+                      poster={r.media}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="h-full w-full bg-black object-contain"
                     />
-                  ))}
-                </span>
-              </div>
-              {r.car ? <div className="text-[12px] text-[#8C97A1]">{r.car}</div> : null}
-              <p className="mt-1.5 text-[13.5px] text-[#C7CFD6]">{r.text}</p>
+                  ) : (
+                    // eslint-disable-next-line
+                    <img src={r.media} alt="" className="h-full w-full object-cover" />
+                  )}
+                </div>
+              ) : null}
+              {r.text ? (
+                <p className="whitespace-pre-line p-4 text-[13.5px] leading-relaxed text-[#C7CFD6]">
+                  {r.text}
+                </p>
+              ) : null}
             </div>
           ))}
         </div>
