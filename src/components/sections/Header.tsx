@@ -67,14 +67,20 @@ export function Header() {
           scrolled ? "py-2.5" : "py-3.5"
         }`}
       >
-        {/* Капсула: логотип — с лёгким наклоном (рваный ритм) */}
-        <div
-          className={`${capsule} flex flex-none ${
-            scrolled ? "h-14" : "h-[60px]"
-          } -rotate-1 items-center px-6 hover:rotate-0 sm:px-8`}
-          style={{ background: "#ffffff" }}
-        >
-          <Logo variant="full" className="h-12 w-auto shrink-0 sm:h-[52px]" />
+        {/* Логотип + адрес под ним */}
+        <div className="flex flex-none flex-col gap-1">
+          <div
+            className={`${capsule} flex ${
+              scrolled ? "h-14" : "h-[60px]"
+            } -rotate-1 items-center px-6 hover:rotate-0 sm:px-8`}
+            style={{ background: "#ffffff" }}
+          >
+            <Logo variant="full" className="h-12 w-auto shrink-0 sm:h-[52px]" />
+          </div>
+          <span className="hidden items-center gap-1.5 whitespace-nowrap pl-3 text-[11px] font-semibold text-[#C3CBD2] lg:flex">
+            <MapPin className="h-3 w-3 flex-none text-bordeaux-bright" />
+            {site.addressFull}
+          </span>
         </div>
 
         {/* Каталог — отдельная яркая пульсирующая кнопка */}
@@ -107,7 +113,7 @@ export function Header() {
                 <Link
                   to={item.href}
                   aria-current={isActive ? "page" : undefined}
-                  className={`relative rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors ${
+                  className={`relative whitespace-nowrap rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors ${
                     isActive
                       ? "bg-white/[0.08] text-white"
                       : "text-[#C3CBD2] hover:text-white"
@@ -140,28 +146,22 @@ export function Header() {
         <div
           className={`${capsule} ml-auto flex min-h-[52px] rotate-1 items-center gap-1 px-2 py-1.5 hover:rotate-0 lg:ml-0`}
         >
-          <div className="hidden flex-col justify-center px-3 lg:flex">
-            <div className="flex flex-col gap-1">
-              {site.phones.map((p) => (
-                <a
-                  key={p.href}
-                  href={p.href}
-                  className="flex items-center gap-2 whitespace-nowrap leading-none transition-colors hover:text-chrome"
-                >
-                  <Phone className="h-[15px] w-[15px] flex-none text-bordeaux-bright" />
-                  <span className="font-num text-[15px] font-bold tracking-[0.01em] text-white">
-                    {p.number}
-                  </span>
-                  <span className="text-[11px] font-semibold text-[#9AA4B2]">
-                    {p.name} · {p.role}
-                  </span>
-                </a>
-              ))}
-            </div>
-            <span className="mt-1.5 flex items-center gap-1.5 whitespace-nowrap border-t border-white/10 pt-1.5 text-[11.5px] font-semibold text-[#8794a0]">
-              <MapPin className="h-[13px] w-[13px] flex-none text-bordeaux-bright" />
-              {site.addressFull}
-            </span>
+          <div className="hidden flex-col justify-center gap-[5px] px-3 pt-1 lg:flex">
+            {site.phones.map((p) => (
+              <a
+                key={p.href}
+                href={p.href}
+                className="flex items-center gap-2 whitespace-nowrap leading-none transition-colors hover:text-chrome"
+              >
+                <Phone className="h-[13px] w-[13px] flex-none text-bordeaux-bright" />
+                <span className="font-num text-[12.5px] font-bold tracking-[0.01em] text-white">
+                  {p.number}
+                </span>
+                <span className="text-[10px] font-semibold text-[#9AA4B2]">
+                  {p.name} · {p.role}
+                </span>
+              </a>
+            ))}
           </div>
           <button
             type="button"
