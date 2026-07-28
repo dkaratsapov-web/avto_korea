@@ -4,8 +4,6 @@ import { Hero } from "@/components/sections/Hero";
 import { CarCard } from "@/components/CarCard";
 import { useCars } from "@/lib/carsStore";
 import { BrandTicker } from "@/components/sections/BrandTicker";
-import { Advantages } from "@/components/sections/Advantages";
-import { Office } from "@/components/sections/Office";
 import { FinalCta } from "@/components/sections/FinalCta";
 
 // Превью каталога на главной: последние авто (до 4 рядов по 4) + переход
@@ -59,8 +57,6 @@ export function Landing() {
       <CatalogPreview />
 
       <BrandTicker />
-      <Advantages />
-      <Office />
       <FinalCta />
     </main>
   );

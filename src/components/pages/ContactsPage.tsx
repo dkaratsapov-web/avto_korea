@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronRight, Phone, MessageCircle, Mail, MapPin, Clock } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { LeadForm } from "@/components/LeadForm";
+import { Office } from "@/components/sections/Office";
 import { site } from "@/lib/site";
 
 function useMeta(title: string, description: string) {
@@ -114,17 +115,6 @@ export function ContactsPage() {
             </div>
           </div>
 
-          {/* Фото офиса */}
-          <div className="overflow-hidden rounded-card border border-line bg-white">
-            {/* eslint-disable-next-line */}
-            <img
-              src={`${import.meta.env.BASE_URL}office.jpg`}
-              alt="Офис ДиАвто69 в Твери"
-              loading="lazy"
-              className="w-full object-cover"
-            />
-          </div>
-
           {/* Карта проезда — Яндекс.Карты */}
           <div className="overflow-hidden rounded-card border border-line bg-white">
             <iframe
@@ -146,6 +136,9 @@ export function ContactsPage() {
           <LeadForm layout="full" tone="dark" source="Страница «Контакты»" submitLabel="Отправить заявку" />
         </div>
       </div>
+
+      {/* Наш офис — фото шоурума + адрес */}
+      <Office />
     </main>
   );
 }
