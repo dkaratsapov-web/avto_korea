@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, CheckCircle2, Quote, Star } from "lucide-react";
+import { ChevronRight, CheckCircle2, Quote, Star, ExternalLink } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { LeadForm } from "@/components/LeadForm";
-import { countries } from "@/lib/site";
+import { countries, site } from "@/lib/site";
 
 function useMeta(title: string, description: string) {
   useEffect(() => {
@@ -69,6 +69,44 @@ export function ReviewsPage() {
           </p>
         </div>
         <div className="chrome-line absolute inset-x-0 bottom-0" />
+      </section>
+
+      {/* Отзывы и оценка в 2ГИС */}
+      <section className="wrap mt-10">
+        <div className="flex flex-col gap-5 rounded-card border border-line bg-white p-6 sm:flex-row sm:items-center sm:justify-between sm:p-7">
+          <div className="flex items-center gap-4">
+            <span className="flex h-14 w-14 flex-none items-center justify-center rounded-[16px] bg-[#00a651] font-display text-[15px] font-extrabold text-white">
+              2ГИС
+            </span>
+            <div>
+              <h2 className="text-[19px] font-extrabold text-ink">Мы на 2ГИС</h2>
+              <p className="mt-0.5 max-w-md text-[13.5px] leading-snug text-ink-2">
+                Читайте реальные отзывы клиентов и оценку компании в справочнике
+                2ГИС — и оставьте свой после сделки.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-none flex-wrap gap-2.5">
+            <a
+              href={site.map2gisHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary"
+            >
+              <ExternalLink className="h-[18px] w-[18px]" /> Смотреть отзывы
+            </a>
+            <a
+              href={site.map2gisHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn border border-line text-ink hover:bg-paper"
+            >
+              Оставить отзыв
+            </a>
+          </div>
+        </div>
+        {/* Слот под живой виджет отзывов 2ГИС — вставим код агрегатора при подключении. */}
+        <div id="reviews-2gis-widget" className="mt-4 empty:hidden" />
       </section>
 
       <div className="wrap mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
