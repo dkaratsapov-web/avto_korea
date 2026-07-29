@@ -1481,7 +1481,7 @@ export function ReviewsView({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     fetchReviews().then((rs) =>
       setReviews(
-        rs.filter((r) => r.media || r.video || (r.text || "").trim().length > 2),
+        rs.filter((r) => r.media || (r.text || "").trim().length > 2),
       ),
     );
   }, []);

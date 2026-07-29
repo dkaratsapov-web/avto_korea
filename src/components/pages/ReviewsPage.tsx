@@ -52,9 +52,10 @@ export function ReviewsPage() {
   useEffect(() => {
     fetchReviews()
       .then((rs) =>
-        // Отсекаем пустые/битые: нужен хотя бы медиа или осмысленный текст.
+        // Показываем отзыв, только если есть ФОТО или осмысленный текст.
+        // Видео без превью и текста (часто битое/тяжёлое) не выводим.
         setRemote(
-          rs.filter((r) => r.media || r.video || (r.text || "").trim().length > 2),
+          rs.filter((r) => r.media || (r.text || "").trim().length > 2),
         ),
       )
       .catch(() => {});
