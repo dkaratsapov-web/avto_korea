@@ -125,11 +125,23 @@ export function ReviewsPage() {
       </section>
 
       {hasRemote ? (
-        <div className="wrap mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {remote!.map((r) => (
-            <article key={r.id} className="flex flex-col overflow-hidden rounded-card border border-line bg-white">
-              {r.video || r.media ? (
-                <div className="relative aspect-[16/10] overflow-hidden bg-graphite">
+        <section className="mt-12">
+          <div className="wrap mb-4 flex items-end justify-between gap-3">
+            <h2 className="text-[clamp(20px,2.6vw,30px)] font-extrabold uppercase text-ink">
+              Видео-отзывы клиентов
+            </h2>
+            <span className="hidden text-[13px] font-semibold text-ink-2 sm:block">
+              Листайте вбок →
+            </span>
+          </div>
+          {/* Крупные карточки с горизонтальным скроллом */}
+          <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-6 px-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {remote!.map((r) => (
+              <article
+                key={r.id}
+                className="flex w-[84%] flex-none snap-start flex-col overflow-hidden rounded-[20px] border border-line bg-white shadow-[0_10px_30px_-16px_rgba(20,25,32,0.4)] sm:w-[380px]"
+              >
+                <div className="relative aspect-[3/4] overflow-hidden bg-graphite">
                   {r.video ? (
                     <video
                       src={r.video}
@@ -139,22 +151,28 @@ export function ReviewsPage() {
                       preload="metadata"
                       className="h-full w-full bg-black object-contain"
                     />
-                  ) : (
+                  ) : r.media ? (
                     // eslint-disable-next-line
-                    <img src={r.media} alt={r.name} loading="lazy" className="h-full w-full object-cover" />
+                    <img src={r.media} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="h-full w-full bg-[linear-gradient(160deg,#232C36,#11151A)]" />
                   )}
                   <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-white/90 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
                     <CheckCircle2 className="h-4 w-4" /> Доставлено
                   </span>
                 </div>
-              ) : null}
-              <div className="flex flex-1 flex-col p-6">
-                <Quote className="mb-2 h-6 w-6 text-chrome" />
-                <p className="whitespace-pre-line text-[15px] leading-relaxed text-ink">{r.text}</p>
-              </div>
-            </article>
-          ))}
-        </div>
+                {r.text ? (
+                  <div className="flex flex-1 flex-col p-5">
+                    <Quote className="mb-2 h-5 w-5 text-chrome" />
+                    <p className="whitespace-pre-line text-[14.5px] leading-relaxed text-ink">
+                      {r.text}
+                    </p>
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
       ) : (
         <div className="wrap mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {cases.map((r) => (

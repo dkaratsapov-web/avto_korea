@@ -36,9 +36,10 @@ export function HeroBackdrop({ silhouette = true }: { silhouette?: boolean }) {
       <div className="glow-blob right-[16%] top-[-14%] h-72 w-72 animate-glow-pan bg-bordeaux/25" />
       <div className="glow-blob bottom-[-18%] right-[40%] h-64 w-64 animate-glow-pan bg-steel/15 [animation-delay:-7s]" />
 
-      {/* Хром-силуэт авто — водяной знак справа */}
+      {/* Хром-силуэт авто — водяной знак справа (скрыт на мобильном, чтобы
+          не перекрывать текст) */}
       {silhouette ? (
-        <CarSilhouette className="absolute right-[-3%] top-1/2 h-[58%] w-auto -translate-y-1/2 opacity-[0.08] animate-fade-up" />
+        <CarSilhouette className="absolute right-[-3%] top-1/2 hidden h-[58%] w-auto -translate-y-1/2 opacity-[0.08] animate-fade-up md:block" />
       ) : null}
 
       {/* Зерно поверх */}
