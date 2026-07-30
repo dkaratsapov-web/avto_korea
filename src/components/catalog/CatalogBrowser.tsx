@@ -341,10 +341,12 @@ export function CatalogBrowser() {
 
       {/* Мобильная липкая панель */}
       <div
-        className="sticky z-30 border-b border-line bg-paper/95 backdrop-blur md:hidden"
+        className="sticky z-30 md:hidden"
         style={{ top: "calc(var(--header-h, 62px) + 2px)" }}
       >
-        <div className="mx-auto w-full max-w-[1760px] px-6 flex items-center gap-2 py-2.5">
+        {/* Панель — скруглённая плашка с отступами, а не полоса во всю ширину:
+            так она не спорит с плавающей шапкой над ней. */}
+        <div className="mx-2 flex items-center gap-2 rounded-full border border-line bg-paper/95 px-2.5 py-2 shadow-[0_8px_24px_-14px_rgba(20,25,32,0.5)] backdrop-blur">
           <label className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-2" />
             <input
@@ -429,7 +431,7 @@ export function CatalogBrowser() {
         {result.length > 0 ? (
           <motion.div
             layout
-            className="grid grid-cols-1 gap-[22px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            className="grid grid-cols-2 gap-3 sm:gap-[22px] lg:grid-cols-3 xl:grid-cols-4"
           >
             <AnimatePresence mode="popLayout">
               {result.map((car) => (

@@ -8,13 +8,13 @@ import { BrandTicker } from "@/components/sections/BrandTicker";
 import { FinalCta } from "@/components/sections/FinalCta";
 
 // Сколько колонок в сетке на текущей ширине — чтобы показать ровно 5 рядов
-// (сетка ниже: 1 / 2 / 3 / 4 колонки на sm / lg / xl).
+// (сетка ниже: 2 колонки на мобильном, 3 на lg, 4 на xl).
 function useGridColumns() {
   const [cols, setCols] = useState(4);
   useEffect(() => {
     const calc = () => {
       const w = window.innerWidth;
-      setCols(w >= 1280 ? 4 : w >= 1024 ? 3 : w >= 640 ? 2 : 1);
+      setCols(w >= 1280 ? 4 : w >= 1024 ? 3 : 2);
     };
     calc();
     window.addEventListener("resize", calc);
@@ -47,7 +47,7 @@ function HomeCatalog() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-[22px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-[22px] lg:grid-cols-3 xl:grid-cols-4">
           {list.map((car) => (
             <CarCard key={car.id} car={car} />
           ))}

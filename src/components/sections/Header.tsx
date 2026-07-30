@@ -63,7 +63,7 @@ export function Header() {
   return (
     <header ref={headerRef} className="fixed inset-x-0 top-0 z-50">
       <div
-        className={`mx-auto flex w-full max-w-[1600px] items-center justify-between gap-3 px-6 transition-all duration-300 ${
+        className={`mx-auto flex w-full max-w-[1600px] items-center justify-between gap-2 px-3 transition-all sm:gap-3 sm:px-6 duration-300 ${
           scrolled ? "py-2.5" : "py-3.5"
         }`}
       >
@@ -76,7 +76,7 @@ export function Header() {
           <Logo
             variant="wordmark"
             className={`logo-outline w-auto shrink-0 transition-all duration-300 ${
-              scrolled ? "h-7 sm:h-8" : "h-8 sm:h-9"
+              scrolled ? "h-6 sm:h-8" : "h-7 sm:h-9"
             }`}
           />
         </div>
@@ -174,13 +174,15 @@ export function Header() {
               </span>
             ) : null}
           </button>
-          <Magnetic strength={0.4}>
+          {/* На мобильном кнопку не показываем: там есть меню и плавающие
+              кнопки подбора и Telegram, круглая стрелка только путала. */}
+          <Magnetic strength={0.4} className="max-sm:hidden">
             <Button
               variant="primary"
               onClick={openLead}
-              className="!min-h-0 h-9 rounded-full !px-4 !py-0 text-[14px] max-sm:!px-3"
+              className="!min-h-0 h-9 rounded-full !px-4 !py-0 text-[14px]"
             >
-              <span className="max-sm:hidden">Рассчитать</span>
+              Рассчитать
               <ArrowRight className="h-[16px] w-[16px]" />
             </Button>
           </Magnetic>
@@ -245,12 +247,18 @@ export function Header() {
                 <a
                   key={p.href}
                   href={p.href}
-                  className="flex items-baseline gap-2 hover:text-white"
+                  className="flex items-start gap-2.5 hover:text-white"
                 >
-                  <Phone className="h-3.5 w-3.5 flex-none translate-y-0.5 text-bordeaux-bright" />
-                  <span className="font-num text-[16px] font-bold text-white">{p.number}</span>
-                  <span className="text-[12px] font-semibold text-[#9AA4B2]">
-                    {p.name} · {p.role}
+                  <Phone className="h-4 w-4 flex-none translate-y-1 text-bordeaux-bright" />
+                  {/* Номер и подпись — в столбик: в одну строку номер
+                      переносился посреди цифр. */}
+                  <span className="min-w-0">
+                    <span className="block whitespace-nowrap font-num text-[17px] font-bold leading-tight text-white">
+                      {p.number}
+                    </span>
+                    <span className="block text-[12px] font-semibold leading-tight text-[#9AA4B2]">
+                      {p.name} · {p.role}
+                    </span>
                   </span>
                 </a>
               ))}
