@@ -1,5 +1,6 @@
 # Сборка сайта (Vite) и выгрузка на виртуальный хостинг reg.ru по FTP.
 # Включается переменной ENABLE_REGRU=true.
+# Миграция активирована: 30.07.2026 (DNS переключен на reg.ru, secrets/vars установлены).
 #
 # Настроить (GitHub → Settings → Secrets and variables → Actions):
 #   Secrets:
