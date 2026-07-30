@@ -11,6 +11,13 @@
   RewriteCond %{HTTP:X-Forwarded-Proto} !https
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
+  # --- Данные и медиа бота отдаём со своего домена ---
+  # Домен воркера (*.workers.dev) блокируется в России, поэтому браузер
+  # обращается к сайту, а сервер сам ходит за данными к воркеру.
+  RewriteRule ^api/(catalog|reviews|news|faq|rates|admin|ping|view|fav|subscribe)$ /api/proxy.php?p=$1 [L,QSA]
+  RewriteRule ^api/tgphoto$ /api/media.php [L,QSA]
+  RewriteRule ^api/tgvideo$ /api/media.php?video=1 [L,QSA]
+
   # --- SPA fallback: любой маршрут → index.html (кроме реальных файлов) ---
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d

@@ -11,14 +11,18 @@ const LEAD =
   (import.meta.env.VITE_LEAD_ENDPOINT as string | undefined) ||
   `${DEFAULT_WORKER}/lead`;
 
-// Заявки могут приниматься своим обработчиком на хостинге в РФ (относительный
-// адрес вида /api/lead.php), поэтому база API выводится из VITE_LEAD_ENDPOINT
-// только когда это действительно URL воркера. Иначе — явная переменная или
-// публичный воркер по умолчанию.
+// Домен воркера (*.workers.dev) в России блокируется провайдерами, поэтому на
+// боевом сайте база API задаётся как "/" — тогда запросы идут на сам сайт, а
+// сервер (см. public/api/proxy.php) уже сам ходит к воркеру. Для сборок без
+// такого прокси остаётся прямой адрес воркера.
+const RAW_BASE = import.meta.env.VITE_API_BASE as string | undefined;
 export const API_BASE =
-  (import.meta.env.VITE_API_BASE as string | undefined) ||
-  (/^https?:\/\//.test(LEAD) ? LEAD.replace(/\/lead\/?$/, "") : DEFAULT_WORKER);
-export const hasBackend = !!API_BASE;
+  RAW_BASE !== undefined
+    ? RAW_BASE.replace(/\/+$/, "") // "/" → "" (запросы вида /api/catalog)
+    : /^https?:\/\//.test(LEAD)
+      ? LEAD.replace(/\/lead\/?$/, "")
+      : DEFAULT_WORKER;
+export const hasBackend = true;
 
 export type BotSettings = {
   welcomeText: string;
@@ -151,7 +155,7 @@ export type Rates = {
 
 /** Курс валют ЦБ РФ (для калькулятора). */
 export async function fetchRates(): Promise<{ rates: Rates; date: string | null } | null> {
-  if (!API_BASE) return null;
+  if (!hasBackend) return null;
   try {
     const r = await fetch(`${API_BASE}/api/rates`);
     const d = (await r.json()) as { ok: boolean; rates: Rates; date: string | null };
@@ -163,7 +167,7 @@ export async function fetchRates(): Promise<{ rates: Rates; date: string | null 
 
 /** Публичные отзывы (для сайта и мини-аппа). */
 export async function fetchReviews(): Promise<Review[]> {
-  if (!API_BASE) return [];
+  if (!hasBackend) return [];
   try {
     const r = await fetch(`${API_BASE}/api/reviews`, { cache: "no-store" });
     const d = (await r.json()) as { ok: boolean; reviews: Review[] };
@@ -175,7 +179,7 @@ export async function fetchReviews(): Promise<Review[]> {
 
 /** Публичные новости (из Telegram-канала). */
 export async function fetchNews(): Promise<NewsItem[]> {
-  if (!API_BASE) return [];
+  if (!hasBackend) return [];
   try {
     const r = await fetch(`${API_BASE}/api/news`, { cache: "no-store" });
     const d = (await r.json()) as { ok: boolean; news: NewsItem[] };
@@ -187,7 +191,7 @@ export async function fetchNews(): Promise<NewsItem[]> {
 
 /** Публичный FAQ. */
 export async function fetchFaq(): Promise<Faq[]> {
-  if (!API_BASE) return [];
+  if (!hasBackend) return [];
   try {
     const r = await fetch(`${API_BASE}/api/faq`, { cache: "no-store" });
     const d = (await r.json()) as { ok: boolean; faq: Faq[] };
@@ -199,7 +203,7 @@ export async function fetchFaq(): Promise<Faq[]> {
 
 /** Зарегистрировать пользователя мини-аппа (рассылки/статистика). */
 export function pingUser(initData: string) {
-  if (!API_BASE || !initData) return;
+  if (!hasBackend || !initData) return;
   fetch(`${API_BASE}/api/ping`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -209,7 +213,7 @@ export function pingUser(initData: string) {
 
 /** Засчитать просмотр карточки. */
 export function logView(id: string) {
-  if (!API_BASE) return;
+  if (!hasBackend) return;
   fetch(`${API_BASE}/api/view`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -219,7 +223,7 @@ export function logView(id: string) {
 
 /** Засчитать добавление в избранное (популярность). */
 export function logFav(id: string) {
-  if (!API_BASE) return;
+  if (!hasBackend) return;
   fetch(`${API_BASE}/api/fav`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -232,7 +236,7 @@ export async function subscribe(
   initData: string,
   params: SubParams,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!API_BASE) return { ok: false, error: "no_backend" };
+  if (!hasBackend) return { ok: false, error: "no_backend" };
   try {
     const r = await fetch(`${API_BASE}/api/subscribe`, {
       method: "POST",
@@ -247,7 +251,7 @@ export async function subscribe(
 
 /** Публичный общий каталог (или null, если ещё не задан/нет бэкенда). */
 export async function fetchSharedCatalog(): Promise<Car[] | null> {
-  if (!API_BASE) return null;
+  if (!hasBackend) return null;
   try {
     const r = await fetch(`${API_BASE}/api/catalog`, { cache: "no-store" });
     if (!r.ok) return null;
@@ -264,7 +268,7 @@ export async function adminCall<T = unknown>(
   action: string,
   payload?: unknown,
 ): Promise<{ ok: boolean; error?: string } & T> {
-  if (!API_BASE) return { ok: false, error: "no_backend" } as never;
+  if (!hasBackend) return { ok: false, error: "no_backend" } as never;
   try {
     const r = await fetch(`${API_BASE}/api/admin`, {
       method: "POST",
