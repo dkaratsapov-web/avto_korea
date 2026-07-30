@@ -3,6 +3,10 @@
 # --- Принудительный HTTPS ---
 <IfModule mod_rewrite.c>
   RewriteEngine On
+
+  # Проверка Let's Encrypt (ACME) — отдаём как есть, без редиректа и SPA-фолбэка.
+  RewriteRule ^\.well-known/acme-challenge/ - [L]
+
   RewriteCond %{HTTPS} !=on
   RewriteCond %{HTTP:X-Forwarded-Proto} !https
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
