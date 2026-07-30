@@ -596,6 +596,9 @@ export default {
       } catch (e) {
         webhook = { error: String(e) };
       }
+      // Список поддерживаемых действий — по нему видно, какая версия воркера
+      // реально задеплоена (например, есть ли уже reviews.clear).
+      const actions = Object.keys(NEED_CAP);
       const lastUpdate = await kvGet(env, "diag:last", null);
       const tgCars = Array.isArray(catalog)
         ? catalog.filter((c) => String(c.id).startsWith("tg-"))
@@ -613,6 +616,7 @@ export default {
         draftsCount: Array.isArray(drafts) ? drafts.length : 0,
         sampleTgCar,
         webhook,
+        actions,
         lastUpdate,
       });
     }
