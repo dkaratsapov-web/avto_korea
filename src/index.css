@@ -191,9 +191,9 @@
   /* Белая окантовка букв логотипа: четыре смещения дают ровный контур,
      мягкое свечение сверху отделяет надпись от любого фона под шапкой. */
   .logo-outline {
-    filter: drop-shadow(1.5px 0 0 #fff) drop-shadow(-1.5px 0 0 #fff)
-      drop-shadow(0 1.5px 0 #fff) drop-shadow(0 -1.5px 0 #fff)
-      drop-shadow(0 2px 6px rgba(255, 255, 255, 0.55));
+    filter: drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff)
+      drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff)
+      drop-shadow(0 1px 4px rgba(17, 21, 26, 0.28));
   }
 
   /* зернистость поверх тёмных секций */

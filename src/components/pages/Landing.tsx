@@ -35,12 +35,12 @@ function HomeCatalog() {
     <section id="catalog" className="scroll-mt-24 bg-paper py-12">
       <div className="wrap">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="rounded-full bg-white px-6 py-3 text-[clamp(20px,2.4vw,30px)] font-extrabold uppercase leading-none text-ink shadow-[0_10px_28px_-18px_rgba(20,25,32,0.55)]">
+          <h2 className="text-[clamp(19px,2vw,26px)] font-extrabold uppercase leading-none text-ink">
             Каталог автомобилей
           </h2>
           <Link
             to="/catalog"
-            className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-white px-6 py-3 text-[14px] font-bold text-bordeaux shadow-[0_10px_28px_-18px_rgba(20,25,32,0.55)] transition-colors hover:text-bordeaux-bright"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-white px-4 py-2 text-[13.5px] font-bold text-bordeaux transition-colors hover:border-bordeaux/30 hover:text-bordeaux-bright"
           >
             Открыть весь каталог
             <ArrowRight className="h-4 w-4" />

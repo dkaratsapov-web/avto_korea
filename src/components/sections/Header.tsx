@@ -71,11 +71,13 @@ export function Header() {
         <div
           className={`flex flex-none ${
             scrolled ? "h-14" : "h-[60px]"
-          } -rotate-1 items-center transition-all duration-300 hover:rotate-0`}
+          } items-center transition-all duration-300`}
         >
           <Logo
             variant="wordmark"
-            className="logo-outline h-11 w-auto shrink-0 sm:h-[58px]"
+            className={`logo-outline w-auto shrink-0 transition-all duration-300 ${
+              scrolled ? "h-7 sm:h-8" : "h-8 sm:h-9"
+            }`}
           />
         </div>
 
