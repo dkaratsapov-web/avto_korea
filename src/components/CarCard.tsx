@@ -164,6 +164,9 @@ export function CarCard({ car }: { car: Car }) {
 }
 
 function Spec({ icon, text }: { icon: React.ReactNode; text: string }) {
+  // Пустую характеристику не показываем: лучше её отсутствие, чем выдуманное
+  // значение или пустая строка в сетке.
+  if (!text) return null;
   return (
     <div className="flex items-center gap-2.5 text-[13px] font-semibold text-[#2c333b]">
       <span className="flex h-7 w-7 flex-none items-center justify-center rounded-[9px] bg-paper text-steel [&>svg]:h-[16px] [&>svg]:w-[16px]">

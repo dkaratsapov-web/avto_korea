@@ -651,7 +651,6 @@ export default {
         const before = JSON.stringify(c);
         c.isNew = !(c.mileageKm > 0);
         if (!c.gearbox) c.gearbox = "АКПП";
-        if (!c.drive) c.drive = "Передний";
         if (!c.fuelType) c.fuelType = "Бензин";
         if (!c.mileage)
           c.mileage = c.mileageKm > 0 ? `${c.mileageKm.toLocaleString("ru-RU")} км` : "Новый, 0 км";
@@ -1044,9 +1043,11 @@ function parseCaption(text) {
     : /робот|dsg|dct/i.test(bodyRaw) ? "Робот"
     : /механик|мкпп|manual/i.test(bodyRaw) ? "МКПП"
     : /автомат|акпп|a\/t|at\b/i.test(bodyRaw) ? "АКПП" : "";
-  const drive = /полн|awd|4wd|4x4|4matic|quattro/i.test(bodyRaw) ? "Полный"
-    : /задн|rwd/i.test(bodyRaw) ? "Задний"
-    : /перед|fwd/i.test(bodyRaw) ? "Передний" : "";
+  const driveRaw = `${raw}\n${bodyRaw}`;
+  const drive = /полн(ый)?\s*привод|\bawd\b|\b4wd\b|4x4|4matic|quattro|xdrive|4motion|allrad|\bатт?esa\b/i.test(driveRaw)
+    ? "Полный"
+    : /задн(ий)?\s*привод|\brwd\b/i.test(driveRaw) ? "Задний"
+    : /перед(ний)?\s*привод|\bfwd\b/i.test(driveRaw) ? "Передний" : "";
   const bodyTypeM = (bodyRaw.match(/седан|кроссовер|внедорожник|хэтчбек|хетчбек|универсал|купе|минивэн|пикап|лифтбек|кабриолет/i) || [""])[0];
   const fuelType = /гибрид|hybrid/i.test(bodyRaw) ? "Гибрид"
     : /электро|electric|ev\b/i.test(bodyRaw) ? "Электро"
@@ -1198,7 +1199,7 @@ function carFromPost(p, id, images) {
     trim: p.trim || "",
     mileage: mileageKm > 0 ? `${mileageKm.toLocaleString("ru-RU")} км` : "Новый, 0 км",
     gearbox: p.gearbox || "АКПП",
-    drive: p.drive || "Передний",
+    drive: p.drive || "",
     bodyType: p.bodyType || "",
     fuelType: p.fuelType || "Бензин",
     steering: p.steering || "",
