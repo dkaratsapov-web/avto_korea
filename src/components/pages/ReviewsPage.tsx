@@ -301,6 +301,40 @@ export function ReviewsPage() {
         </div>
         {/* Слот под живой виджет отзывов 2ГИС — вставим код агрегатора при подключении. */}
         <div id="reviews-2gis-widget" className="mt-4 empty:hidden" />
+
+        {/* Живые отзывы из Яндекс.Карт. Появляется, когда в site.ts задан
+            yandexOrgId — до этого блок не рисуем, чтобы не было пустой рамки. */}
+        {site.yandexOrgId ? (
+          <div className="mt-6 overflow-hidden rounded-card border border-line bg-white p-5 sm:p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-[#fc3f1d] font-display text-[15px] font-extrabold text-white">
+                Я
+              </span>
+              <div>
+                <h2 className="text-[19px] font-extrabold text-ink">
+                  Отзывы на Яндекс.Картах
+                </h2>
+                <p className="text-[13.5px] text-ink-2">
+                  Оценки и отзывы, которые клиенты оставляют в Яндексе.
+                </p>
+              </div>
+            </div>
+            <iframe
+              title="Отзывы о ДиАвто69 на Яндекс.Картах"
+              src={`https://yandex.ru/maps-reviews-widget/${site.yandexOrgId}?comments`}
+              loading="lazy"
+              className="h-[560px] w-full rounded-[14px] border border-line"
+            />
+            <a
+              href={`https://yandex.ru/maps/org/${site.yandexOrgId}/reviews/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-block text-[13.5px] font-bold text-bordeaux hover:underline"
+            >
+              Открыть все отзывы на Яндекс.Картах →
+            </a>
+          </div>
+        ) : null}
       </section>
 
       {hasRemote ? (
