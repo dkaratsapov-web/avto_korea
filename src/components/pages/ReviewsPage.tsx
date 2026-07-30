@@ -265,94 +265,92 @@ export function ReviewsPage() {
         <div className="chrome-line absolute inset-x-0 bottom-0" />
       </section>
 
-      {/* Отзывы и оценка в 2ГИС */}
+      {/* Оценки на внешних площадках: слева площадки, справа живой виджет */}
       <section className="wrap mt-10">
-        <div className="flex flex-col gap-5 rounded-card border border-line bg-white p-6 sm:flex-row sm:items-center sm:justify-between sm:p-7">
-          <div className="flex items-center gap-4">
-            <span className="flex h-14 w-14 flex-none items-center justify-center rounded-[16px] bg-[#00a651] font-display text-[15px] font-extrabold text-white">
-              2ГИС
-            </span>
-            <div>
-              <h2 className="text-[19px] font-extrabold text-ink">Мы на 2ГИС</h2>
-              <p className="mt-0.5 max-w-md text-[13.5px] leading-snug text-ink-2">
-                Читайте реальные отзывы клиентов и оценку компании в справочнике
-                2ГИС — и оставьте свой после сделки.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-none flex-wrap gap-2.5">
-            <a
-              href={site.map2gisHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-primary"
-            >
-              <ExternalLink className="h-[18px] w-[18px]" /> Смотреть отзывы
-            </a>
-            <a
-              href={site.map2gisHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn border border-line text-ink hover:bg-paper"
-            >
-              Оставить отзыв
-            </a>
-          </div>
-        </div>
-        {/* Слот под живой виджет отзывов 2ГИС — вставим код агрегатора при подключении. */}
-        <div id="reviews-2gis-widget" className="mt-4 empty:hidden" />
+        <div className="grid gap-6 lg:grid-cols-[1fr_560px] lg:items-start">
+          <div className="flex flex-col rounded-card border border-line bg-white p-6 sm:p-7">
+            <h2 className="text-[clamp(20px,2.4vw,28px)] font-extrabold uppercase leading-tight text-ink">
+              Нас оценивают на площадках
+            </h2>
+            <p className="mt-2 max-w-md text-[14px] leading-relaxed text-ink-2">
+              Отзывы в справочниках нельзя удалить или подделать — поэтому
+              смотреть их стоит именно там. Справа — живая лента из Яндекса,
+              ниже — ссылки на обе площадки.
+            </p>
 
-        {/* Живые отзывы из Яндекс.Карт. Появляется, когда в site.ts задан
-            yandexOrgId — до этого блок не рисуем, чтобы не было пустой рамки. */}
-        {site.yandexOrgId ? (
-          <div className="mt-6 overflow-hidden rounded-card border border-line bg-white p-5 sm:p-7">
-            <div className="grid gap-6 lg:grid-cols-[1fr_560px] lg:items-start">
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-[#fc3f1d] font-display text-[15px] font-extrabold text-white">
-                    Я
-                  </span>
-                  <h2 className="text-[19px] font-extrabold text-ink">
-                    Отзывы на Яндекс.Картах
-                  </h2>
+            <div className="mt-6 space-y-4">
+              <div className="flex flex-wrap items-center gap-4 rounded-[16px] border border-line bg-paper p-4">
+                <span className="flex h-12 w-12 flex-none items-center justify-center rounded-[14px] bg-[#fc3f1d] font-display text-[16px] font-extrabold text-white">
+                  Я
+                </span>
+                <div className="min-w-[120px] flex-1">
+                  <div className="text-[15px] font-extrabold text-ink">Яндекс.Карты</div>
+                  <div className="text-[13px] text-ink-2">Ди Авто Трейдинг</div>
                 </div>
-                <p className="mt-3 max-w-md text-[14px] leading-relaxed text-ink-2">
-                  Оценки и отзывы, которые клиенты оставляют в справочнике
-                  Яндекса. Список прокручивается — внутри все отзывы карточки
-                  компании.
-                </p>
-                <div className="mt-5 flex flex-wrap gap-2.5">
+                <div className="flex flex-wrap gap-2">
                   <a
                     href={site.yandexReviewsHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn btn-primary"
+                    className="btn btn-primary !h-10 !px-4 text-[13.5px]"
                   >
-                    <ExternalLink className="h-[18px] w-[18px]" /> Все отзывы
+                    <ExternalLink className="h-4 w-4" /> Смотреть
                   </a>
                   <a
                     href={site.yandexReviewsHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn border border-line text-ink hover:bg-paper"
+                    className="btn !h-10 border border-line !px-4 text-[13.5px] text-ink hover:bg-white"
                   >
                     Оставить отзыв
                   </a>
                 </div>
               </div>
 
-              {/* Виджет верстает карточку фиксированной ширины и добивает
-                  остаток серым, поэтому держим рамку по его формату. Высота
-                  задаёт, сколько отзывов видно без прокрутки. */}
-              <iframe
-                title="Отзывы о ДиАвто69 на Яндекс.Картах"
-                src={`https://yandex.ru/maps-reviews-widget/${site.yandexOrgId}?comments`}
-                loading="lazy"
-                className="mx-auto h-[820px] w-full max-w-[560px] rounded-[14px] border border-line"
-              />
+              <div className="flex flex-wrap items-center gap-4 rounded-[16px] border border-line bg-paper p-4">
+                <span className="flex h-12 w-12 flex-none items-center justify-center rounded-[14px] bg-[#00a651] font-display text-[13px] font-extrabold text-white">
+                  2ГИС
+                </span>
+                <div className="min-w-[120px] flex-1">
+                  <div className="text-[15px] font-extrabold text-ink">2ГИС</div>
+                  <div className="text-[13px] text-ink-2">Карточка компании в Твери</div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href={site.map2gisHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-primary !h-10 !px-4 text-[13.5px]"
+                  >
+                    <ExternalLink className="h-4 w-4" /> Смотреть
+                  </a>
+                  <a
+                    href={site.map2gisHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn !h-10 border border-line !px-4 text-[13.5px] text-ink hover:bg-white"
+                  >
+                    Оставить отзыв
+                  </a>
+                </div>
+              </div>
             </div>
+
+            {/* Слот под живой виджет 2ГИС, если подключим агрегатор. */}
+            <div id="reviews-2gis-widget" className="mt-4 empty:hidden" />
           </div>
-        ) : null}
+
+          {/* Виджет верстает карточку фиксированной ширины, поэтому колонка
+              под него ровно его формата. Внутри список прокручивается. */}
+          {site.yandexOrgId ? (
+            <iframe
+              title="Отзывы о ДиАвто69 на Яндекс.Картах"
+              src={`https://yandex.ru/maps-reviews-widget/${site.yandexOrgId}?comments`}
+              loading="lazy"
+              className="mx-auto h-[620px] w-full max-w-[560px] rounded-card border border-line"
+            />
+          ) : null}
+        </div>
       </section>
 
       {hasRemote ? (
