@@ -1476,12 +1476,92 @@ export function SubscribeView({
 }
 
 /* ---------- Отзывы ---------- */
+/** Медиа отзыва одним списком: видео вперёд, затем фото. */
+function reviewSlides(r: Review): { type: "video" | "image"; src: string }[] {
+  const videos = r.videos?.length ? r.videos : r.video ? [r.video] : [];
+  const images = r.images?.length ? r.images : r.media ? [r.media] : [];
+  return [
+    ...videos.map((src) => ({ type: "video" as const, src })),
+    ...images.map((src) => ({ type: "image" as const, src })),
+  ];
+}
+
+function ReviewItem({ review }: { review: Review }) {
+  const slides = reviewSlides(review);
+  const [idx, setIdx] = useState(0);
+  const cur = slides[idx] ?? slides[0];
+  const poster = review.images?.[0] || review.media;
+
+  return (
+    <div className="overflow-hidden rounded-[16px] border border-line-dark bg-graphite-2">
+      {cur ? (
+        <div className="relative aspect-video bg-black">
+          {cur.type === "video" ? (
+            <video
+              key={cur.src}
+              src={cur.src}
+              poster={poster}
+              controls
+              playsInline
+              preload="metadata"
+              className="h-full w-full bg-black object-contain"
+            />
+          ) : (
+            // eslint-disable-next-line
+            <img src={cur.src} alt="" className="h-full w-full object-cover" />
+          )}
+          {slides.length > 1 ? (
+            <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 font-num text-[11px] font-bold text-white">
+              {idx + 1}/{slides.length}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {slides.length > 1 ? (
+        <div className="flex gap-2 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {slides.map((sl, i) => (
+            <button
+              key={sl.src + i}
+              onClick={() => setIdx(i)}
+              aria-label={`Медиа ${i + 1}`}
+              className={`relative h-12 w-12 flex-none overflow-hidden rounded-[9px] border ${
+                i === idx ? "border-bordeaux-bright" : "border-line-dark"
+              }`}
+            >
+              {/* eslint-disable-next-line */}
+              <img
+                src={sl.type === "video" ? poster : sl.src}
+                alt=""
+                className="h-full w-full bg-graphite object-cover"
+              />
+              {sl.type === "video" ? (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-white">
+                  ▶
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {review.text ? (
+        <p className="whitespace-pre-line p-4 text-[13.5px] leading-relaxed text-[#C7CFD6]">
+          {review.text}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function ReviewsView({ onBack }: { onBack: () => void }) {
   const [reviews, setReviews] = useState<Review[] | null>(null);
   useEffect(() => {
     fetchReviews().then((rs) =>
       setReviews(
-        rs.filter((r) => r.media || (r.text || "").trim().length > 2),
+        rs.filter(
+          (r) => r.media || r.images?.length || (r.text || "").trim().length > 2,
+        ),
       ),
     );
   }, []);
@@ -1499,33 +1579,7 @@ export function ReviewsView({ onBack }: { onBack: () => void }) {
       ) : (
         <div className="space-y-3">
           {reviews.map((r) => (
-            <div
-              key={r.id}
-              className="overflow-hidden rounded-[16px] border border-line-dark bg-graphite-2"
-            >
-              {r.video || r.media ? (
-                <div className="aspect-video bg-black">
-                  {r.video ? (
-                    <video
-                      src={r.video}
-                      poster={r.media}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      className="h-full w-full bg-black object-contain"
-                    />
-                  ) : (
-                    // eslint-disable-next-line
-                    <img src={r.media} alt="" className="h-full w-full object-cover" />
-                  )}
-                </div>
-              ) : null}
-              {r.text ? (
-                <p className="whitespace-pre-line p-4 text-[13.5px] leading-relaxed text-[#C7CFD6]">
-                  {r.text}
-                </p>
-              ) : null}
-            </div>
+            <ReviewItem key={r.id} review={r} />
           ))}
         </div>
       )}

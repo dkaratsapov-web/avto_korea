@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Quote,
   Star,
+  Play,
   ExternalLink,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
@@ -122,6 +123,97 @@ function useDragScroll() {
   return { ref, atStart, atEnd, scrollByCard };
 }
 
+type Slide = { type: "video" | "image"; src: string };
+
+/** Все медиа отзыва одним списком: видео вперёд, затем фото. */
+function slidesOf(r: ApiReview): Slide[] {
+  const videos = r.videos?.length ? r.videos : r.video ? [r.video] : [];
+  const images = r.images?.length ? r.images : r.media ? [r.media] : [];
+  return [
+    ...videos.map((src) => ({ type: "video" as const, src })),
+    ...images.map((src) => ({ type: "image" as const, src })),
+  ];
+}
+
+/** Карточка отзыва: крупное медиа + лента миниатюр, если их несколько. */
+function ReviewCard({ review }: { review: ApiReview }) {
+  const slides = slidesOf(review);
+  const [idx, setIdx] = useState(0);
+  const cur = slides[idx] ?? slides[0];
+  const poster = review.images?.[0] || review.media;
+
+  return (
+    <article className="flex w-[84%] flex-none snap-start flex-col overflow-hidden rounded-[20px] border border-line bg-white shadow-[0_10px_30px_-16px_rgba(20,25,32,0.4)] sm:w-[380px]">
+      <div className="relative aspect-[3/4] overflow-hidden bg-graphite">
+        {cur?.type === "video" ? (
+          <video
+            key={cur.src}
+            src={cur.src}
+            poster={poster}
+            controls
+            playsInline
+            preload="metadata"
+            className="h-full w-full bg-black object-contain"
+          />
+        ) : cur ? (
+          <img src={cur.src} alt="" loading="lazy" className="h-full w-full object-cover" />
+        ) : (
+          <div className="h-full w-full bg-[linear-gradient(160deg,#232C36,#11151A)]" />
+        )}
+        <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-white/90 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
+          <CheckCircle2 className="h-4 w-4" /> Доставлено
+        </span>
+        {slides.length > 1 ? (
+          <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 font-num text-[12px] font-bold text-white">
+            {idx + 1}/{slides.length}
+          </span>
+        ) : null}
+      </div>
+
+      {slides.length > 1 ? (
+        <div className="flex gap-2 overflow-x-auto border-b border-line px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {slides.map((s, i) => (
+            <button
+              key={s.src + i}
+              type="button"
+              onClick={() => setIdx(i)}
+              aria-label={`Медиа ${i + 1}`}
+              className={`relative h-14 w-14 flex-none overflow-hidden rounded-[10px] border transition-colors ${
+                i === idx ? "border-bordeaux" : "border-line hover:border-ink/30"
+              }`}
+            >
+              {s.type === "video" ? (
+                <>
+                  <img
+                    src={poster}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full bg-graphite object-cover"
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/45">
+                    <Play className="h-4 w-4 text-white" />
+                  </span>
+                </>
+              ) : (
+                <img src={s.src} alt="" loading="lazy" className="h-full w-full object-cover" />
+              )}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {review.text ? (
+        <div className="flex flex-1 flex-col p-5">
+          <Quote className="mb-2 h-5 w-5 text-chrome" />
+          <p className="whitespace-pre-line text-[14.5px] leading-relaxed text-ink">
+            {review.text}
+          </p>
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
 export function ReviewsPage() {
   useMeta(
     "Отзывы клиентов ДиАвто69 — реальные кейсы доставки авто",
@@ -136,7 +228,12 @@ export function ReviewsPage() {
         // Показываем отзыв, только если есть ФОТО или осмысленный текст.
         // Видео без превью и текста (часто битое/тяжёлое) не выводим.
         setRemote(
-          rs.filter((r) => r.media || (r.text || "").trim().length > 2),
+          rs.filter(
+            (r) =>
+              r.media ||
+              r.images?.length ||
+              (r.text || "").trim().length > 2,
+          ),
         ),
       )
       .catch(() => {});
@@ -239,39 +336,7 @@ export function ReviewsPage() {
             className="flex cursor-grab snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-6 px-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {remote!.map((r) => (
-              <article
-                key={r.id}
-                className="flex w-[84%] flex-none snap-start flex-col overflow-hidden rounded-[20px] border border-line bg-white shadow-[0_10px_30px_-16px_rgba(20,25,32,0.4)] sm:w-[380px]"
-              >
-                <div className="relative aspect-[3/4] overflow-hidden bg-graphite">
-                  {r.video ? (
-                    <video
-                      src={r.video}
-                      poster={r.media}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      className="h-full w-full bg-black object-contain"
-                    />
-                  ) : r.media ? (
-                    // eslint-disable-next-line
-                    <img src={r.media} alt="" loading="lazy" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="h-full w-full bg-[linear-gradient(160deg,#232C36,#11151A)]" />
-                  )}
-                  <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-white/90 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
-                    <CheckCircle2 className="h-4 w-4" /> Доставлено
-                  </span>
-                </div>
-                {r.text ? (
-                  <div className="flex flex-1 flex-col p-5">
-                    <Quote className="mb-2 h-5 w-5 text-chrome" />
-                    <p className="whitespace-pre-line text-[14.5px] leading-relaxed text-ink">
-                      {r.text}
-                    </p>
-                  </div>
-                ) : null}
-              </article>
+              <ReviewCard key={r.id} review={r} />
             ))}
           </div>
         </section>

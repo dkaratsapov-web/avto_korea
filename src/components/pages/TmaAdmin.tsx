@@ -487,6 +487,15 @@ function ReviewsTab({
     const r = await adminCall<{ reviews: Review[] }>(initData, "reviews.remove", { id });
     if (r.ok) setList(r.reviews);
   }
+  async function clearAll() {
+    if (!confirm("Удалить все отзывы? Действие необратимо.")) return;
+    const r = await adminCall<{ reviews: Review[] }>(initData, "reviews.clear");
+    if (r.ok) {
+      setList(r.reviews);
+      haptic(tg, "medium");
+      showToast("Все отзывы удалены");
+    } else showToast("Ошибка: " + (r.error || ""), "error");
+  }
 
   if (editing) {
     const e = editing;
@@ -562,6 +571,14 @@ function ReviewsTab({
           className="btn btn-primary mb-3 w-full"
         >
           <Plus className="h-[18px] w-[18px]" /> Добавить отзыв
+        </button>
+      ) : null}
+      {canEdit && list.length > 0 ? (
+        <button
+          onClick={clearAll}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-full border border-bordeaux/50 py-2.5 text-[14px] font-bold text-bordeaux-bright"
+        >
+          <Trash2 className="h-[16px] w-[16px]" /> Удалить все отзывы
         </button>
       ) : null}
       <div className="space-y-2.5">

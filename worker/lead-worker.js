@@ -254,6 +254,7 @@ const NEED_CAP = {
   "reviews.list": "reviews",
   "reviews.save": "reviews",
   "reviews.remove": "reviews",
+  "reviews.clear": "reviews",
   "stats.get": "stats",
   "broadcast.send": "broadcast",
   "admins.list": "admins",
@@ -1296,10 +1297,15 @@ async function publishReviewFromPost(env, post, origin) {
   if (!Array.isArray(reviews)) reviews = [];
   const ex = reviews.find((r) => r.id === srcId);
   if (ex) {
-    // Альбом/правка: дополняем существующий отзыв медиа и текстом.
+    // Альбом/правка: копим все фото и видео поста, а не только первые.
     if (text && !ex.text) ex.text = text;
-    if (media && !ex.media) ex.media = media;
-    if (video && !ex.video) ex.video = video;
+    if (!Array.isArray(ex.images)) ex.images = ex.media ? [ex.media] : [];
+    if (!Array.isArray(ex.videos)) ex.videos = ex.video ? [ex.video] : [];
+    if (media && !ex.images.includes(media)) ex.images.push(media);
+    if (video && !ex.videos.includes(video)) ex.videos.push(video);
+    // media/video оставляем для совместимости со старыми клиентами.
+    ex.media = ex.media || media;
+    ex.video = ex.video || video;
   } else {
     reviews.unshift({
       id: srcId,
@@ -1308,6 +1314,8 @@ async function publishReviewFromPost(env, post, origin) {
       rating: 5,
       media,
       video,
+      images: media ? [media] : [],
+      videos: video ? [video] : [],
       ts: Date.now(),
     });
   }
@@ -1470,6 +1478,11 @@ async function handleAdmin(env, action, payload, perm, user) {
       );
       await kvPut(env, "reviews", list);
       return json({ ok: true, reviews: list });
+    }
+
+    case "reviews.clear": {
+      await kvPut(env, "reviews", []);
+      return json({ ok: true, reviews: [] });
     }
 
     case "faq.get":
