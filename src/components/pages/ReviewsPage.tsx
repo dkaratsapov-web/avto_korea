@@ -305,36 +305,52 @@ export function ReviewsPage() {
         {/* Живые отзывы из Яндекс.Карт. Появляется, когда в site.ts задан
             yandexOrgId — до этого блок не рисуем, чтобы не было пустой рамки. */}
         {site.yandexOrgId ? (
-          <div className="mt-6 overflow-hidden rounded-card border border-line bg-white p-5 sm:p-6">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-[#fc3f1d] font-display text-[15px] font-extrabold text-white">
-                Я
-              </span>
+          <div className="mt-6 overflow-hidden rounded-card border border-line bg-white p-5 sm:p-7">
+            <div className="grid gap-6 lg:grid-cols-[1fr_560px] lg:items-start">
               <div>
-                <h2 className="text-[19px] font-extrabold text-ink">
-                  Отзывы на Яндекс.Картах
-                </h2>
-                <p className="text-[13.5px] text-ink-2">
-                  Оценки и отзывы, которые клиенты оставляют в Яндексе.
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-[#fc3f1d] font-display text-[15px] font-extrabold text-white">
+                    Я
+                  </span>
+                  <h2 className="text-[19px] font-extrabold text-ink">
+                    Отзывы на Яндекс.Картах
+                  </h2>
+                </div>
+                <p className="mt-3 max-w-md text-[14px] leading-relaxed text-ink-2">
+                  Оценки и отзывы, которые клиенты оставляют в справочнике
+                  Яндекса. Список прокручивается — внутри все отзывы карточки
+                  компании.
                 </p>
+                <div className="mt-5 flex flex-wrap gap-2.5">
+                  <a
+                    href={site.yandexReviewsHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-primary"
+                  >
+                    <ExternalLink className="h-[18px] w-[18px]" /> Все отзывы
+                  </a>
+                  <a
+                    href={site.yandexReviewsHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn border border-line text-ink hover:bg-paper"
+                  >
+                    Оставить отзыв
+                  </a>
+                </div>
               </div>
+
+              {/* Виджет верстает карточку фиксированной ширины и добивает
+                  остаток серым, поэтому держим рамку по его формату. Высота
+                  задаёт, сколько отзывов видно без прокрутки. */}
+              <iframe
+                title="Отзывы о ДиАвто69 на Яндекс.Картах"
+                src={`https://yandex.ru/maps-reviews-widget/${site.yandexOrgId}?comments`}
+                loading="lazy"
+                className="mx-auto h-[820px] w-full max-w-[560px] rounded-[14px] border border-line"
+              />
             </div>
-            {/* Виджет Яндекса верстает карточку фиксированной ширины и добивает
-                остаток серым фоном, поэтому рамку держим по его формату. */}
-            <iframe
-              title="Отзывы о ДиАвто69 на Яндекс.Картах"
-              src={`https://yandex.ru/maps-reviews-widget/${site.yandexOrgId}?comments`}
-              loading="lazy"
-              className="mx-auto h-[600px] w-full max-w-[560px] rounded-[14px] border border-line"
-            />
-            <a
-              href={site.yandexReviewsHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 inline-block text-[13.5px] font-bold text-bordeaux hover:underline"
-            >
-              Открыть все отзывы на Яндекс.Картах →
-            </a>
           </div>
         ) : null}
       </section>
