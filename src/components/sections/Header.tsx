@@ -63,7 +63,7 @@ export function Header() {
   return (
     <header ref={headerRef} className="fixed inset-x-0 top-0 z-50">
       <div
-        className={`mx-auto flex w-full max-w-[1400px] items-center gap-3 px-6 transition-all duration-300 ${
+        className={`mx-auto flex w-full max-w-[1760px] items-center justify-between gap-3 px-6 transition-all duration-300 ${
           scrolled ? "py-2.5" : "py-3.5"
         }`}
       >
@@ -95,7 +95,7 @@ export function Header() {
 
         {/* Капсула: навигация */}
         <nav
-          className={`${capsule} ${h} mx-auto hidden items-center gap-1 px-2 lg:flex`}
+          className={`${capsule} ${h} hidden items-center gap-1 px-2 lg:flex`}
           aria-label="Основная навигация"
         >
           {pageNav.map((item, i) => {
@@ -142,7 +142,7 @@ export function Header() {
 
         {/* Капсула: действия — наклон в другую сторону */}
         <div
-          className={`${capsule} ml-auto flex min-h-[52px] rotate-1 items-center gap-1 px-2 py-1.5 hover:rotate-0 lg:ml-0`}
+          className={`${capsule} flex min-h-[52px] rotate-1 items-center gap-1 px-2 py-1.5 hover:rotate-0`}
         >
           <div className="hidden flex-col justify-center gap-[5px] px-3 pt-1 lg:flex">
             {site.phones.map((p) => (
@@ -155,7 +155,7 @@ export function Header() {
                 <span className="font-num text-[12.5px] font-bold tracking-[0.01em] text-white">
                   {p.number}
                 </span>
-                <span className="text-[10px] font-semibold text-[#9AA4B2]">
+                <span className="text-[11px] font-semibold text-[#C3CBD2]">
                   {p.name} · {p.role}
                 </span>
               </a>
