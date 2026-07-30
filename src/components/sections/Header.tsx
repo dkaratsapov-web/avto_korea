@@ -63,7 +63,7 @@ export function Header() {
   return (
     <header ref={headerRef} className="fixed inset-x-0 top-0 z-50">
       <div
-        className={`mx-auto flex w-full max-w-[1760px] items-center justify-between gap-3 px-6 transition-all duration-300 ${
+        className={`mx-auto flex w-full max-w-[1600px] items-center justify-between gap-3 px-6 transition-all duration-300 ${
           scrolled ? "py-2.5" : "py-3.5"
         }`}
       >
