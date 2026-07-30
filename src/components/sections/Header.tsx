@@ -67,14 +67,16 @@ export function Header() {
           scrolled ? "py-2.5" : "py-3.5"
         }`}
       >
-        {/* Логотип */}
+        {/* Логотип — только надпись, с белой окантовкой вместо подложки */}
         <div
-          className={`${capsule} flex flex-none ${
+          className={`flex flex-none ${
             scrolled ? "h-14" : "h-[60px]"
-          } -rotate-1 items-center px-6 hover:rotate-0 sm:px-8`}
-          style={{ background: "#ffffff" }}
+          } -rotate-1 items-center transition-all duration-300 hover:rotate-0`}
         >
-          <Logo variant="full" className="h-12 w-auto shrink-0 sm:h-[52px]" />
+          <Logo
+            variant="wordmark"
+            className="logo-outline h-11 w-auto shrink-0 sm:h-[58px]"
+          />
         </div>
 
         {/* Каталог — отдельная яркая пульсирующая кнопка */}
