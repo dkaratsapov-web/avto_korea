@@ -319,11 +319,13 @@ export function ReviewsPage() {
                 </p>
               </div>
             </div>
+            {/* Виджет Яндекса верстает карточку фиксированной ширины и добивает
+                остаток серым фоном, поэтому рамку держим по его формату. */}
             <iframe
               title="Отзывы о ДиАвто69 на Яндекс.Картах"
               src={`https://yandex.ru/maps-reviews-widget/${site.yandexOrgId}?comments`}
               loading="lazy"
-              className="h-[560px] w-full rounded-[14px] border border-line"
+              className="mx-auto h-[600px] w-full max-w-[560px] rounded-[14px] border border-line"
             />
             <a
               href={site.yandexReviewsHref}
