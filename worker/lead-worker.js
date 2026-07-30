@@ -1161,29 +1161,22 @@ function photoUrl(origin, fileId) {
 }
 
 // Связное описание из характеристик (серверная копия клиентского генератора).
+// Описание НЕ повторяет характеристики: год, пробег, двигатель, коробка,
+// привод, комплектация, цвет, топливо и преимущества уже выводятся отдельными
+// блоками карточки. Здесь — только условия сделки.
+const COUNTRY_FROM = { kr: "Кореи", cn: "Китая", jp: "Японии", eu: "Европы" };
+
 function genDescriptionSrv(c) {
-  const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
-  const seg = [];
-  const head = [c.model.trim(), c.year ? `${c.year} года` : ""].filter(Boolean).join(" ");
-  if (head) seg.push(head);
-  const tech = [];
-  if (c.bodyType) tech.push(c.bodyType.toLowerCase());
-  const vol = c.engineCc ? `${(c.engineCc / 1000).toFixed(1).replace(".", ",")} л` : "";
-  const power = c.powerHp ? `${c.powerHp} л.с.` : "";
-  const engine = [vol, power].filter(Boolean).join(", ");
-  if (engine) tech.push(`двигатель ${engine}`);
-  if (c.fuelType) tech.push(c.fuelType.toLowerCase());
-  if (c.gearbox) tech.push(/акпп|автомат/i.test(c.gearbox) ? "автомат" : c.gearbox.toLowerCase());
-  if (c.drive) tech.push(`${c.drive.toLowerCase()} привод`);
-  if (c.steering) tech.push(`${c.steering.toLowerCase()} руль`);
-  if (tech.length) seg.push(cap(tech.join(", ")));
-  const st = [];
-  if (c.trim) st.push(`комплектация ${c.trim}`);
-  if (c.color) st.push(`цвет ${c.color.toLowerCase()}`);
-  if (c.isNew || !c.mileageKm) st.push("новый, без пробега по РФ");
-  else st.push(`пробег ${c.mileageKm.toLocaleString("ru-RU")} км`);
-  if (st.length) seg.push(cap(st.join(", ")));
-  seg.push("Привезём под ключ: доставка, растаможка и оформление включены — честная цена без скрытых наценок");
+  const from = COUNTRY_FROM[c.country] ? ` из ${COUNTRY_FROM[c.country]}` : "";
+  const seg = [
+    `Привезём${from} под ключ: выкуп у проверенного поставщика, доставка, растаможка и оформление включены`,
+    "Итоговая цена фиксируется в договоре — без скрытых наценок и доплат по факту",
+  ];
+  if (c.isNew || !c.mileageKm) {
+    seg.push("Автомобиль новый, на учёте в РФ не стоял");
+  } else {
+    seg.push("Перед выкупом проверяем историю и состояние, присылаем фото- и видеоотчёт");
+  }
   return seg.join(". ") + ".";
 }
 

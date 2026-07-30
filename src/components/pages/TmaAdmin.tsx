@@ -142,42 +142,29 @@ function carFromDraft(d: Draft): Car {
 
 // Собирает связное текстовое описание (абзац) из характеристик авто.
 // Без AI/сети — детерминированно, мгновенно, работает офлайн.
+// Описание НЕ повторяет характеристики: год, пробег, двигатель, коробка,
+// привод, комплектация, цвет, топливо и преимущества уже выводятся отдельными
+// блоками карточки. Здесь — только условия сделки.
+const COUNTRY_FROM: Record<string, string> = {
+  kr: "Кореи",
+  cn: "Китая",
+  jp: "Японии",
+  eu: "Европы",
+};
+
 function genDescription(c: Car): string {
-  const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
-  const seg: string[] = [];
-
-  // 1) марка, год
-  const head = [c.model.trim(), c.year ? `${c.year} года` : ""]
-    .filter(Boolean)
-    .join(" ");
-  if (head) seg.push(head);
-
-  // 2) техника: кузов, двигатель, топливо, коробка, привод
-  const tech: string[] = [];
-  if (c.bodyType) tech.push(c.bodyType.toLowerCase());
-  const vol = c.engineCc ? `${(c.engineCc / 1000).toFixed(1).replace(".", ",")} л` : "";
-  const power = c.powerHp ? `${c.powerHp} л.с.` : "";
-  const engine = [vol, power].filter(Boolean).join(", ");
-  if (engine) tech.push(`двигатель ${engine}`);
-  if (c.fuelType) tech.push(c.fuelType.toLowerCase());
-  if (c.gearbox) tech.push(/акпп|автомат/i.test(c.gearbox) ? "автомат" : c.gearbox.toLowerCase());
-  if (c.drive) tech.push(`${c.drive.toLowerCase()} привод`);
-  if (c.steering) tech.push(`${c.steering.toLowerCase()} руль`);
-  if (tech.length) seg.push(cap(tech.join(", ")));
-
-  // 3) состояние, комплектация, цвет
-  const st: string[] = [];
-  if (c.trim) st.push(`комплектация ${c.trim}`);
-  if (c.color) st.push(`цвет ${c.color.toLowerCase()}`);
-  if (c.isNew || !c.mileageKm) st.push("новый, без пробега по РФ");
-  else st.push(`пробег ${c.mileageKm.toLocaleString("ru-RU")} км`);
-  if (st.length) seg.push(cap(st.join(", ")));
-
-  // 4) продающее
-  seg.push(
-    "Привезём под ключ: доставка, растаможка и оформление включены — честная цена без скрытых наценок",
-  );
-
+  const from = COUNTRY_FROM[c.country] ? ` из ${COUNTRY_FROM[c.country]}` : "";
+  const seg: string[] = [
+    `Привезём${from} под ключ: выкуп у проверенного поставщика, доставка, растаможка и оформление включены`,
+    "Итоговая цена фиксируется в договоре — без скрытых наценок и доплат по факту",
+  ];
+  if (c.isNew || !c.mileageKm) {
+    seg.push("Автомобиль новый, на учёте в РФ не стоял");
+  } else {
+    seg.push(
+      "Перед выкупом проверяем историю и состояние, присылаем фото- и видеоотчёт",
+    );
+  }
   return seg.join(". ") + ".";
 }
 

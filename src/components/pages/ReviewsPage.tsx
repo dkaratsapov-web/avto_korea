@@ -1,6 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, CheckCircle2, Quote, Star, ExternalLink } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  Quote,
+  Star,
+  ExternalLink,
+} from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { LeadForm } from "@/components/LeadForm";
 import { countries, site } from "@/lib/site";
@@ -41,6 +48,80 @@ const cases: Case[] = [
   { name: "Виктор П.", city: "Ярославль", country: "cn", car: "Li L7, 2023", term: "46 дней", price: "5 480 000 ₽", text: "Хотел конкретную комплектацию, которой нет у дилеров. Нашли, привезли, цена без сюрпризов." },
 ];
 
+// Горизонтальная лента: стрелки + перетаскивание мышью (на десктопе колесо
+// само по себе ленту не листает, поэтому нужны явные элементы управления).
+function useDragScroll() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(false);
+
+  const sync = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setAtStart(el.scrollLeft <= 2);
+    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    sync();
+    el.addEventListener("scroll", sync, { passive: true });
+    window.addEventListener("resize", sync);
+    return () => {
+      el.removeEventListener("scroll", sync);
+      window.removeEventListener("resize", sync);
+    };
+  }, [sync]);
+
+  const scrollByCard = useCallback((dir: 1 | -1) => {
+    const el = ref.current;
+    if (!el) return;
+    const card = el.querySelector("article");
+    const step = card ? card.getBoundingClientRect().width + 20 : el.clientWidth * 0.8;
+    el.scrollBy({ left: dir * step, behavior: "smooth" });
+  }, []);
+
+  // Перетаскивание мышью. Тач не трогаем — там работает нативный скролл.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let startX = 0;
+    let startScroll = 0;
+    let dragging = false;
+
+    const down = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      // Не мешаем управлению плеером внутри карточки.
+      if ((e.target as HTMLElement).closest("video")) return;
+      dragging = true;
+      startX = e.clientX;
+      startScroll = el.scrollLeft;
+    };
+    const move = (e: PointerEvent) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      if (Math.abs(dx) > 3) el.classList.add("cursor-grabbing", "select-none");
+      el.scrollLeft = startScroll - dx;
+    };
+    const up = () => {
+      dragging = false;
+      el.classList.remove("cursor-grabbing", "select-none");
+    };
+
+    el.addEventListener("pointerdown", down);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    return () => {
+      el.removeEventListener("pointerdown", down);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+  }, []);
+
+  return { ref, atStart, atEnd, scrollByCard };
+}
+
 export function ReviewsPage() {
   useMeta(
     "Отзывы клиентов ДиАвто69 — реальные кейсы доставки авто",
@@ -61,6 +142,7 @@ export function ReviewsPage() {
       .catch(() => {});
   }, []);
   const hasRemote = remote && remote.length > 0;
+  const rail = useDragScroll();
 
   return (
     <main className="bg-paper pb-[96px]">
@@ -130,12 +212,32 @@ export function ReviewsPage() {
             <h2 className="text-[clamp(20px,2.6vw,30px)] font-extrabold uppercase text-ink">
               Видео-отзывы клиентов
             </h2>
-            <span className="hidden text-[13px] font-semibold text-ink-2 sm:block">
-              Листайте вбок →
-            </span>
+            <div className="hidden flex-none items-center gap-2 sm:flex">
+              <button
+                type="button"
+                onClick={() => rail.scrollByCard(-1)}
+                disabled={rail.atStart}
+                aria-label="Предыдущие отзывы"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-ink transition-all hover:border-ink/30 hover:bg-paper disabled:pointer-events-none disabled:opacity-30"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => rail.scrollByCard(1)}
+                disabled={rail.atEnd}
+                aria-label="Следующие отзывы"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-ink transition-all hover:border-ink/30 hover:bg-paper disabled:pointer-events-none disabled:opacity-30"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
           </div>
           {/* Крупные карточки с горизонтальным скроллом */}
-          <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-6 px-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            ref={rail.ref}
+            className="flex cursor-grab snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-6 px-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             {remote!.map((r) => (
               <article
                 key={r.id}
