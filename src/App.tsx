@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from "react";
+import { useEffect, useRef, lazy, Suspense } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/Toaster";
 
@@ -61,10 +61,37 @@ function ScrollManager() {
   return null;
 }
 
+const METRIKA_ID = 111166439;
+
+/**
+ * Метрика считает переход по SPA-маршруту только по явному хиту: сам счётчик
+ * срабатывает один раз при загрузке документа. Первую загрузку он уже учёл,
+ * поэтому отправляем хиты начиная со второго маршрута.
+ */
+function MetrikaTracker() {
+  const { pathname, search } = useLocation();
+  const prev = useRef<string | null>(null);
+
+  useEffect(() => {
+    const url = window.location.origin + pathname + search;
+    if (prev.current === null) {
+      prev.current = url;
+      return;
+    }
+    const referer = prev.current;
+    prev.current = url;
+    const ym = (window as unknown as { ym?: (...a: unknown[]) => void }).ym;
+    ym?.(METRIKA_ID, "hit", url, { referer });
+  }, [pathname, search]);
+
+  return null;
+}
+
 export function App() {
   return (
     <>
       <ScrollManager />
+      <MetrikaTracker />
       <Suspense
         fallback={
           <div className="flex min-h-screen items-center justify-center bg-paper pt-20">
