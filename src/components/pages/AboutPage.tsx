@@ -12,7 +12,6 @@ import {
 import { LeadForm } from "@/components/LeadForm";
 import { Flag } from "@/components/icons/Flag";
 import { Team } from "@/components/sections/Team";
-import { Advantages } from "@/components/sections/Advantages";
 import { HowItWorks } from "@/components/sections/HowItWorks";
 import { Faq } from "@/components/sections/Faq";
 import { Reveal } from "@/components/ui/Reveal";
@@ -121,10 +120,6 @@ export function AboutPage() {
           ))}
         </div>
       </section>
-
-
-      {/* Преимущества (доска с преимуществами) */}
-      <Advantages />
 
       {/* Как это работает */}
       <HowItWorks />
