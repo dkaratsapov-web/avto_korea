@@ -326,7 +326,7 @@ export function ReviewsPage() {
               className="h-[560px] w-full rounded-[14px] border border-line"
             />
             <a
-              href={`https://yandex.ru/maps/org/${site.yandexOrgId}/reviews/`}
+              href={site.yandexReviewsHref}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-3 inline-block text-[13.5px] font-bold text-bordeaux hover:underline"
