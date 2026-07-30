@@ -10,7 +10,14 @@ const DEFAULT_WORKER = "https://diauto-bot.d-karatsapov.workers.dev";
 const LEAD =
   (import.meta.env.VITE_LEAD_ENDPOINT as string | undefined) ||
   `${DEFAULT_WORKER}/lead`;
-export const API_BASE = LEAD.replace(/\/lead\/?$/, "");
+
+// Заявки могут приниматься своим обработчиком на хостинге в РФ (относительный
+// адрес вида /api/lead.php), поэтому база API выводится из VITE_LEAD_ENDPOINT
+// только когда это действительно URL воркера. Иначе — явная переменная или
+// публичный воркер по умолчанию.
+export const API_BASE =
+  (import.meta.env.VITE_API_BASE as string | undefined) ||
+  (/^https?:\/\//.test(LEAD) ? LEAD.replace(/\/lead\/?$/, "") : DEFAULT_WORKER);
 export const hasBackend = !!API_BASE;
 
 export type BotSettings = {

@@ -33,6 +33,9 @@ const ArticlePage = lazy(() =>
     default: m.ArticlePage,
   })),
 );
+const CarPage = lazy(() =>
+  import("@/components/pages/CarPage").then((m) => ({ default: m.CarPage })),
+);
 const NewsPage = lazy(() =>
   import("@/components/pages/NewsPage").then((m) => ({ default: m.NewsPage })),
 );
@@ -103,6 +106,7 @@ export function App() {
           <Route element={<SiteLayout />}>
             <Route path="/" element={<Landing />} />
             <Route path="/catalog" element={<CatalogPage />} />
+            <Route path="/catalog/:slug" element={<CarPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/reviews" element={<ReviewsPage />} />
             <Route path="/contacts" element={<ContactsPage />} />

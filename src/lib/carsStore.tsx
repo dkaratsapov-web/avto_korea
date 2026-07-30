@@ -12,6 +12,13 @@ import { fetchSharedCatalog } from "@/lib/api";
 
 const KEY = "diauto:cars";
 
+/** Каталог, переданный пререндером в разметку страницы. */
+function bootstrapCars(): Car[] | null {
+  if (typeof window === "undefined") return null;
+  const boot = (window as unknown as { __CATALOG__?: Car[] }).__CATALOG__;
+  return Array.isArray(boot) && boot.length ? boot : null;
+}
+
 function load(): Car[] {
   if (typeof window === "undefined") return defaultCars;
   try {
@@ -33,8 +40,18 @@ type CarsContextValue = {
 
 const CarsContext = createContext<CarsContextValue | null>(null);
 
-export function CarsProvider({ children }: { children: ReactNode }) {
-  const [cars, setCars] = useState<Car[]>(load);
+export function CarsProvider({
+  children,
+  initialCars,
+}: {
+  children: ReactNode;
+  /** Каталог, вшитый в страницу при пререндере — чтобы в готовом HTML были
+      реальные авто, а не демо-набор, и чтобы при загрузке не было мигания. */
+  initialCars?: Car[];
+}) {
+  const [cars, setCars] = useState<Car[]>(
+    () => initialCars ?? bootstrapCars() ?? load(),
+  );
   const [isCustom, setIsCustom] = useState(
     () => typeof window !== "undefined" && !!window.localStorage.getItem(KEY),
   );

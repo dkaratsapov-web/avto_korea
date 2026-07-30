@@ -9,6 +9,8 @@ import {
 import { Flag } from "@/components/icons/Flag";
 import { CarSilhouette } from "@/components/icons/CarSilhouette";
 import { type Car, formatPrice } from "@/data/cars";
+import { Link } from "react-router-dom";
+import { carPath } from "@/lib/slug";
 import { countries } from "@/lib/site";
 import { useUI } from "@/lib/ui";
 
@@ -38,7 +40,7 @@ function CarImage({ car }: { car: Car }) {
 
 export function CarCard({ car }: { car: Car }) {
   const country = countries[car.country];
-  const { isFav, toggleFav, openCar, isCompare, toggleCompare } = useUI();
+  const { isFav, toggleFav, isCompare, toggleCompare } = useUI();
   const fav = isFav(car.id);
   const cmp = isCompare(car.id);
 
@@ -48,9 +50,16 @@ export function CarCard({ car }: { car: Car }) {
 
   return (
     <article
-      onClick={() => openCar(car.id)}
-      className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[20px] border border-black/[0.06] bg-white shadow-[0_2px_12px_-6px_rgba(20,25,32,0.22)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_54px_-26px_rgba(20,25,32,0.55)]"
+      className="group relative flex h-full flex-col overflow-hidden rounded-[20px] border border-black/[0.06] bg-white shadow-[0_2px_12px_-6px_rgba(20,25,32,0.22)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_54px_-26px_rgba(20,25,32,0.55)]"
     >
+      {/* Ссылка на страницу авто растянута на всю карточку: у каждой машины
+          свой адрес, и робот видит обычный <a href>. Кнопки поверх неё. */}
+      <Link
+        to={carPath(car)}
+        className="absolute inset-0 z-10"
+        aria-label={`${car.model} ${car.year} — подробнее`}
+      />
+
       {/* верхняя акцент-линия при наведении */}
       <span className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[3px] scale-x-0 bg-gradient-to-r from-bordeaux-deep via-bordeaux-bright to-chrome transition-transform duration-500 group-hover:scale-x-100" />
 
@@ -63,7 +72,7 @@ export function CarCard({ car }: { car: Car }) {
           {country.label}
         </span>
 
-        <div className="absolute right-3 top-3 flex items-center gap-2">
+        <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
           <button
             type="button"
             aria-label={cmp ? "Убрать из сравнения" : "Добавить к сравнению"}
