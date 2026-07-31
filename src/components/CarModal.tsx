@@ -247,6 +247,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
               layout="compact"
               tone="dark"
               withCar={false}
+              carValue={`${car.model} ${car.year}${car.trim ? ` · ${car.trim}` : ""}`}
               source={`Каталог — ${car.model}`}
               submitLabel="Запросить"
               className="lg:flex-none"

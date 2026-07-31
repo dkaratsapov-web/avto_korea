@@ -52,6 +52,8 @@ export type LeadFormProps = {
   defaultCountry?: keyof typeof countries;
   /** Показывать поле «Марка и модель» в compact-форме (на карточке авто не нужно). */
   withCar?: boolean;
+  /** Готовое значение авто — уходит в заявку скрытым полем (форма на карточке). */
+  carValue?: string;
   /** Показывать быстрые кнопки-мессенджеры (MAX / Telegram). */
   withContacts?: boolean;
   /** Форма без собственной рамки/подложки и на всю ширину (когда уже внутри карточки). */
@@ -66,6 +68,7 @@ export function LeadForm({
   className = "",
   defaultCountry,
   withCar = true,
+  carValue,
   withContacts = false,
   bare = false,
 }: LeadFormProps) {
@@ -158,6 +161,8 @@ export function LeadForm({
               : "max-w-[560px] rounded-card border border-line-dark bg-white/[0.04] p-4"
           }`}
         >
+          {/* Авто, по которому просят расчёт: менеджер сразу видит модель. */}
+          {carValue ? <input type="hidden" name="car" value={carValue} /> : null}
           <input
             type="text"
             name="name"
