@@ -260,6 +260,8 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
 }
 
 function Spec({ icon, text }: { icon: React.ReactNode; text: string }) {
+  // Пустое значение не выводим: оставалась иконка без подписи.
+  if (!text) return null;
   return (
     <div className="flex items-center gap-2.5 text-[14px] font-semibold text-[#C7CFD6]">
       <span className="flex-none text-steel [&>svg]:h-[18px] [&>svg]:w-[18px]">

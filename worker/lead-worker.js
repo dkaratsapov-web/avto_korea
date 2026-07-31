@@ -1134,13 +1134,20 @@ function parseCaption(text) {
     [/фиолет|пурпур|purple/i, "Фиолетовый"],
     [/розов|pink/i, "Розовый"],
   ];
+  // Цвет берём ТОЛЬКО из строки с меткой «Цвет: …». Поиск по всему тексту
+  // ошибался: «белый салон», «белые диски» или белый цвет в соседней фразе
+  // приводили к неверному цвету кузова.
   let color = "";
-  for (const [re, label] of COLORS) {
-    if (re.test(bodyRaw)) { color = label; break; }
-  }
-  if (!color) {
-    const colorM = bodyRaw.match(/цвет[а-яё]*\s*[:：—-]?\s*([а-яё][а-яё\s-]{2,29})/i);
-    if (colorM) color = cleanLine(colorM[1]).slice(0, 40);
+  const colorLine = body.find((l) => /^\s*цвет|^\s*color\b/i.test(l));
+  if (colorLine) {
+    const rest = colorLine.replace(/^[^:：—-]*[:：—-]\s*/, "").trim();
+    const src = rest || colorLine;
+    for (const [re, label] of COLORS) {
+      if (re.test(src)) { color = label; break; }
+    }
+    if (!color && rest && /^[а-яёa-z][а-яёa-z\s-]{2,29}$/i.test(rest)) {
+      color = cleanLine(rest).slice(0, 40);
+    }
   }
 
   // Страна — по всему тексту (в т.ч. подпись «из Китая»), иначе по марке.
