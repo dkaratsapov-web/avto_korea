@@ -79,7 +79,12 @@ function leadText(d) {
   if (d.budget) lines.push(`💰 Бюджет: ${d.budget}`);
   if (d.link) lines.push(`🔗 Ссылка: ${d.link}`);
   if (d.comment) lines.push(`📝 Комментарий: ${d.comment}`);
-  lines.push("", `📍 Источник: ${d.source || "сайт"}`);
+  // В сообщении показываем только откуда пришла заявка — сайт или бот.
+  // Подробный источник (какая форма) остаётся в d.source и учитывается в
+  // статистике, но менеджеру в чате он не нужен.
+  const fromBot =
+    !!d.tgUserId || /мини-?апп|mini\s*app|бот|bot/i.test(String(d.source || ""));
+  lines.push("", `📍 Источник: ${fromBot ? "Бот" : "Сайт"}`);
   return lines.join("\n");
 }
 
