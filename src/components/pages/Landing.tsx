@@ -35,9 +35,16 @@ function HomeCatalog() {
     <section id="catalog" className="scroll-mt-24 bg-paper py-12">
       <div className="wrap">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-[clamp(19px,2vw,26px)] font-extrabold uppercase leading-none text-ink">
-            Каталог автомобилей
-          </h2>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 className="text-[clamp(19px,2vw,26px)] font-extrabold uppercase leading-none text-ink">
+              Каталог автомобилей
+            </h2>
+            {cars.length ? (
+              <span className="rounded-full border border-line bg-white px-3 py-1 font-num text-[13px] font-bold text-ink-2">
+                {cars.length} авто в наличии
+              </span>
+            ) : null}
+          </div>
           <Link
             to="/catalog"
             className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-white px-4 py-2 text-[13.5px] font-bold text-bordeaux transition-colors hover:border-bordeaux/30 hover:text-bordeaux-bright"

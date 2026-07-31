@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ChevronLeft,
@@ -52,40 +52,46 @@ const cases: Case[] = [
 // Горизонтальная лента: стрелки + перетаскивание мышью (на десктопе колесо
 // само по себе ленту не листает, поэтому нужны явные элементы управления).
 function useDragScroll() {
-  const ref = useRef<HTMLDivElement>(null);
+  // Лента появляется только после загрузки отзывов, поэтому ссылку держим
+  // в состоянии: обычный ref остался бы пустым, и обработчики вешать было
+  // бы не на что.
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
+  const ref = useCallback((node: HTMLDivElement | null) => setEl(node), []);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
 
-  const sync = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    setAtStart(el.scrollLeft <= 2);
-    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 2);
-  }, []);
-
   useEffect(() => {
-    const el = ref.current;
     if (!el) return;
+    const sync = () => {
+      setAtStart(el.scrollLeft <= 2);
+      setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 2);
+    };
     sync();
     el.addEventListener("scroll", sync, { passive: true });
     window.addEventListener("resize", sync);
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
     return () => {
       el.removeEventListener("scroll", sync);
       window.removeEventListener("resize", sync);
+      ro.disconnect();
     };
-  }, [sync]);
+  }, [el]);
 
-  const scrollByCard = useCallback((dir: 1 | -1) => {
-    const el = ref.current;
-    if (!el) return;
-    const card = el.querySelector("article");
-    const step = card ? card.getBoundingClientRect().width + 20 : el.clientWidth * 0.8;
-    el.scrollBy({ left: dir * step, behavior: "smooth" });
-  }, []);
+  const scrollByCard = useCallback(
+    (dir: 1 | -1) => {
+      if (!el) return;
+      const card = el.querySelector("article");
+      const step = card
+        ? card.getBoundingClientRect().width + 20
+        : el.clientWidth * 0.8;
+      el.scrollBy({ left: dir * step, behavior: "smooth" });
+    },
+    [el],
+  );
 
   // Перетаскивание мышью. Тач не трогаем — там работает нативный скролл.
   useEffect(() => {
-    const el = ref.current;
     if (!el) return;
     let startX = 0;
     let startScroll = 0;
@@ -94,16 +100,18 @@ function useDragScroll() {
 
     const down = (e: PointerEvent) => {
       if (e.pointerType !== "mouse" || e.button !== 0) return;
-      // Не мешаем управлению плеером внутри карточки.
+      // Не мешаем управлению плеером и кнопками внутри карточки.
       if ((e.target as HTMLElement).closest("video, button, a")) return;
-      // Без preventDefault браузер начинает выделять текст, и указатель
-      // перестаёт доходить до обработчика — лента не двигалась.
+      // Без preventDefault браузер начинает выделять текст и тащить картинку.
       e.preventDefault();
       dragging = true;
       pointerId = e.pointerId;
       startX = e.clientX;
       startScroll = el.scrollLeft;
       el.setPointerCapture(e.pointerId);
+      // Привязка к карточкам возвращала ленту к ближайшей точке на каждом
+      // шаге — на время перетаскивания отключаем.
+      el.style.scrollSnapType = "none";
       el.classList.add("cursor-grabbing", "select-none");
     };
     const move = (e: PointerEvent) => {
@@ -115,6 +123,7 @@ function useDragScroll() {
       if (!dragging) return;
       dragging = false;
       if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+      el.style.scrollSnapType = "";
       el.classList.remove("cursor-grabbing", "select-none");
     };
 
@@ -128,12 +137,43 @@ function useDragScroll() {
       el.removeEventListener("pointerup", up);
       el.removeEventListener("pointercancel", up);
     };
-  }, []);
+  }, [el]);
 
   return { ref, atStart, atEnd, scrollByCard };
 }
 
 type Slide = { type: "video" | "image"; src: string };
+
+/**
+ * Заголовок карточки — какое авто выдано. Тексты приходят из Telegram и
+ * содержат служебные строки («Клиент: …», «Пришёл по ссылке», приглашение
+ * написать менеджеру) — в витрине они лишние, нужна только модель.
+ */
+function deliveredTitle(text?: string): string {
+  const lines = (text || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  // Явное «Выдача BMW X4» — берём то, что после слова.
+  for (const l of lines) {
+    const m = l.match(/выдач[аи]\s*[:—-]?\s*(.+)$/i);
+    if (m) {
+      const model = m[1].replace(/[«»"']/g, "").trim();
+      if (model && model.length <= 60) return model;
+    }
+  }
+
+  // Иначе — первая строка без служебных пометок и контактов.
+  const junk =
+    /клиент\s*[:—-]|пришел|пришёл|по\s*ссылке|хотите\s*такой|напишите|подбер[её]м|@[a-z0-9_]/i;
+  const first = lines.find((l) => !junk.test(l));
+  if (first) {
+    const clean = first.replace(/\s+/g, " ").trim();
+    return clean.length > 80 ? clean.slice(0, 77) + "…" : clean;
+  }
+  return "Автомобиль выдан клиенту";
+}
 
 /** Все медиа отзыва одним списком: видео вперёд, затем фото. */
 function slidesOf(r: ApiReview): Slide[] {
@@ -212,14 +252,14 @@ function ReviewCard({ review }: { review: ApiReview }) {
         </div>
       ) : null}
 
-      {review.text ? (
-        <div className="flex flex-1 flex-col p-5">
-          <Quote className="mb-2 h-5 w-5 text-chrome" />
-          <p className="whitespace-pre-line text-[14.5px] leading-relaxed text-ink">
-            {review.text}
-          </p>
+      <div className="flex flex-1 flex-col justify-center p-5">
+        <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-2">
+          Выдача
         </div>
-      ) : null}
+        <div className="mt-1 text-[17px] font-extrabold leading-tight text-ink">
+          {deliveredTitle(review.text)}
+        </div>
+      </div>
     </article>
   );
 }
@@ -373,18 +413,20 @@ export function ReviewsPage() {
               <button
                 type="button"
                 onClick={() => rail.scrollByCard(-1)}
-                disabled={rail.atStart}
                 aria-label="Предыдущие отзывы"
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-ink transition-all hover:border-ink/30 hover:bg-paper disabled:pointer-events-none disabled:opacity-30"
+                className={`flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-ink transition-all hover:border-ink/30 hover:bg-paper ${
+                  rail.atStart ? "opacity-40" : ""
+                }`}
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
               <button
                 type="button"
                 onClick={() => rail.scrollByCard(1)}
-                disabled={rail.atEnd}
                 aria-label="Следующие отзывы"
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-ink transition-all hover:border-ink/30 hover:bg-paper disabled:pointer-events-none disabled:opacity-30"
+                className={`flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-ink transition-all hover:border-ink/30 hover:bg-paper ${
+                  rail.atEnd ? "opacity-40" : ""
+                }`}
               >
                 <ChevronRight className="h-5 w-5" />
               </button>

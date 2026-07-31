@@ -1475,6 +1475,26 @@ export function SubscribeView({
 }
 
 /* ---------- Отзывы ---------- */
+/** Заголовок карточки — какое авто выдано (служебные строки поста убираем). */
+function deliveredTitle(text?: string): string {
+  const lines = (text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  for (const l of lines) {
+    const m = l.match(/выдач[аи]\s*[:—-]?\s*(.+)$/i);
+    if (m) {
+      const model = m[1].replace(/[«»"']/g, "").trim();
+      if (model && model.length <= 60) return model;
+    }
+  }
+  const junk =
+    /клиент\s*[:—-]|пришел|пришёл|по\s*ссылке|хотите\s*такой|напишите|подбер[её]м|@[a-z0-9_]/i;
+  const first = lines.find((l) => !junk.test(l));
+  if (first) {
+    const clean = first.replace(/\s+/g, " ").trim();
+    return clean.length > 70 ? clean.slice(0, 67) + "…" : clean;
+  }
+  return "Автомобиль выдан клиенту";
+}
+
 /** Медиа отзыва одним списком: видео вперёд, затем фото. */
 function reviewSlides(r: Review): { type: "video" | "image"; src: string }[] {
   const videos = r.videos?.length ? r.videos : r.video ? [r.video] : [];
@@ -1544,11 +1564,14 @@ function ReviewItem({ review }: { review: Review }) {
         </div>
       ) : null}
 
-      {review.text ? (
-        <p className="whitespace-pre-line p-4 text-[13.5px] leading-relaxed text-[#C7CFD6]">
-          {review.text}
-        </p>
-      ) : null}
+      <div className="p-4">
+        <div className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#8C97A1]">
+          Выдача
+        </div>
+        <div className="mt-0.5 text-[15px] font-extrabold leading-tight text-white">
+          {deliveredTitle(review.text)}
+        </div>
+      </div>
     </div>
   );
 }
