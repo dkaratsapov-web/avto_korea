@@ -104,12 +104,12 @@ export function CatalogBrowser() {
     const powers = cars.map((c) => c.powerHp ?? 0).filter(Boolean);
     return {
       countries: Array.from(new Set(cars.map((c) => c.country))),
-      brands: Array.from(new Set(cars.map((c) => brandOf(c.model)))).sort(),
+      brands: Array.from(new Set(cars.map((c) => brandOf(c.model)).filter(Boolean))).sort(),
       bodies: Array.from(new Set(cars.map((c) => c.bodyType).filter(Boolean) as string[])).sort(),
       fuels: Array.from(new Set(cars.map((c) => c.fuelType).filter(Boolean) as string[])).sort(),
       colors: Array.from(new Set(cars.map((c) => c.color).filter(Boolean) as string[])).sort(),
-      drives: Array.from(new Set(cars.map((c) => c.drive))),
-      gear: Array.from(new Set(cars.map((c) => c.gearbox))),
+      drives: Array.from(new Set(cars.map((c) => c.drive).filter(Boolean))).sort(),
+      gear: Array.from(new Set(cars.map((c) => c.gearbox).filter(Boolean))).sort(),
       statuses: Array.from(new Set(cars.map((c) => c.status))),
       min: prices.length ? Math.min(...prices) : 0,
       max: prices.length ? Math.max(...prices) : 0,
