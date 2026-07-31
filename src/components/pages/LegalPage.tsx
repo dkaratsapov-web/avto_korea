@@ -78,7 +78,7 @@ export function PrivacyPolicyPage() {
         <strong>{operator}</strong><br />
         ИНН {site.requisites.inn}, ОГРНИП {site.requisites.ogrnip}.<br />
         Адрес для связи: {site.addressFull}.<br />
-        E-mail: {site.email}. Телефон: {site.phone}.
+        Телефон: {site.phone}.
       </p>
 
       <h2>2. Какие данные обрабатываются</h2>
@@ -136,9 +136,11 @@ export function PrivacyPolicyPage() {
         <li>отозвать согласие на обработку персональных данных.</li>
       </ul>
       <p>
-        Для реализации прав, а также для отзыва согласия направьте обращение на
-        e-mail: <strong>{site.email}</strong>. Согласие считается отозванным
-        после получения Оператором соответствующего заявления.
+        Для реализации прав, а также для отзыва согласия направьте письменное
+        обращение по адресу: <strong>{site.requisites.legalAddress}</strong> —
+        либо сообщите об этом по телефону <strong>{site.phone}</strong>.
+        Согласие считается отозванным после получения Оператором
+        соответствующего заявления.
       </p>
 
       <h2>8. Файлы cookie</h2>
@@ -208,8 +210,8 @@ export function ConsentPage() {
       <p>
         Согласие действует с момента отправки формы и до достижения целей
         обработки либо до его отзыва. Субъект вправе отозвать согласие в любой
-        момент, направив заявление на e-mail{" "}
-        <strong>{site.email}</strong>.
+        момент, направив письменное заявление по адресу{" "}
+        <strong>{site.requisites.legalAddress}</strong>.
       </p>
 
       <p className="pt-2">

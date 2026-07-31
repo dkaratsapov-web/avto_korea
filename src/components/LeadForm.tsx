@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ArrowRight, Loader2, Paperclip } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
-import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { MaxIcon } from "@/components/icons/MaxIcon";
 import { Button } from "@/components/ui/Button";
 import { showToast } from "@/lib/toast";
@@ -53,7 +52,7 @@ export type LeadFormProps = {
   defaultCountry?: keyof typeof countries;
   /** Показывать поле «Марка и модель» в compact-форме (на карточке авто не нужно). */
   withCar?: boolean;
-  /** Показывать быстрые кнопки-мессенджеры (MAX / Telegram / WhatsApp). */
+  /** Показывать быстрые кнопки-мессенджеры (MAX / Telegram). */
   withContacts?: boolean;
   /** Форма без собственной рамки/подложки и на всю ширину (когда уже внутри карточки). */
   bare?: boolean;
@@ -221,16 +220,6 @@ export function LeadForm({
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-dark bg-white/[0.05] transition-colors hover:border-steel hover:bg-white/[0.1]"
               >
                 <TelegramIcon className="h-[22px] w-[22px]" />
-              </a>
-              <a
-                href={site.whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Написать в WhatsApp"
-                title="WhatsApp"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-dark bg-white/[0.05] transition-colors hover:border-steel hover:bg-white/[0.1]"
-              >
-                <WhatsAppIcon className="h-[22px] w-[22px]" />
               </a>
             </div>
           ) : null}

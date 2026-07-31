@@ -1,4 +1,4 @@
-import { Phone, MessageCircle, Mail, MapPin } from "lucide-react";
+import { Phone, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Logo } from "@/components/ui/Logo";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
@@ -73,22 +73,8 @@ export function Footer() {
               </a>
             </li>
             <li>
-              <a
-                href={site.whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 transition-colors hover:text-white"
-              >
-                <MessageCircle className="h-4 w-4 text-steel" /> WhatsApp
-              </a>
             </li>
             <li>
-              <a
-                href={site.emailHref}
-                className="flex items-center gap-2 transition-colors hover:text-white"
-              >
-                <Mail className="h-4 w-4 text-steel" /> {site.email}
-              </a>
             </li>
           </ul>
         </div>

@@ -56,11 +56,6 @@ export const site = {
   // Мессенджер MAX. TODO: подставить реальную ссылку профиля/канала MAX.
   maxHref: "https://max.ru/",
 
-  // TODO: подтвердить наличие WhatsApp и e-mail.
-  whatsappHref: "https://wa.me/74822006969",
-  email: "info@diauto69.ru",
-  emailHref: "mailto:info@diauto69.ru",
-
   // TODO: уточнить юридический адрес / реквизиты для футера.
   region: "Тверь · 69 регион",
   address: "ул. Коминтерна, 71",

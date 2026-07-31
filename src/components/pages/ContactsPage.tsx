@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, Phone, MessageCircle, Mail, MapPin, Clock } from "lucide-react";
+import { ChevronRight, Phone, MapPin, Clock } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { LeadForm } from "@/components/LeadForm";
 import { Office } from "@/components/sections/Office";
@@ -24,14 +24,12 @@ function useMeta(title: string, description: string) {
 export function ContactsPage() {
   useMeta(
     "Контакты ДиАвто69 — импорт авто под ключ в Твери",
-    "Свяжитесь с ДиАвто69: телефон, Telegram, WhatsApp, e-mail. Импорт авто из Кореи, Китая, Японии и ЕС под ключ. Тверь, 69 регион.",
+    "Свяжитесь с ДиАвто69: телефон и Telegram. Импорт авто из Кореи, Китая, Японии и ЕС под ключ. Тверь, 69 регион.",
   );
 
   const contacts = [
     { icon: <Phone className="h-5 w-5" />, label: "Телефон", value: site.phone, href: site.phoneHref },
     { icon: <TelegramIcon className="h-5 w-5" />, label: "Telegram", value: site.telegram, href: site.telegramHref, ext: true },
-    { icon: <MessageCircle className="h-5 w-5 text-[#25D366]" />, label: "WhatsApp", value: "Написать в WhatsApp", href: site.whatsappHref, ext: true },
-    { icon: <Mail className="h-5 w-5" />, label: "E-mail", value: site.email, href: site.emailHref },
   ];
 
   return (

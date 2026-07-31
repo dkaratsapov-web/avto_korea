@@ -6,7 +6,6 @@ import {
   BookOpen,
   MapPin,
   Phone,
-  MessageCircle,
   ArrowRight,
   Heart,
   Car,
@@ -264,15 +263,6 @@ export function Header() {
                   className="flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome hover:text-white"
                 >
                   <TelegramIcon className="h-5 w-5" />
-                </a>
-                <a
-                  href={site.whatsappHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="WhatsApp"
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome hover:text-white"
-                >
-                  <MessageCircle className="h-5 w-5" />
                 </a>
               </div>
             </div>

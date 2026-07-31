@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, Sparkles, Check, Send } from "lucide-react";
-import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { Modal } from "@/components/ui/Modal";
 import { LeadForm } from "@/components/LeadForm";
 import { CarSilhouette } from "@/components/icons/CarSilhouette";
@@ -172,7 +171,6 @@ function QuizModal({ onClose }: { onClose: () => void }) {
 
   const text = messengerText(answers, picked);
   const tgHref = `${site.telegramHref}?text=${encodeURIComponent(text)}`;
-  const waHref = `${site.whatsappHref}?text=${encodeURIComponent(text)}`;
 
   return (
     <Modal onClose={onClose} label="Подбор автомобиля" className="max-w-lg">
@@ -244,7 +242,7 @@ function QuizModal({ onClose }: { onClose: () => void }) {
               </div>
             ) : null}
 
-            <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
+            <div className="mt-5 grid gap-2.5">
               <a
                 href={tgHref}
                 target="_blank"
@@ -252,14 +250,6 @@ function QuizModal({ onClose }: { onClose: () => void }) {
                 className="btn btn-primary"
               >
                 <Send className="h-[18px] w-[18px]" /> Подборку в Telegram
-              </a>
-              <a
-                href={waHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn border border-line-dark text-white hover:bg-white/[0.06]"
-              >
-                <WhatsAppIcon className="h-[18px] w-[18px]" /> В WhatsApp
               </a>
             </div>
 
