@@ -255,8 +255,8 @@ export function TmaApp() {
       ) : null}
       <div className="min-h-screen bg-graphite text-white">
       <div className="mx-auto max-w-md px-4 pb-28">
-        {/* Шапка — тёмная в стиле бота; лого в белом чипе для читаемости */}
-        <div className="sticky top-0 z-40 -mx-4 mb-4 flex items-center justify-between border-b border-line-dark/70 bg-graphite/95 px-4 py-2.5 backdrop-blur">
+        {/* Шапка — тёмная в стиле бота; лого как на сайте */}
+        <div className="sticky top-0 z-40 -mx-4 mb-4 flex items-center justify-between gap-2 border-b border-line-dark/70 bg-graphite/95 px-4 py-2.5 backdrop-blur">
           <button
             type="button"
             onClick={() => {
@@ -264,7 +264,7 @@ export function TmaApp() {
               setView({ name: "home" });
             }}
             aria-label="ДиАвто69 — на главную"
-            className="flex items-center"
+            className="flex min-w-0 flex-1 items-center"
           >
             {/* Как на сайте: только надпись с белой окантовкой, без подложки. */}
             <picture>
@@ -272,12 +272,12 @@ export function TmaApp() {
               <img
                 src="/logo-wordmark.png"
                 alt="ДиАвто69"
-                className="logo-outline block h-7 w-auto"
+                className="logo-outline block h-6 w-auto max-w-full object-contain"
                 decoding="async"
               />
             </picture>
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-none items-center gap-2">
           {admin ? (
             <button
               type="button"
