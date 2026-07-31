@@ -1331,6 +1331,22 @@ function BotTab({
       </div>
 
       <label>
+        <span className={lab}>Chat id чата для заявок</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.leadChatId ?? ""}
+          onChange={(e) => set("leadChatId", e.target.value)}
+          placeholder="-100…"
+        />
+        <span className="mt-1 block text-[11px] leading-snug text-[#8C97A1]">
+          Куда приходят заявки с сайта и из бота. Добавьте бота в чат и
+          отправьте там команду /id — он ответит идентификатором. Если поле
+          пустое, заявки идут в чат из настроек Cloudflare.
+        </span>
+      </label>
+
+      <label>
         <span className={lab}>Chat id канала отзывов</span>
         <input
           disabled={!canEdit}

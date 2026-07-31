@@ -35,6 +35,7 @@ export type BotSettings = {
   mapUrl: string;
   miniAppUrl?: string;
   autoPublish?: boolean;
+  leadChatId?: string;
   reviewsChatId?: string;
   newsChatId?: string;
 };

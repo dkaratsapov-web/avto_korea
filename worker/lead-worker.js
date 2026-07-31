@@ -48,6 +48,9 @@ const DEFAULT_SETTINGS = {
   reviewsChatId: "",
   // Chat id канала новостей: посты оттуда идут в раздел «Новости».
   newsChatId: "",
+  // Chat id чата, куда падают заявки с сайта и из бота. Если пусто —
+  // используется TELEGRAM_CHAT_ID из переменных Cloudflare.
+  leadChatId: "",
 };
 
 /* ---------- Telegram API ---------- */
@@ -487,6 +490,22 @@ export default {
         }
       }
 
+      // /id — узнать идентификатор текущего чата. Работает и в группах:
+      // именно этот номер вписывается в админке как чат для заявок.
+      // В группах с включённым режимом приватности Telegram отдаёт боту
+      // только команды с упоминанием, поэтому принимаем и «/id@BotName».
+      if (msg && typeof msg.text === "string" && /^\/id(@\w+)?\b/.test(msg.text.trim())) {
+        await api(env, "sendMessage", {
+          chat_id: msg.chat.id,
+          text:
+            `Идентификатор чата: \`${msg.chat.id}\`\n` +
+            `Тип: ${msg.chat.type}` +
+            (msg.chat.title ? `\nНазвание: ${msg.chat.title}` : ""),
+          parse_mode: "Markdown",
+        });
+        return new Response("ok");
+      }
+
       // Приветствие с каталогом — ТОЛЬКО в личке с ботом. В группах/каналах
       // бот на сообщения не отвечает (иначе спамит чат участникам).
       if (
@@ -542,13 +561,14 @@ export default {
         return json({ ok: false, error: "phone_required" }, 422);
       await storeLead(env, d);
       const caption = leadText(d);
+      const target = await leadChat(env);
       let ok;
       if (d.photo) {
-        const r = await sendPhotoDataUrl(env, env.TELEGRAM_CHAT_ID, d.photo, caption);
+        const r = await sendPhotoDataUrl(env, target, d.photo, caption);
         ok = r.ok;
         if (!ok) {
           const r2 = await api(env, "sendMessage", {
-            chat_id: env.TELEGRAM_CHAT_ID,
+            chat_id: target,
             text: caption,
             parse_mode: "Markdown",
           });
@@ -556,7 +576,7 @@ export default {
         }
       } else {
         const r = await api(env, "sendMessage", {
-          chat_id: env.TELEGRAM_CHAT_ID,
+          chat_id: target,
           text: caption,
           parse_mode: "Markdown",
         });
@@ -898,6 +918,12 @@ export default {
     return new Response("DiAvto69 worker is running", { headers: cors });
   },
 };
+
+/** Куда отправлять заявки: настройка из админки, иначе переменная окружения. */
+async function leadChat(env) {
+  const st = await getSettings(env);
+  return String(st.leadChatId || "").trim() || env.TELEGRAM_CHAT_ID;
+}
 
 /* ---------- Заявки в KV (последние 50) ---------- */
 async function storeLead(env, d) {
@@ -1440,6 +1466,7 @@ async function handleAdmin(env, action, payload, perm, user) {
         "miniAppUrl",
         "reviewsChatId",
         "newsChatId",
+        "leadChatId",
       ];
       const next = { ...cur };
       for (const k of allowed)
