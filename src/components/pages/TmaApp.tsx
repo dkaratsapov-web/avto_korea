@@ -264,14 +264,15 @@ export function TmaApp() {
               setView({ name: "home" });
             }}
             aria-label="ДиАвто69 — на главную"
-            className="flex items-center rounded-full bg-white px-3 py-1.5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.5)]"
+            className="flex items-center"
           >
+            {/* Как на сайте: только надпись с белой окантовкой, без подложки. */}
             <picture>
-              <source srcSet="/logo.webp" type="image/webp" />
+              <source srcSet="/logo-wordmark.webp" type="image/webp" />
               <img
-                src="/logo.png"
+                src="/logo-wordmark.png"
                 alt="ДиАвто69"
-                className="block h-8 w-auto"
+                className="logo-outline block h-7 w-auto"
                 decoding="async"
               />
             </picture>
