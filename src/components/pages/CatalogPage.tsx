@@ -1,8 +1,34 @@
-import { Link } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { CatalogBrowser } from "@/components/catalog/CatalogBrowser";
+import { useCars } from "@/lib/carsStore";
+import { useUI } from "@/lib/ui";
+
+/**
+ * Адрес вида /catalog?car=<id> открывает карточку конкретного авто. Такие
+ * ссылки нужны товарному фиду Яндекса: у каждого предложения должен быть
+ * свой уникальный адрес.
+ */
+function useCarFromQuery() {
+  const [params] = useSearchParams();
+  const { cars } = useCars();
+  const { openCar } = useUI();
+  const openedFor = useRef<string | null>(null);
+
+  useEffect(() => {
+    const id = params.get("car");
+    if (!id || openedFor.current === id) return;
+    // Ждём, пока каталог подгрузится, иначе открывать нечего.
+    if (!cars.some((c) => c.id === id)) return;
+    openedFor.current = id;
+    openCar(id);
+  }, [params, cars, openCar]);
+}
 
 export function CatalogPage() {
+  useCarFromQuery();
+
   return (
     <main className="bg-paper pb-[96px]">
       {/* Компактная шапка */}
