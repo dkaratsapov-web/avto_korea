@@ -589,7 +589,6 @@ export function CarView({
           car.isNew ? "Новый" : "С пробегом",
           car.bodyType || "",
           car.fuelType || "",
-          car.color ? `Цвет: ${car.color}` : "",
           car.steering ? `${car.steering} руль` : "",
         ]
           .filter(Boolean)
