@@ -14,12 +14,10 @@ import {
 import { Logo } from "@/components/ui/Logo";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { Button } from "@/components/ui/Button";
-import { Magnetic } from "@/components/ui/Magnetic";
 import { nav, site } from "@/lib/site";
 import { useUI } from "@/lib/ui";
 
-const capsule =
-  "glass rounded-full shadow-[0_12px_34px_rgba(0,0,0,.4)] transition-all duration-300";
+const capsule = "glass rounded-full shadow-[0_12px_34px_rgba(0,0,0,.4)]";
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -63,35 +61,32 @@ export function Header() {
   return (
     <header ref={headerRef} className="fixed inset-x-0 top-0 z-50">
       <div
-        className={`mx-auto flex w-full max-w-[1600px] items-center justify-between gap-2 px-3 transition-all sm:gap-3 sm:px-6 duration-300 ${
+        className={`mx-auto flex w-full max-w-[1600px] items-center justify-between gap-2 px-3 sm:gap-3 sm:px-6 ${
           scrolled ? "py-2.5" : "py-3.5"
         }`}
       >
         {/* Логотип — только надпись, с белой окантовкой вместо подложки */}
         <div
-          className={`flex flex-none ${
+          className={`flex flex-none items-center ${
             scrolled ? "h-14" : "h-[60px]"
-          } items-center transition-all duration-300`}
+          }`}
         >
           <Logo
             variant="wordmark"
-            className={`logo-outline w-auto shrink-0 transition-all duration-300 ${
+            className={`logo-outline w-auto shrink-0 ${
               scrolled ? "h-6 sm:h-8" : "h-7 sm:h-9"
             }`}
           />
         </div>
 
-        {/* Каталог — отдельная яркая пульсирующая кнопка */}
-        <Magnetic strength={0.35} className="hidden md:inline-block">
-          <Link
-            to="/catalog"
-            className={`group relative flex ${h} animate-pulse-glow items-center gap-2 overflow-hidden rounded-full bg-gradient-to-b from-bordeaux-bright to-bordeaux px-5 font-extrabold uppercase tracking-[0.02em] text-white shadow-[0_8px_22px_rgba(122,20,16,.5)] transition-transform`}
-          >
-            <Car className="h-[18px] w-[18px]" />
-            Каталог
-            <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/35 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-          </Link>
-        </Magnetic>
+        {/* Каталог — отдельная яркая кнопка (без анимаций) */}
+        <Link
+          to="/catalog"
+          className={`hidden ${h} items-center gap-2 rounded-full bg-gradient-to-b from-bordeaux-bright to-bordeaux px-5 font-extrabold uppercase tracking-[0.02em] text-white shadow-[0_8px_22px_rgba(122,20,16,.5)] md:flex`}
+        >
+          <Car className="h-[18px] w-[18px]" />
+          Каталог
+        </Link>
 
         {/* Капсула: навигация */}
         <nav
@@ -134,15 +129,15 @@ export function Header() {
           />
           <Link
             to="/articles"
-            className="ml-1 flex items-center gap-1.5 rounded-full bg-gradient-to-b from-bordeaux-bright to-bordeaux px-3.5 py-2 text-[14px] font-bold text-white shadow-[0_4px_14px_rgba(122,20,16,.45)] transition-transform hover:scale-[1.04]"
+            className="ml-1 flex items-center gap-1.5 rounded-full bg-gradient-to-b from-bordeaux-bright to-bordeaux px-3.5 py-2 text-[14px] font-bold text-white shadow-[0_4px_14px_rgba(122,20,16,.45)]"
           >
             <BookOpen className="h-4 w-4" /> Статьи
           </Link>
         </nav>
 
-        {/* Капсула: действия — наклон в другую сторону */}
+        {/* Капсула: действия */}
         <div
-          className={`${capsule} flex min-h-[52px] rotate-1 items-center gap-1 px-2 py-1.5 hover:rotate-0`}
+          className={`${capsule} flex min-h-[52px] items-center gap-1 px-2 py-1.5`}
         >
           <div className="hidden flex-col justify-center gap-[5px] px-3 pt-1 lg:flex">
             {site.phones.map((p) => (
@@ -176,16 +171,14 @@ export function Header() {
           </button>
           {/* На мобильном кнопку не показываем: там есть меню и плавающие
               кнопки подбора и Telegram, круглая стрелка только путала. */}
-          <Magnetic strength={0.4} className="max-sm:hidden">
-            <Button
-              variant="primary"
-              onClick={openLead}
-              className="!min-h-0 h-9 rounded-full !px-4 !py-0 text-[14px]"
-            >
-              Рассчитать
-              <ArrowRight className="h-[16px] w-[16px]" />
-            </Button>
-          </Magnetic>
+          <Button
+            variant="primary"
+            onClick={openLead}
+            className="!min-h-0 h-9 rounded-full !px-4 !py-0 text-[14px] max-sm:hidden"
+          >
+            Рассчитать
+            <ArrowRight className="h-[16px] w-[16px]" />
+          </Button>
           <button
             type="button"
             aria-label={open ? "Закрыть меню" : "Открыть меню"}

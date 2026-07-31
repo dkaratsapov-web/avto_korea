@@ -10,8 +10,15 @@ import {
 import { timer } from "d3-timer";
 import { Logo } from "@/components/ui/Logo";
 
-const BEIJING: [number, number] = [116.4, 39.9];
 const MOSCOW: [number, number] = [37.62, 55.75];
+
+// Откуда возим: маршрут рисуется из каждой точки в Москву.
+const ORIGINS: { p: [number, number]; label: string; side: "left" | "right" }[] = [
+  { p: [116.4, 39.9], label: "КИТАЙ", side: "right" },
+  { p: [126.98, 37.57], label: "КОРЕЯ", side: "left" },
+  { p: [139.69, 35.69], label: "ЯПОНИЯ", side: "left" },
+  { p: [55.27, 25.2], label: "ОАЭ", side: "left" },
+];
 // Контур суши лежит локально (public/), грузится с нашего же хоста — без задержек
 // и без зависимости от GitHub (важно для РФ-сетей).
 const LAND_URL = `${import.meta.env.BASE_URL}land-110m.json`;
@@ -206,11 +213,11 @@ export function Preloader({ onDone }: { onDone: () => void }) {
     };
 
     const drawArc = (elapsed: number) => {
-      drawRoute(BEIJING);
+      for (const o of ORIGINS) drawRoute(o.p);
 
       const pulse = 3 + Math.sin(elapsed / 280) * 1.6;
-      // Китай у правого края — подпись рисуем слева от точки, иначе обрежется.
-      drawPoint(BEIJING, "КИТАЙ", pulse, "right");
+      // Точки у правого края подписываем слева, иначе подпись обрежется.
+      for (const o of ORIGINS) drawPoint(o.p, o.label, pulse, o.side);
       drawPoint(MOSCOW, "РОССИЯ", pulse, "right");
     };
 
@@ -304,7 +311,7 @@ export function Preloader({ onDone }: { onDone: () => void }) {
 
       <div className="relative text-center">
         <p className="font-display text-[clamp(18px,3vw,26px)] font-extrabold uppercase tracking-[0.02em] text-shine">
-          Возим из Китая в Россию — под ключ
+          Возим из Кореи, Китая, Японии и ОАЭ — под ключ
         </p>
         <p className="mt-2 text-[13px] font-semibold uppercase tracking-[0.18em] text-steel">
           Готовим витрину…
