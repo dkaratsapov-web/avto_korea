@@ -20,7 +20,6 @@ const capsule = "glass rounded-full shadow-[0_12px_34px_rgba(0,0,0,.4)]";
 
 export function Header() {
   const [open, setOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const { openLead, openFavorites, favCount } = useUI();
   const { pathname } = useLocation();
   // В шапке-капсуле — страницы, кроме тех, что вынесены отдельными кнопками
@@ -30,13 +29,6 @@ export function Header() {
   );
 
   const headerRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   // Реальную высоту шапки отдаём в CSS-переменную, чтобы липкие фильтры
   // каталога парковались точно под ней (шапка меняет высоту).
@@ -55,26 +47,18 @@ export function Header() {
     };
   }, []);
 
-  const h = scrolled ? "h-12" : "h-[52px]";
+  const h = "h-[52px]";
 
   return (
     <header ref={headerRef} className="fixed inset-x-0 top-0 z-50">
       <div
-        className={`mx-auto flex w-full max-w-[1600px] items-center justify-between gap-2 px-3 sm:gap-3 sm:px-6 ${
-          scrolled ? "py-2.5" : "py-3.5"
-        }`}
+        className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-2 px-3 py-3.5 sm:gap-3 sm:px-6"
       >
         {/* Логотип — только надпись, с белой окантовкой вместо подложки */}
-        <div
-          className={`flex flex-none items-center ${
-            scrolled ? "h-14" : "h-[60px]"
-          }`}
-        >
+        <div className="flex h-[60px] flex-none items-center">
           <Logo
             variant="wordmark"
-            className={`logo-outline w-auto shrink-0 ${
-              scrolled ? "h-6 sm:h-8" : "h-7 sm:h-9"
-            }`}
+            className="logo-outline h-7 w-auto shrink-0 sm:h-9"
           />
         </div>
 
