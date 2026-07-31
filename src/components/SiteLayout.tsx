@@ -5,6 +5,7 @@ import { Footer } from "@/components/sections/Footer";
 import { FloatingTelegram } from "@/components/FloatingTelegram";
 import { QuizFab } from "@/components/QuizFab";
 import { CompareTray } from "@/components/CompareTray";
+import { CookieNotice } from "@/components/CookieNotice";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { CursorGlow } from "@/components/ui/CursorGlow";
 import { ModalHost } from "@/components/ModalHost";
@@ -45,6 +46,7 @@ export function SiteLayout() {
       <QuizFab />
       <FloatingTelegram />
       <CompareTray />
+      <CookieNotice />
       <ModalHost />
     </>
   );

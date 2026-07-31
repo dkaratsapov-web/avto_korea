@@ -86,6 +86,13 @@ export function Footer() {
           {site.requisites.name} · ИНН {site.requisites.inn} · ОГРНИП{" "}
           {site.requisites.ogrnip}
         </p>
+        {/* Цены зависят от курса, комплектации и условий поставки, поэтому
+            сайт не должен читаться как публичная оферта (ст. 437 ГК РФ). */}
+        <p className="mt-2 max-w-4xl text-[12px] leading-relaxed text-[#6f7884]">
+          Информация на сайте, включая цены и наличие автомобилей, носит
+          справочный характер и не является публичной офертой (ст. 437 ГК РФ).
+          Итоговая стоимость фиксируется в договоре.
+        </p>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <span>© 2026 ДиАвто69. Импорт авто под ключ.</span>
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[#6f7884]">
