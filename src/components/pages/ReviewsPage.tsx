@@ -90,33 +90,43 @@ function useDragScroll() {
     let startX = 0;
     let startScroll = 0;
     let dragging = false;
+    let pointerId = -1;
 
     const down = (e: PointerEvent) => {
       if (e.pointerType !== "mouse" || e.button !== 0) return;
       // Не мешаем управлению плеером внутри карточки.
-      if ((e.target as HTMLElement).closest("video")) return;
+      if ((e.target as HTMLElement).closest("video, button, a")) return;
+      // Без preventDefault браузер начинает выделять текст, и указатель
+      // перестаёт доходить до обработчика — лента не двигалась.
+      e.preventDefault();
       dragging = true;
+      pointerId = e.pointerId;
       startX = e.clientX;
       startScroll = el.scrollLeft;
+      el.setPointerCapture(e.pointerId);
+      el.classList.add("cursor-grabbing", "select-none");
     };
     const move = (e: PointerEvent) => {
-      if (!dragging) return;
-      const dx = e.clientX - startX;
-      if (Math.abs(dx) > 3) el.classList.add("cursor-grabbing", "select-none");
-      el.scrollLeft = startScroll - dx;
+      if (!dragging || e.pointerId !== pointerId) return;
+      e.preventDefault();
+      el.scrollLeft = startScroll - (e.clientX - startX);
     };
-    const up = () => {
+    const up = (e: PointerEvent) => {
+      if (!dragging) return;
       dragging = false;
+      if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
       el.classList.remove("cursor-grabbing", "select-none");
     };
 
     el.addEventListener("pointerdown", down);
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
     return () => {
       el.removeEventListener("pointerdown", down);
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", up);
     };
   }, []);
 
