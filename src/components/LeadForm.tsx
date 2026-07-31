@@ -178,7 +178,7 @@ export function LeadForm({
             type="tel"
             name="phone"
             inputMode="tel"
-            placeholder="Ваш телефон"
+            placeholder="+7 (___) ___-__-__"
             aria-label="Телефон"
             required
             onInput={maskPhone}

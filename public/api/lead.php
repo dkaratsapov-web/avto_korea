@@ -90,6 +90,7 @@ if (@file_put_contents($file, $line, FILE_APPEND | LOCK_EX) === false) {
 // Уведомление менеджеру. Заявка уже сохранена в РФ, поэтому сбой пересылки
 // не должен приводить к ошибке для посетителя.
 $notified = false;
+$upstream = ['code' => 0, 'body' => '', 'error' => ''];
 if (function_exists('curl_init')) {
     $ch = curl_init(NOTIFY_URL);
     curl_setopt_array($ch, [
@@ -97,10 +98,27 @@ if (function_exists('curl_init')) {
         CURLOPT_POSTFIELDS => $raw,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 8,
+        CURLOPT_TIMEOUT => 15,
     ]);
-    $notified = curl_exec($ch) !== false && curl_getinfo($ch, CURLINFO_RESPONSE_CODE) < 400;
+    $res = curl_exec($ch);
+    $upstream['code'] = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    $upstream['error'] = curl_error($ch);
+    $upstream['body'] = is_string($res) ? mb_substr($res, 0, 300) : '';
     curl_close($ch);
+    $notified = $res !== false && $upstream['code'] < 400;
+} else {
+    $upstream['error'] = 'curl unavailable';
 }
 
-echo json_encode(['ok' => true, 'notified' => $notified], JSON_UNESCAPED_UNICODE);
+// Результат доставки пишем рядом с заявкой: если уведомление не дошло,
+// по этой строке видно, на каком шаге всё встало.
+@file_put_contents(
+    STORE_DIR . '/notify-' . date('Y-m') . '.log',
+    date('c') . ' ' . json_encode(['notified' => $notified] + $upstream, JSON_UNESCAPED_UNICODE) . "\n",
+    FILE_APPEND | LOCK_EX,
+);
+
+echo json_encode(
+    ['ok' => true, 'notified' => $notified, 'upstream' => $upstream],
+    JSON_UNESCAPED_UNICODE,
+);
