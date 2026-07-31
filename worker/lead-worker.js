@@ -67,7 +67,7 @@ function api(env, method, body) {
 
 function leadText(d) {
   const lines = [
-    "🚗 *Новая заявка — ДиАвто69*",
+    "🚗 Новая заявка — ДиАвто69",
     "",
     `👤 Имя: ${d.name || "—"}`,
     `📞 Телефон: ${d.phone || "—"}`,
@@ -168,7 +168,6 @@ async function sendPhotoDataUrl(env, chatId, dataUrl, caption) {
   const fd = new FormData();
   fd.append("chat_id", String(chatId));
   fd.append("caption", caption.slice(0, 1024));
-  fd.append("parse_mode", "Markdown");
   fd.append("photo", new Blob([bytes], { type: m[1] || "image/jpeg" }), "photo.jpg");
   const r = await fetch(
     `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`,
@@ -565,29 +564,13 @@ export default {
       if (String(d.phone || "").replace(/\D/g, "").length < 10)
         return json({ ok: false, error: "phone_required" }, 422);
       await storeLead(env, d);
-      const caption = leadText(d);
-      const target = await leadChat(env);
-      let ok;
-      if (d.photo) {
-        const r = await sendPhotoDataUrl(env, target, d.photo, caption);
-        ok = r.ok;
-        if (!ok) {
-          const r2 = await api(env, "sendMessage", {
-            chat_id: target,
-            text: caption,
-            parse_mode: "Markdown",
-          });
-          ok = r2.ok;
-        }
-      } else {
-        const r = await api(env, "sendMessage", {
-          chat_id: target,
-          text: caption,
-          parse_mode: "Markdown",
-        });
-        ok = r.ok;
-      }
-      return json({ ok }, ok ? 200 : 502);
+      const sent = await sendLead(env, leadText(d), d.photo);
+      // Заявка уже сохранена, поэтому при сбое доставки возвращаем причину —
+      // по ней видно, что не так с чатом.
+      return json(
+        { ok: sent.ok, chatId: sent.chatId, errors: sent.errors },
+        sent.ok ? 200 : 502,
+      );
     }
 
     // --- Публичный общий каталог ---
@@ -924,10 +907,33 @@ export default {
   },
 };
 
-/** Куда отправлять заявки: настройка из админки, иначе переменная окружения. */
-async function leadChat(env) {
+/**
+ * Отправка заявки менеджеру. Сначала в чат из админки, при неудаче — в чат
+ * из переменных Cloudflare: неверно указанный id не должен приводить к
+ * полной потере заявки.
+ */
+async function sendLead(env, caption, photo) {
   const st = await getSettings(env);
-  return String(st.leadChatId || "").trim() || env.TELEGRAM_CHAT_ID;
+  const custom = String(st.leadChatId || "").trim();
+  const targets = [...new Set([custom, env.TELEGRAM_CHAT_ID].filter(Boolean))];
+  const errors = [];
+
+  for (const chatId of targets) {
+    if (photo) {
+      const r = await sendPhotoDataUrl(env, chatId, photo, caption);
+      if (r.ok) return { ok: true, chatId, errors };
+    }
+    const r = await api(env, "sendMessage", { chat_id: chatId, text: caption });
+    let j = null;
+    try {
+      j = await r.json();
+    } catch {
+      /* ответ без json — считаем ошибкой ниже */
+    }
+    if (j?.ok) return { ok: true, chatId, errors };
+    errors.push(`${chatId}: ${j?.error_code || r.status} ${j?.description || ""}`.trim());
+  }
+  return { ok: false, chatId: null, errors };
 }
 
 /* ---------- Заявки в KV (последние 50) ---------- */
