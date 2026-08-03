@@ -56,6 +56,11 @@ export const site = {
   // Мессенджер MAX. TODO: подставить реальную ссылку профиля/канала MAX.
   maxHref: "https://max.ru/",
 
+  // Каналы для посадочной страницы под Директ (/go).
+  // TODO: заменить на реальные адреса каналов.
+  telegramChannelHref: "https://t.me/DiAutoDeteiling",
+  maxChannelHref: "https://max.ru/",
+
   // TODO: уточнить юридический адрес / реквизиты для футера.
   region: "Тверь · 69 регион",
   address: "ул. Коминтерна, 71",

@@ -49,6 +49,11 @@ const ConsentPage = lazy(() =>
 const AdminPage = lazy(() =>
   import("@/components/pages/AdminPage").then((m) => ({ default: m.AdminPage })),
 );
+const DirectLanding = lazy(() =>
+  import("@/components/pages/DirectLanding").then((m) => ({
+    default: m.DirectLanding,
+  })),
+);
 const TmaApp = lazy(() =>
   import("@/components/pages/TmaApp").then((m) => ({ default: m.TmaApp })),
 );
@@ -112,6 +117,8 @@ export function App() {
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/consent" element={<ConsentPage />} />
           </Route>
+          {/* Посадочная под Директ — вне общего каркаса сайта */}
+          <Route path="/go" element={<DirectLanding />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/tma" element={<TmaApp />} />
         </Routes>
