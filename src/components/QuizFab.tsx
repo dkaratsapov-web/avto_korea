@@ -7,6 +7,7 @@ import { formatPrice, type Car } from "@/data/cars";
 import { useCars } from "@/lib/carsStore";
 import { useUI } from "@/lib/ui";
 import { site } from "@/lib/site";
+import { GOALS, reachGoal } from "@/lib/metrika";
 
 type Step = {
   key: "country" | "body" | "budget" | "state";
@@ -76,7 +77,11 @@ function pickCars(cars: Car[], a: Record<string, string>): Car[] {
     const price = c.priceTverRub ?? c.priceRub;
 
     if (a.country && a.country !== ANY && c.country === a.country) score += 3;
-    if (a.body && a.body !== ANY && (c.bodyType || "").toLowerCase().includes(a.body))
+    if (
+      a.body &&
+      a.body !== ANY &&
+      (c.bodyType || "").toLowerCase().includes(a.body)
+    )
       score += 2;
     if (price >= min && price <= max) score += 3;
     else if (price < min) score += 1; // дешевле бюджета — тоже вариант
@@ -134,7 +139,12 @@ function ResultCard({ car, onOpen }: { car: Car; onOpen: () => void }) {
     >
       <div className="h-16 w-24 flex-none overflow-hidden rounded-[10px] bg-graphite-2">
         {car.images[0] ? (
-          <img src={car.images[0]} alt="" loading="lazy" className="h-full w-full object-cover" />
+          <img
+            src={car.images[0]}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
         ) : (
           <CarSilhouette className="h-full w-full p-2 text-white/20" />
         )}
@@ -162,7 +172,9 @@ function QuizModal({ onClose }: { onClose: () => void }) {
 
   const done = step >= STEPS.length;
   const picked = done ? pickCars(cars, answers) : [];
-  const progress = Math.round((Math.min(step, STEPS.length) / STEPS.length) * 100);
+  const progress = Math.round(
+    (Math.min(step, STEPS.length) / STEPS.length) * 100,
+  );
 
   function choose(value: string) {
     setAnswers((prev) => ({ ...prev, [STEPS[step].key]: value }));
@@ -219,7 +231,9 @@ function QuizModal({ onClose }: { onClose: () => void }) {
         ) : (
           <>
             <h2 className="text-[22px] font-extrabold uppercase leading-tight">
-              {picked.length ? "Что подходит под ваш запрос" : "Подберём вручную"}
+              {picked.length
+                ? "Что подходит под ваш запрос"
+                : "Подберём вручную"}
             </h2>
             <p className="mt-2 text-[14px] text-[#9AA4B2]">
               {picked.length
@@ -247,6 +261,9 @@ function QuizModal({ onClose }: { onClose: () => void }) {
                 href={tgHref}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() =>
+                  reachGoal(GOALS.telegram, { place: "Квиз-подбор" })
+                }
                 className="btn btn-primary"
               >
                 <Send className="h-[18px] w-[18px]" /> Подборку в Telegram

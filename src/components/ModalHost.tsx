@@ -10,6 +10,7 @@ import { site } from "@/lib/site";
 import { Flag } from "@/components/icons/Flag";
 import { useUI } from "@/lib/ui";
 import { useCars } from "@/lib/carsStore";
+import { GOALS, reachGoal } from "@/lib/metrika";
 
 export function ModalHost() {
   const { modal, close, favorites, removeFav, openCar, compare } = useUI();
@@ -132,6 +133,7 @@ export function ModalHost() {
         <div className="mt-6 flex flex-wrap gap-3">
           <Button
             href={site.telegramHref}
+            onClick={() => reachGoal(GOALS.telegram, { place: "Избранное" })}
             target="_blank"
             rel="noopener noreferrer"
             variant="ghost"

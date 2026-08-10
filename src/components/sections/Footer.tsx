@@ -5,6 +5,7 @@ import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { CarSilhouette } from "@/components/icons/CarSilhouette";
 import { Flag } from "@/components/icons/Flag";
 import { nav, site } from "@/lib/site";
+import { GOALS, reachGoal } from "@/lib/metrika";
 
 export function Footer() {
   return (
@@ -57,6 +58,7 @@ export function Footer() {
             <li>
               <a
                 href={site.phoneHref}
+                onClick={() => reachGoal(GOALS.phone, { place: "Подвал" })}
                 className="flex items-center gap-2 transition-colors hover:text-white"
               >
                 <Phone className="h-4 w-4 text-steel" /> {site.phone}
@@ -65,6 +67,7 @@ export function Footer() {
             <li>
               <a
                 href={site.telegramHref}
+                onClick={() => reachGoal(GOALS.telegram, { place: "Подвал" })}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 transition-colors hover:text-white"
@@ -72,10 +75,8 @@ export function Footer() {
                 <TelegramIcon className="h-4 w-4" /> Telegram
               </a>
             </li>
-            <li>
-            </li>
-            <li>
-            </li>
+            <li></li>
+            <li></li>
           </ul>
         </div>
       </div>
@@ -102,7 +103,10 @@ export function Footer() {
             <Link to="/consent" className="transition-colors hover:text-chrome">
               Согласие на обработку ПДн
             </Link>
-            <Link to="/contacts" className="transition-colors hover:text-chrome">
+            <Link
+              to="/contacts"
+              className="transition-colors hover:text-chrome"
+            >
               Реквизиты
             </Link>
           </span>
