@@ -1,7 +1,6 @@
 import { useEffect } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ScanLine } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
-import { MaxIcon } from "@/components/icons/MaxIcon";
 import { HeroBackdrop } from "@/components/ui/HeroBackdrop";
 import { site } from "@/lib/site";
 import { GOALS, reachGoal } from "@/lib/metrika";
@@ -10,8 +9,8 @@ import { GOALS, reachGoal } from "@/lib/metrika";
  * Посадочная страница под Яндекс.Директ (/go).
  *
  * Изолирована от сайта: без шапки, футера и плавающих кнопок — только
- * логотип, заголовок и два перехода в каналы. Всё лишнее уводит внимание
- * и снижает конверсию рекламного трафика.
+ * логотип, заголовок и один переход в Telegram-канал. Всё лишнее уводит
+ * внимание и снижает конверсию рекламного трафика.
  *
  * Закрыта от индексации, чтобы не конкурировать с основным сайтом в поиске.
  */
@@ -52,10 +51,12 @@ export function DirectLanding() {
         </h1>
         <p className="mt-4 max-w-md text-[15px] leading-relaxed text-[#C7CFD6] sm:text-[16px]">
           Каталог с ценами под ключ, новые поступления и честный расчёт с
-          доставкой и растаможкой — в наших каналах.
+          доставкой и растаможкой — в нашем Telegram-канале.
         </p>
 
-        <div className="mt-9 flex w-full max-w-sm flex-col gap-3">
+        {/* Кнопка и QR — рядом на десктопе, где сканировать удобно с телефона.
+            На мобильном QR не показываем: страницу и так открыли с телефона. */}
+        <div className="mt-9 flex w-full flex-col items-center gap-6 sm:flex-row sm:justify-center sm:gap-8">
           <a
             href={site.telegramChannelHref}
             target="_blank"
@@ -63,25 +64,29 @@ export function DirectLanding() {
             onClick={() =>
               reachGoal(GOALS.telegramChannel, { place: "Посадочная /go" })
             }
-            className="flex h-14 items-center justify-center gap-2.5 rounded-full bg-[#229ED9] text-[16px] font-extrabold text-white shadow-[0_12px_30px_-12px_rgba(34,158,217,0.9)] transition-transform hover:scale-[1.02]"
+            className="flex h-14 w-full max-w-sm items-center justify-center gap-2.5 rounded-full bg-[#229ED9] text-[16px] font-extrabold text-white shadow-[0_12px_30px_-12px_rgba(34,158,217,0.9)] transition-transform hover:scale-[1.02] sm:w-auto sm:px-8"
           >
             <TelegramIcon className="h-7 w-7" />
             Перейти в Telegram
             <ArrowRight className="h-[18px] w-[18px]" />
           </a>
-          <a
-            href={site.maxChannelHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() =>
-              reachGoal(GOALS.maxChannel, { place: "Посадочная /go" })
-            }
-            className="flex h-14 items-center justify-center gap-2.5 rounded-full bg-white text-[16px] font-extrabold text-ink shadow-[0_12px_30px_-12px_rgba(255,255,255,0.4)] transition-transform hover:scale-[1.02]"
-          >
-            <MaxIcon className="h-7 w-7" />
-            Перейти в MAX
-            <ArrowRight className="h-[18px] w-[18px]" />
-          </a>
+
+          <div className="hidden text-center sm:block">
+            <div className="rounded-2xl bg-white p-2.5 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.8)]">
+              <img
+                src="/qr-telegram.svg"
+                alt="QR-код: наш канал в Telegram"
+                width={128}
+                height={128}
+                className="h-32 w-32"
+                decoding="async"
+              />
+            </div>
+            <span className="mt-2 flex items-center justify-center gap-1 text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#9AA4B2]">
+              <ScanLine className="h-3 w-3 flex-none" />
+              Наведите камеру
+            </span>
+          </div>
         </div>
 
         <a
