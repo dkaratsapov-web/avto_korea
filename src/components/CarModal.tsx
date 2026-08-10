@@ -250,6 +250,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
               carValue={`${car.model} ${car.year}${car.trim ? ` · ${car.trim}` : ""}`}
               source={`Каталог — ${car.model}`}
               submitLabel="Запросить"
+              onSent={onClose}
               className="lg:flex-none"
             />
           </div>

@@ -16,6 +16,7 @@ import { MaxIcon } from "@/components/icons/MaxIcon";
 import { Button } from "@/components/ui/Button";
 import { nav, site } from "@/lib/site";
 import { useUI } from "@/lib/ui";
+import { GOALS, reachGoal } from "@/lib/metrika";
 
 const capsule = "glass rounded-full shadow-[0_12px_34px_rgba(0,0,0,.4)]";
 
@@ -24,11 +25,13 @@ const channels = [
   {
     label: "Telegram",
     href: site.telegramChannelHref,
+    goal: GOALS.telegram,
     icon: <TelegramIcon className="h-[17px] w-[17px]" />,
   },
   {
     label: "MAX",
     href: site.maxChannelHref,
+    goal: GOALS.max,
     icon: <MaxIcon className="h-[17px] w-[17px]" />,
   },
 ];
@@ -96,6 +99,7 @@ export function Header() {
               href={c.href}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => reachGoal(c.goal, { place: "Шапка" })}
               className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-[14px] font-semibold text-[#C3CBD2] transition-colors hover:bg-white/10 hover:text-white"
             >
               {c.icon}
@@ -160,6 +164,7 @@ export function Header() {
               <a
                 key={p.href}
                 href={p.href}
+                onClick={() => reachGoal(GOALS.phone, { place: "Шапка" })}
                 className="flex items-center gap-2 whitespace-nowrap leading-none transition-colors hover:text-chrome"
               >
                 <Phone className="h-[13px] w-[13px] flex-none text-bordeaux-bright" />
@@ -258,7 +263,10 @@ export function Header() {
                   href={c.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    reachGoal(c.goal, { place: "Мобильное меню" });
+                    setOpen(false);
+                  }}
                   className="flex items-center justify-center gap-2 rounded-full bg-white/[0.06] px-4 py-3 text-[15px] font-bold text-white transition-colors hover:bg-white/10"
                 >
                   {c.icon}
