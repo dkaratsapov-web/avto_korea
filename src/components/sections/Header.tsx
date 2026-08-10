@@ -23,9 +23,10 @@ export function Header() {
   const { openLead, openFavorites, favCount } = useUI();
   const { pathname } = useLocation();
   // В шапке-капсуле — страницы, кроме тех, что вынесены отдельными кнопками
-  // (Каталог и Статьи).
+  // (Каталог и Статьи). «Новости» временно скрыты: раздел ещё не наполнен.
   const pageNav = nav.filter(
-    (n) => n.href !== "/catalog" && n.href !== "/articles",
+    (n) =>
+      n.href !== "/catalog" && n.href !== "/articles" && n.href !== "/news",
   );
 
   const headerRef = useRef<HTMLElement>(null);
