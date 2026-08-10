@@ -57,9 +57,9 @@ export const site = {
   maxHref: "https://max.ru/",
 
   // Каналы для посадочной страницы под Директ (/go).
-  // TODO: заменить на реальные адреса каналов.
-  telegramChannelHref: "https://t.me/DiAutoDeteiling",
-  maxChannelHref: "https://max.ru/",
+  telegramChannelHref: "https://t.me/+QTRyuliyCAM2M2Ri",
+  maxChannelHref:
+    "https://max.ru/join/t9qi7K-MMwl06Nym7_my5b4r2LUF6uQOY2KLxhDkPKA",
 
   // TODO: уточнить юридический адрес / реквизиты для футера.
   region: "Тверь · 69 регион",
