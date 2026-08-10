@@ -25,13 +25,13 @@ const channels = [
   {
     label: "Telegram",
     href: site.telegramChannelHref,
-    goal: GOALS.telegram,
+    goal: GOALS.telegramChannel,
     icon: <TelegramIcon className="h-[17px] w-[17px]" />,
   },
   {
     label: "MAX",
     href: site.maxChannelHref,
-    goal: GOALS.max,
+    goal: GOALS.maxChannel,
     icon: <MaxIcon className="h-[17px] w-[17px]" />,
   },
 ];
@@ -55,7 +55,10 @@ export function Header() {
     const el = headerRef.current;
     if (!el) return;
     const set = () =>
-      document.documentElement.style.setProperty("--header-h", `${el.offsetHeight}px`);
+      document.documentElement.style.setProperty(
+        "--header-h",
+        `${el.offsetHeight}px`,
+      );
     set();
     const ro = new ResizeObserver(set);
     ro.observe(el);
@@ -70,9 +73,7 @@ export function Header() {
 
   return (
     <header ref={headerRef} className="fixed inset-x-0 top-0 z-50">
-      <div
-        className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-2 px-3 py-3.5 sm:gap-3 sm:px-6"
-      >
+      <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-2 px-3 py-3.5 sm:gap-3 sm:px-6">
         {/* Логотип — только надпись, с белой окантовкой вместо подложки */}
         <div className="flex h-[60px] flex-none items-center">
           <Logo
@@ -92,7 +93,9 @@ export function Header() {
 
         {/* Каналы: свободное место справа от «Каталога». Скрываем раньше
             навигации — на узких экранах каналы есть в мобильном меню. */}
-        <div className={`${capsule} ${h} hidden items-center gap-1 px-2 xl:flex`}>
+        <div
+          className={`${capsule} ${h} hidden items-center gap-1 px-2 xl:flex`}
+        >
           {channels.map((c) => (
             <a
               key={c.href}
@@ -297,6 +300,9 @@ export function Header() {
               <div className="mt-1 flex items-center gap-2">
                 <a
                   href={site.telegramHref}
+                  onClick={() =>
+                    reachGoal(GOALS.telegram, { place: "Мобильное меню" })
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Telegram"
@@ -313,7 +319,8 @@ export function Header() {
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 px-2 pt-2 text-[14px] font-semibold text-[#C3CBD2] hover:text-white"
             >
-              <MapPin className="h-4 w-4 text-bordeaux-bright" /> {site.addressFull}
+              <MapPin className="h-4 w-4 text-bordeaux-bright" />{" "}
+              {site.addressFull}
             </a>
           </nav>
         </div>

@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { showToast } from "@/lib/toast";
 import { site } from "@/lib/site";
+import { GOALS, reachGoal } from "@/lib/metrika";
 
 type Step = { key: string; q: string; options: string[] };
 
@@ -77,7 +78,9 @@ export function CostQuiz() {
       budget: answers.budget || "",
       comment:
         "Квиз-расчёт: " +
-        STEPS.map((s) => answers[s.key]).filter(Boolean).join(" · "),
+        STEPS.map((s) => answers[s.key])
+          .filter(Boolean)
+          .join(" · "),
       source: "Квиз — расчёт стоимости",
     };
     const endpoint = import.meta.env.VITE_LEAD_ENDPOINT as string | undefined;
@@ -109,7 +112,8 @@ export function CostQuiz() {
         </div>
         <h3 className="text-[22px] text-white">Заявка принята!</h3>
         <p className="mx-auto mt-2 max-w-sm text-[14px] text-[#9AA4B2]">
-          Соберём для вас честный расчёт под ключ и перезвоним в течение 15 минут.
+          Соберём для вас честный расчёт под ключ и перезвоним в течение 15
+          минут.
         </p>
       </div>
     );
@@ -164,6 +168,7 @@ export function CostQuiz() {
           </button>
           <a
             href={site.telegramHref}
+            onClick={() => reachGoal(GOALS.telegram, { place: "Квиз расчёта" })}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 text-[13.5px] font-semibold text-chrome transition-colors hover:text-white"

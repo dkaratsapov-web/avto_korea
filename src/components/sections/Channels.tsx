@@ -19,19 +19,20 @@ const channels = [
     key: "tg",
     name: "Telegram",
     href: site.telegramChannelHref,
-    goal: GOALS.telegram,
+    goal: GOALS.telegramChannel,
     qr: "/qr-telegram.svg",
     text: "Новые поступления, цены под ключ и обзоры привезённых авто.",
     icon: <TelegramIcon className="h-7 w-7" />,
     // Фирменный синий Telegram.
-    accent: "bg-[#229ED9] text-white shadow-[0_14px_34px_-16px_rgba(34,158,217,0.9)]",
+    accent:
+      "bg-[#229ED9] text-white shadow-[0_14px_34px_-16px_rgba(34,158,217,0.9)]",
     ring: "group-hover:border-[#229ED9]/40",
   },
   {
     key: "max",
     name: "MAX",
     href: site.maxChannelHref,
-    goal: GOALS.max,
+    goal: GOALS.maxChannel,
     qr: "/qr-max.svg",
     text: "Тот же каталог и расчёты в российском мессенджере — без VPN.",
     icon: <MaxIcon className="h-7 w-7" />,

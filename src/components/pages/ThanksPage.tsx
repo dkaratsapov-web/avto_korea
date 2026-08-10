@@ -60,7 +60,9 @@ export function ThanksPage() {
               href={site.telegramChannelHref}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => reachGoal(GOALS.telegram, { place: "Спасибо" })}
+              onClick={() =>
+                reachGoal(GOALS.telegramChannel, { place: "Спасибо" })
+              }
               className="btn bg-[#229ED9] text-white shadow-[0_12px_30px_-14px_rgba(34,158,217,0.9)]"
             >
               <TelegramIcon className="h-6 w-6" />
@@ -71,7 +73,7 @@ export function ThanksPage() {
               href={site.maxChannelHref}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => reachGoal(GOALS.max, { place: "Спасибо" })}
+              onClick={() => reachGoal(GOALS.maxChannel, { place: "Спасибо" })}
               className="btn bg-white text-ink shadow-[0_12px_30px_-14px_rgba(255,255,255,0.4)]"
             >
               <MaxIcon className="h-6 w-6" />

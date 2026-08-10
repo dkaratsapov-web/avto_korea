@@ -60,7 +60,9 @@ export function DirectLanding() {
             href={site.telegramChannelHref}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => reachGoal(GOALS.telegram, { place: "Посадочная /go" })}
+            onClick={() =>
+              reachGoal(GOALS.telegramChannel, { place: "Посадочная /go" })
+            }
             className="flex h-14 items-center justify-center gap-2.5 rounded-full bg-[#229ED9] text-[16px] font-extrabold text-white shadow-[0_12px_30px_-12px_rgba(34,158,217,0.9)] transition-transform hover:scale-[1.02]"
           >
             <TelegramIcon className="h-7 w-7" />
@@ -71,7 +73,9 @@ export function DirectLanding() {
             href={site.maxChannelHref}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => reachGoal(GOALS.max, { place: "Посадочная /go" })}
+            onClick={() =>
+              reachGoal(GOALS.maxChannel, { place: "Посадочная /go" })
+            }
             className="flex h-14 items-center justify-center gap-2.5 rounded-full bg-white text-[16px] font-extrabold text-ink shadow-[0_12px_30px_-12px_rgba(255,255,255,0.4)] transition-transform hover:scale-[1.02]"
           >
             <MaxIcon className="h-7 w-7" />
