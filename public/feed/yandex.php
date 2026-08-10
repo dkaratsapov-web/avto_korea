@@ -126,8 +126,9 @@ foreach ($catalog as $c) {
     $out[] = '<currencyId>RUR</currencyId>';
     $out[] = '<categoryId>1</categoryId>';
     $out[] = '<vendor>' . x($vendor) . '</vendor>';
+    // Название объявления Яндекс склеивает из typePrefix + vendor + model.
+    // Префикс не выводим: «Автомобиль Kia K3 2026» — лишнее слово в заголовке.
     $out[] = '<model>' . x(trim($model . ' ' . ($year ?: ''))) . '</model>';
-    $out[] = '<typePrefix>Автомобиль</typePrefix>';
 
     foreach (array_slice((array) ($c['images'] ?? []), 0, 10) as $img) {
         if (is_string($img) && $img !== '') {
