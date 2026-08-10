@@ -28,8 +28,23 @@ const COUNTRIES = [
 
 header('Content-Type: application/xml; charset=utf-8');
 
-// Свежий кэш отдаём сразу.
-if (is_file(CACHE_FILE) && (time() - (int) filemtime(CACHE_FILE)) < CACHE_TTL) {
+/**
+ * Кэш годен, пока не истёк час и пока он новее самого скрипта.
+ *
+ * Кэш лежит вне сайта, деплой его не трогает — без второго условия правка
+ * фида доезжала бы до Яндекса только через час, да ещё и после ручного
+ * удаления файла. Выкладка обновляет время у yandex.php, и кэш протухает сам.
+ */
+function cacheIsFresh(): bool
+{
+    if (!is_file(CACHE_FILE)) {
+        return false;
+    }
+    $age = (int) filemtime(CACHE_FILE);
+    return time() - $age < CACHE_TTL && $age >= (int) filemtime(__FILE__);
+}
+
+if (cacheIsFresh()) {
     readfile(CACHE_FILE);
     exit;
 }
