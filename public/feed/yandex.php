@@ -135,15 +135,19 @@ foreach ($catalog as $c) {
     // У каждого авто свой адрес: каталог открывает карточку по параметру car.
     $url = SITE_URL . '/catalog?car=' . rawurlencode((string) $c['id']);
 
-    $out[] = '<offer id="' . x((string) $c['id']) . '" type="vendor.model" available="true">';
+    // Упрощённый тип оффера: заголовок берётся из <name> как есть.
+    // У типа vendor.model Яндекс склеивает заголовок сам, из
+    // typePrefix + vendor + model, и требует typePrefix обязательно — без него
+    // офферы отклоняются, а с ним в заголовке появляется лишнее «Автомобиль».
+    $name = trim($vendor . ' ' . $model . ' ' . ($year ?: ''));
+
+    $out[] = '<offer id="' . x((string) $c['id']) . '" available="true">';
+    $out[] = '<name>' . x($name) . '</name>';
     $out[] = '<url>' . x($url) . '</url>';
     $out[] = '<price>' . $price . '</price>';
     $out[] = '<currencyId>RUR</currencyId>';
     $out[] = '<categoryId>1</categoryId>';
     $out[] = '<vendor>' . x($vendor) . '</vendor>';
-    // Название объявления Яндекс склеивает из typePrefix + vendor + model.
-    // Префикс не выводим: «Автомобиль Kia K3 2026» — лишнее слово в заголовке.
-    $out[] = '<model>' . x(trim($model . ' ' . ($year ?: ''))) . '</model>';
 
     foreach (array_slice((array) ($c['images'] ?? []), 0, 10) as $img) {
         if (is_string($img) && $img !== '') {
