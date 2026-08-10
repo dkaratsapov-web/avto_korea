@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://diauto69.ru/sitemap.xml
+# авто-из-кореи-под-ключ.рф в punycode — роботы читают адреса только в ASCII.
+Sitemap: https://xn-------43dmrgqjdwfo7afdrp6a6jvg.xn--p1ai/sitemap.xml
