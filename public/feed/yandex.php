@@ -81,9 +81,20 @@ function x(string $v): string
     return htmlspecialchars($v, ENT_XML1 | ENT_QUOTES, 'UTF-8');
 }
 
-/** Абсолютный адрес: в каталоге картинки лежат относительными путями. */
+/**
+ * Абсолютный адрес картинки на нашем домене.
+ *
+ * Воркер отдаёт фото ссылками на себя (*.workers.dev), а этот домен в России
+ * блокируется — робот Яндекса такие картинки не скачает, и в объявлении вместо
+ * фото остаётся заглушка. Сайт для браузера подменяет их в proxy.php; фид ходит
+ * к воркеру напрямую, поэтому подменяет сам: /api/tgphoto отдаёт media.php с
+ * российского хостинга.
+ */
 function abs_url(string $u): string
 {
+    if (str_starts_with($u, WORKER . '/api/')) {
+        $u = substr($u, strlen(WORKER));
+    }
     return preg_match('#^https?://#i', $u) ? $u : SITE_URL . $u;
 }
 
