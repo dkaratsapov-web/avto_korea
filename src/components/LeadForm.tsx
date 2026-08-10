@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowRight, Loader2, Paperclip } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { MaxIcon } from "@/components/icons/MaxIcon";
 import { Button } from "@/components/ui/Button";
 import { showToast } from "@/lib/toast";
 import { countries, site } from "@/lib/site";
+import { GOALS, reachGoal } from "@/lib/metrika";
 
 type Layout = "compact" | "full";
 type Tone = "dark" | "light";
@@ -58,6 +60,9 @@ export type LeadFormProps = {
   withContacts?: boolean;
   /** Форма без собственной рамки/подложки и на всю ширину (когда уже внутри карточки). */
   bare?: boolean;
+  /** Вызывается после успешной отправки — модалке нужно закрыться перед
+      переходом на страницу «Спасибо». */
+  onSent?: () => void;
 };
 
 export function LeadForm({
@@ -71,7 +76,9 @@ export function LeadForm({
   carValue,
   withContacts = false,
   bare = false,
+  onSent,
 }: LeadFormProps) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState("");
@@ -106,6 +113,9 @@ export function LeadForm({
       setPhoto(null);
       setPhotoName("");
       showToast("Демо-режим: заявка принята. На боевом сайте — звонок за 15 минут.");
+      // Ведём на «Спасибо» и без бэкенда, чтобы путь был тот же, что в бою.
+      onSent?.();
+      navigate("/thanks", { state: { source } });
       return;
     }
 
@@ -120,7 +130,11 @@ export function LeadForm({
       form.reset();
       setPhoto(null);
       setPhotoName("");
-      showToast("Заявка принята — перезвоним в течение 15 минут.");
+      reachGoal(GOALS.lead, { source });
+      // Форма живёт и внутри модалок — их закрывает родитель, иначе окно
+      // осталось бы висеть поверх страницы «Спасибо».
+      onSent?.();
+      navigate("/thanks", { state: { source } });
     } catch {
       showToast(
         "Не удалось отправить заявку. Напишите нам в Telegram.",
@@ -211,6 +225,7 @@ export function LeadForm({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Написать в MAX"
+                onClick={() => reachGoal(GOALS.max, { place: "Форма заявки" })}
                 title="MAX"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-dark bg-white/[0.05] transition-colors hover:border-steel hover:bg-white/[0.1]"
               >
@@ -221,6 +236,7 @@ export function LeadForm({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Написать в Telegram"
+                onClick={() => reachGoal(GOALS.telegram, { place: "Форма заявки" })}
                 title="Telegram"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-dark bg-white/[0.05] transition-colors hover:border-steel hover:bg-white/[0.1]"
               >

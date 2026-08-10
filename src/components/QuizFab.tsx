@@ -261,6 +261,7 @@ function QuizModal({ onClose }: { onClose: () => void }) {
               <LeadForm
                 source="Квиз-подбор на сайте"
                 submitLabel="Получить подборку"
+                onSent={onClose}
                 withCar={false}
                 withContacts={false}
                 bare

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { CarSilhouette } from "@/components/icons/CarSilhouette";
 import { Reveal } from "@/components/ui/Reveal";
 import { site } from "@/lib/site";
+import { GOALS, reachGoal } from "@/lib/metrika";
 
 export function FinalCta() {
   return (
@@ -30,6 +31,7 @@ export function FinalCta() {
               href={site.telegramHref}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => reachGoal(GOALS.telegram, { place: "Финальный CTA" })}
               variant="ghost"
             >
               <TelegramIcon className="h-[18px] w-[18px]" />

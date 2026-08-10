@@ -48,6 +48,7 @@ export function ModalHost() {
             tone="dark"
             source="Поп-ап «Рассчитать» (шапка)"
             submitLabel="Получить честный расчёт"
+            onSent={close}
           />
         </div>
       </Modal>

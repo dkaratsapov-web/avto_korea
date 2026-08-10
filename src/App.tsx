@@ -1,6 +1,7 @@
 import { useEffect, useRef, lazy, Suspense } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/Toaster";
+import { METRIKA_ID } from "@/lib/metrika";
 
 // Каждая зона приложения — отдельный чанк. Мини-апп (/tma) не тянет код сайта.
 const SiteLayout = lazy(() =>
@@ -49,6 +50,11 @@ const ConsentPage = lazy(() =>
 const AdminPage = lazy(() =>
   import("@/components/pages/AdminPage").then((m) => ({ default: m.AdminPage })),
 );
+const ThanksPage = lazy(() =>
+  import("@/components/pages/ThanksPage").then((m) => ({
+    default: m.ThanksPage,
+  })),
+);
 const DirectLanding = lazy(() =>
   import("@/components/pages/DirectLanding").then((m) => ({
     default: m.DirectLanding,
@@ -65,8 +71,6 @@ function ScrollManager() {
   }, [pathname]);
   return null;
 }
-
-const METRIKA_ID = 111166439;
 
 /**
  * Метрика считает переход по SPA-маршруту только по явному хиту: сам счётчик
@@ -116,6 +120,8 @@ export function App() {
             <Route path="/news" element={<NewsPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/consent" element={<ConsentPage />} />
+            {/* Страница после отправки заявки — цель для Метрики и Директа */}
+            <Route path="/thanks" element={<ThanksPage />} />
           </Route>
           {/* Посадочная под Директ — вне общего каркаса сайта */}
           <Route path="/go" element={<DirectLanding />} />

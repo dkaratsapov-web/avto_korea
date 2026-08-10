@@ -4,6 +4,7 @@ import { MaxIcon } from "@/components/icons/MaxIcon";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
 import { site } from "@/lib/site";
+import { GOALS, reachGoal } from "@/lib/metrika";
 
 /**
  * Наши каналы: переход в Telegram и MAX.
@@ -18,6 +19,7 @@ const channels = [
     key: "tg",
     name: "Telegram",
     href: site.telegramChannelHref,
+    goal: GOALS.telegram,
     qr: "/qr-telegram.svg",
     text: "Новые поступления, цены под ключ и обзоры привезённых авто.",
     icon: <TelegramIcon className="h-7 w-7" />,
@@ -29,6 +31,7 @@ const channels = [
     key: "max",
     name: "MAX",
     href: site.maxChannelHref,
+    goal: GOALS.max,
     qr: "/qr-max.svg",
     text: "Тот же каталог и расчёты в российском мессенджере — без VPN.",
     icon: <MaxIcon className="h-7 w-7" />,
@@ -67,6 +70,7 @@ export function Channels() {
                     href={c.href}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => reachGoal(c.goal, { place: "Блок каналов" })}
                     className={`btn mt-5 w-full sm:w-auto ${c.accent}`}
                   >
                     Перейти в {c.name}
