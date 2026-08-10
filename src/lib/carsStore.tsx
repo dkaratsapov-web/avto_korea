@@ -7,10 +7,21 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { cars as defaultCars, type Car } from "@/data/cars";
+import { cars as defaultCars, cleanTrim, type Car } from "@/data/cars";
 import { fetchSharedCatalog } from "@/lib/api";
 
 const KEY = "diauto:cars";
+
+/**
+ * Приводим каталог к виду, пригодному для показа, откуда бы он ни пришёл —
+ * из KV, из пререндера или из localStorage. Сейчас чистим только комплектацию:
+ * в старых записях там лежат целые фразы из поста.
+ */
+function normalize(list: Car[]): Car[] {
+  return list.map((c) =>
+    c.trim === cleanTrim(c.trim) ? c : { ...c, trim: cleanTrim(c.trim) },
+  );
+}
 
 /** Каталог, переданный пререндером в разметку страницы. */
 function bootstrapCars(): Car[] | null {
@@ -50,7 +61,7 @@ export function CarsProvider({
   initialCars?: Car[];
 }) {
   const [cars, setCars] = useState<Car[]>(
-    () => initialCars ?? bootstrapCars() ?? load(),
+    () => normalize(initialCars ?? bootstrapCars() ?? load()),
   );
   const [isCustom, setIsCustom] = useState(
     () => typeof window !== "undefined" && !!window.localStorage.getItem(KEY),
@@ -73,7 +84,7 @@ export function CarsProvider({
         const next = JSON.stringify(shared);
         if (next === last) return;
         last = next;
-        setCars(shared);
+        setCars(normalize(shared));
         try {
           window.localStorage.setItem(KEY, JSON.stringify(shared));
         } catch {

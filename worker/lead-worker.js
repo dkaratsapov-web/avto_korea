@@ -987,6 +987,21 @@ const HEADER_RE =
 // Похоже ли на название модели: латиница (Kia Sportage, JETTA VS8) либо
 // короткая строка без глаголов. Рекламные фразы вроде «ДОСТУПЕН К ЗАКАЗУ»
 // длиннее и состоят из обычных слов, поэтому отсекаются.
+/**
+ * Похоже ли на название комплектации, а не на фразу из описания.
+ *
+ * Комплектация — это «Sharp Edition», «Luxury Smart», «Максимальная»: пара
+ * слов без глаголов. Всё длиннее и с законченным предложением — рекламный
+ * текст, ему место в описании, а не в подписи карточки.
+ */
+function looksLikeTrim(s) {
+  const t = String(s || "").trim();
+  if (t.length < 2 || t.length > 32) return false;
+  if (/[.!?]$/.test(t)) return false;
+  if (t.split(/\s+/).filter(Boolean).length > 4) return false;
+  return !/(оснащ|имеет|включа|установ|есть\b|доступн|привез)/i.test(t);
+}
+
 function looksLikeModel(line) {
   const t = line.trim();
   if (t.length < 2 || t.length > 60) return false;
@@ -1122,9 +1137,14 @@ function parseCaption(text) {
   const steering = /руль[:\s—-]*прав|правый\s*руль|правостор|\brhd\b/i.test(bodyRaw) ? "Правый"
     : /руль[:\s—-]*лев|левый\s*руль|левостор|\blhd\b/i.test(bodyRaw) ? "Левый" : "";
 
-  // Комплектация (trim) — по метке «Комплектация: …»
+  // Комплектация (trim) — по метке «Комплектация: …».
+  // Пишут её по-разному: то названием («Sharp Edition»), то целой фразой
+  // («оснащена тремя блокировками дифференциалов»). В карточке это короткая
+  // подпись рядом с годом, поэтому берём только название; фраза никуда не
+  // пропадает — она остаётся в описании (highlights).
   const trimM = bodyRaw.match(/комплектац[а-яё]*\s*[:：—-]?\s*([^\n]+)/i);
-  const trim = trimM ? cleanLine(trimM[1]).slice(0, 60) : "";
+  const trimRaw = trimM ? cleanLine(trimM[1]) : "";
+  const trim = looksLikeTrim(trimRaw) ? trimRaw : "";
 
   // Цвет — по словарю (надёжнее меток): ищем цвет-слово в теле поста.
   const COLORS = [

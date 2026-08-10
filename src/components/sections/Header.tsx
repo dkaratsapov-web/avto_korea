@@ -12,11 +12,26 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
+import { MaxIcon } from "@/components/icons/MaxIcon";
 import { Button } from "@/components/ui/Button";
 import { nav, site } from "@/lib/site";
 import { useUI } from "@/lib/ui";
 
 const capsule = "glass rounded-full shadow-[0_12px_34px_rgba(0,0,0,.4)]";
+
+// Каналы с новыми поступлениями — в шапке и в мобильном меню.
+const channels = [
+  {
+    label: "Telegram",
+    href: site.telegramChannelHref,
+    icon: <TelegramIcon className="h-[17px] w-[17px]" />,
+  },
+  {
+    label: "MAX",
+    href: site.maxChannelHref,
+    icon: <MaxIcon className="h-[17px] w-[17px]" />,
+  },
+];
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -71,6 +86,23 @@ export function Header() {
           <Car className="h-[18px] w-[18px]" />
           Каталог
         </Link>
+
+        {/* Каналы: свободное место справа от «Каталога». Скрываем раньше
+            навигации — на узких экранах каналы есть в мобильном меню. */}
+        <div className={`${capsule} ${h} hidden items-center gap-1 px-2 xl:flex`}>
+          {channels.map((c) => (
+            <a
+              key={c.href}
+              href={c.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-[14px] font-semibold text-[#C3CBD2] transition-colors hover:bg-white/10 hover:text-white"
+            >
+              {c.icon}
+              {c.label}
+            </a>
+          ))}
+        </div>
 
         {/* Капсула: навигация */}
         <nav
@@ -219,6 +251,21 @@ export function Header() {
             >
               <BookOpen className="h-[18px] w-[18px]" /> Полезные статьи
             </Link>
+            <div className="mt-1 grid grid-cols-2 gap-2 border-t border-line-dark pt-3">
+              {channels.map((c) => (
+                <a
+                  key={c.href}
+                  href={c.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-center gap-2 rounded-full bg-white/[0.06] px-4 py-3 text-[15px] font-bold text-white transition-colors hover:bg-white/10"
+                >
+                  {c.icon}
+                  {c.label}
+                </a>
+              ))}
+            </div>
             <div className="mt-1 flex flex-col gap-2 border-t border-line-dark px-2 pt-3">
               {site.phones.map((p) => (
                 <a

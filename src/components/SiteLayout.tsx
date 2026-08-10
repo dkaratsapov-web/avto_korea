@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { Header } from "@/components/sections/Header";
 import { Footer } from "@/components/sections/Footer";
 import { FloatingTelegram } from "@/components/FloatingTelegram";
+import { FloatingCall } from "@/components/FloatingCall";
 import { QuizFab } from "@/components/QuizFab";
 import { CompareTray } from "@/components/CompareTray";
 import { CookieNotice } from "@/components/CookieNotice";
@@ -44,6 +45,7 @@ export function SiteLayout() {
       <Outlet />
       <Footer />
       <QuizFab />
+      <FloatingCall />
       <FloatingTelegram />
       <CompareTray />
       <CookieNotice />
