@@ -42,6 +42,22 @@ export type Car = {
   description?: string;
 };
 
+/**
+ * Комплектация для подписи в карточке — или пусто, если это не название.
+ *
+ * Бот раньше записывал в это поле всю строку после «Комплектация:», включая
+ * фразы вроде «оснащена тремя блокировками дифференциалов». Разбор поста уже
+ * исправлен, но такие записи остались в каталоге, поэтому чистим и здесь.
+ * Сам текст не теряется — он есть в описании авто.
+ */
+export function cleanTrim(trim?: string): string {
+  const t = (trim ?? "").trim();
+  if (t.length < 2 || t.length > 32) return "";
+  if (/[.!?]$/.test(t)) return "";
+  if (t.split(/\s+/).filter(Boolean).length > 4) return "";
+  return /(оснащ|имеет|включа|установ|есть\b|доступн|привез)/i.test(t) ? "" : t;
+}
+
 export const statusLabels: Record<CarStatus, string> = {
   in_stock: "В наличии",
   in_transit: "В пути",

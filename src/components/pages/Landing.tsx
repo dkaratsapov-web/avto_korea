@@ -5,6 +5,7 @@ import { Hero } from "@/components/sections/Hero";
 import { CarCard } from "@/components/CarCard";
 import { useCars } from "@/lib/carsStore";
 import { BrandTicker } from "@/components/sections/BrandTicker";
+import { Channels } from "@/components/sections/Channels";
 import { FinalCta } from "@/components/sections/FinalCta";
 
 // Сколько колонок в сетке на текущей ширине — чтобы показать ровно 5 рядов
@@ -83,6 +84,10 @@ export function Landing() {
       <HomeCatalog />
 
       <BrandTicker />
+
+      {/* Каналы с новыми поступлениями: кнопки и QR для десктопа */}
+      <Channels />
+
       <FinalCta />
     </main>
   );
