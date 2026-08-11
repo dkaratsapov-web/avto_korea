@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, SlidersHorizontal, X, ChevronDown } from "lucide-react";
+import { Search, SlidersHorizontal, X, ChevronDown, Gem } from "lucide-react";
 import { CarCard } from "@/components/CarCard";
 import { Flag } from "@/components/icons/Flag";
 import { Button } from "@/components/ui/Button";
@@ -56,6 +57,23 @@ function toggle<T>(arr: T[], v: T): T[] {
 const fmt = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
 const brandOf = (model: string) => model.trim().split(/\s+/)[0];
 
+/**
+ * Премиум-подборка: немецкая тройка от 5 млн ₽ под ключ.
+ *
+ * Марку сверяем по началу названия, а не по полному совпадению: в каталог из
+ * канала модели попадают как «MERCEDES-BENZ E300», «BMW X3», «AUDI A3L».
+ * Цена берётся тверская — та же, что показывается в карточке.
+ */
+const PREMIUM_BRAND_RE = /^(mercedes|bmw|audi)\b/i;
+const PREMIUM_MIN_PRICE = 5_000_000;
+
+function isPremium(c: Car): boolean {
+  return (
+    PREMIUM_BRAND_RE.test(c.model.trim()) &&
+    (c.priceTverRub ?? c.priceRub) >= PREMIUM_MIN_PRICE
+  );
+}
+
 function matchesCar(c: Car, f: Filters, search: string): boolean {
   const price = c.priceTverRub ?? c.priceRub;
   const hp = c.powerHp ?? 0;
@@ -97,7 +115,26 @@ function countActive(f: Filters): number {
 }
 
 export function CatalogBrowser() {
-  const { cars } = useCars();
+  const { cars: allCars } = useCars();
+
+  // Вкладка живёт в адресе (?tab=premium): на подборку можно вести рекламу
+  // и делиться ссылкой, а кнопка «назад» работает как ожидается.
+  const [params, setParams] = useSearchParams();
+  const tab: "all" | "premium" =
+    params.get("tab") === "premium" ? "premium" : "all";
+  const setTab = (next: "all" | "premium") => {
+    const p = new URLSearchParams(params);
+    if (next === "premium") p.set("tab", "premium");
+    else p.delete("tab");
+    setParams(p, { replace: true });
+  };
+
+  const premiumCount = useMemo(() => allCars.filter(isPremium).length, [allCars]);
+  // Фильтры, счётчики и facets считаем уже внутри выбранной вкладки.
+  const cars = useMemo(
+    () => (tab === "premium" ? allCars.filter(isPremium) : allCars),
+    [allCars, tab],
+  );
 
   const facets = useMemo(() => {
     const prices = cars.map((c) => c.priceTverRub ?? c.priceRub);
@@ -280,6 +317,54 @@ export function CatalogBrowser() {
 
   return (
     <>
+      {/* Вкладки каталога: обычный список и премиум-подборка. */}
+      <div className="mx-auto w-full max-w-[1760px] px-6 pt-5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="inline-flex rounded-full border border-line bg-white p-1 shadow-[0_10px_26px_-18px_rgba(20,25,32,0.5)]">
+            <button
+              type="button"
+              onClick={() => setTab("all")}
+              aria-pressed={tab === "all"}
+              className={`rounded-full px-4 py-2 text-[14px] font-extrabold transition-colors ${
+                tab === "all"
+                  ? "bg-graphite text-white"
+                  : "text-ink-2 hover:text-ink"
+              }`}
+            >
+              Все авто
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("premium")}
+              aria-pressed={tab === "premium"}
+              className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-[14px] font-extrabold transition-colors ${
+                tab === "premium"
+                  ? "bg-gradient-to-b from-bordeaux-bright to-bordeaux text-white shadow-[0_8px_20px_-10px_rgba(122,20,16,.8)]"
+                  : "text-ink-2 hover:text-ink"
+              }`}
+            >
+              <Gem className="h-[15px] w-[15px]" />
+              Премиум
+              {premiumCount > 0 ? (
+                <span
+                  className={`font-num text-[12px] font-bold ${
+                    tab === "premium" ? "text-white/80" : "text-ink-2"
+                  }`}
+                >
+                  {premiumCount}
+                </span>
+              ) : null}
+            </button>
+          </div>
+
+          {tab === "premium" ? (
+            <p className="text-[13px] font-semibold text-ink-2">
+              Mercedes-Benz, BMW и Audi от {fmt(PREMIUM_MIN_PRICE)} ₽ под ключ
+            </p>
+          ) : null}
+        </div>
+      </div>
+
       {/* Липкая горизонтальная панель фильтров (десктоп) — плавающая капсула */}
       <div
         className="pointer-events-none sticky z-30 hidden py-2.5 md:block"
@@ -450,14 +535,25 @@ export function CatalogBrowser() {
           </motion.div>
         ) : (
           <div className="rounded-card border border-line bg-white px-6 py-16 text-center">
-            <p className="text-[18px] font-bold text-ink">Ничего не найдено</p>
-            <p className="mx-auto mt-2 max-w-md text-[14px] text-ink-2">
-              Попробуйте сбросить часть фильтров или оставьте заявку — подберём
-              под ваш запрос.
+            <p className="text-[18px] font-bold text-ink">
+              {tab === "premium" && !premiumCount
+                ? "В премиум-подборке пока пусто"
+                : "Ничего не найдено"}
             </p>
-            <Button variant="ghost-light" onClick={reset} className="mt-5">
-              Сбросить фильтры
-            </Button>
+            <p className="mx-auto mt-2 max-w-md text-[14px] text-ink-2">
+              {tab === "premium" && !premiumCount
+                ? `Здесь показываем Mercedes-Benz, BMW и Audi от ${fmt(PREMIUM_MIN_PRICE)} ₽ под ключ. Сейчас таких в наличии нет — оставьте заявку, привезём под заказ.`
+                : "Попробуйте сбросить часть фильтров или оставьте заявку — подберём под ваш запрос."}
+            </p>
+            {tab === "premium" && !premiumCount ? (
+              <Button variant="ghost-light" onClick={() => setTab("all")} className="mt-5">
+                Смотреть все авто
+              </Button>
+            ) : (
+              <Button variant="ghost-light" onClick={reset} className="mt-5">
+                Сбросить фильтры
+              </Button>
+            )}
           </div>
         )}
       </div>
