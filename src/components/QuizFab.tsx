@@ -312,7 +312,7 @@ export function QuizFab() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Подобрать автомобиль за 4 вопроса"
-        className="fixed bottom-5 left-5 z-50 flex items-center gap-2.5 rounded-full bg-gradient-to-b from-bordeaux-bright to-bordeaux px-4 py-3.5 font-extrabold uppercase tracking-[0.02em] text-white shadow-[0_10px_30px_rgba(122,20,16,.5)] ring-2 ring-white/85 transition-transform hover:scale-[1.04] sm:px-5"
+        className="fixed bottom-5 left-5 z-40 flex items-center gap-2.5 rounded-full bg-gradient-to-b from-bordeaux-bright to-bordeaux px-4 py-3.5 font-extrabold uppercase tracking-[0.02em] text-white shadow-[0_10px_30px_rgba(122,20,16,.5)] ring-2 ring-white/85 transition-transform hover:scale-[1.04] sm:px-5"
       >
         <Sparkles className="h-[18px] w-[18px] flex-none" />
         <span className="text-[14px] max-sm:hidden">Подобрать авто</span>
