@@ -103,17 +103,18 @@ export function Header() {
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => reachGoal(c.goal, { place: "Шапка" })}
-              className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-[14px] font-semibold text-[#C3CBD2] transition-colors hover:bg-white/10 hover:text-white"
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-2 text-[14px] font-semibold text-[#C3CBD2] transition-colors hover:bg-white/10 hover:text-white 2xl:px-3"
             >
               {c.icon}
-              {c.label}
+              {/* До 1536 подписи прячем: с ними шапка не помещалась в строку. */}
+              <span className="hidden min-[1700px]:inline">{c.label}</span>
             </a>
           ))}
         </div>
 
         {/* Капсула: навигация */}
         <nav
-          className={`${capsule} ${h} hidden items-center gap-1 px-2 lg:flex`}
+          className={`${capsule} ${h} hidden items-center gap-1 px-2 xl:flex`}
           aria-label="Основная навигация"
         >
           {pageNav.map((item, i) => {
@@ -162,7 +163,7 @@ export function Header() {
         <div
           className={`${capsule} flex min-h-[52px] items-center gap-1 px-2 py-1.5`}
         >
-          <div className="hidden flex-col justify-center gap-[5px] px-3 pt-1 lg:flex">
+          <div className="hidden flex-col justify-center gap-[5px] px-3 pt-1 2xl:flex">
             {site.phones.map((p) => (
               <a
                 key={p.href}
@@ -174,7 +175,7 @@ export function Header() {
                 <span className="font-num text-[12.5px] font-bold tracking-[0.01em] text-white">
                   {p.number}
                 </span>
-                <span className="text-[11px] font-semibold text-[#C3CBD2]">
+                <span className="hidden text-[11px] font-semibold text-[#C3CBD2] min-[1800px]:inline">
                   {p.name} · {p.role}
                 </span>
               </a>
@@ -208,7 +209,7 @@ export function Header() {
             aria-label={open ? "Закрыть меню" : "Открыть меню"}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 lg:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 xl:hidden"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -217,7 +218,7 @@ export function Header() {
 
       {/* Mobile menu — плавающая капсула под шапкой */}
       {open ? (
-        <div className="wrap lg:hidden">
+        <div className="wrap xl:hidden">
           <nav
             className="glass mt-1 flex flex-col gap-1 rounded-[26px] p-3 shadow-[0_18px_40px_rgba(0,0,0,.45)]"
             aria-label="Мобильная навигация"
