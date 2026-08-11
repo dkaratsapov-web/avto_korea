@@ -9,6 +9,8 @@ import {
   ArrowRight,
   Heart,
   Car,
+  ChevronRight,
+  Gem,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
@@ -47,7 +49,10 @@ export function Header() {
       n.href !== "/catalog" && n.href !== "/articles" && n.href !== "/news",
   );
 
-  const headerRef = useRef<HTMLElement>(null);
+  // В меню, в отличие от шапки, показываем и «Статьи» — там места хватает.
+  const menuNav = [...pageNav, { href: "/articles", label: "Статьи" } as const];
+
+  const headerRef = useRef<HTMLDivElement>(null);
 
   // Реальную высоту шапки отдаём в CSS-переменную, чтобы липкие фильтры
   // каталога парковались точно под ней (шапка меняет высоту).
@@ -69,11 +74,30 @@ export function Header() {
     };
   }, []);
 
+  // Меню закрывается по Esc и при переходе на другую страницу.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
   const h = "h-[52px]";
 
   return (
-    <header ref={headerRef} className="fixed inset-x-0 top-0 z-50">
-      <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-2 px-3 py-3.5 sm:gap-3 sm:px-6">
+    <header className="fixed inset-x-0 top-0 z-50">
+      {/* Высоту меряем по строке шапки, а не по всему <header>: с раскрытым
+          меню он выше, и липкие фильтры каталога уезжали бы вниз. */}
+      <div
+        ref={headerRef}
+        className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-2 px-3 py-3.5 sm:gap-3 sm:px-6"
+      >
         {/* Логотип — только надпись, с белой окантовкой вместо подложки */}
         <div className="flex h-[60px] flex-none items-center">
           <Logo
@@ -216,115 +240,161 @@ export function Header() {
         </div>
       </div>
 
-      {/* Mobile menu — плавающая капсула под шапкой */}
+      {/* Мобильное меню: затемнение + панель под бургером.
+          Во всю ширину она смотрелась пустой на планшетах, поэтому ограничена
+          по ширине и прижата вправо — туда, где сама кнопка меню. */}
       {open ? (
-        <div className="wrap xl:hidden">
-          <nav
-            className="glass mt-1 flex flex-col gap-1 rounded-[26px] p-3 shadow-[0_18px_40px_rgba(0,0,0,.45)]"
-            aria-label="Мобильная навигация"
-          >
-            <Link
-              to="/catalog"
-              onClick={() => setOpen(false)}
-              className="mb-1 flex items-center justify-center gap-2 rounded-full bg-gradient-to-b from-bordeaux-bright to-bordeaux px-4 py-3 font-extrabold uppercase tracking-[0.02em] text-white shadow-[0_8px_22px_rgba(122,20,16,.45)]"
+        <>
+          <button
+            type="button"
+            aria-label="Закрыть меню"
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 -z-10 h-full w-full cursor-default bg-black/55 backdrop-blur-[2px] xl:hidden"
+          />
+          <div className="px-3 sm:px-6 xl:hidden">
+            <nav
+              className="glass ml-auto mt-1 flex max-h-[calc(100vh-120px)] w-full max-w-[420px] flex-col overflow-y-auto rounded-[24px] p-3 shadow-[0_24px_60px_rgba(0,0,0,.6)]"
+              aria-label="Мобильная навигация"
             >
-              <Car className="h-[18px] w-[18px]" /> Каталог
-            </Link>
-            {pageNav.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center gap-3 rounded-full px-4 py-3 text-left text-[16px] font-semibold transition-colors ${
-                    isActive
-                      ? "bg-white/[0.08] text-white"
-                      : "text-[#C3CBD2] hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <span
-                    className={`h-4 w-[4px] -skew-x-12 rounded-sm bg-gradient-to-b from-bordeaux-deep to-bordeaux-bright transition-opacity ${
-                      isActive ? "opacity-100" : "opacity-30"
-                    }`}
-                    aria-hidden
-                  />
-                  {item.label}
-                </Link>
-              );
-            })}
-            <Link
-              to="/articles"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 rounded-full px-4 py-3 text-left text-[16px] font-semibold text-bordeaux-bright hover:bg-white/5"
-            >
-              <BookOpen className="h-[18px] w-[18px]" /> Полезные статьи
-            </Link>
-            <div className="mt-1 grid grid-cols-2 gap-2 border-t border-line-dark pt-3">
-              {channels.map((c) => (
-                <a
-                  key={c.href}
-                  href={c.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => {
-                    reachGoal(c.goal, { place: "Мобильное меню" });
-                    setOpen(false);
-                  }}
-                  className="flex items-center justify-center gap-2 rounded-full bg-white/[0.06] px-4 py-3 text-[15px] font-bold text-white transition-colors hover:bg-white/10"
-                >
-                  {c.icon}
-                  {c.label}
-                </a>
-              ))}
-            </div>
-            <div className="mt-1 flex flex-col gap-2 border-t border-line-dark px-2 pt-3">
-              {site.phones.map((p) => (
-                <a
-                  key={p.href}
-                  href={p.href}
-                  className="flex items-start gap-2.5 hover:text-white"
-                >
-                  <Phone className="h-4 w-4 flex-none translate-y-1 text-bordeaux-bright" />
-                  {/* Номер и подпись — в столбик: в одну строку номер
-                      переносился посреди цифр. */}
-                  <span className="min-w-0">
-                    <span className="block whitespace-nowrap font-num text-[17px] font-bold leading-tight text-white">
-                      {p.number}
-                    </span>
-                    <span className="block text-[12px] font-semibold leading-tight text-[#9AA4B2]">
-                      {p.name} · {p.role}
-                    </span>
-                  </span>
-                </a>
-              ))}
-              <div className="mt-1 flex items-center gap-2">
-                <a
-                  href={site.telegramHref}
-                  onClick={() =>
-                    reachGoal(GOALS.telegram, { place: "Мобильное меню" })
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Telegram"
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-line-dark text-chrome hover:text-white"
-                >
-                  <TelegramIcon className="h-5 w-5" />
-                </a>
+              <Link
+                to="/catalog"
+                onClick={() => setOpen(false)}
+                className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-b from-bordeaux-bright to-bordeaux px-4 py-3.5 font-extrabold uppercase tracking-[0.02em] text-white shadow-[0_10px_24px_-10px_rgba(122,20,16,.9)]"
+              >
+                <Car className="h-[18px] w-[18px]" /> Весь каталог
+              </Link>
+
+              <Link
+                to="/catalog?tab=premium"
+                onClick={() => setOpen(false)}
+                className="mt-2 flex items-center gap-2.5 rounded-2xl border border-bordeaux/40 bg-bordeaux/[0.10] px-4 py-3 text-[15px] font-extrabold text-white transition-colors hover:bg-bordeaux/20"
+              >
+                <Gem className="h-[17px] w-[17px] text-bordeaux-bright" />
+                Премиум
+                <span className="ml-auto text-[12px] font-semibold text-[#9AA4B2]">
+                  Mercedes · BMW · Audi
+                </span>
+              </Link>
+
+              <div className="mt-3 flex flex-col gap-0.5">
+                {menuNav.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      onClick={() => setOpen(false)}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`flex items-center gap-3 rounded-xl px-3 py-3 text-[16px] font-semibold transition-colors ${
+                        isActive
+                          ? "bg-white/[0.08] text-white"
+                          : "text-[#C3CBD2] hover:bg-white/5 hover:text-white"
+                      }`}
+                    >
+                      <span
+                        className={`h-4 w-[4px] flex-none -skew-x-12 rounded-sm bg-gradient-to-b from-bordeaux-deep to-bordeaux-bright transition-opacity ${
+                          isActive ? "opacity-100" : "opacity-30"
+                        }`}
+                        aria-hidden
+                      />
+                      {item.label}
+                      <ChevronRight className="ml-auto h-4 w-4 text-[#6C7681]" />
+                    </Link>
+                  );
+                })}
               </div>
-            </div>
-            <a
-              href={site.mapHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2 px-2 pt-2 text-[14px] font-semibold text-[#C3CBD2] hover:text-white"
-            >
-              <MapPin className="h-4 w-4 text-bordeaux-bright" />{" "}
-              {site.addressFull}
-            </a>
-          </nav>
-        </div>
+
+              <div className="mt-3 border-t border-line-dark pt-3">
+                <span className="px-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#7C8792]">
+                  Наши каналы
+                </span>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {channels.map((c) => (
+                    <a
+                      key={c.href}
+                      href={c.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        reachGoal(c.goal, { place: "Мобильное меню" });
+                        setOpen(false);
+                      }}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] px-3 py-3 text-[15px] font-bold text-white transition-colors hover:bg-white/10"
+                    >
+                      {c.icon}
+                      {c.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-3 border-t border-line-dark pt-3">
+                <span className="px-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#7C8792]">
+                  Связаться
+                </span>
+                <div className="mt-2 flex flex-col gap-2">
+                  {site.phones.map((p) => (
+                    <a
+                      key={p.href}
+                      href={p.href}
+                      onClick={() => reachGoal(GOALS.phone, { place: "Мобильное меню" })}
+                      className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2.5 transition-colors hover:bg-white/[0.08]"
+                    >
+                      <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-bordeaux/20 text-bordeaux-bright">
+                        <Phone className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block whitespace-nowrap font-num text-[16px] font-bold leading-tight text-white">
+                          {p.number}
+                        </span>
+                        <span className="block text-[12px] font-semibold leading-tight text-[#9AA4B2]">
+                          {p.name} · {p.role}
+                        </span>
+                      </span>
+                    </a>
+                  ))}
+
+                  <a
+                    href={site.telegramHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      reachGoal(GOALS.telegram, { place: "Мобильное меню" });
+                      setOpen(false);
+                    }}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-line-dark px-3 py-3 text-[15px] font-bold text-white transition-colors hover:bg-white/[0.08]"
+                  >
+                    <TelegramIcon className="h-[18px] w-[18px]" />
+                    Написать менеджеру
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      openLead();
+                    }}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-white px-3 py-3 text-[15px] font-extrabold text-ink transition-colors hover:bg-chrome-lt"
+                  >
+                    Рассчитать под ключ
+                    <ArrowRight className="h-[17px] w-[17px]" />
+                  </button>
+                </div>
+              </div>
+
+              <a
+                href={site.mapHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpen(false)}
+                className="mt-3 flex items-center gap-2 border-t border-line-dark px-1 pt-3 text-[13.5px] font-semibold text-[#9AA4B2] transition-colors hover:text-white"
+              >
+                <MapPin className="h-4 w-4 flex-none text-bordeaux-bright" />
+                {site.addressFull}
+              </a>
+            </nav>
+          </div>
+        </>
       ) : null}
     </header>
   );
