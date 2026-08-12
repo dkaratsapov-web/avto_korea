@@ -70,6 +70,12 @@ const config: Config = {
           "0%": { transform: "rotate(0deg)" },
           "100%": { transform: "rotate(360deg)" },
         },
+        // Блик по кнопке «Подписаться» в макете телефона: пауза длиннее
+        // пробега, иначе элемент выглядит мигающим баннером.
+        "join-shine": {
+          "0%,65%,100%": { transform: "translateX(0)" },
+          "35%": { transform: "translateX(700%)" },
+        },
       },
       animation: {
         "fade-up": "fade-up .5s ease both",
@@ -81,6 +87,7 @@ const config: Config = {
         nudge: "nudge 1.3s ease-in-out infinite",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
         "spin-slow": "spin-slow 22s linear infinite",
+        "join-shine": "join-shine 3.6s ease-in-out infinite",
       },
     },
   },
