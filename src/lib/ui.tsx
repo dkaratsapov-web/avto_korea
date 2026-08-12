@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { logFav } from "@/lib/api";
+import { trackCarView } from "@/lib/carViews";
 
 type ModalState =
   | { type: "car"; carId: string }
@@ -149,7 +150,11 @@ export function UIProvider({ children }: { children: ReactNode }) {
       clearCompare,
       compareCount: compare.length,
       modal,
-      openCar: (carId: string) => setModal({ type: "car", carId }),
+      openCar: (carId: string) => {
+        // Единственная точка входа в карточку — здесь и считаем глубину просмотра.
+        trackCarView(carId);
+        setModal({ type: "car", carId });
+      },
       openFavorites: () => setModal({ type: "favorites" }),
       openCompare: () => setModal({ type: "compare" }),
       openLead: () => setModal({ type: "lead" }),

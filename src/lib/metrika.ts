@@ -27,6 +27,8 @@ export const GOALS = {
   maxChannel: "channel_max",
   /** Клик по номеру телефона. */
   phone: "click_phone",
+  /** За визит открыто больше пяти разных карточек авто. */
+  deepView: "catalog_deep_view",
 } as const;
 
 type Ym = (id: number, action: string, ...rest: unknown[]) => void;
