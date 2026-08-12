@@ -7,7 +7,13 @@ import { CarCard } from "@/components/CarCard";
 import { Flag } from "@/components/icons/Flag";
 import { Button } from "@/components/ui/Button";
 import { useCars } from "@/lib/carsStore";
-import { statusLabels, type Car, type CarStatus } from "@/data/cars";
+import {
+  isPremium,
+  PREMIUM_MIN_PRICE,
+  statusLabels,
+  type Car,
+  type CarStatus,
+} from "@/data/cars";
 import { countries, type CountryCode } from "@/lib/site";
 
 type Sort = "default" | "price-asc" | "price-desc";
@@ -56,23 +62,6 @@ function toggle<T>(arr: T[], v: T): T[] {
 }
 const fmt = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
 const brandOf = (model: string) => model.trim().split(/\s+/)[0];
-
-/**
- * Премиум-подборка: немецкая тройка от 5 млн ₽ под ключ.
- *
- * Марку сверяем по началу названия, а не по полному совпадению: в каталог из
- * канала модели попадают как «MERCEDES-BENZ E300», «BMW X3», «AUDI A3L».
- * Цена берётся тверская — та же, что показывается в карточке.
- */
-const PREMIUM_BRAND_RE = /^(mercedes|bmw|audi)\b/i;
-const PREMIUM_MIN_PRICE = 5_000_000;
-
-function isPremium(c: Car): boolean {
-  return (
-    PREMIUM_BRAND_RE.test(c.model.trim()) &&
-    (c.priceTverRub ?? c.priceRub) >= PREMIUM_MIN_PRICE
-  );
-}
 
 function matchesCar(c: Car, f: Filters, search: string): boolean {
   const price = c.priceTverRub ?? c.priceRub;

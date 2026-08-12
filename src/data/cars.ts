@@ -58,6 +58,24 @@ export function cleanTrim(trim?: string): string {
   return /(оснащ|имеет|включа|установ|есть\b|доступн|привез)/i.test(t) ? "" : t;
 }
 
+/**
+ * Премиум-подборка: немецкая тройка от 5 млн ₽ под ключ.
+ *
+ * Правило одно на весь сайт — им пользуются и вкладка каталога, и блок на
+ * главной. Марку сверяем по началу названия, а не по полному совпадению: из
+ * канала модели приходят как «MERCEDES-BENZ E300», «BMW X3», «AUDI A3L».
+ * Цена берётся тверская — та же, что показана в карточке.
+ */
+export const PREMIUM_MIN_PRICE = 5_000_000;
+const PREMIUM_BRAND_RE = /^(mercedes|bmw|audi)\b/i;
+
+export function isPremium(c: Car): boolean {
+  return (
+    PREMIUM_BRAND_RE.test(c.model.trim()) &&
+    (c.priceTverRub ?? c.priceRub) >= PREMIUM_MIN_PRICE
+  );
+}
+
 export const statusLabels: Record<CarStatus, string> = {
   in_stock: "В наличии",
   in_transit: "В пути",
