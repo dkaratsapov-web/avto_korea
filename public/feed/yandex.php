@@ -12,8 +12,21 @@
 declare(strict_types=1);
 
 const WORKER = 'https://diauto-bot.d-karatsapov.workers.dev';
-const CACHE_FILE = __DIR__ . '/../../private-cache/yandex-feed.xml';
 const CACHE_TTL = 3600;
+
+/**
+ * Режим фида.
+ *
+ * direct   — для Яндекс.Директа: все фото и полное описание.
+ * business — для Яндекс.Бизнеса: он берёт только первую картинку и режет
+ *            описание после 250 символов. Режем сами по границе предложения,
+ *            иначе текст обрывается посреди слова.
+ */
+$mode = (($_GET['mode'] ?? '') === 'business') ? 'business' : 'direct';
+$isBusiness = $mode === 'business';
+
+// У каждого режима свой кэш: иначе Бизнес получил бы файл, собранный для Директа.
+define('CACHE_FILE', __DIR__ . "/../../private-cache/yandex-feed-{$mode}.xml");
 
 const SITE_URL = 'https://авто-из-кореи-под-ключ.рф';
 const SHOP_NAME = 'ДиАвто69';
@@ -91,6 +104,28 @@ function splitModel(string $model): array
     return [$parts[0] ?? $model, $parts[1] ?? ''];
 }
 
+/**
+ * Короткое описание: не длиннее лимита и без обрыва посреди слова.
+ * Режем по концу предложения, если он есть в пределах лимита, иначе по пробелу.
+ */
+function shortDescription(string $text, int $limit = 250): string
+{
+    $text = trim(preg_replace('/\s+/u', ' ', $text));
+    if (mb_strlen($text) <= $limit) {
+        return $text;
+    }
+    $cut = mb_substr($text, 0, $limit);
+    foreach (['. ', '! ', '? '] as $end) {
+        $pos = mb_strrpos($cut, $end);
+        // Обрезок меньше половины лимита выглядит куцо — тогда режем по слову.
+        if ($pos !== false && $pos > $limit / 2) {
+            return mb_substr($cut, 0, $pos + 1);
+        }
+    }
+    $space = mb_strrpos($cut, ' ');
+    return rtrim($space !== false ? mb_substr($cut, 0, $space) : $cut, ' ,;:-—') . '…';
+}
+
 function x(string $v): string
 {
     return htmlspecialchars($v, ENT_XML1 | ENT_QUOTES, 'UTF-8');
@@ -149,7 +184,9 @@ foreach ($catalog as $c) {
     $out[] = '<categoryId>1</categoryId>';
     $out[] = '<vendor>' . x($vendor) . '</vendor>';
 
-    foreach (array_slice((array) ($c['images'] ?? []), 0, 10) as $img) {
+    // Бизнес всё равно берёт только первую картинку и предупреждает об этом.
+    $maxPictures = $isBusiness ? 1 : 10;
+    foreach (array_slice((array) ($c['images'] ?? []), 0, $maxPictures) as $img) {
         if (is_string($img) && $img !== '') {
             $out[] = '<picture>' . x(abs_url($img)) . '</picture>';
         }
@@ -157,7 +194,8 @@ foreach ($catalog as $c) {
 
     $desc = (string) ($c['description'] ?? '');
     if ($desc !== '') {
-        $out[] = '<description>' . x(mb_substr($desc, 0, 3000)) . '</description>';
+        $desc = $isBusiness ? shortDescription($desc) : mb_substr($desc, 0, 3000);
+        $out[] = '<description>' . x($desc) . '</description>';
     }
 
     $country = COUNTRIES[(string) ($c['country'] ?? '')] ?? '';
