@@ -60,6 +60,11 @@ const DirectLanding = lazy(() =>
     default: m.DirectLanding,
   })),
 );
+const TelegramLanding = lazy(() =>
+  import("@/components/pages/TelegramLanding").then((m) => ({
+    default: m.TelegramLanding,
+  })),
+);
 const TmaApp = lazy(() =>
   import("@/components/pages/TmaApp").then((m) => ({ default: m.TmaApp })),
 );
@@ -125,6 +130,8 @@ export function App() {
           </Route>
           {/* Посадочная под Директ — вне общего каркаса сайта */}
           <Route path="/go" element={<DirectLanding />} />
+          {/* Посадочная только под Telegram-канал, свёрстана как сам Telegram */}
+          <Route path="/tg" element={<TelegramLanding />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/tma" element={<TmaApp />} />
         </Routes>
