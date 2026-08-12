@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Обои для страницы /tg — дудлы в духе стандартного фона Telegram, но свои:
+  машины, ключи, колёса, контейнеры. Рисунок Telegram чужой, да и авто по теме.
+  Плитка бесшовная по построению: иконки не выходят за края.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+  <g fill="none" stroke="#12300f" stroke-opacity="0.09" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- машина -->
+    <g transform="translate(8,14)">
+      <path d="M4 26c0-1.1.9-2 2-2h1l4-8a3 3 0 0 1 2.7-1.7h16.6A3 3 0 0 1 33 16l4 8h1c1.1 0 2 .9 2 2v5h-5a5 5 0 0 0-10 0H19a5 5 0 0 0-10 0H4z"/>
+      <circle cx="14" cy="31" r="4"/>
+      <circle cx="32" cy="31" r="4"/>
+    </g>
+
+    <!-- ключ -->
+    <g transform="translate(104,10) rotate(-18)">
+      <circle cx="13" cy="13" r="7"/>
+      <path d="M18 18 34 34M29 29l4-4M25 25l4-4"/>
+    </g>
+
+    <!-- колесо -->
+    <g transform="translate(180,26)">
+      <circle cx="20" cy="20" r="16"/>
+      <circle cx="20" cy="20" r="6.5"/>
+      <path d="M20 4v7M20 29v7M4 20h7M29 20h7"/>
+    </g>
+
+    <!-- руль -->
+    <g transform="translate(20,98)">
+      <circle cx="20" cy="20" r="16"/>
+      <circle cx="20" cy="20" r="5"/>
+      <path d="M4.2 20H15M25 20h10.8M20 25v11"/>
+    </g>
+
+    <!-- контейнер -->
+    <g transform="translate(100,92) rotate(8)">
+      <path d="M6 14 20 7l14 7v14l-14 7-14-7z"/>
+      <path d="M6 14l14 7 14-7M20 21v14"/>
+    </g>
+
+    <!-- гаечный ключ -->
+    <g transform="translate(178,112) rotate(24)">
+      <path d="M31 6a9 9 0 0 0-11 12L8 30a3 3 0 0 0 0 4l2 2a3 3 0 0 0 4 0l12-12a9 9 0 0 0 12-11l-6 6-5-1-1-5z"/>
+    </g>
+
+    <!-- заправка -->
+    <g transform="translate(16,176)">
+      <path d="M6 36V8a3 3 0 0 1 3-3h11a3 3 0 0 1 3 3v28M4 36h22"/>
+      <path d="M9 12h11v7H9z"/>
+      <path d="M23 14h5a3 3 0 0 1 3 3v11a3 3 0 0 0 6 0V17l-4-4"/>
+    </g>
+
+    <!-- метка на карте -->
+    <g transform="translate(102,174)">
+      <path d="M20 38s12-12 12-21a12 12 0 1 0-24 0c0 9 12 21 12 21z"/>
+      <circle cx="20" cy="17" r="4.5"/>
+    </g>
+
+    <!-- спидометр -->
+    <g transform="translate(178,182)">
+      <path d="M5 30a15 15 0 1 1 30 0"/>
+      <path d="M20 30l8.5-9.5"/>
+      <circle cx="20" cy="30" r="2.5"/>
+    </g>
+  </g>
+</svg>
