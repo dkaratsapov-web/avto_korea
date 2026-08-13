@@ -28,7 +28,7 @@ $isBusiness = $mode === 'business';
 // У каждого режима свой кэш: иначе Бизнес получил бы файл, собранный для Директа.
 define('CACHE_FILE', __DIR__ . "/../../private-cache/yandex-feed-{$mode}.xml");
 
-const SITE_URL = 'https://авто-из-кореи-под-ключ.рф';
+const SITE_URL = 'https://автоимпорт-69.рф';
 const SHOP_NAME = 'ДиАвто69';
 const COMPANY = 'ИП Петренко Дмитрий Анатольевич';
 
