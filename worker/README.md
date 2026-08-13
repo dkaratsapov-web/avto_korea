@@ -35,7 +35,7 @@
 - **Новый** токен бота из @BotFather (старый, что светился, — отозвать `/revoke`).
 - `chat_id` менеджера: напишите боту → узнайте id через **@userinfobot**
   (для группы — отрицательный id группы).
-- Адрес мини-аппа: `https://авто-из-кореи-под-ключ.рф/tma`.
+- Адрес мини-аппа: `https://автоимпорт-69.рф/tma`.
 
 ## 2. Деплой воркера
 Дашборд Cloudflare → **Workers & Pages → Create → Worker**, вставьте код из
@@ -43,7 +43,7 @@
 ```
 TELEGRAM_BOT_TOKEN = <новый токен>          (Secret)
 TELEGRAM_CHAT_ID   = <id чата менеджера>     (Secret/Variable)
-MINI_APP_URL       = https://авто-из-кореи-под-ключ.рф/tma   (Variable)
+MINI_APP_URL       = https://автоимпорт-69.рф/tma   (Variable)
 ```
 Или через CLI:
 ```bash
@@ -67,7 +67,7 @@ https://api.telegram.org/bot<TOKEN>/getWebhookInfo
 
 (Опц.) постоянная кнопка-меню «Каталог» рядом с полем ввода:
 ```
-https://api.telegram.org/bot<TOKEN>/setChatMenuButton?menu_button={"type":"web_app","text":"Каталог","web_app":{"url":"https://авто-из-кореи-под-ключ.рф/tma"}}
+https://api.telegram.org/bot<TOKEN>/setChatMenuButton?menu_button={"type":"web_app","text":"Каталог","web_app":{"url":"https://автоимпорт-69.рф/tma"}}
 ```
 
 ## 4. Админка в боте (общий каталог + роли)
