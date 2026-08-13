@@ -124,7 +124,7 @@ Playwright намеренно не в зависимостях: он нужен 
 Домен прописан в шести местах, поэтому меняется скриптом, а не руками:
 
 ```bash
-node scripts/set-domain.mjs новый-домен.рф --redirect авто-из-кореи-под-ключ.рф
+node scripts/set-domain.mjs новый-домен.рф --redirect автоимпорт-69.рф
 ```
 
 Скрипт правит `src/lib/site.ts`, `.env.example`, `public/feed/yandex.php`,
