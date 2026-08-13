@@ -110,7 +110,7 @@ export function ContactsPage() {
               <Clock className="mt-0.5 h-5 w-5 flex-none text-steel" />
               <div>
                 <div className="text-[12px] font-bold uppercase tracking-wide text-ink-2">Часы работы</div>
-                <div className="font-bold text-ink">Ежедневно 9:00–21:00</div>
+                <div className="font-bold text-ink">Ежедневно 10:00–18:00</div>
               </div>
             </div>
           </div>
