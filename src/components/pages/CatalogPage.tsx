@@ -45,7 +45,7 @@ export function CatalogPage() {
                 <span className="slash" aria-hidden /> Каталог под ключ
               </div>
               <h1 className="text-[clamp(26px,3.2vw,40px)] leading-[1.02] text-shine">
-                Авто в наличии
+                Авто под заказ
               </h1>
             </div>
             <p className="max-w-md text-[13.5px] leading-snug text-[#AEB7BE]">

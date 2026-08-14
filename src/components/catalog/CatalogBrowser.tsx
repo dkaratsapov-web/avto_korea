@@ -10,9 +10,7 @@ import { useCars } from "@/lib/carsStore";
 import {
   isPremium,
   PREMIUM_MIN_PRICE,
-  statusLabels,
   type Car,
-  type CarStatus,
 } from "@/data/cars";
 import { countries, type CountryCode } from "@/lib/site";
 
@@ -23,7 +21,6 @@ type Condition = "all" | "new" | "used";
 // а к каталогу применяется «applied» — только после кнопки «Показать».
 type Filters = {
   countryTab: CountryCode | "all";
-  statusTab: CarStatus | "all";
   brands: string[];
   bodies: string[];
   fuels: string[];
@@ -41,7 +38,6 @@ type Filters = {
 
 const emptyFilters = (): Filters => ({
   countryTab: "all",
-  statusTab: "all",
   brands: [],
   bodies: [],
   fuels: [],
@@ -68,7 +64,6 @@ function matchesCar(c: Car, f: Filters, search: string): boolean {
   const hp = c.powerHp ?? 0;
   if (search && !c.model.toLowerCase().includes(search.toLowerCase())) return false;
   if (f.countryTab !== "all" && c.country !== f.countryTab) return false;
-  if (f.statusTab !== "all" && c.status !== f.statusTab) return false;
   if (f.brands.length && !f.brands.includes(brandOf(c.model))) return false;
   if (f.bodies.length && !(c.bodyType && f.bodies.includes(c.bodyType))) return false;
   if (f.fuels.length && !(c.fuelType && f.fuels.includes(c.fuelType))) return false;
@@ -89,7 +84,6 @@ function matchesCar(c: Car, f: Filters, search: string): boolean {
 function countActive(f: Filters): number {
   return (
     (f.countryTab !== "all" ? 1 : 0) +
-    (f.statusTab !== "all" ? 1 : 0) +
     f.brands.length +
     f.bodies.length +
     f.fuels.length +
@@ -136,7 +130,6 @@ export function CatalogBrowser() {
       colors: Array.from(new Set(cars.map((c) => c.color).filter(Boolean) as string[])).sort(),
       drives: Array.from(new Set(cars.map((c) => c.drive).filter(Boolean))).sort(),
       gear: Array.from(new Set(cars.map((c) => c.gearbox).filter(Boolean))).sort(),
-      statuses: Array.from(new Set(cars.map((c) => c.status))),
       min: prices.length ? Math.min(...prices) : 0,
       max: prices.length ? Math.max(...prices) : 0,
       yearMin: cars.length ? Math.min(...cars.map((c) => c.year)) : 2010,
@@ -206,19 +199,6 @@ export function CatalogBrowser() {
             <Chip key={code} active={draft.countryTab === code} onClick={() => patch({ countryTab: code })}>
               <Flag code={code} className="h-3.5 w-5" />
               {countries[code].label}
-            </Chip>
-          ))}
-        </div>
-      </FacetDropdown>
-
-      <FacetDropdown label="Наличие" count={draft.statusTab !== "all" ? 1 : 0}>
-        <div className="flex flex-wrap gap-2">
-          <Chip active={draft.statusTab === "all"} onClick={() => patch({ statusTab: "all" })}>
-            Все
-          </Chip>
-          {facets.statuses.map((s) => (
-            <Chip key={s} active={draft.statusTab === s} onClick={() => patch({ statusTab: s })}>
-              {statusLabels[s]}
             </Chip>
           ))}
         </div>
@@ -531,7 +511,7 @@ export function CatalogBrowser() {
             </p>
             <p className="mx-auto mt-2 max-w-md text-[14px] text-ink-2">
               {tab === "premium" && !premiumCount
-                ? `Здесь показываем Mercedes-Benz, BMW и Audi от ${fmt(PREMIUM_MIN_PRICE)} ₽ под ключ. Сейчас таких в наличии нет — оставьте заявку, привезём под заказ.`
+                ? `Здесь показываем Mercedes-Benz, BMW и Audi от ${fmt(PREMIUM_MIN_PRICE)} ₽ под ключ. Сейчас таких в подборке нет — оставьте заявку, привезём под заказ.`
                 : "Попробуйте сбросить часть фильтров или оставьте заявку — подберём под ваш запрос."}
             </p>
             {tab === "premium" && !premiumCount ? (
@@ -589,14 +569,6 @@ export function CatalogBrowser() {
                   {facets.countries.map((code) => (
                     <Chip key={code} active={draft.countryTab === code} onClick={() => patch({ countryTab: code })}>
                       {countries[code].label}
-                    </Chip>
-                  ))}
-                </FilterGroup>
-                <FilterGroup title="Наличие">
-                  <Chip active={draft.statusTab === "all"} onClick={() => patch({ statusTab: "all" })}>Все</Chip>
-                  {facets.statuses.map((s) => (
-                    <Chip key={s} active={draft.statusTab === s} onClick={() => patch({ statusTab: s })}>
-                      {statusLabels[s]}
                     </Chip>
                   ))}
                 </FilterGroup>
