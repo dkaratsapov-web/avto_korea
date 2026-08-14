@@ -4,7 +4,7 @@
 // Переменные/секреты (Settings → Variables and Secrets):
 //   TELEGRAM_BOT_TOKEN — токен бота (@BotFather)                 [Secret]
 //   TELEGRAM_CHAT_ID   — куда падают заявки (@userinfobot)        [Secret]
-//   MINI_APP_URL       — https://avto-korea.pages.dev/tma         [Text]
+//   MINI_APP_URL       — https://автоимпорт-69.рф/tma         [Text]
 //   ADMIN_IDS          — Telegram id владельцев через запятую     [Text]
 //                        (это роль owner: всё + выдача прав)
 // Привязка (Settings → Bindings → KV Namespace):
@@ -525,7 +525,7 @@ export default {
           ? { text: settings.catalogButtonText, web_app: { url: appUrl } }
           : {
               text: settings.catalogButtonText,
-              url: "https://avto-korea.pages.dev/catalog",
+              url: "https://автоимпорт-69.рф/catalog",
             };
         const rows = [[openBtn]];
         if (/^https:\/\//.test(appUrl)) {
@@ -546,7 +546,7 @@ export default {
         if (!r.ok) {
           await api(env, "sendMessage", {
             chat_id: msg.chat.id,
-            text: "🚗 ДиАвто69 — авто из Кореи, Китая, Японии и ЕС под ключ.\nКаталог: https://avto-korea.pages.dev/catalog",
+            text: "🚗 ДиАвто69 — авто из Кореи, Китая, Японии и ЕС под ключ.\nКаталог: https://автоимпорт-69.рф/catalog",
           });
         }
       }

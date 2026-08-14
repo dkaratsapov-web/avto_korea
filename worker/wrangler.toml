@@ -15,7 +15,7 @@ compatibility_date = "2024-11-01"
 
 # Публичные переменные (не секреты).
 [vars]
-MINI_APP_URL = "https://avto-korea.pages.dev/tma"
+MINI_APP_URL = "https://автоимпорт-69.рф/tma"
 # ADMIN_IDS вынесен в секреты дашборда (Worker → Variables and Secrets → Secret).
 
 # Общее хранилище (каталог, настройки, админы, заявки).
