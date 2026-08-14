@@ -49,7 +49,7 @@ function HomeCatalog() {
             </h2>
             {source.length ? (
               <span className="rounded-full border border-line bg-white px-3 py-1 font-num text-[13px] font-bold text-ink-2">
-                {source.length} авто в наличии
+                {source.length} авто в каталоге
               </span>
             ) : null}
           </div>
