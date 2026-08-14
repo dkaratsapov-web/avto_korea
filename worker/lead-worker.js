@@ -128,9 +128,31 @@ async function recordUser(env, from) {
   return false;
 }
 
-// Оповещение менеджеру о новом пользователе (нажал «Старт»).
+/**
+ * Кому уходят служебные уведомления: владельцы из ADMIN_IDS, админы из KV и
+ * общий чат из переменных Cloudflare (он может быть группой, а не человеком).
+ *
+ * Дубли убираем: владелец, добавленный ещё и в KV, не должен получать одно и
+ * то же уведомление дважды.
+ */
+async function adminChatIds(env) {
+  const owners = String(env.ADMIN_IDS || "")
+    .split(/[,\s]+/)
+    .filter(Boolean);
+  const admins = Object.keys((await kvGet(env, "admins", {})) || {});
+  return [
+    ...new Set(
+      [...owners, ...admins, env.TELEGRAM_CHAT_ID].filter(Boolean).map(String),
+    ),
+  ];
+}
+
+// Оповещение о новом пользователе (нажал «Старт») — всем админам.
 async function notifyNewUser(env, from) {
-  if (!env.TELEGRAM_CHAT_ID || !from?.id) return;
+  if (!from?.id) return;
+  const targets = await adminChatIds(env);
+  if (!targets.length) return;
+
   const name =
     [from.first_name, from.last_name].filter(Boolean).join(" ") || "—";
   const uname = from.username ? `@${from.username}` : "без username";
@@ -141,11 +163,21 @@ async function notifyNewUser(env, from) {
     `🆔 ID: ${from.id}`,
     `[Открыть профиль](tg://user?id=${from.id})`,
   ];
-  await api(env, "sendMessage", {
-    chat_id: env.TELEGRAM_CHAT_ID,
-    text: lines.join("\n"),
-    parse_mode: "Markdown",
-  });
+  const text = lines.join("\n");
+
+  // Каждому отдельно: админ, который сам не запускал бота, даёт ошибку —
+  // она не должна отменять доставку остальным.
+  for (const chatId of targets) {
+    try {
+      await api(env, "sendMessage", {
+        chat_id: chatId,
+        text,
+        parse_mode: "Markdown",
+      });
+    } catch {
+      /* один недоступный адресат не ломает рассылку */
+    }
+  }
 }
 
 async function bumpView(env, id) {
