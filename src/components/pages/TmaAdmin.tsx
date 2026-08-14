@@ -1461,7 +1461,7 @@ function BotTab({
           className="field-dark"
           value={s.miniAppUrl || ""}
           onChange={(e) => set("miniAppUrl", e.target.value)}
-          placeholder="https://avto-korea.pages.dev/tma"
+          placeholder="https://автоимпорт-69.рф/tma"
         />
       </label>
       {canEdit ? (
