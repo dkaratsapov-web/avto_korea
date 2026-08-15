@@ -22,7 +22,7 @@ import { Flag } from "@/components/icons/Flag";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { useCars } from "@/lib/carsStore";
 import { countries, site, type CountryCode } from "@/lib/site";
-import { type Car, type CarStatus, statusLabels, formatPrice } from "@/data/cars";
+import { type Car, formatPrice } from "@/data/cars";
 import { showToast } from "@/lib/toast";
 import {
   subscribe as apiSubscribe,
@@ -66,7 +66,6 @@ export function ListView({
 }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | CountryCode>("all");
-  const [statusTab, setStatusTab] = useState<CarStatus | "all">("all");
   const [open, setOpen] = useState(false);
   const [brands, setBrands] = useState<string[]>([]);
   const [bodies, setBodies] = useState<string[]>([]);
@@ -92,7 +91,6 @@ export function ListView({
       colors: Array.from(new Set(cars.map((c) => c.color).filter(Boolean) as string[])).sort(),
       drives: Array.from(new Set(cars.map((c) => c.drive))),
       gear: Array.from(new Set(cars.map((c) => c.gearbox))),
-      statuses: Array.from(new Set(cars.map((c) => c.status))),
       min: prices.length ? Math.min(...prices) : 0,
       max: prices.length ? Math.max(...prices) : 0,
       yearMin: cars.length ? Math.min(...cars.map((c) => c.year)) : 2010,
@@ -112,7 +110,7 @@ export function ListView({
 
   const activeCount =
     brands.length + bodies.length + fuels.length + colors.length + drives.length +
-    gear.length + (condition !== "all" ? 1 : 0) + (statusTab !== "all" ? 1 : 0) +
+    gear.length + (condition !== "all" ? 1 : 0) +
     (priceFrom != null || priceTo != null ? 1 : 0) +
     (yearFrom != null || yearTo != null ? 1 : 0) +
     (powerFrom != null || powerTo != null ? 1 : 0);
@@ -121,7 +119,6 @@ export function ListView({
     const price = c.priceTverRub ?? c.priceRub;
     const hp = c.powerHp ?? 0;
     if (filter !== "all" && c.country !== filter) return false;
-    if (statusTab !== "all" && c.status !== statusTab) return false;
     if (!c.model.toLowerCase().includes(q.toLowerCase())) return false;
     if (brands.length && !brands.includes(c.model.trim().split(/\s+/)[0])) return false;
     if (bodies.length && !(c.bodyType && bodies.includes(c.bodyType))) return false;
@@ -148,7 +145,6 @@ export function ListView({
     setDrives([]);
     setGear([]);
     setCondition("all");
-    setStatusTab("all");
     setPriceFrom(null);
     setPriceTo(null);
     setYearFrom(null);
@@ -225,15 +221,6 @@ export function ListView({
               </button>
             ) : null}
           </div>
-
-          <FilterRow label="Наличие">
-            <button onClick={() => setStatusTab("all")} className={pill(statusTab === "all")}>Все</button>
-            {facets.statuses.map((s) => (
-              <button key={s} onClick={() => setStatusTab(statusTab === s ? "all" : s)} className={pill(statusTab === s)}>
-                {statusLabels[s]}
-              </button>
-            ))}
-          </FilterRow>
 
           <FilterRow label="Состояние">
             {([["all", "Любое"], ["new", "Новые"], ["used", "С пробегом"]] as const).map(([v, l]) => (
@@ -994,7 +981,7 @@ export function HomeView({
     icon: typeof CarIcon;
     primary?: boolean;
   }[] = [
-    { name: "list", label: "Каталог", sub: "Авто в наличии и под заказ", icon: CarIcon, primary: true },
+    { name: "list", label: "Каталог", sub: "Все авто под заказ", icon: CarIcon, primary: true },
     { name: "subscribe", label: "Оповещения", sub: "О новинках каталога", icon: Bell },
     { name: "compare", label: "Сравнить", sub: compareCount ? `${compareCount} выбрано` : "До 3 авто", icon: Scale },
     { name: "reviews", label: "Отзывы", sub: "Мнения клиентов", icon: Star },
@@ -1314,7 +1301,7 @@ export function QuizView({
         </>
       ) : (
         <p className="mb-4 rounded-[14px] border border-line-dark bg-graphite-2 p-4 text-center text-[13.5px] text-[#9AA4B2]">
-          Точного совпадения в наличии нет — подберём под заказ под ваш бюджет.
+          Точного совпадения пока нет — подберём под заказ под ваш бюджет.
         </p>
       )}
 
