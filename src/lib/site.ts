@@ -57,8 +57,9 @@ export const site = {
   maxHref: "https://max.ru/",
 
   // Юзернейм бота без «собаки» — из него собирается диплинк на прокладке /bot.
-  // TODO: подставить реальный (BotFather → /mybots → ваш бот → имя после @).
-  botUsername: "BOT_USERNAME",
+  // Переименуете бота в BotFather — поменяйте и здесь, иначе кнопка на
+  // прокладке приведёт в несуществующий чат.
+  botUsername: "DI_AVTO_69_BOT",
 
   // Каналы для посадочной страницы под Директ (/go).
   telegramChannelHref: "https://t.me/+QTRyuliyCAM2M2Ri",
