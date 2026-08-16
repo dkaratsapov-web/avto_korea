@@ -38,6 +38,11 @@ export type BotSettings = {
   leadChatId?: string;
   reviewsChatId?: string;
   newsChatId?: string;
+  /* Гейт подписки на канал — стена перед ботом для рекламного трафика. */
+  gateEnabled?: boolean;
+  gateChannelId?: string;
+  gateInviteUrl?: string;
+  gateText?: string;
 };
 
 export type NewsItem = {

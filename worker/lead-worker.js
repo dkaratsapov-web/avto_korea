@@ -57,7 +57,7 @@ const DEFAULT_SETTINGS = {
   gateEnabled: true,
   // Числовой id канала, вида -1001234567890. Узнать: /id в канале.
   // Бот обязан быть администратором канала, иначе проверка не работает.
-  gateChannelId: "",
+  gateChannelId: "-1002743098562",
   // Постоянная инвайт-ссылка. Одноразовая сломает гейт на середине кампании.
   gateInviteUrl: "https://t.me/+QTRyuliyCAM2M2Ri",
   gateText:
