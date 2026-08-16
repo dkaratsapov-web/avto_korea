@@ -1276,6 +1276,7 @@ function BotTab({
   canEdit: boolean;
 }) {
   const [s, setS] = useState<BotSettings | null>(null);
+  const [linking, setLinking] = useState(false);
   const [saving, setSaving] = useState(false);
   const lab = "block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1] mb-1";
 
@@ -1300,6 +1301,18 @@ function BotTab({
     if (r.ok) {
       haptic(tg, "medium");
       showToast("Настройки бота сохранены");
+    } else showToast("Ошибка: " + (r.error || ""), "error");
+  }
+
+  // Переподписка вебхука. Нужна после обновлений, которые добавляют боту новые
+  // события: Telegram помнит старый список и новых просто не присылает.
+  async function reconnect() {
+    setLinking(true);
+    const r = await adminCall<{ updates: string[] }>(initData, "webhook.setup");
+    setLinking(false);
+    if (r.ok) {
+      haptic(tg, "medium");
+      showToast("Бот переподключён");
     } else showToast("Ошибка: " + (r.error || ""), "error");
   }
 
@@ -1394,6 +1407,20 @@ function BotTab({
             onChange={(e) => set("gateText", e.target.value)}
           />
         </label>
+
+        <button
+          type="button"
+          disabled={!canEdit || linking}
+          onClick={reconnect}
+          className="mt-3 w-full rounded-[12px] border border-line-dark bg-graphite px-4 py-3 text-[14px] font-bold text-white disabled:opacity-50"
+        >
+          {linking ? "Подключаю…" : "Переподключить бота"}
+        </button>
+        <span className="mt-1.5 block text-[11px] leading-snug text-[#8C97A1]">
+          Нажмите один раз после обновления бота. Без этого он не узнаёт о
+          вступлении в канал и не сможет вернуть человека сам — останется
+          только кнопка «Я подписался».
+        </span>
       </div>
 
       <label>

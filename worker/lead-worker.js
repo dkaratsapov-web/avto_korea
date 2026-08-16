@@ -78,6 +78,36 @@ function api(env, method, body) {
   );
 }
 
+/**
+ * События, на которые подписан вебхук.
+ *
+ * chat_member и chat_join_request нужны гейту подписки: по ним бот узнаёт о
+ * вступлении в канал и сам возвращает человека в бот. Без них останется
+ * только кнопка «Я подписался».
+ */
+const WEBHOOK_UPDATES = [
+  "message",
+  "edited_message",
+  "channel_post",
+  "edited_channel_post",
+  "callback_query",
+  "chat_member",
+  "chat_join_request",
+];
+
+/**
+ * Привязать вебхук. Вынесено из маршрута /setup, потому что вызывается ещё и
+ * кнопкой из админки: домен воркера в России блокируется, и открыть /setup
+ * браузером получается не у всех.
+ */
+async function bindWebhook(env, origin) {
+  const r = await api(env, "setWebhook", {
+    url: `${origin}/tg`,
+    allowed_updates: WEBHOOK_UPDATES,
+  });
+  return r.json().catch(() => ({}));
+}
+
 function leadText(d) {
   const lines = [
     "🚗 Новая заявка — ДиАвто69",
@@ -430,6 +460,7 @@ const NEED_CAP = {
   "reviews.clear": "reviews",
   "stats.get": "stats",
   "broadcast.send": "broadcast",
+  "webhook.setup": "bot",
   "admins.list": "admins",
   "admins.set": "admins",
   "admins.remove": "admins",
@@ -488,23 +519,8 @@ export default {
     if (url.pathname === "/setup") {
       if (!env.TELEGRAM_BOT_TOKEN)
         return json({ error: "no TELEGRAM_BOT_TOKEN" }, 400);
-      const hook = `${url.origin}/tg`;
-      const r = await api(env, "setWebhook", {
-        url: hook,
-        allowed_updates: [
-          "message",
-          "edited_message",
-          "channel_post",
-          "edited_channel_post",
-          "callback_query",
-          // Нужны гейту подписки: по ним бот узнаёт о вступлении в канал
-          // и сам возвращает человека в бот.
-          "chat_member",
-          "chat_join_request",
-        ],
-      });
-      const out = await r.json().catch(() => ({}));
-      return json({ setWebhook: hook, telegram: out });
+      const out = await bindWebhook(env, url.origin);
+      return json({ setWebhook: `${url.origin}/tg`, telegram: out });
     }
 
     // --- Telegram webhook ---
@@ -1138,7 +1154,7 @@ export default {
       if (req && req !== "owner" && !perm.owner && !perm.caps.has(req))
         return json({ ok: false, error: "no_permission" }, 403);
 
-      return handleAdmin(env, action, payload, perm, auth.user);
+      return handleAdmin(env, action, payload, perm, auth.user, url.origin);
     }
 
     return new Response("DiAvto69 worker is running", { headers: cors });
@@ -1725,7 +1741,7 @@ async function handleChannelPost(env, post, opts = {}) {
 }
 
 /* ---------- Обработчики админ-действий ---------- */
-async function handleAdmin(env, action, payload, perm, user) {
+async function handleAdmin(env, action, payload, perm, user, origin) {
   switch (action) {
     case "me":
       return json({
@@ -1906,6 +1922,13 @@ async function handleAdmin(env, action, payload, perm, user) {
       d.fileIds = fileIds;
       await kvPut(env, "drafts", list);
       return json({ ok: true, drafts: list });
+    }
+
+    // Переподписка вебхука на актуальный список событий. Нужна после
+    // выкладки, которая этот список меняет: Telegram помнит старый.
+    case "webhook.setup": {
+      const out = await bindWebhook(env, origin);
+      return json({ ok: !!out?.ok, telegram: out, updates: WEBHOOK_UPDATES });
     }
 
     case "broadcast.send": {
