@@ -29,6 +29,8 @@ export const GOALS = {
   phone: "click_phone",
   /** За визит открыто больше пяти разных карточек авто. */
   deepView: "catalog_deep_view",
+  /** Переход в бота с прокладки /bot (А/Б-тест трафика из Директа). */
+  bot: "click_bot",
 } as const;
 
 type Ym = (id: number, action: string, ...rest: unknown[]) => void;

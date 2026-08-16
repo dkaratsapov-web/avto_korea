@@ -51,6 +51,19 @@ const DEFAULT_SETTINGS = {
   // Chat id чата, куда падают заявки с сайта и из бота. Если пусто —
   // используется TELEGRAM_CHAT_ID из переменных Cloudflare.
   leadChatId: "",
+
+  /* --- Гейт подписки на канал (А/Б-тест трафика из Директа) --- */
+  // Общий рубильник: выключает гейт для всех, не трогая рекламу.
+  gateEnabled: true,
+  // Числовой id канала, вида -1001234567890. Узнать: /id в канале.
+  // Бот обязан быть администратором канала, иначе проверка не работает.
+  gateChannelId: "",
+  // Постоянная инвайт-ссылка. Одноразовая сломает гейт на середине кампании.
+  gateInviteUrl: "",
+  gateText:
+    "🔒 *Каталог открыт подписчикам канала*\n\nВ канале — новые поступления с ценами под ключ, фото и видео с площадки.\n\nПодпишитесь и нажмите «Я подписался» — открою каталог.",
+  gateSubscribeButton: "📣 Подписаться на канал",
+  gateCheckButton: "✅ Я подписался",
 };
 
 /* ---------- Telegram API ---------- */
@@ -230,6 +243,127 @@ function miniAppUrl(env, settings) {
   return String(settings.miniAppUrl || env.MINI_APP_URL || "");
 }
 
+/* ---------- Гейт подписки и метки кампаний ---------- */
+
+/**
+ * Разбор метки из диплинка: /start a-yd-korea → { variant:"a", src:"yd-korea" }.
+ *
+ * Вариант "a" — со стеной подписки, "b" — без неё. Всё остальное (в том числе
+ * обычный /start без метки) считаем "b": органику и переходы из канала гейтить
+ * незачем, стена нужна только рекламному трафику из теста.
+ *
+ * Telegram разрешает в метке лишь A-Z a-z 0-9 _ - и не длиннее 64 символов,
+ * поэтому источник тут уже приходит очищенным — на всякий случай режем ещё раз.
+ */
+function parseStartPayload(text) {
+  const raw = String(text || "").trim().split(/\s+/)[1] || "";
+  const m = /^([ab])-(.*)$/.exec(raw);
+  if (!m) return { variant: "b", src: raw.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60) };
+  return { variant: m[1], src: m[2].replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60) };
+}
+
+/**
+ * Подписан ли человек на канал.
+ *
+ * Считаем подписанными всех, кто состоит: creator, administrator, member и
+ * restricted (последний — участник с ограничениями, он канал видит).
+ * left и kicked — не подписан. Ошибка запроса тоже даёт false, но она означает
+ * скорее «бот не админ канала», чем «человек не подписан», — поэтому вызывающий
+ * код сначала проверяет, что канал вообще настроен.
+ */
+async function isChannelMember(env, channelId, userId) {
+  if (!channelId || !userId) return false;
+  try {
+    const r = await api(env, "getChatMember", { chat_id: channelId, user_id: userId });
+    const j = await r.json();
+    const s = j?.result?.status;
+    return s === "creator" || s === "administrator" || s === "member" || s === "restricted";
+  } catch {
+    return false;
+  }
+}
+
+/** Дописать поля в карточку пользователя, не затирая уже записанное. */
+async function patchUser(env, userId, patch) {
+  if (!env.STORE || !userId) return;
+  try {
+    const users = (await kvGet(env, "users", {})) || {};
+    const cur = users[userId] || {};
+    // Вариант и источник фиксируем один раз — при первом заходе. Иначе
+    // повторный /start без метки перезапишет принадлежность к группе теста,
+    // и сравнивать А с Б станет нечем.
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === undefined || v === "") continue;
+      if ((k === "v" || k === "src") && cur[k]) continue;
+      cur[k] = v;
+    }
+    users[userId] = cur;
+    await kvPut(env, "users", users);
+  } catch {
+    /* статистика не должна ломать сценарий */
+  }
+}
+
+/** Клавиатура основного меню бота (каталог, подбор, менеджер, карты). */
+function menuKeyboard(env, settings) {
+  const appUrl = miniAppUrl(env, settings);
+  const isApp = /^https:\/\//.test(appUrl);
+  const openBtn = isApp
+    ? { text: settings.catalogButtonText, web_app: { url: appUrl } }
+    : { text: settings.catalogButtonText, url: "https://автоимпорт-69.рф/catalog" };
+  const rows = [[openBtn]];
+  if (isApp) {
+    const quizUrl = appUrl + (appUrl.includes("?") ? "&" : "?") + "screen=quiz";
+    rows.push([{ text: settings.quizButtonText, web_app: { url: quizUrl } }]);
+  }
+  rows.push([{ text: settings.managerButtonText, url: settings.managerUrl }]);
+  if (settings.mapUrl) rows.push([{ text: settings.mapButtonText, url: settings.mapUrl }]);
+  if (settings.map2gisUrl)
+    rows.push([{ text: settings.map2gisButtonText, url: settings.map2gisUrl }]);
+  return rows;
+}
+
+/** Приветствие с меню. Запасной текст — если Markdown не прошёл. */
+async function sendWelcome(env, chatId, settings) {
+  const r = await api(env, "sendMessage", {
+    chat_id: chatId,
+    text: settings.welcomeText,
+    parse_mode: "Markdown",
+    reply_markup: { inline_keyboard: menuKeyboard(env, settings) },
+  });
+  if (!r.ok) {
+    await api(env, "sendMessage", {
+      chat_id: chatId,
+      text: "🚗 ДиАвто69 — авто из Кореи, Китая, Японии и ЕС под ключ.\nКаталог: https://автоимпорт-69.рф/catalog",
+    });
+  }
+}
+
+/** Экран подписки: ссылка на канал и кнопка повторной проверки. */
+async function sendGate(env, chatId, settings) {
+  const rows = [];
+  if (settings.gateInviteUrl)
+    rows.push([{ text: settings.gateSubscribeButton, url: settings.gateInviteUrl }]);
+  rows.push([{ text: settings.gateCheckButton, callback_data: "gate_check" }]);
+  await api(env, "sendMessage", {
+    chat_id: chatId,
+    text: settings.gateText,
+    parse_mode: "Markdown",
+    reply_markup: { inline_keyboard: rows },
+  });
+}
+
+/**
+ * Нужна ли этому человеку стена подписки.
+ *
+ * Гейт работает только когда он включён, канал настроен и человек пришёл по
+ * варианту «a». Если канал не настроен — пускаем без стены: недонастроенный
+ * гейт не должен закрывать бота вообще для всех.
+ */
+function gateApplies(settings, variant) {
+  return Boolean(settings.gateEnabled && settings.gateChannelId && variant === "a");
+}
+
 /* ---------- Auth: проверка Telegram initData ---------- */
 const enc = new TextEncoder();
 async function hmac(keyBytes, msgBytes) {
@@ -363,6 +497,10 @@ export default {
           "channel_post",
           "edited_channel_post",
           "callback_query",
+          // Нужны гейту подписки: по ним бот узнаёт о вступлении в канал
+          // и сам возвращает человека в бот.
+          "chat_member",
+          "chat_join_request",
         ],
       });
       const out = await r.json().catch(() => ({}));
@@ -428,9 +566,64 @@ export default {
         return new Response("ok");
       }
 
+      // Человек вступил в канал — открываем доступ и пишем сами.
+      // Это и есть «возврат»: Telegram из канала обратно не ведёт, а
+      // уведомление от бота человек видит сразу. Писать первым можно —
+      // он уже нажал /start, иначе бы сюда не попал.
+      const cm = upd.chat_member;
+      if (cm) {
+        const st = await getSettings(env);
+        const joined = ["member", "administrator", "creator", "restricted"].includes(
+          cm.new_chat_member?.status,
+        );
+        const uid = cm.new_chat_member?.user?.id;
+        if (joined && uid && String(cm.chat?.id) === String(st.gateChannelId)) {
+          await patchUser(env, uid, { subAt: Date.now() });
+          await sendWelcome(env, uid, st);
+          await patchUser(env, uid, { openedAt: Date.now() });
+        }
+        return new Response("ok");
+      }
+
+      // Заявка на вступление, если в канале включён приём заявок:
+      // одобряем и тут же открываем бота.
+      const cjr = upd.chat_join_request;
+      if (cjr) {
+        const st = await getSettings(env);
+        if (String(cjr.chat?.id) === String(st.gateChannelId)) {
+          await api(env, "approveChatJoinRequest", {
+            chat_id: cjr.chat.id,
+            user_id: cjr.from.id,
+          });
+          await patchUser(env, cjr.from.id, { subAt: Date.now() });
+          await sendWelcome(env, cjr.from.id, st);
+          await patchUser(env, cjr.from.id, { openedAt: Date.now() });
+        }
+        return new Response("ok");
+      }
+
       // нажатие inline-кнопки (например, «Калькулятор» — пока заглушка)
       const cq = upd.callback_query;
       if (cq) {
+        // «Я подписался» — перепроверяем и отвечаем всплывающим окном,
+        // поэтому отвечаем на колбэк отдельно, а не общим ответом ниже.
+        if (cq.data === "gate_check") {
+          const st = await getSettings(env);
+          const uid = cq.from?.id;
+          const ok = await isChannelMember(env, st.gateChannelId, uid);
+          await api(env, "answerCallbackQuery", {
+            callback_query_id: cq.id,
+            text: ok ? "Готово! Открываю каталог" : "Подписка пока не видна. Подпишитесь и нажмите ещё раз.",
+            show_alert: !ok,
+          });
+          if (ok && cq.message?.chat?.id) {
+            await patchUser(env, uid, { subAt: Date.now() });
+            await sendWelcome(env, cq.message.chat.id, st);
+            await patchUser(env, uid, { openedAt: Date.now() });
+          }
+          return new Response("ok");
+        }
+
         await api(env, "answerCallbackQuery", { callback_query_id: cq.id });
         if (cq.data === "calc" && cq.message?.chat?.id) {
           await api(env, "sendMessage", {
@@ -552,35 +745,28 @@ export default {
         const isNew = await recordUser(env, msg.from);
         if (isNew) await notifyNewUser(env, msg.from);
         const settings = await getSettings(env);
-        const appUrl = miniAppUrl(env, settings);
-        const openBtn = /^https:\/\//.test(appUrl)
-          ? { text: settings.catalogButtonText, web_app: { url: appUrl } }
-          : {
-              text: settings.catalogButtonText,
-              url: "https://автоимпорт-69.рф/catalog",
-            };
-        const rows = [[openBtn]];
-        if (/^https:\/\//.test(appUrl)) {
-          const quizUrl = appUrl + (appUrl.includes("?") ? "&" : "?") + "screen=quiz";
-          rows.push([{ text: settings.quizButtonText, web_app: { url: quizUrl } }]);
+
+        // Метка из диплинка: вариант А/Б и источник кампании. Фиксируется
+        // один раз, чтобы повторный /start не перекинул человека в другую
+        // группу теста.
+        const { variant, src } = parseStartPayload(msg.text);
+        await patchUser(env, msg.from?.id, { v: variant, src });
+        const users = (await kvGet(env, "users", {})) || {};
+        const known = users[msg.from?.id] || {};
+        // Вариант берём сохранённый: человек мог вернуться уже без метки.
+        const myVariant = known.v || variant;
+
+        if (gateApplies(settings, myVariant)) {
+          const member = await isChannelMember(env, settings.gateChannelId, msg.from.id);
+          if (!member) {
+            await sendGate(env, msg.chat.id, settings);
+            return new Response("ok");
+          }
+          await patchUser(env, msg.from.id, { subAt: Date.now() });
         }
-        rows.push([{ text: settings.managerButtonText, url: settings.managerUrl }]);
-        if (settings.mapUrl)
-          rows.push([{ text: settings.mapButtonText, url: settings.mapUrl }]);
-        if (settings.map2gisUrl)
-          rows.push([{ text: settings.map2gisButtonText, url: settings.map2gisUrl }]);
-        const r = await api(env, "sendMessage", {
-          chat_id: msg.chat.id,
-          text: settings.welcomeText,
-          parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: rows },
-        });
-        if (!r.ok) {
-          await api(env, "sendMessage", {
-            chat_id: msg.chat.id,
-            text: "🚗 ДиАвто69 — авто из Кореи, Китая, Японии и ЕС под ключ.\nКаталог: https://автоимпорт-69.рф/catalog",
-          });
-        }
+
+        await sendWelcome(env, msg.chat.id, settings);
+        await patchUser(env, msg.from?.id, { openedAt: Date.now() });
       }
       return new Response("ok");
     }
@@ -1556,6 +1742,11 @@ async function handleAdmin(env, action, payload, perm, user) {
         "map2gisButtonText",
         "map2gisUrl",
         "miniAppUrl",
+        "gateChannelId",
+        "gateInviteUrl",
+        "gateText",
+        "gateSubscribeButton",
+        "gateCheckButton",
         "reviewsChatId",
         "newsChatId",
         "leadChatId",
@@ -1565,6 +1756,8 @@ async function handleAdmin(env, action, payload, perm, user) {
         if (typeof payload?.[k] === "string") next[k] = payload[k];
       if (typeof payload?.autoPublish === "boolean")
         next.autoPublish = payload.autoPublish;
+      if (typeof payload?.gateEnabled === "boolean")
+        next.gateEnabled = payload.gateEnabled;
       await kvPut(env, "settings", next);
       return json({ ok: true, settings: next });
     }

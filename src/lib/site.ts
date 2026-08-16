@@ -56,6 +56,10 @@ export const site = {
   // Мессенджер MAX. TODO: подставить реальную ссылку профиля/канала MAX.
   maxHref: "https://max.ru/",
 
+  // Юзернейм бота без «собаки» — из него собирается диплинк на прокладке /bot.
+  // TODO: подставить реальный (BotFather → /mybots → ваш бот → имя после @).
+  botUsername: "BOT_USERNAME",
+
   // Каналы для посадочной страницы под Директ (/go).
   telegramChannelHref: "https://t.me/+QTRyuliyCAM2M2Ri",
   maxChannelHref:
