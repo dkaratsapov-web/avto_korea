@@ -59,7 +59,7 @@ const DEFAULT_SETTINGS = {
   // Бот обязан быть администратором канала, иначе проверка не работает.
   gateChannelId: "",
   // Постоянная инвайт-ссылка. Одноразовая сломает гейт на середине кампании.
-  gateInviteUrl: "",
+  gateInviteUrl: "https://t.me/+QTRyuliyCAM2M2Ri",
   gateText:
     "🔒 *Каталог открыт подписчикам канала*\n\nВ канале — новые поступления с ценами под ключ, фото и видео с площадки.\n\nПодпишитесь и нажмите «Я подписался» — открою каталог.",
   gateSubscribeButton: "📣 Подписаться на канал",
@@ -553,6 +553,26 @@ export default {
       if (post) {
         const st = await getSettings(env);
         const cid = String(post.chat?.id);
+
+        // «/id» прямо в канале: отвечаем не в канал (чтобы не мусорить в
+        // ленте подписчиков), а личным сообщением админам. Пост при этом в
+        // каталог не уходит — иначе команда осела бы черновиком авто.
+        if (/^\/id(@\w+)?\s*$/.test(String(post.text || post.caption || "").trim())) {
+          const title = post.chat?.title ? `\nНазвание: ${post.chat.title}` : "";
+          for (const chatId of await adminChatIds(env)) {
+            try {
+              await api(env, "sendMessage", {
+                chat_id: chatId,
+                text: `Идентификатор канала: \`${cid}\`${title}\n\nВпишите его в настройках бота в поле «Канал для гейта».`,
+                parse_mode: "Markdown",
+              });
+            } catch {
+              /* недоступный админ не мешает остальным */
+            }
+          }
+          return new Response("ok");
+        }
+
         if (st.newsChatId && cid === String(st.newsChatId)) {
           await publishNewsFromPost(env, post, url.origin);
         } else if (st.reviewsChatId && cid === String(st.reviewsChatId)) {
