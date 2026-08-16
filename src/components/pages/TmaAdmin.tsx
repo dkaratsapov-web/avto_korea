@@ -1330,6 +1330,72 @@ function BotTab({
         </label>
       </div>
 
+      {/* Гейт подписки — стена перед ботом для рекламного трафика */}
+      <div className="rounded-[14px] border border-line-dark bg-graphite-2 p-3.5">
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            disabled={!canEdit}
+            checked={s.gateEnabled !== false}
+            onChange={(e) =>
+              setS((p) => (p ? { ...p, gateEnabled: e.target.checked } : p))
+            }
+            className="mt-0.5 h-5 w-5 flex-none accent-bordeaux"
+          />
+          <span>
+            <span className="block font-bold text-white">
+              Требовать подписку на канал
+            </span>
+            <span className="mt-0.5 block text-[12px] leading-snug text-[#9AA4B2]">
+              Действует только на переходы по ссылке с меткой «a» — это группа
+              А/Б-теста из Директа. Остальные заходят в бота без стены.
+              Выключите, чтобы снять стену со всех, не трогая рекламу.
+            </span>
+          </span>
+        </label>
+
+        <label className="mt-3 block">
+          <span className={lab}>Канал для гейта</span>
+          <input
+            disabled={!canEdit}
+            className="field-dark"
+            value={s.gateChannelId ?? ""}
+            onChange={(e) => set("gateChannelId", e.target.value)}
+            placeholder="-100…"
+          />
+          <span className="mt-1 block text-[11px] leading-snug text-[#8C97A1]">
+            Отправьте /id в канал — бот пришлёт идентификатор в личку. Бот
+            обязан быть администратором канала, иначе проверка подписки не
+            работает и стена никого не пропустит.
+          </span>
+        </label>
+
+        <label className="mt-3 block">
+          <span className={lab}>Ссылка приглашения</span>
+          <input
+            disabled={!canEdit}
+            className="field-dark"
+            value={s.gateInviteUrl ?? ""}
+            onChange={(e) => set("gateInviteUrl", e.target.value)}
+            placeholder="https://t.me/+…"
+          />
+          <span className="mt-1 block text-[11px] leading-snug text-[#8C97A1]">
+            Только постоянная. Одноразовая или с лимитом переходов сломает
+            гейт на середине кампании.
+          </span>
+        </label>
+
+        <label className="mt-3 block">
+          <span className={lab}>Текст на стене подписки</span>
+          <textarea
+            disabled={!canEdit}
+            className="field-dark min-h-[92px]"
+            value={s.gateText ?? ""}
+            onChange={(e) => set("gateText", e.target.value)}
+          />
+        </label>
+      </div>
+
       <label>
         <span className={lab}>Chat id чата для заявок</span>
         <input
