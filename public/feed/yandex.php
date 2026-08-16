@@ -148,6 +148,22 @@ function abs_url(string $u): string
     return preg_match('#^https?://#i', $u) ? $u : SITE_URL . $u;
 }
 
+const ROOT_CATEGORY_ID = 1;
+
+/**
+ * Идентификатор категории по названию марки.
+ *
+ * Считаем от самого названия, а не по порядку в списке: при нумерации подряд
+ * появление новой марки сдвинуло бы номера у всех следующих, и Яндекс на
+ * каждой выгрузке считал бы категории новыми.
+ *
+ * Диапазон начинается с 2 — единица занята корневой «Автомобили».
+ */
+function categoryId(string $brand): int
+{
+    return 2 + (crc32(mb_strtolower(trim($brand), 'UTF-8')) % 1000000);
+}
+
 $out = [];
 $out[] = '<?xml version="1.0" encoding="UTF-8"?>';
 $out[] = '<yml_catalog date="' . date('Y-m-d H:i') . '">';
@@ -156,8 +172,11 @@ $out[] = '<name>' . x(SHOP_NAME) . '</name>';
 $out[] = '<company>' . x(COMPANY) . '</company>';
 $out[] = '<url>' . x(SITE_URL) . '</url>';
 $out[] = '<currencies><currency id="RUR" rate="1"/></currencies>';
-$out[] = '<categories><category id="1">Автомобили</category></categories>';
-$out[] = '<offers>';
+
+// Офферы копим отдельно: категории известны только после разбора каталога,
+// а в YML блок categories обязан идти раньше offers.
+$offers = [];
+$brands = [];
 
 foreach ($catalog as $c) {
     $price = (int) ($c['priceTverRub'] ?? $c['priceRub'] ?? 0);
@@ -176,26 +195,33 @@ foreach ($catalog as $c) {
     // офферы отклоняются, а с ним в заголовке появляется лишнее «Автомобиль».
     $name = trim($vendor . ' ' . $model . ' ' . ($year ?: ''));
 
-    $out[] = '<offer id="' . x((string) $c['id']) . '" available="true">';
-    $out[] = '<name>' . x($name) . '</name>';
-    $out[] = '<url>' . x($url) . '</url>';
-    $out[] = '<price>' . $price . '</price>';
-    $out[] = '<currencyId>RUR</currencyId>';
-    $out[] = '<categoryId>1</categoryId>';
-    $out[] = '<vendor>' . x($vendor) . '</vendor>';
+    $offers[] = '<offer id="' . x((string) $c['id']) . '" available="true">';
+    // Марка становится разделом каталога: без этого все авто лежат одной
+    // кучей и в карточке организации их невозможно просматривать.
+    // Группируем по регистронезависимому ключу: в постах канала марку пишут
+    // вразнобой («audi» и «AUDI»), а два раздела с одним id — невалидный YML.
+    $brandKey = mb_strtolower($vendor, 'UTF-8');
+    $brands[$brandKey][$vendor] = ($brands[$brandKey][$vendor] ?? 0) + 1;
+
+    $offers[] = '<name>' . x($name) . '</name>';
+    $offers[] = '<url>' . x($url) . '</url>';
+    $offers[] = '<price>' . $price . '</price>';
+    $offers[] = '<currencyId>RUR</currencyId>';
+    $offers[] = '<categoryId>' . categoryId($vendor) . '</categoryId>';
+    $offers[] = '<vendor>' . x($vendor) . '</vendor>';
 
     // Бизнес всё равно берёт только первую картинку и предупреждает об этом.
     $maxPictures = $isBusiness ? 1 : 10;
     foreach (array_slice((array) ($c['images'] ?? []), 0, $maxPictures) as $img) {
         if (is_string($img) && $img !== '') {
-            $out[] = '<picture>' . x(abs_url($img)) . '</picture>';
+            $offers[] = '<picture>' . x(abs_url($img)) . '</picture>';
         }
     }
 
     $desc = (string) ($c['description'] ?? '');
     if ($desc !== '') {
         $desc = $isBusiness ? shortDescription($desc) : mb_substr($desc, 0, 3000);
-        $out[] = '<description>' . x($desc) . '</description>';
+        $offers[] = '<description>' . x($desc) . '</description>';
     }
 
     $country = COUNTRIES[(string) ($c['country'] ?? '')] ?? '';
@@ -214,13 +240,33 @@ foreach ($catalog as $c) {
     ];
     foreach ($params as $name => $value) {
         if ($value !== '' && $value !== 0) {
-            $out[] = '<param name="' . x((string) $name) . '">' . x((string) $value) . '</param>';
+            $offers[] = '<param name="' . x((string) $name) . '">' . x((string) $value) . '</param>';
         }
     }
 
-    $out[] = '</offer>';
+    $offers[] = '</offer>';
 }
 
+// Разделы: корневая «Автомобили» и по одной категории на марку. Пустых не
+// будет — марки взяты из тех авто, что реально попали в фид.
+ksort($brands, SORT_NATURAL | SORT_FLAG_CASE);
+$out[] = '<categories>';
+$out[] = '<category id="' . ROOT_CATEGORY_ID . '">Автомобили</category>';
+foreach ($brands as $key => $spellings) {
+    // Показываем то написание, которое встречается в каталоге чаще: гадать
+    // про заглавные буквы не нужно — «BMW» и «Geely» приходят из данных.
+    // При равенстве берём алфавитно, чтобы фид не менялся от выгрузки к выгрузке.
+    arsort($spellings);
+    $top = max($spellings);
+    $best = array_keys(array_filter($spellings, fn($n) => $n === $top));
+    sort($best, SORT_NATURAL);
+    $out[] = '<category id="' . categoryId($key) . '" parentId="' . ROOT_CATEGORY_ID . '">'
+        . x($best[0]) . '</category>';
+}
+$out[] = '</categories>';
+
+$out[] = '<offers>';
+$out = array_merge($out, $offers);
 $out[] = '</offers>';
 $out[] = '</shop>';
 $out[] = '</yml_catalog>';
