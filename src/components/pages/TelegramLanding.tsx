@@ -64,23 +64,14 @@ export function TelegramLanding() {
         className="mx-auto block bg-white px-6 pb-16 pt-10 sm:rounded-[14px] sm:px-12 sm:pt-12"
         style={{ width: COL }}
       >
-        {/* Аватарка канала */}
-        <div
-          className="mx-auto flex aspect-square w-[74%] max-w-[300px] items-center justify-center rounded-full"
-          style={{
-            background: "linear-gradient(160deg,#e8edf1,#b9c3cb 55%,#98a4ad)",
-          }}
-        >
-          <picture>
-            <source srcSet="/logo.webp" type="image/webp" />
-            <img
-              src="/logo.png"
-              alt="ДиАвто69"
-              className="w-[74%]"
-              decoding="async"
-            />
-          </picture>
-        </div>
+        {/* Аватарка канала. Берём квадратную иконку, а не овальный логотип:
+            овал внутри круга даёт две вложенные окружности и выглядит криво. */}
+        <img
+          src="/favicon-512.png"
+          alt="ДиАвто69"
+          className="mx-auto aspect-square w-[74%] max-w-[300px] rounded-full object-cover"
+          decoding="async"
+        />
 
         {/* font-body и normal-case перебивают общий стиль заголовков сайта:
             здесь мы имитируем Telegram, а не фирменную типографику. */}
