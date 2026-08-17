@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { site } from "@/lib/site";
 import { GOALS, reachGoal } from "@/lib/metrika";
 
@@ -30,6 +30,28 @@ const WALLPAPER = {
 } as const;
 
 export function TelegramLanding() {
+  // Растворение прибито к низу экрана, поэтому у конца страницы оно оказалось
+  // бы белой полосой поверх обоев — карточка там уже закончилась. Гасим его,
+  // когда прятать больше нечего.
+  const [atEnd, setAtEnd] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const left =
+        document.documentElement.scrollHeight -
+        window.scrollY -
+        window.innerHeight;
+      setAtEnd(left < 180);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
+
   useEffect(() => {
     const prevTitle = document.title;
     document.title = "ДиАвто69 — авто из Кореи, Китая и Японии под ключ";
@@ -124,7 +146,9 @@ export function TelegramLanding() {
           не заезжало на обои по бокам. */}
       <div
         aria-hidden
-        className="pointer-events-none fixed bottom-0 left-1/2 h-44 -translate-x-1/2"
+        className={`pointer-events-none fixed bottom-0 left-1/2 h-44 -translate-x-1/2 transition-opacity duration-200 ${
+          atEnd ? "opacity-0" : "opacity-100"
+        }`}
         style={{
           width: COL,
           background:
