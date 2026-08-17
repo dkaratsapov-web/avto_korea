@@ -60,6 +60,9 @@ const DirectLanding = lazy(() =>
     default: m.DirectLanding,
   })),
 );
+const QuizLanding = lazy(() =>
+  import("@/components/pages/QuizLanding").then((m) => ({ default: m.QuizLanding })),
+);
 const BotLanding = lazy(() =>
   import("@/components/pages/BotLanding").then((m) => ({ default: m.BotLanding })),
 );
@@ -137,6 +140,8 @@ export function App() {
           <Route path="/tg" element={<TelegramLanding />} />
           {/* Прокладка в бота: ?v=a — со стеной подписки, ?v=b — без неё */}
           <Route path="/bot" element={<BotLanding />} />
+          {/* Посадочная с квизом под Директ */}
+          <Route path="/quiz" element={<QuizLanding />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/tma" element={<TmaApp />} />
         </Routes>

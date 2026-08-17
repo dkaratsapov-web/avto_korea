@@ -47,7 +47,19 @@ function maskPhone(value: string) {
   return out;
 }
 
-export function CostQuiz() {
+/**
+ * Квиз-расчёт. По умолчанию сам показывает экран «Заявка принята» — так он
+ * работает в блоке калькулятора на сайте. Посадочная страница передаёт
+ * onSent и уводит на /thanks: для Директа отдельная страница-цель надёжнее
+ * JS-события, она фиксируется даже если счётчик не успел отработать.
+ */
+export function CostQuiz({
+  source = "Квиз — расчёт стоимости",
+  onSent,
+}: {
+  source?: string;
+  onSent?: () => void;
+} = {}) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [name, setName] = useState("");
@@ -81,11 +93,13 @@ export function CostQuiz() {
         STEPS.map((s) => answers[s.key])
           .filter(Boolean)
           .join(" · "),
-      source: "Квиз — расчёт стоимости",
+      source,
     };
     const endpoint = import.meta.env.VITE_LEAD_ENDPOINT as string | undefined;
     if (!endpoint) {
+      reachGoal(GOALS.lead, { source });
       setDone(true);
+      onSent?.();
       return;
     }
     setLoading(true);
@@ -96,7 +110,9 @@ export function CostQuiz() {
         body: JSON.stringify(payload),
       });
       if (!r.ok) throw new Error();
+      reachGoal(GOALS.lead, { source });
       setDone(true);
+      onSent?.();
     } catch {
       showToast("Не удалось отправить. Напишите нам в Telegram.", "error");
     } finally {
