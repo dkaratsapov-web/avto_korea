@@ -30,6 +30,40 @@ function useMeta(title: string, description: string, keywords?: string[]) {
   }, [title, description, keywords]);
 }
 
+/**
+ * Ссылки прямо в тексте: [подпись](/адрес).
+ *
+ * Перелинковка должна жить внутри абзацев — там её ждут и читатель, и
+ * поисковик. Отдельный блок «читайте также» в подвале такой же вес не даёт.
+ * Внешние адреса не поддерживаем намеренно: в статьях ссылаемся только на себя.
+ */
+function withLinks(text: string) {
+  const parts: (string | { label: string; to: string })[] = [];
+  const re = /\[([^\]]+)\]\((\/[^)]*)\)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    parts.push({ label: m[1], to: m[2] });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+
+  return parts.map((part, i) =>
+    typeof part === "string" ? (
+      part
+    ) : (
+      <Link
+        key={i}
+        to={part.to}
+        className="font-semibold text-bordeaux underline decoration-bordeaux/30 underline-offset-2 transition-colors hover:text-bordeaux-bright hover:decoration-bordeaux"
+      >
+        {part.label}
+      </Link>
+    ),
+  );
+}
+
 export function ArticlePage() {
   const { slug } = useParams<{ slug: string }>();
   const article = slug ? getArticle(slug) : undefined;
@@ -60,7 +94,17 @@ export function ArticlePage() {
     );
   }
 
-  const other = articles.filter((a) => a.slug !== article.slug).slice(0, 2);
+  // Что читать дальше: сначала явно указанные в статье, потом добираем
+  // остальными, чтобы блок не пустовал у материалов без связей.
+  const related = article.related
+    .map((slug) => articles.find((a) => a.slug === slug))
+    .filter((a): a is (typeof articles)[number] => Boolean(a));
+  const other = [
+    ...related,
+    ...articles.filter(
+      (a) => a.slug !== article.slug && !article.related.includes(a.slug),
+    ),
+  ].slice(0, 2);
 
   return (
     <main className="bg-paper pb-[96px]">
@@ -83,6 +127,15 @@ export function ArticlePage() {
         <div className="chrome-line absolute inset-x-0 bottom-0" />
       </section>
 
+      <div className="wrap -mt-1">
+        <img
+          src={article.cover}
+          alt=""
+          className="mt-6 aspect-[16/9] w-full rounded-card border border-line object-cover"
+          decoding="async"
+        />
+      </div>
+
       <article className="wrap mt-10 max-w-3xl">
         {article.body.map((b, i) => {
           if (b.t === "h2")
@@ -100,14 +153,42 @@ export function ArticlePage() {
                 {b.items.map((it) => (
                   <li key={it} className="flex items-start gap-2.5 text-[16px] leading-relaxed text-ink-2">
                     <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-bordeaux" />
-                    {it}
+                    <span>{withLinks(it)}</span>
                   </li>
                 ))}
               </ul>
             );
+          if (b.t === "img")
+            return (
+              <figure key={i} className="my-8">
+                <img
+                  src={b.src}
+                  alt={b.alt}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full rounded-card border border-line"
+                />
+                {b.caption ? (
+                  <figcaption className="mt-2.5 text-[13.5px] leading-snug text-ink-2">
+                    {b.caption}
+                  </figcaption>
+                ) : null}
+              </figure>
+            );
+          if (b.t === "note")
+            return (
+              <aside
+                key={i}
+                className="my-6 rounded-card border border-line bg-white px-5 py-4 shadow-[inset_3px_0_0_0_theme(colors.bordeaux)]"
+              >
+                <p className="text-[15.5px] leading-relaxed text-ink">
+                  {withLinks(b.text)}
+                </p>
+              </aside>
+            );
           return (
             <p key={i} className="mb-4 text-[16px] leading-[1.75] text-[#333b44]">
-              {b.text}
+              {withLinks(b.text)}
             </p>
           );
         })}
