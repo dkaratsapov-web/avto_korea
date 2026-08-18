@@ -52,8 +52,16 @@ export function ArticlesPage() {
           <Link
             key={a.slug}
             to={`/articles/${a.slug}`}
-            className="group flex h-full flex-col rounded-card border border-line bg-white p-6 transition-[box-shadow,border-color,transform] duration-300 hover:-translate-y-1 hover:border-[#d4d8de] hover:shadow-card"
+            className="group flex h-full flex-col overflow-hidden rounded-card border border-line bg-white transition-[box-shadow,border-color,transform] duration-300 hover:-translate-y-1 hover:border-[#d4d8de] hover:shadow-card"
           >
+            <img
+              src={a.cover}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="aspect-[16/9] w-full object-cover"
+            />
+            <div className="flex flex-1 flex-col p-6">
             <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold text-ink-2">
               <Clock className="h-4 w-4 text-steel" /> {a.readMin} мин чтения
             </div>
@@ -67,6 +75,7 @@ export function ArticlesPage() {
               Читать статью
               <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </span>
+            </div>
           </Link>
         ))}
       </div>
