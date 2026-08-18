@@ -74,6 +74,8 @@ export function CarsProvider({
   useEffect(() => {
     let alive = true;
     let last = "";
+    // Обновление, которое ждёт, пока читатель вернётся к началу списка.
+    let pending: (() => void) | null = null;
 
     const sync = () => {
       fetchSharedCatalog().then((shared) => {
@@ -84,17 +86,40 @@ export function CarsProvider({
         const next = JSON.stringify(shared);
         if (next === last) return;
         last = next;
-        setCars(normalize(shared));
+
+        // В кэш кладём сразу — он не влияет на то, что сейчас на экране.
         try {
           window.localStorage.setItem(KEY, JSON.stringify(shared));
         } catch {
           /* ignore */
         }
+
+        // А вот подменять витрину под читателем нельзя. Новые авто из канала
+        // добавляются в начало списка, поэтому обновление сдвигает вниз всё,
+        // что человек сейчас смотрит, — выглядит как самопроизвольный прыжок
+        // страницы. Если он пролистал вниз, ждём возвращения наверх.
+        const apply = () => setCars(normalize(shared));
+        if (window.scrollY < 400) {
+          apply();
+          return;
+        }
+        pending = apply;
       });
     };
 
     sync();
     const id = window.setInterval(sync, 120000); // каждые 2 минуты
+
+    // Отложенное обновление применяем, как только человек вернулся наверх:
+    // там сдвиг ленты уже не мешает и не сбивает чтение.
+    const onScroll = () => {
+      if (pending && window.scrollY < 400) {
+        const run = pending;
+        pending = null;
+        run();
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
     const onVisible = () => {
       if (document.visibilityState === "visible") sync();
     };
@@ -102,7 +127,9 @@ export function CarsProvider({
 
     return () => {
       alive = false;
+      pending = null;
       window.clearInterval(id);
+      window.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);

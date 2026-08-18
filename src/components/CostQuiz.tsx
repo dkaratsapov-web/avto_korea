@@ -72,6 +72,19 @@ const BUDGET_BY_ANSWER: Record<string, [number | null, number | null]> = {
 
 const priceOf = (c: Car) => c.priceTverRub ?? c.priceRub;
 
+/** Адрес каталога с фильтрами по ответам — та самая «подборка». */
+function selectionUrl(answers: Record<string, string>): string {
+  const p = new URLSearchParams();
+  const country = COUNTRY_BY_ANSWER[answers.country || ""];
+  if (country) p.set("country", country);
+  if (answers.body && !answers.body.startsWith("Пока")) p.set("body", answers.body);
+  const [min, max] = BUDGET_BY_ANSWER[answers.budget || ""] || [null, null];
+  if (min) p.set("priceFrom", String(min));
+  if (max) p.set("priceTo", String(max));
+  const q = p.toString();
+  return q ? `/catalog?${q}` : "/catalog";
+}
+
 /**
  * Подборка под ответы квиза.
  *
@@ -119,7 +132,7 @@ export function CostQuiz({
   onSent,
 }: {
   source?: string;
-  onSent?: () => void;
+  onSent?: (selection: string) => void;
 } = {}) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -167,7 +180,7 @@ export function CostQuiz({
     if (!endpoint) {
       reachGoal(GOALS.lead, { source });
       setDone(true);
-      onSent?.();
+      onSent?.(selectionUrl(answers));
       return;
     }
     setLoading(true);
@@ -180,7 +193,7 @@ export function CostQuiz({
       if (!r.ok) throw new Error();
       reachGoal(GOALS.lead, { source });
       setDone(true);
-      onSent?.();
+      onSent?.(selectionUrl(answers));
     } catch {
       showToast("Не удалось отправить. Напишите нам в Telegram.", "error");
     } finally {
@@ -258,14 +271,14 @@ export function CostQuiz({
               </div>
 
               <p className="mt-2.5 text-[12.5px] leading-snug text-[#9AA4B2]">
-                Оставьте способ связи — вышлем подборку с фото, ценами под ключ
-                и расчётом по каждому.
+                Введите номер — и мы сразу откроем подборку с этими авто:
+                фото, цены под ключ и расчёт по каждому.
               </p>
             </div>
           ) : null}
 
           <div className="text-[16px] font-bold text-white">
-            Куда прислать подборку?
+            Открыть подборку
           </div>
           <input
             value={name}
@@ -292,7 +305,7 @@ export function CostQuiz({
             ) : (
               <ArrowRight className="h-[18px] w-[18px]" />
             )}
-            Получить расчёт
+            Показать подобранные авто
           </button>
           <a
             href={site.telegramHref}

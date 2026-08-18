@@ -83,14 +83,39 @@ export function UIProvider({ children }: { children: ReactNode }) {
     }
   }, [compare]);
 
-  // блокируем скролл, пока открыта модалка
+  /**
+   * Блокируем скролл страницы, пока открыта модалка.
+   *
+   * Одного overflow: hidden мало: страница перестаёт быть прокручиваемой и
+   * позиция теряется — после закрытия карточки человека выбрасывало почти в
+   * начало каталога. Поэтому фиксируем body с отрицательным top, а при
+   * закрытии возвращаем прокрутку ровно туда, где она была.
+   */
   useEffect(() => {
-    if (modal) {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
-    }
+    if (!modal) return;
+    const y = window.scrollY;
+    const { body } = document;
+    const prev = {
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    };
+    body.style.position = "fixed";
+    body.style.top = `-${y}px`;
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+
+    return () => {
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.width = prev.width;
+      body.style.overflow = prev.overflow;
+      // Следующим кадром: пока body был зафиксирован, страница «схлопнулась»,
+      // и в этот же тик браузер ещё считает её короткой — прокрутка упёрлась бы
+      // в устаревшую высоту и всё равно уехала бы вверх.
+      requestAnimationFrame(() => window.scrollTo(0, y));
+    };
   }, [modal]);
 
   // закрытие по Esc
