@@ -315,11 +315,6 @@ export function ListView({
                 loading="lazy"
                 className="h-full w-full object-cover"
               />
-              {car.isNew ? (
-                <span className="absolute left-2.5 top-2.5 rounded-full bg-bordeaux px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white">
-                  Новинка
-                </span>
-              ) : null}
               <span className="absolute bottom-2.5 right-2.5 rounded-full bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
                 {car.images.length} фото
               </span>

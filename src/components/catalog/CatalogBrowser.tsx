@@ -139,8 +139,22 @@ export function CatalogBrowser() {
     };
   }, [cars]);
 
-  const [draft, setDraft] = useState<Filters>(emptyFilters);
-  const [applied, setApplied] = useState<Filters>(emptyFilters);
+  // Фильтры можно задать прямо в адресе — так квиз открывает готовую подборку
+  // под ответы человека, а ссылкой на неё можно поделиться.
+  const fromUrl = (): Filters => {
+    const f = emptyFilters();
+    const country = params.get("country");
+    if (country && country in countries) f.countryTab = country as CountryCode;
+    const body = params.get("body");
+    if (body) f.bodies = [body];
+    const from = Number(params.get("priceFrom"));
+    const to = Number(params.get("priceTo"));
+    if (from > 0) f.priceFrom = from;
+    if (to > 0) f.priceTo = to;
+    return f;
+  };
+  const [draft, setDraft] = useState<Filters>(fromUrl);
+  const [applied, setApplied] = useState<Filters>(fromUrl);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<Sort>("default");
   const [sheetOpen, setSheetOpen] = useState(false);

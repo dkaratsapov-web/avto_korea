@@ -42,10 +42,6 @@ export function CarCard({ car }: { car: Car }) {
   const fav = isFav(car.id);
   const cmp = isCompare(car.id);
 
-  const statusPill = car.isNew
-    ? "border-transparent bg-gradient-to-b from-bordeaux-bright to-bordeaux text-white shadow-[0_6px_16px_-4px_rgba(122,20,16,.6)]"
-    : "border-white/15 bg-black/55 text-white backdrop-blur";
-
   return (
     <article
       onClick={() => openCar(car.id)}
@@ -97,14 +93,6 @@ export function CarCard({ car }: { car: Car }) {
             <Heart className={`h-[17px] w-[17px] ${fav ? "fill-white" : ""}`} />
           </button>
         </div>
-
-        {car.isNew ? (
-          <span
-            className={`absolute bottom-3 left-3 rounded-full border px-[11px] py-[5px] text-[11.5px] font-extrabold uppercase tracking-[0.05em] ${statusPill}`}
-          >
-            Новинка
-          </span>
-        ) : null}
 
         {car.video ? (
           <span className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/55 px-2.5 py-[5px] text-[11.5px] font-bold text-white backdrop-blur">

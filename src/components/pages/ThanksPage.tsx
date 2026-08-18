@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, Check, Phone } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { MaxIcon } from "@/components/icons/MaxIcon";
@@ -15,7 +15,24 @@ import { GOALS, reachGoal } from "@/lib/metrika";
  * закрываем её от индексации — в поиске ей делать нечего.
  */
 export function ThanksPage() {
-  const { state } = useLocation() as { state?: { source?: string } };
+  const { state } = useLocation() as {
+    state?: { source?: string; selection?: string };
+  };
+  const navigate = useNavigate();
+  const selection = state?.selection;
+
+  /**
+   * Пришли из квиза — сами открываем подобранные авто.
+   *
+   * Не редиректим мгновенно: страница «Спасибо» это цель для Директа, и ей
+   * нужно успеть засчитаться. Пары секунд хватает, а кнопка рядом — для тех,
+   * кто не хочет ждать.
+   */
+  useEffect(() => {
+    if (!selection) return;
+    const t = window.setTimeout(() => navigate(selection), 2500);
+    return () => window.clearTimeout(t);
+  }, [selection, navigate]);
 
   useEffect(() => {
     const prevTitle = document.title;
@@ -46,9 +63,20 @@ export function ThanksPage() {
             Заявка принята
           </h1>
           <p className="mx-auto mt-4 max-w-md text-[16px] leading-relaxed text-[#C7CFD6]">
-            Перезвоним в течение 15 минут и пришлём честный расчёт под ключ — с
-            доставкой и растаможкой.
+            {selection
+              ? "Открываем подборку под ваши параметры. Менеджер перезвонит в течение 15 минут и пришлёт расчёт по каждому авто."
+              : "Перезвоним в течение 15 минут и пришлём честный расчёт под ключ — с доставкой и растаможкой."}
           </p>
+
+          {selection ? (
+            <Link
+              to={selection}
+              className="btn btn-primary mx-auto mt-6 !h-13 px-7 text-[15.5px]"
+            >
+              Смотреть подобранные авто
+              <ArrowRight className="h-[18px] w-[18px]" />
+            </Link>
+          ) : null}
           {state?.source ? (
             <p className="mt-2 text-[13px] text-[#7d8792]">
               Источник заявки: {state.source}
