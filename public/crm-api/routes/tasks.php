@@ -8,6 +8,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../lib/notify.php';
+
 function crm_route_tasks(string $method, array $path): void
 {
     $id = $path[0] ?? '';
@@ -107,6 +109,18 @@ function crm_tasks_create(array $user): void
     );
 
     crm_log_event($dealId, (string) $user['id'], 'TASK_ADDED', $title);
+
+    // Пишем исполнителю, если задачу поставил не он сам.
+    if ($assigneeId !== (string) $user['id']) {
+        $deal = crm_one('SELECT number, client_name FROM crm_deals WHERE id = ?', [$dealId]);
+        $due = crm_date_or_null($body, 'dueDate');
+        crm_notify_user(
+            $assigneeId,
+            'Вам задача по сделке №' . (int) ($deal['number'] ?? 0),
+            $title . "\n" . (string) ($deal['client_name'] ?? '') . ($due !== null ? "\nСрок: " . $due : ''),
+            crm_deal_url($dealId),
+        );
+    }
 
     crm_json(['ok' => true, 'tasks' => crm_deal_tasks($dealId), 'events' => crm_deal_events($dealId)]);
 }

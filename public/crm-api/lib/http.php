@@ -160,6 +160,20 @@ function crm_date_or_null(array $src, string $key): ?string
     return $date ? $date->format('Y-m-d') : null;
 }
 
+/**
+ * Дата со временем в формате YYYY-MM-DDTHH:MM. Хранится как есть, без часового
+ * пояса: перезвон назначают в местное время, и переводить его туда-обратно —
+ * верный способ однажды позвонить на три часа позже.
+ */
+function crm_datetime_or_null(array $src, string $key): ?string
+{
+    $value = crm_str($src, $key, 32);
+    if ($value === '') {
+        return null;
+    }
+    return preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/', $value) ? mb_substr($value, 0, 16) : null;
+}
+
 /** Значение из списка допустимых. Иначе — ошибка запроса. */
 function crm_enum(array $src, string $key, array $allowed, ?string $fallback = null): string
 {

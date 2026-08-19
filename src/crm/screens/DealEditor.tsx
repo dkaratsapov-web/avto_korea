@@ -59,6 +59,7 @@ type FormState = {
 
   purchaseDate: string;
   etaDate: string;
+  callbackAt: string;
   deliveryDays: string;
   prepaymentPercent: string;
   notes: string;
@@ -96,6 +97,7 @@ const EMPTY: FormState = {
   paidAmount: "",
   purchaseDate: "",
   etaDate: "",
+  callbackAt: "",
   // Значения по умолчанию: с них начинается разговор, дальше правятся
   // под конкретную договорённость.
   deliveryDays: "60",
@@ -138,6 +140,7 @@ function fromDeal(deal: Deal): FormState {
     paidAmount: text(deal.paidAmount),
     purchaseDate: deal.purchaseDate ?? "",
     etaDate: deal.etaDate ?? "",
+    callbackAt: deal.callbackAt ?? "",
     deliveryDays: deal.deliveryDays ? String(deal.deliveryDays) : "60",
     prepaymentPercent: deal.prepaymentPercent != null ? String(deal.prepaymentPercent) : "50",
     notes: deal.notes ?? "",
@@ -492,6 +495,25 @@ export function DealEditor() {
               <Field label="Ожидаемое прибытие" hint="Эту дату видит клиент по ссылке отслеживания">
                 <Input type="date" value={form.etaDate} onChange={(e) => set({ etaDate: e.target.value })} />
               </Field>
+              <Field
+                label="Перезвонить"
+                hint="Обещание клиенту. Просроченный перезвон подсвечивается на доске"
+                className="sm:col-span-2"
+              >
+                <div className="flex gap-2">
+                  <Input
+                    type="datetime-local"
+                    value={form.callbackAt}
+                    onChange={(e) => set({ callbackAt: e.target.value })}
+                  />
+                  {form.callbackAt ? (
+                    <Button onClick={() => set({ callbackAt: "" })} title="Убрать перезвон">
+                      Убрать
+                    </Button>
+                  ) : null}
+                </div>
+              </Field>
+
               <Field label="Срок поставки, дней" hint="Подставляется в договор">
                 <Input
                   value={form.deliveryDays}

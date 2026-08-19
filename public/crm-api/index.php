@@ -80,6 +80,17 @@ try {
             crm_route_track($method, array_slice($path, 1));
             break;
 
+        case 'notify':
+            require __DIR__ . '/routes/notify.php';
+            crm_route_notify($method, array_slice($path, 1));
+            break;
+
+        // Вебхук бота уведомлений. Проверяет себя сам секретом от Telegram.
+        case 'telegram':
+            require __DIR__ . '/routes/telegram.php';
+            crm_route_telegram($method, array_slice($path, 1));
+            break;
+
         case 'rate':
             require __DIR__ . '/routes/rate.php';
             crm_route_rate($method, array_slice($path, 1));

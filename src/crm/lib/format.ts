@@ -76,6 +76,19 @@ export function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} МБ`;
 }
 
+/**
+ * Пора ли звонить: время перезвона наступило или прошло.
+ *
+ * Время хранится без часового пояса — как его назначил менеджер. Сравниваем
+ * тоже с местным: перезвон в 14:00 должен загораться в 14:00 по Твери, а не
+ * по Гринвичу.
+ */
+export function isCallbackDue(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const at = new Date(value);
+  return !Number.isNaN(at.getTime()) && at.getTime() <= Date.now();
+}
+
 /** Инициалы для аватарки сотрудника. */
 export function initials(name: string | null | undefined): string {
   if (!name) return "?";

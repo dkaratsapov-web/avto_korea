@@ -13,11 +13,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { AlertCircle, Phone, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import { BOARD_STAGES, CLOSED_STAGES, STAGE_COLORS, STAGE_SHORT, isStage, type Stage } from "../lib/stages";
 import { moneyShort } from "../lib/money";
-import { formatDayShort, plural } from "../lib/format";
+import { formatDayShort, formatMoment, isCallbackDue, plural } from "../lib/format";
 import type { Deal, User } from "../lib/types";
 import { Button, Empty, Input, Select, Spinner, useToast } from "../ui";
 import { PageHead } from "./Layout";
@@ -310,6 +310,19 @@ function DealCard({
           ) : null}
           {deal.etaDate ? (
             <span className="tnum text-[11.5px] text-crm-ink-3">{formatDayShort(deal.etaDate)}</span>
+          ) : null}
+          {deal.callbackAt ? (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-bold ${
+                isCallbackDue(deal.callbackAt)
+                  ? "bg-crm-warn-soft text-crm-warn"
+                  : "bg-crm-soft text-crm-ink-2"
+              }`}
+              title={`Перезвонить: ${formatMoment(deal.callbackAt)}`}
+            >
+              <Phone className="h-3 w-3" />
+              {formatMoment(deal.callbackAt).slice(0, 5)}
+            </span>
           ) : null}
           {deal.dueTasks ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-crm-danger-soft px-2 py-0.5 text-[11.5px] font-bold text-crm-danger">

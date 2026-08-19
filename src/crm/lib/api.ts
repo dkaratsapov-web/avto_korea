@@ -166,6 +166,39 @@ export const api = {
   /** Уменьшенная копия для сетки превью — оригиналы там неподъёмны. */
   fileThumbUrl: (id: string) => `${BASE}/files/${id}?thumb=1`,
 
+  // --- уведомления ---
+  notifyState: () =>
+    request<{
+      telegramConfigured: boolean;
+      telegramLinked: boolean;
+      muted: boolean;
+      linkCode: string | null;
+      botUsername: string;
+      vapidPublicKey: string | null;
+      pushDevices: number;
+    }>("/notify"),
+
+  saveTelegram: (token: string, botUsername: string) =>
+    request<{ telegramConfigured: boolean }>("/notify/telegram", { body: { token, botUsername } }),
+
+  checkTelegram: () =>
+    request<{ bot: string; webhook: boolean; webhookUrl: string }>("/notify/telegram-check", {
+      method: "POST",
+    }),
+
+  unlinkTelegram: () => request<unknown>("/notify/unlink", { method: "POST" }),
+
+  muteNotifications: (muted: boolean) =>
+    request<{ muted: boolean }>("/notify/mute", { body: { muted } }),
+
+  testNotification: () => request<{ sent: string[] }>("/notify/test", { method: "POST" }),
+
+  pushSubscribe: (input: { endpoint: string; p256dh: string; auth: string; label: string }) =>
+    request<unknown>("/notify/push", { body: input }),
+
+  pushUnsubscribe: (endpoint: string) =>
+    request<unknown>("/notify/push", { method: "DELETE", body: { endpoint } }),
+
   // --- прочее ---
   settings: () => request<{ settings: Settings }>("/settings"),
 

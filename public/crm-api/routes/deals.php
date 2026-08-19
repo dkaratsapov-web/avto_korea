@@ -11,6 +11,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../lib/notify.php';
+
 /** Поля сделки, которые приходят из формы. Ключ — колонка, значение — тип. */
 const CRM_DEAL_FIELDS = [
     'client_name' => 'str',
@@ -44,6 +46,7 @@ const CRM_DEAL_FIELDS = [
     'paid_amount' => 'money',
     'purchase_date' => 'date',
     'eta_date' => 'date',
+    'callback_at' => 'datetime',
     'delivery_days' => 'int',
     'prepayment_percent' => 'int',
     'notes' => 'nullable',
@@ -65,6 +68,7 @@ function crm_deal_value(array $body, string $column, string $type): mixed
         'rate' => crm_rate($body, $key),
         'int' => crm_int_or_null($body, $key),
         'date' => crm_date_or_null($body, $key),
+        'datetime' => crm_datetime_or_null($body, $key),
         'nullable' => crm_str_or_null($body, $key, $column === 'notes' ? 5000 : 500),
         default => crm_str($body, $key, 190),
     };
@@ -120,6 +124,17 @@ function crm_route_deals(string $method, array $path): void
         }
 
         crm_log_event($id, (string) $user['id'], 'COMMENT', $text);
+
+        $deal = crm_one('SELECT * FROM crm_deals WHERE id = ?', [$id]);
+        if ($deal !== null && (string) $deal['manager_id'] !== (string) $user['id']) {
+            crm_notify_user(
+                (string) $deal['manager_id'],
+                'Комментарий к сделке №' . (int) $deal['number'],
+                (string) $user['name'] . ': ' . mb_substr($text, 0, 300),
+                crm_deal_url($id),
+            );
+        }
+
         crm_json(['ok' => true, 'events' => crm_deal_events($id)]);
     }
 
@@ -245,6 +260,15 @@ function crm_deals_create(array $user): void
          LEFT JOIN crm_users u ON u.id = d.manager_id WHERE d.id = ?',
         [$id],
     );
+
+    $car = trim(implode(' ', array_filter([$created['car_brand'] ?? null, $created['car_model'] ?? null])));
+    crm_notify_all(
+        'Новая сделка №' . (int) ($created['number'] ?? 0),
+        $clientName . ($car !== '' ? ' · ' . $car : '') . "\nОтветственный: " . (string) ($created['manager_name'] ?? '—'),
+        (string) $user['id'],
+        crm_deal_url($id),
+    );
+
     crm_json(['ok' => true, 'deal' => crm_deal_json($created ?? [])]);
 }
 
@@ -333,6 +357,17 @@ function crm_deals_set_stage(string $id, array $user): void
         [$stage, $closedAt, crm_now(), $id],
     );
     crm_log_event($id, (string) $user['id'], 'STAGE_CHANGED', null, $from, $stage);
+
+    // Пишем ответственному, если этап двигал кто-то другой: это его сделка,
+    // и он должен узнать о движении, не заглядывая на доску.
+    if ((string) $existing['manager_id'] !== (string) $user['id']) {
+        crm_notify_user(
+            (string) $existing['manager_id'],
+            'Сделка №' . (int) $existing['number'] . ': ' . crm_stage_label($stage),
+            (string) $existing['client_name'] . "\nЭтап сменил: " . (string) $user['name'],
+            crm_deal_url($id),
+        );
+    }
 
     $updated = crm_one(
         'SELECT d.*, u.name AS manager_name FROM crm_deals d
