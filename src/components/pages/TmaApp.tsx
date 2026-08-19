@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, lazy, Suspense } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  lazy,
+  Suspense,
+} from "react";
 import { Heart, ShieldCheck, Scale } from "lucide-react";
 import { useCars } from "@/lib/carsStore";
 import { useUI } from "@/lib/ui";
@@ -44,7 +52,7 @@ export function TmaApp() {
   const { favorites, isFav, toggleFav } = useUI();
   const tgRef = useRef<TG | null>(null);
   const [ready, setReady] = useState(false);
-  const [view, setView] = useState<View>(() => {
+  const [view, setViewRaw] = useState<View>(() => {
     if (typeof window === "undefined") return { name: "home" };
     const s = new URLSearchParams(window.location.search).get("screen");
     if (s === "calc") return { name: "calc" };
@@ -55,6 +63,30 @@ export function TmaApp() {
     if (s === "faq") return { name: "faq" };
     return { name: "home" };
   });
+
+  /**
+   * Память прокрутки по экранам.
+   *
+   * Раньше при каждой смене экрана страница уезжала наверх — и возврат из
+   * карточки авто выбрасывал в начало каталога, даже если человек долистал
+   * до сотой машины. Теперь позицию каждого экрана запоминаем и возвращаем.
+   */
+  const scrollMemo = useRef<Record<string, number>>({});
+  const viewRef = useRef<View>(view);
+  const viewKey = (v: View) => (v.name === "car" ? `car:${v.id}` : v.name);
+
+  // Обёртка над сеттером: позицию надо снять до перерисовки, поэтому делаем
+  // это в момент перехода, а не в эффекте — там scrollY уже успевает поехать.
+  const setView = useCallback((next: View | ((v: View) => View)) => {
+    scrollMemo.current[viewKey(viewRef.current)] = window.scrollY;
+    setViewRaw(next);
+  }, []);
+
+  // Список создаём только после первого захода в каталог и дальше уже не
+  // размонтируем — иначе состояние фильтров терялось бы при каждом возврате.
+  const listVisited = useRef(false);
+  if (view.name === "list") listVisited.current = true;
+
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const initDataRef = useRef<string>("");
   const [admin, setAdmin] = useState<AdminMe | null>(null);
@@ -107,10 +139,18 @@ export function TmaApp() {
 
   const inTg = ready && !!tgRef.current;
 
-  // при смене экрана прокручиваем наверх (иначе карточка открывается прокрученной)
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }, [view, adminOpen]);
+  // Возвращаем прокрутку экрана: у нового — начало, у знакомого — то место,
+  // где человек остановился. useLayoutEffect, чтобы не мелькнуло промежуточное
+  // положение: разметка уже готова, но кадр ещё не отрисован.
+  useLayoutEffect(() => {
+    viewRef.current = view;
+    const key = viewKey(view);
+    window.scrollTo({ top: scrollMemo.current[key] ?? 0, behavior: "auto" });
+  }, [view]);
+
+  useLayoutEffect(() => {
+    if (adminOpen) window.scrollTo({ top: 0, behavior: "auto" });
+  }, [adminOpen]);
 
   function back() {
     haptic(tgRef.current);
@@ -339,20 +379,27 @@ export function TmaApp() {
           />
         ) : null}
 
-        {view.name === "list" ? (
-          <ListView
-            cars={cars}
-            isFav={isFav}
-            onToggleFav={(id) => {
-              haptic(tgRef.current);
-              toggleFav(id);
-            }}
-            onOpen={(id) => {
-              haptic(tgRef.current);
-              logView(id);
-              setView({ name: "car", id });
-            }}
-          />
+        {/* Каталог не размонтируем, а прячем: иначе при открытии карточки
+            теряются поиск, фильтры и выбранная страна — человеку приходится
+            вводить марку заново после каждого просмотра. Скрытый список
+            сохраняет состояние и высоту, поэтому и прокрутка возвращается
+            туда же, где он остановился. */}
+        {listVisited.current ? (
+          <div hidden={view.name !== "list"}>
+            <ListView
+              cars={cars}
+              isFav={isFav}
+              onToggleFav={(id) => {
+                haptic(tgRef.current);
+                toggleFav(id);
+              }}
+              onOpen={(id) => {
+                haptic(tgRef.current);
+                logView(id);
+                setView({ name: "car", id });
+              }}
+            />
+          </div>
         ) : null}
 
         {view.name === "favorites" ? (

@@ -1816,6 +1816,7 @@ function Header2({ title, onBack }: { title: string; onBack: () => void }) {
     <div className="mb-4 flex items-center gap-2">
       <button
         onClick={onBack}
+        aria-label="Назад"
         className="flex h-9 w-9 items-center justify-center rounded-full border border-line-dark text-chrome"
       >
         <ArrowLeft className="h-5 w-5" />
