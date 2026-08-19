@@ -61,9 +61,25 @@ export function trackCarView(id: string) {
   const s = read();
   s.ts = Date.now();
 
-  if (!s.ids.includes(id) && s.ids.length < MAX_IDS) {
+  const firstTime = !s.ids.includes(id);
+  if (firstTime && s.ids.length < MAX_IDS) {
     s.ids.push(id);
   }
+
+  /**
+   * Цель на само открытие карточки. Уходит при каждом открытии, включая
+   * повторные: возврат к той же машине — сильный сигнал интереса, терять его
+   * не за чем. На процент конверсии это не влияет — Метрика считает его по
+   * визитам, а не по числу достижений.
+   *
+   * Параметры попадают в «Параметры визитов»: по ним видно, какие именно авто
+   * открывают и сколько среди открытий повторных.
+   */
+  reachGoal(GOALS.carView, {
+    car: id,
+    repeat: firstTime ? "нет" : "да",
+    order: s.ids.length,
+  });
 
   if (!s.sent && s.ids.length > DEEP_VIEW_CARS) {
     s.sent = true;
