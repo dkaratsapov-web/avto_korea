@@ -12,7 +12,16 @@ import { Printer } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import { money } from "../lib/money";
 import { formatDay } from "../lib/format";
-import { carDescription, documentNumber, documentTotals, missingRequisites, sellerName } from "../lib/documents";
+import {
+  carDescription,
+  deliveryDays,
+  missingClientRequisites,
+  documentNumber,
+  documentTotals,
+  missingRequisites,
+  prepaymentPercent,
+  sellerName,
+} from "../lib/documents";
 import type { Deal, Settings } from "../lib/types";
 import { Button, Spinner } from "../ui";
 
@@ -39,19 +48,23 @@ export function PrintPage() {
   }, [deal, kind]);
 
   if (error) {
-    return <p className="p-8 text-center text-[14px] text-[#b42318]">{error}</p>;
+    return <p className="p-8 text-center text-[14px] text-crm-danger">{error}</p>;
   }
   if (!deal || !settings) return <Spinner />;
 
   const isContract = kind === "contract";
-  const missing = missingRequisites(settings, isContract ? "contract" : "invoice");
+  const missing = [
+    ...missingRequisites(settings, isContract ? "contract" : "invoice"),
+    // Для договора нужны ещё и данные заказчика — без них он не подписывается.
+    ...(isContract ? missingClientRequisites(deal) : []),
+  ];
 
   return (
-    <div className="crm-print min-h-screen bg-[#e9edf1] py-6">
+    <div className="crm-force-light crm-print min-h-screen bg-crm-bg py-6">
       <div className="crm-no-print mx-auto mb-4 flex w-[210mm] max-w-[calc(100%-2rem)] items-center justify-between gap-3">
         <div>
           {missing.length ? (
-            <p className="rounded-lg bg-[#fff8e6] px-3 py-2 text-[12.5px] text-[#8a6100]">
+            <p className="rounded-lg bg-crm-warn-soft px-3 py-2 text-[12.5px] text-crm-warn">
               В реквизитах не хватает: <b>{missing.join(", ")}</b> — документ выйдет с пропусками.
             </p>
           ) : null}
@@ -195,8 +208,8 @@ function Contract({ deal, settings }: { deal: Deal; settings: Settings }) {
 
       <p className="mt-5 text-[10.5pt] leading-relaxed">
         {sellerName(settings)}, ИНН {settings.inn || "—"}, именуемый в дальнейшем «Исполнитель»,
-        с одной стороны, и {deal.clientName}, именуемый в дальнейшем «Заказчик», с другой стороны,
-        заключили настоящий договор о нижеследующем.
+        с одной стороны, и {deal.clientFullName || deal.clientName}, именуемый в дальнейшем
+        «Заказчик», с другой стороны, заключили настоящий договор о нижеследующем.
       </p>
 
       <Clause n="1" title="Предмет договора">
@@ -215,7 +228,7 @@ function Contract({ deal, settings }: { deal: Deal; settings: Settings }) {
           ({totals.totalWords}). НДС не облагается.
         </p>
         <p>
-          2.2. Заказчик вносит предоплату в размере {settings.prepaymentPercent}% —{" "}
+          2.2. Заказчик вносит предоплату в размере {prepaymentPercent(deal)}% —{" "}
           <b className="tnum">{money(totals.prepayment)}</b> ({totals.prepaymentWords}) — в течение
           трёх рабочих дней с даты подписания договора.
         </p>
@@ -229,7 +242,7 @@ function Contract({ deal, settings }: { deal: Deal; settings: Settings }) {
 
       <Clause n="3" title="Сроки">
         <p>
-          3.1. Срок оказания услуг — {settings.deliveryDays} календарных дней с даты поступления
+          3.1. Срок оказания услуг — {deliveryDays(deal)} календарных дней с даты поступления
           предоплаты.
           {deal.etaDate ? ` Ориентировочная дата прибытия автомобиля — ${formatDay(deal.etaDate)}.` : ""}
         </p>
@@ -280,10 +293,15 @@ function Contract({ deal, settings }: { deal: Deal; settings: Settings }) {
           </div>
           <div>
             <p className="font-bold">Заказчик</p>
-            <p>{deal.clientName}</p>
+            <p>{deal.clientFullName || deal.clientName}</p>
+            {deal.clientBirthDate ? <p>Дата рождения: {formatDay(deal.clientBirthDate)}</p> : null}
+            {deal.clientPassport ? <p>Паспорт {deal.clientPassport}</p> : null}
+            {deal.clientPassportIssued ? <p>{deal.clientPassportIssued}</p> : null}
+            {deal.clientAddress ? <p>{deal.clientAddress}</p> : null}
             {deal.clientPhone ? <p>{deal.clientPhone}</p> : null}
+            {deal.clientEmail ? <p>{deal.clientEmail}</p> : null}
             <div className="mt-8 w-[60mm] border-b border-black" />
-            <p className="mt-1 text-[9pt]">{deal.clientName}</p>
+            <p className="mt-1 text-[9pt]">{deal.clientFullName || deal.clientName}</p>
           </div>
         </div>
       </Clause>

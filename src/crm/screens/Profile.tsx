@@ -57,13 +57,13 @@ export function Profile() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Учётная запись">
-          <dl className="divide-y divide-[#eef1f5] px-4 py-1 text-[13.5px]">
+          <dl className="divide-y divide-crm-soft px-4 py-1 text-[13.5px]">
             <Line label="Имя" value={user?.name ?? "—"} />
             <Line label="Почта" value={user?.email ?? "—"} />
             <Line label="Роль" value={user?.role === "OWNER" ? "Владелец" : "Менеджер"} />
             <Line label="В CRM с" value={formatMoment(user?.createdAt).slice(0, 10)} />
           </dl>
-          <div className="border-t border-[#eef1f5] p-4">
+          <div className="border-t border-crm-soft p-4">
             <Button variant="danger" onClick={leave}>
               <LogOut className="h-4 w-4" />
               Выйти
@@ -103,7 +103,7 @@ export function Profile() {
             <Button type="submit" variant="primary" loading={busy}>
               Сменить пароль
             </Button>
-            <p className="text-[12px] leading-relaxed text-[#8a93a0]">
+            <p className="text-[12px] leading-relaxed text-crm-ink-3">
               После смены вход на других устройствах перестанет работать.
             </p>
           </form>
@@ -116,8 +116,8 @@ export function Profile() {
 function Line({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2.5">
-      <dt className="text-[#6b7480]">{label}</dt>
-      <dd className="font-semibold text-[#111827]">{value}</dd>
+      <dt className="text-crm-ink-2">{label}</dt>
+      <dd className="font-semibold text-crm-ink">{value}</dd>
     </div>
   );
 }

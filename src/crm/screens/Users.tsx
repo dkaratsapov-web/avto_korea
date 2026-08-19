@@ -64,16 +64,16 @@ export function Users() {
       />
 
       <Card>
-        <ul className="divide-y divide-[#eef1f5]">
+        <ul className="divide-y divide-crm-soft">
           {users.map((user) => (
             <li key={user.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#eef1f5] text-[12.5px] font-bold text-[#3c4655]">
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-crm-soft text-[12.5px] font-bold text-crm-ink-2">
                 {initials(user.name)}
               </span>
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[14px] font-bold text-[#111827]">{user.name}</span>
+                  <span className="text-[14px] font-bold text-crm-ink">{user.name}</span>
                   {user.role === "OWNER" ? (
                     <Badge color="#8b5cf6">
                       <ShieldCheck className="h-3 w-3" />
@@ -84,7 +84,7 @@ export function Users() {
                     <Badge color="#ef4444">Отключён</Badge>
                   ) : null}
                 </div>
-                <p className="mt-0.5 truncate text-[12.5px] text-[#8a93a0]">
+                <p className="mt-0.5 truncate text-[12.5px] text-crm-ink-3">
                   {user.email} · в CRM с {formatMoment(user.createdAt).slice(0, 10)}
                 </p>
               </div>

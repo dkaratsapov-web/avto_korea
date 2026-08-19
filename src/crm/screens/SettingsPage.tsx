@@ -65,9 +65,9 @@ export function SettingsPage() {
       />
 
       {missingInvoice.length || missingContract.length ? (
-        <div className="mb-4 flex gap-3 rounded-xl border border-[#f3d99b] bg-[#fff8e6] px-4 py-3">
-          <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-[#b45309]" />
-          <div className="text-[13px] leading-relaxed text-[#8a6100]">
+        <div className="mb-4 flex gap-3 rounded-xl border border-crm-warn-line bg-crm-warn-soft px-4 py-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-crm-warn" />
+          <div className="text-[13px] leading-relaxed text-crm-warn">
             {missingContract.length ? (
               <p>
                 Для договора не хватает: <b>{missingContract.join(", ")}</b>.
@@ -138,7 +138,7 @@ export function SettingsPage() {
           </div>
         </Card>
 
-        <Card title="Подпись и условия">
+        <Card title="Подпись">
           <div className="grid gap-3.5 p-4 sm:grid-cols-2">
             <Field label="Подписант">
               <Input
@@ -150,31 +150,11 @@ export function SettingsPage() {
             <Field label="Должность">
               <Input value={values.signerPosition} onChange={(e) => set({ signerPosition: e.target.value })} />
             </Field>
-            <Field label="Срок поставки, дней">
-              <Input
-                type="number"
-                min={1}
-                max={365}
-                value={values.deliveryDays}
-                onChange={(e) => set({ deliveryDays: Number(e.target.value) })}
-                className="tnum"
-              />
-            </Field>
-            <Field label="Предоплата, %">
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                value={values.prepaymentPercent}
-                onChange={(e) => set({ prepaymentPercent: Number(e.target.value) })}
-                className="tnum"
-              />
-            </Field>
           </div>
         </Card>
 
         <Card title="О шаблоне договора">
-          <p className="p-4 text-[13.5px] leading-relaxed text-[#5b6470]">
+          <p className="p-4 text-[13.5px] leading-relaxed text-crm-ink-2">
             Договор в CRM — рабочая заготовка: она подставляет реквизиты, предмет,
             сумму и сроки, чтобы не собирать документ вручную. Перед тем как
             подписывать его с клиентами, покажите шаблон юристу: ответственность

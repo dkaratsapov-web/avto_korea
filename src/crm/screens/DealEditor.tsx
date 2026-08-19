@@ -12,6 +12,7 @@ import { ArrowLeft, Calculator, RefreshCw } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import { calcTotals, money, parseMoney } from "../lib/money";
 import { STAGE_LABELS, STAGES, type Stage } from "../lib/stages";
+import { maskPhone } from "@/lib/phone";
 import type { Deal, User } from "../lib/types";
 import { Button, Card, Field, Input, Select, Spinner, Textarea, useToast } from "../ui";
 import { PageHead } from "./Layout";
@@ -29,6 +30,13 @@ type FormState = {
   source: string;
   managerId: string;
   stage: Stage;
+
+  clientFullName: string;
+  clientBirthDate: string;
+  clientPassport: string;
+  clientPassportIssued: string;
+  clientAddress: string;
+  clientEmail: string;
 
   carBrand: string;
   carModel: string;
@@ -51,6 +59,8 @@ type FormState = {
 
   purchaseDate: string;
   etaDate: string;
+  deliveryDays: string;
+  prepaymentPercent: string;
   notes: string;
 };
 
@@ -61,6 +71,12 @@ const EMPTY: FormState = {
   source: "",
   managerId: "",
   stage: "NEW",
+  clientFullName: "",
+  clientBirthDate: "",
+  clientPassport: "",
+  clientPassportIssued: "",
+  clientAddress: "",
+  clientEmail: "",
   carBrand: "",
   carModel: "",
   carYear: "",
@@ -80,6 +96,10 @@ const EMPTY: FormState = {
   paidAmount: "",
   purchaseDate: "",
   etaDate: "",
+  // Значения по умолчанию: с них начинается разговор, дальше правятся
+  // под конкретную договорённость.
+  deliveryDays: "60",
+  prepaymentPercent: "50",
   notes: "",
 };
 
@@ -93,6 +113,12 @@ function fromDeal(deal: Deal): FormState {
     source: deal.source ?? "",
     managerId: deal.managerId,
     stage: deal.stage,
+    clientFullName: deal.clientFullName ?? "",
+    clientBirthDate: deal.clientBirthDate ?? "",
+    clientPassport: deal.clientPassport ?? "",
+    clientPassportIssued: deal.clientPassportIssued ?? "",
+    clientAddress: deal.clientAddress ?? "",
+    clientEmail: deal.clientEmail ?? "",
     carBrand: deal.carBrand ?? "",
     carModel: deal.carModel ?? "",
     carYear: deal.carYear ? String(deal.carYear) : "",
@@ -112,6 +138,8 @@ function fromDeal(deal: Deal): FormState {
     paidAmount: text(deal.paidAmount),
     purchaseDate: deal.purchaseDate ?? "",
     etaDate: deal.etaDate ?? "",
+    deliveryDays: deal.deliveryDays ? String(deal.deliveryDays) : "60",
+    prepaymentPercent: deal.prepaymentPercent != null ? String(deal.prepaymentPercent) : "50",
     notes: deal.notes ?? "",
   };
 }
@@ -252,7 +280,12 @@ export function DealEditor() {
               <Field label="Телефон">
                 <Input
                   value={form.clientPhone}
-                  onChange={(e) => set({ clientPhone: e.target.value })}
+                  // Маска общая с формами сайта: номер, введённый менеджером
+                  // с телефона в спешке, должен лечь в базу в том же виде,
+                  // что и пришедший из заявки. Зарубежный номер, начатый
+                  // с «+», маска не трогает.
+                  onChange={(e) => set({ clientPhone: maskPhone(e.target.value) })}
+                  inputMode="tel"
                   placeholder="+7 (900) 000-00-00"
                 />
               </Field>
@@ -278,6 +311,59 @@ export function DealEditor() {
                     </option>
                   ))}
                 </Select>
+              </Field>
+            </div>
+          </Card>
+
+          <Card title="Реквизиты для договора">
+            <p className="px-4 pt-3 text-[12.5px] leading-relaxed text-crm-ink-2">
+              Подставляются в договор. Пока не заполнены — договор печатается
+              с пропусками, поэтому лучше собрать их сразу, а не в день подписания.
+            </p>
+            <div className="grid gap-3.5 p-4 sm:grid-cols-2">
+              <Field label="ФИО полностью" className="sm:col-span-2">
+                <Input
+                  value={form.clientFullName}
+                  onChange={(e) => set({ clientFullName: e.target.value })}
+                  placeholder="Смирнов Пётр Иванович"
+                />
+              </Field>
+              <Field label="Дата рождения">
+                <Input
+                  type="date"
+                  value={form.clientBirthDate}
+                  onChange={(e) => set({ clientBirthDate: e.target.value })}
+                />
+              </Field>
+              <Field label="Паспорт: серия и номер">
+                <Input
+                  value={form.clientPassport}
+                  onChange={(e) => set({ clientPassport: e.target.value })}
+                  placeholder="2812 345678"
+                  className="tnum"
+                />
+              </Field>
+              <Field label="Кем и когда выдан" className="sm:col-span-2">
+                <Input
+                  value={form.clientPassportIssued}
+                  onChange={(e) => set({ clientPassportIssued: e.target.value })}
+                  placeholder="УМВД России по Тверской области, 12.05.2018, код 690-001"
+                />
+              </Field>
+              <Field label="Адрес регистрации" className="sm:col-span-2">
+                <Input
+                  value={form.clientAddress}
+                  onChange={(e) => set({ clientAddress: e.target.value })}
+                  placeholder="г. Тверь, ул. ..."
+                />
+              </Field>
+              <Field label="Почта" hint="Для отправки документов">
+                <Input
+                  type="email"
+                  value={form.clientEmail}
+                  onChange={(e) => set({ clientEmail: e.target.value })}
+                  placeholder="client@mail.ru"
+                />
               </Field>
             </div>
           </Card>
@@ -394,7 +480,7 @@ export function DealEditor() {
             </div>
           </Card>
 
-          <Card title="Сроки и заметки">
+          <Card title="Сроки и условия">
             <div className="grid gap-3.5 p-4 sm:grid-cols-2">
               <Field label="Дата покупки">
                 <Input
@@ -405,6 +491,22 @@ export function DealEditor() {
               </Field>
               <Field label="Ожидаемое прибытие" hint="Эту дату видит клиент по ссылке отслеживания">
                 <Input type="date" value={form.etaDate} onChange={(e) => set({ etaDate: e.target.value })} />
+              </Field>
+              <Field label="Срок поставки, дней" hint="Подставляется в договор">
+                <Input
+                  value={form.deliveryDays}
+                  onChange={(e) => set({ deliveryDays: e.target.value })}
+                  inputMode="numeric"
+                  className="tnum"
+                />
+              </Field>
+              <Field label="Предоплата, %" hint="Договариваются по каждой машине отдельно">
+                <Input
+                  value={form.prepaymentPercent}
+                  onChange={(e) => set({ prepaymentPercent: e.target.value })}
+                  inputMode="numeric"
+                  className="tnum"
+                />
               </Field>
               <Field label="Заметки" className="sm:col-span-2">
                 <Textarea
@@ -420,7 +522,7 @@ export function DealEditor() {
         {/* Итог держится в поле зрения при прокрутке длинной формы. */}
         <aside className="lg:sticky lg:top-[76px] lg:self-start">
           <Card title="Расчёт">
-            <dl className="divide-y divide-[#eef1f5] px-4 py-1 text-[13.5px]">
+            <dl className="divide-y divide-crm-soft px-4 py-1 text-[13.5px]">
               <Row label="Авто в рублях" value={money(totals.carPriceRub)} />
               <Row label="Себестоимость" value={money(totals.costRub)} />
               <Row label="Комиссия" value={money(totals.profitRub)} />
@@ -436,7 +538,7 @@ export function DealEditor() {
             </dl>
 
             {id ? (
-              <div className="border-t border-[#eef1f5] p-4">
+              <div className="border-t border-crm-soft p-4">
                 <Field label="Этап">
                   <Select
                     value={form.stage}
@@ -450,7 +552,7 @@ export function DealEditor() {
                     ))}
                   </Select>
                 </Field>
-                <p className="mt-1.5 text-[12px] text-[#8a93a0]">
+                <p className="mt-1.5 text-[12px] text-crm-ink-3">
                   Этап меняется на доске или в карточке — так он всегда попадает в историю.
                 </p>
               </div>
@@ -514,10 +616,10 @@ function Row({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2.5">
-      <dt className="text-[#6b7480]">{label}</dt>
+      <dt className="text-crm-ink-2">{label}</dt>
       <dd
         className={`tnum ${strong ? "text-[15px] font-bold" : "font-semibold"} ${
-          tone === "warn" ? "text-[#b42318]" : "text-[#111827]"
+          tone === "warn" ? "text-crm-danger" : "text-crm-ink"
         }`}
       >
         {value}

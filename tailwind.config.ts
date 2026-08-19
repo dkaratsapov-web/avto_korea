@@ -13,6 +13,35 @@ const config: Config = {
         ink: { DEFAULT: "#171A1E", 2: "#5B6470" },
         line: { DEFAULT: "#E6E8EC", dark: "rgba(255,255,255,.09)" },
         success: "#2ECC71",
+
+        /**
+         * Палитра CRM. Значения — переменные, определённые в index.css внутри
+         * .crm отдельно для светлой и тёмной темы. Так обе темы описываются
+         * одним набором классов: bg-crm-surface одинаково верен и там, и там.
+         *
+         * Сайта это не касается — переменные объявлены только внутри .crm.
+         */
+        crm: {
+          bg: "var(--crm-bg)",
+          surface: "var(--crm-surface)",
+          raise: "var(--crm-raise)",
+          soft: "var(--crm-soft)",
+          line: "var(--crm-line)",
+          "line-2": "var(--crm-line-2)",
+          ink: "var(--crm-ink)",
+          "ink-2": "var(--crm-ink-2)",
+          "ink-3": "var(--crm-ink-3)",
+          accent: "var(--crm-accent)",
+          "accent-2": "var(--crm-accent-2)",
+          "accent-soft": "var(--crm-accent-soft)",
+          danger: "var(--crm-danger)",
+          "danger-soft": "var(--crm-danger-soft)",
+          ok: "var(--crm-ok)",
+          warn: "var(--crm-warn)",
+          "warn-soft": "var(--crm-warn-soft)",
+          "warn-line": "var(--crm-warn-line)",
+          link: "var(--crm-link)",
+        },
       },
       fontFamily: {
         display: ["var(--font-display)", "system-ui", "sans-serif"],

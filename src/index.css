@@ -262,16 +262,113 @@
   }
 }
 
+
 /* ---------------------------------------------------------------------------
    CRM — отдельное направление.
 
-   У сайта заголовки набраны узким шрифтом в верхнем регистре: это фирменный
-   стиль витрины, но в рабочем инструменте он мешает читать. Внутри .crm
-   типографика своя, обычная.
+   Своя палитра в переменных: одна и та же вёрстка обслуживает светлую и
+   тёмную тему, переключение сводится к смене атрибута на корне. Переменные
+   объявлены только внутри .crm, поэтому на сайт они не влияют, а сайт не
+   влияет на них.
 
-   Обратной утечки нет: правила действуют только внутри .crm и на страницы
-   сайта не влияют.
+   Тема выбирается атрибутом data-crm-theme: light | dark. Пока выбор не
+   сделан, атрибута нет и работает системная настройка.
 --------------------------------------------------------------------------- */
+.crm {
+  --crm-bg: #f4f6f9;
+  --crm-surface: #ffffff;
+  --crm-raise: #fafbfd;
+  --crm-soft: #edf0f5;
+  --crm-line: #e3e7ee;
+  --crm-line-2: #d2d9e3;
+  --crm-ink: #0f1720;
+  --crm-ink-2: #545f6d;
+  --crm-ink-3: #8a94a2;
+
+  /* Акцент фирменный: бордо связывает CRM с сайтом, не копируя его подачу. */
+  --crm-accent: #7a1410;
+  --crm-accent-2: #5c0d0a;
+  --crm-accent-soft: rgba(122, 20, 16, 0.08);
+
+  --crm-danger: #b42318;
+  --crm-danger-soft: #fef3f2;
+  --crm-ok: #157f3f;
+  --crm-warn: #8a6100;
+  --crm-warn-soft: #fff8e6;
+  --crm-warn-line: #f0dcae;
+  --crm-link: #1f6feb;
+
+  /* Тени мягкие и многослойные: в рабочем инструменте карточка должна
+     отделяться от фона, а не висеть над ним. */
+  --crm-shadow: 0 1px 2px rgba(15, 23, 32, 0.04), 0 8px 24px -16px rgba(15, 23, 32, 0.24);
+  --crm-shadow-lg: 0 2px 6px rgba(15, 23, 32, 0.06), 0 32px 64px -28px rgba(15, 23, 32, 0.4);
+
+  background: var(--crm-bg);
+  color: var(--crm-ink);
+  color-scheme: light;
+}
+
+.crm[data-crm-theme="dark"] {
+  --crm-bg: #0c1015;
+  --crm-surface: #151b23;
+  --crm-raise: #1a212b;
+  --crm-soft: #212a35;
+  --crm-line: #262f3b;
+  --crm-line-2: #33404e;
+  --crm-ink: #e9eef4;
+  --crm-ink-2: #9aa6b5;
+  --crm-ink-3: #6b7787;
+
+  /* На тёмном фоне глухое бордо теряет читаемость — берём светлее. */
+  --crm-accent: #c93a2e;
+  --crm-accent-2: #dd4b3e;
+  --crm-accent-soft: rgba(201, 58, 46, 0.16);
+
+  --crm-danger: #f0655a;
+  --crm-danger-soft: rgba(240, 101, 90, 0.12);
+  --crm-ok: #3ecf78;
+  --crm-warn: #f0b429;
+  --crm-warn-soft: rgba(240, 180, 41, 0.1);
+  --crm-warn-line: rgba(240, 180, 41, 0.28);
+  --crm-link: #6ea8ff;
+
+  --crm-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.7);
+  --crm-shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.5), 0 32px 64px -28px rgba(0, 0, 0, 0.85);
+
+  color-scheme: dark;
+}
+
+/* Системная тема — пока сотрудник не выбрал сам. */
+@media (prefers-color-scheme: dark) {
+  .crm:not([data-crm-theme]) {
+    --crm-bg: #0c1015;
+    --crm-surface: #151b23;
+    --crm-raise: #1a212b;
+    --crm-soft: #212a35;
+    --crm-line: #262f3b;
+    --crm-line-2: #33404e;
+    --crm-ink: #e9eef4;
+    --crm-ink-2: #9aa6b5;
+    --crm-ink-3: #6b7787;
+    --crm-accent: #c93a2e;
+    --crm-accent-2: #dd4b3e;
+    --crm-accent-soft: rgba(201, 58, 46, 0.16);
+    --crm-danger: #f0655a;
+    --crm-danger-soft: rgba(240, 101, 90, 0.12);
+    --crm-ok: #3ecf78;
+    --crm-warn: #f0b429;
+    --crm-warn-soft: rgba(240, 180, 41, 0.1);
+    --crm-warn-line: rgba(240, 180, 41, 0.28);
+    --crm-link: #6ea8ff;
+    --crm-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.7);
+    --crm-shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.5), 0 32px 64px -28px rgba(0, 0, 0, 0.85);
+    color-scheme: dark;
+  }
+}
+
+/* У сайта заголовки набраны узким шрифтом в верхнем регистре — фирменный
+   стиль витрины. В рабочем инструменте он мешает читать, здесь типографика
+   своя. */
 .crm h1,
 .crm h2,
 .crm h3,
@@ -279,16 +376,78 @@
   font-family: var(--font-body);
   font-weight: 700;
   text-transform: none;
-  letter-spacing: 0;
+  letter-spacing: -0.011em;
   line-height: 1.25;
 }
 
-/* Плотные табличные цифры: в колонках сумм разряды должны стоять друг под другом. */
+/* Плотные табличные цифры: в колонках сумм разряды должны стоять
+   друг под другом. */
 .crm .tnum {
   font-variant-numeric: tabular-nums;
 }
 
-/* Печатные формы: убираем всё, что не относится к документу. */
+.crm ::selection {
+  background: var(--crm-accent);
+  color: #fff;
+}
+
+.crm :focus-visible {
+  outline: 2px solid var(--crm-accent);
+  outline-offset: 2px;
+}
+
+/* Полоса прокрутки доски: тонкая и в цвет темы, иначе на тёмном фоне
+   она выглядит инородной белой планкой. */
+.crm .crm-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--crm-line-2) transparent;
+}
+.crm .crm-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.crm .crm-scroll::-webkit-scrollbar-thumb {
+  background: var(--crm-line-2);
+  border-radius: 999px;
+}
+.crm .crm-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Печатные формы и страница клиента всегда светлые: документ печатается на
+   белой бумаге, а ссылку клиент открывает как обычную страницу — она не
+   должна зависеть от того, какую тему выбрал себе менеджер.
+
+   Блок стоит после тёмных: специфичность у них одинаковая, поэтому решает
+   порядок в файле. */
+.crm .crm-force-light {
+  --crm-bg: #f4f6f9;
+  --crm-surface: #ffffff;
+  --crm-raise: #fafbfd;
+  --crm-soft: #edf0f5;
+  --crm-line: #e3e7ee;
+  --crm-line-2: #d2d9e3;
+  --crm-ink: #0f1720;
+  --crm-ink-2: #545f6d;
+  --crm-ink-3: #8a94a2;
+  --crm-accent: #7a1410;
+  --crm-accent-2: #5c0d0a;
+  --crm-accent-soft: rgba(122, 20, 16, 0.08);
+  --crm-danger: #b42318;
+  --crm-danger-soft: #fef3f2;
+  --crm-ok: #157f3f;
+  --crm-warn: #8a6100;
+  --crm-warn-soft: #fff8e6;
+  --crm-warn-line: #f0dcae;
+  --crm-link: #1f6feb;
+  --crm-shadow: 0 1px 2px rgba(15, 23, 32, 0.04), 0 8px 24px -16px rgba(15, 23, 32, 0.24);
+  --crm-shadow-lg: 0 2px 6px rgba(15, 23, 32, 0.06), 0 32px 64px -28px rgba(15, 23, 32, 0.4);
+
+  background: var(--crm-bg);
+  color: var(--crm-ink);
+  color-scheme: light;
+}
+
 @media print {
   .crm-no-print {
     display: none !important;

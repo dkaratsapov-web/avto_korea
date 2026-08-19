@@ -99,10 +99,10 @@ export function Dashboard() {
               const count = data.byStage[stage] ?? 0;
               return (
                 <div key={stage} className="flex items-center gap-3">
-                  <span className="w-[110px] flex-none text-[13px] text-[#5b6470]">
+                  <span className="w-[110px] flex-none text-[13px] text-crm-ink-2">
                     {STAGE_SHORT[stage]}
                   </span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#eef1f5]">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-crm-soft">
                     <div
                       className="h-full rounded-full transition-[width] duration-500"
                       style={{
@@ -111,7 +111,7 @@ export function Dashboard() {
                       }}
                     />
                   </div>
-                  <span className="tnum w-6 flex-none text-right text-[13px] font-bold text-[#111827]">
+                  <span className="tnum w-6 flex-none text-right text-[13px] font-bold text-crm-ink">
                     {count}
                   </span>
                 </div>
@@ -122,14 +122,14 @@ export function Dashboard() {
 
         <Card title="По менеджерам">
           {data.byManager.length === 0 ? (
-            <p className="px-4 py-8 text-center text-[13.5px] text-[#8a93a0]">
+            <p className="px-4 py-8 text-center text-[13.5px] text-crm-ink-3">
               За этот период сделок нет
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-[13.5px]">
                 <thead>
-                  <tr className="border-b border-[#eef1f5] text-left text-[12px] uppercase tracking-[0.04em] text-[#8a93a0]">
+                  <tr className="border-b border-crm-soft text-left text-[12px] uppercase tracking-[0.04em] text-crm-ink-3">
                     <th className="px-4 py-2.5 font-semibold">Менеджер</th>
                     <th className="px-2 py-2.5 text-right font-semibold">Сделок</th>
                     <th className="px-2 py-2.5 text-right font-semibold">Успешных</th>
@@ -138,13 +138,13 @@ export function Dashboard() {
                 </thead>
                 <tbody>
                   {data.byManager.map((row) => (
-                    <tr key={row.managerId} className="border-b border-[#f4f6f8] last:border-0">
-                      <td className="px-4 py-2.5 font-semibold text-[#111827]">
+                    <tr key={row.managerId} className="border-b border-crm-bg last:border-0">
+                      <td className="px-4 py-2.5 font-semibold text-crm-ink">
                         {row.managerName ?? "—"}
                       </td>
-                      <td className="tnum px-2 py-2.5 text-right text-[#5b6470]">{row.deals}</td>
-                      <td className="tnum px-2 py-2.5 text-right text-[#5b6470]">{row.won}</td>
-                      <td className="tnum px-4 py-2.5 text-right font-bold text-[#111827]">
+                      <td className="tnum px-2 py-2.5 text-right text-crm-ink-2">{row.deals}</td>
+                      <td className="tnum px-2 py-2.5 text-right text-crm-ink-2">{row.won}</td>
+                      <td className="tnum px-4 py-2.5 text-right font-bold text-crm-ink">
                         {moneyShort(row.profit)}
                       </td>
                     </tr>
@@ -171,16 +171,16 @@ function Metric({
   accent?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-[#e3e8ee] bg-white p-4">
-      <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#7b8593]">{label}</p>
+    <div className="rounded-xl border border-crm-line bg-crm-surface p-4">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-crm-ink-3">{label}</p>
       <p
         className={`tnum mt-1.5 text-[22px] font-bold leading-none ${
-          accent ? "text-[#16a34a]" : "text-[#111827]"
+          accent ? "text-crm-ok" : "text-crm-ink"
         }`}
       >
         {value}
       </p>
-      {hint ? <p className="mt-1.5 text-[12px] text-[#8a93a0]">{hint}</p> : null}
+      {hint ? <p className="mt-1.5 text-[12px] text-crm-ink-3">{hint}</p> : null}
     </div>
   );
 }

@@ -201,6 +201,25 @@ function crm_migrations(): array
             )",
             'CREATE INDEX crm_sessions_user ON crm_sessions (user_id)',
         ],
+
+        // Срок поставки и размер предоплаты договариваются по каждой машине
+        // отдельно, поэтому переехали из реквизитов компании в саму сделку.
+        2 => [
+            'ALTER TABLE crm_deals ADD COLUMN delivery_days INTEGER',
+            'ALTER TABLE crm_deals ADD COLUMN prepayment_percent INTEGER',
+        ],
+
+        // Данные клиента для договора. В карточке они нужны целиком: без
+        // паспорта и адреса регистрации договор не подписать, а собирать их
+        // в переписке каждый раз заново — терять время.
+        3 => [
+            'ALTER TABLE crm_deals ADD COLUMN client_full_name VARCHAR(255)',
+            'ALTER TABLE crm_deals ADD COLUMN client_birth_date VARCHAR(16)',
+            'ALTER TABLE crm_deals ADD COLUMN client_passport VARCHAR(64)',
+            'ALTER TABLE crm_deals ADD COLUMN client_passport_issued VARCHAR(500)',
+            'ALTER TABLE crm_deals ADD COLUMN client_address VARCHAR(500)',
+            'ALTER TABLE crm_deals ADD COLUMN client_email VARCHAR(190)',
+        ],
     ];
 }
 

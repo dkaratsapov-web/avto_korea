@@ -27,7 +27,27 @@ const CRM_STAGES = [
 /** Стадии, после которых сделка считается закрытой. */
 const CRM_CLOSED_STAGES = ['DONE', 'LOST'];
 
-const CRM_EVENT_TYPES = ['CREATED', 'STAGE_CHANGED', 'UPDATED', 'COMMENT'];
+/**
+ * Виды записей в истории сделки.
+ *
+ * Задачи и файлы попадают сюда наравне с этапами и комментариями: история
+ * должна отвечать на вопрос «что вообще происходило по этой машине», а не
+ * только «как двигали этап». Иначе, чтобы понять, когда прислали фото или
+ * кто закрыл задачу, приходится держать это в голове.
+ */
+const CRM_EVENT_TYPES = [
+    'CREATED',
+    'STAGE_CHANGED',
+    'UPDATED',
+    'COMMENT',
+    'TASK_ADDED',
+    'TASK_UPDATED',
+    'TASK_DONE',
+    'TASK_REOPENED',
+    'TASK_DELETED',
+    'FILE_ADDED',
+    'FILE_DELETED',
+];
 
 const CRM_FILE_KINDS = ['PHOTO', 'INVOICE', 'CONTRACT', 'CUSTOMS', 'CLIENT_DOC', 'OTHER'];
 
@@ -83,6 +103,13 @@ function crm_deal_json(array $row, ?array $manager = null): array
         'clientTelegram' => $row['client_telegram'],
         'source' => $row['source'],
 
+        'clientFullName' => $row['client_full_name'] ?? null,
+        'clientBirthDate' => $row['client_birth_date'] ?? null,
+        'clientPassport' => $row['client_passport'] ?? null,
+        'clientPassportIssued' => $row['client_passport_issued'] ?? null,
+        'clientAddress' => $row['client_address'] ?? null,
+        'clientEmail' => $row['client_email'] ?? null,
+
         'carBrand' => $row['car_brand'],
         'carModel' => $row['car_model'],
         'carYear' => $row['car_year'] === null ? null : (int) $row['car_year'],
@@ -105,6 +132,15 @@ function crm_deal_json(array $row, ?array $manager = null): array
         'purchaseDate' => $row['purchase_date'],
         'etaDate' => $row['eta_date'],
         'closedAt' => $row['closed_at'],
+
+        // Условия договора: у каждой машины свои, поэтому живут в сделке,
+        // а не в реквизитах компании.
+        'deliveryDays' => isset($row['delivery_days']) && $row['delivery_days'] !== null
+            ? (int) $row['delivery_days']
+            : null,
+        'prepaymentPercent' => isset($row['prepayment_percent']) && $row['prepayment_percent'] !== null
+            ? (int) $row['prepayment_percent']
+            : null,
 
         'notes' => $row['notes'],
         'publicToken' => $row['public_token'],
@@ -143,6 +179,34 @@ function crm_next_deal_number(): int
 {
     $row = crm_one('SELECT MAX(number) AS n FROM crm_deals');
     return (int) ($row['n'] ?? 0) + 1;
+}
+
+/**
+ * История сделки с именами авторов.
+ *
+ * Живёт в общем модуле, а не в маршруте сделок: её возвращают и задачи,
+ * и файлы, а роутер подключает только тот файл маршрута, который совпал
+ * с адресом. Пока функция лежала в deals.php, любое создание задачи
+ * заканчивалось пятисотой — причём уже после записи в базу.
+ */
+function crm_deal_events(string $dealId): array
+{
+    $rows = crm_all(
+        'SELECT e.*, u.name AS user_name FROM crm_events e
+         LEFT JOIN crm_users u ON u.id = e.user_id
+         WHERE e.deal_id = ? ORDER BY e.created_at DESC, e.id DESC',
+        [$dealId],
+    );
+
+    return array_map(fn($row) => [
+        'id' => $row['id'],
+        'type' => $row['type'],
+        'text' => $row['text'],
+        'from' => $row['from_value'],
+        'to' => $row['to_value'],
+        'userName' => $row['user_name'],
+        'createdAt' => $row['created_at'],
+    ], $rows);
 }
 
 /**

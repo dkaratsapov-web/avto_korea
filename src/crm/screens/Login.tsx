@@ -39,16 +39,16 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f4f6f8] px-4 py-10">
+    <div className="flex min-h-screen items-center justify-center bg-crm-bg px-4 py-10">
       <div className="w-full max-w-[400px]">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#1f2937] text-white">
+          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-crm-accent text-white">
             {needsSetup ? <ShieldCheck className="h-5 w-5" /> : <KeyRound className="h-5 w-5" />}
           </div>
-          <h1 className="text-[20px] font-bold text-[#111827]">
+          <h1 className="text-[20px] font-bold text-crm-ink">
             {needsSetup ? "Настройка CRM" : "Вход в CRM"}
           </h1>
-          <p className="mt-1.5 text-[13.5px] text-[#6b7480]">
+          <p className="mt-1.5 text-[13.5px] text-crm-ink-2">
             {needsSetup
               ? "Первый запуск: создайте учётную запись владельца. Дальше сотрудников добавляете вы."
               : "Внутренний раздел ДиАвто69"}
@@ -57,7 +57,7 @@ export function Login() {
 
         <form
           onSubmit={submit}
-          className="space-y-3.5 rounded-xl border border-[#e3e8ee] bg-white p-5 shadow-[0_16px_40px_-24px_rgba(13,17,22,0.45)]"
+          className="space-y-3.5 rounded-xl border border-crm-line bg-crm-surface p-5 shadow-[0_16px_40px_-24px_rgba(13,17,22,0.45)]"
         >
           {needsSetup ? (
             <Field label="Имя">
@@ -94,7 +94,7 @@ export function Login() {
           </Field>
 
           {error ? (
-            <p className="rounded-lg bg-[#fef3f2] px-3 py-2.5 text-[13px] font-semibold text-[#b42318]">
+            <p className="rounded-lg bg-crm-danger-soft px-3 py-2.5 text-[13px] font-semibold text-crm-danger">
               {error}
             </p>
           ) : null}
@@ -105,7 +105,7 @@ export function Login() {
         </form>
 
         {needsSetup ? (
-          <p className="mt-4 text-center text-[12px] leading-relaxed text-[#8a93a0]">
+          <p className="mt-4 text-center text-[12px] leading-relaxed text-crm-ink-3">
             Пока владелец не создан, этот экран открыт всем, кто знает адрес.
             Завершите настройку сразу после выкладки.
           </p>

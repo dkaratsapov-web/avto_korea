@@ -43,16 +43,16 @@ export function Track() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f4f6f8] px-4">
+      <div className="crm-force-light flex min-h-screen items-center justify-center bg-crm-bg px-4">
         <div className="max-w-sm text-center">
-          <CircleAlert className="mx-auto mb-3 h-8 w-8 text-[#b42318]" />
-          <h1 className="text-[18px] font-bold text-[#111827]">Ссылка недействительна</h1>
-          <p className="mt-2 text-[14px] leading-relaxed text-[#6b7480]">
+          <CircleAlert className="mx-auto mb-3 h-8 w-8 text-crm-danger" />
+          <h1 className="text-[18px] font-bold text-crm-ink">Ссылка недействительна</h1>
+          <p className="mt-2 text-[14px] leading-relaxed text-crm-ink-2">
             Возможно, она устарела. Напишите нам — пришлём новую.
           </p>
           <a
             href={site.phoneHref}
-            className="mt-5 inline-flex h-11 items-center rounded-lg bg-[#1f2937] px-5 text-[14px] font-bold text-white"
+            className="mt-5 inline-flex h-11 items-center rounded-lg bg-crm-accent px-5 text-[14px] font-bold text-white"
           >
             {site.phone}
           </a>
@@ -68,7 +68,7 @@ export function Track() {
     : (deal.steps.filter((s) => s.done).length / deal.steps.length) * 100;
 
   return (
-    <div className="min-h-screen bg-[#f4f6f8] px-4 py-8">
+    <div className="crm-force-light min-h-screen bg-crm-bg px-4 py-8">
       <div className="mx-auto w-full max-w-[560px]">
         <header className="mb-5 text-center">
           <picture>
@@ -80,29 +80,29 @@ export function Track() {
               decoding="async"
             />
           </picture>
-          <h1 className="mt-4 text-[19px] font-bold text-[#111827]">
+          <h1 className="mt-4 text-[19px] font-bold text-crm-ink">
             Заказ №{deal.number}
           </h1>
-          <p className="mt-1 text-[14px] text-[#6b7480]">
+          <p className="mt-1 text-[14px] text-crm-ink-2">
             {deal.car || "Автомобиль"}
             {deal.carYear ? `, ${deal.carYear} г.в.` : ""}
             {deal.country ? ` · ${deal.country}` : ""}
           </p>
         </header>
 
-        <section className="rounded-xl border border-[#e3e8ee] bg-white p-5">
+        <section className="rounded-xl border border-crm-line bg-crm-surface p-5">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[15px] font-bold text-[#111827]">{deal.stageLabel}</span>
+            <span className="text-[15px] font-bold text-crm-ink">{deal.stageLabel}</span>
             {deal.etaDate && !deal.isClosed ? (
-              <span className="text-[13px] text-[#6b7480]">
+              <span className="text-[13px] text-crm-ink-2">
                 прибытие · {formatDay(deal.etaDate)}
               </span>
             ) : null}
           </div>
 
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#eef1f5]">
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-crm-soft">
             <div
-              className="h-full rounded-full bg-[#16a34a] transition-[width] duration-700"
+              className="h-full rounded-full bg-crm-ok transition-[width] duration-700"
               style={{ width: `${deal.isLost ? 0 : progress}%` }}
             />
           </div>
@@ -113,24 +113,24 @@ export function Track() {
                 <span
                   className={`mt-0.5 flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full border ${
                     step.done
-                      ? "border-[#16a34a] bg-[#16a34a] text-white"
+                      ? "border-crm-ok bg-crm-ok text-white"
                       : step.current
-                        ? "border-[#1f2937] bg-white"
-                        : "border-[#d7dde4] bg-white"
+                        ? "border-crm-accent bg-crm-surface"
+                        : "border-crm-line-2 bg-crm-surface"
                   }`}
                 >
                   {step.done ? <Check className="h-3 w-3" /> : null}
                   {step.current && !step.done ? (
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#1f2937]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-crm-accent" />
                   ) : null}
                 </span>
                 <span
                   className={`text-[14px] leading-[18px] ${
                     step.current
-                      ? "font-bold text-[#111827]"
+                      ? "font-bold text-crm-ink"
                       : step.done
-                        ? "text-[#5b6470]"
-                        : "text-[#9aa3ae]"
+                        ? "text-crm-ink-2"
+                        : "text-crm-ink-3"
                   }`}
                 >
                   {step.label}
@@ -141,8 +141,8 @@ export function Track() {
         </section>
 
         {deal.photos.length ? (
-          <section className="mt-4 rounded-xl border border-[#e3e8ee] bg-white p-4">
-            <h2 className="mb-3 text-[14px] font-bold text-[#111827]">Фото автомобиля</h2>
+          <section className="mt-4 rounded-xl border border-crm-line bg-crm-surface p-4">
+            <h2 className="mb-3 text-[14px] font-bold text-crm-ink">Фото автомобиля</h2>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {deal.photos.map((photo) => (
                 <a
@@ -150,7 +150,7 @@ export function Track() {
                   href={api.trackPhotoUrl(token, photo.id)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block overflow-hidden rounded-lg border border-[#eef1f5]"
+                  className="block overflow-hidden rounded-lg border border-crm-soft"
                 >
                   <img
                     src={api.trackPhotoUrl(token, photo.id)}
@@ -164,27 +164,27 @@ export function Track() {
           </section>
         ) : null}
 
-        <section className="mt-4 rounded-xl border border-[#e3e8ee] bg-white p-5">
-          <h2 className="mb-3 text-[14px] font-bold text-[#111827]">Оплата</h2>
-          <dl className="divide-y divide-[#eef1f5] text-[14px]">
+        <section className="mt-4 rounded-xl border border-crm-line bg-crm-surface p-5">
+          <h2 className="mb-3 text-[14px] font-bold text-crm-ink">Оплата</h2>
+          <dl className="divide-y divide-crm-soft text-[14px]">
             <Line label="Сумма заказа" value={money(deal.totalRub)} />
             <Line label="Оплачено" value={money(deal.paidRub)} />
             <Line label="Остаток" value={money(deal.dueRub)} strong />
           </dl>
           {deal.vin ? (
-            <p className="mt-3 text-[12.5px] text-[#8a93a0]">VIN {deal.vin}</p>
+            <p className="mt-3 text-[12.5px] text-crm-ink-3">VIN {deal.vin}</p>
           ) : null}
         </section>
 
         <footer className="mt-6 text-center">
-          <p className="text-[13.5px] text-[#6b7480]">Вопросы по заказу — звоните:</p>
+          <p className="text-[13.5px] text-crm-ink-2">Вопросы по заказу — звоните:</p>
           <a
             href={site.phoneHref}
-            className="mt-2 inline-flex h-11 items-center rounded-lg bg-[#1f2937] px-5 text-[15px] font-bold text-white"
+            className="mt-2 inline-flex h-11 items-center rounded-lg bg-crm-accent px-5 text-[15px] font-bold text-white"
           >
             {site.phone}
           </a>
-          <p className="mt-4 text-[11.5px] leading-relaxed text-[#9aa3ae]">
+          <p className="mt-4 text-[11.5px] leading-relaxed text-crm-ink-3">
             {site.requisites.name} · ИНН {site.requisites.inn}
           </p>
         </footer>
@@ -196,8 +196,8 @@ export function Track() {
 function Line({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2.5">
-      <dt className="text-[#6b7480]">{label}</dt>
-      <dd className={`tnum ${strong ? "text-[16px] font-bold" : "font-semibold"} text-[#111827]`}>
+      <dt className="text-crm-ink-2">{label}</dt>
+      <dd className={`tnum ${strong ? "text-[16px] font-bold" : "font-semibold"} text-crm-ink`}>
         {value}
       </dd>
     </div>

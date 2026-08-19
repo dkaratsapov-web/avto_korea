@@ -4,6 +4,9 @@
  * Намеренно свои, а не общие с сайтом: у витрины кнопки крупные и с эффектами,
  * здесь нужна плотность — на экране должно помещаться много строк, а нажатия
  * происходить без задержек на анимацию.
+ *
+ * Цвета берутся только из токенов (crm-*): одна и та же вёрстка обслуживает
+ * светлую и тёмную тему, ни одного «прибитого» оттенка здесь быть не должно.
  */
 
 import {
@@ -32,10 +35,12 @@ type ButtonProps = {
 };
 
 const VARIANTS: Record<string, string> = {
-  primary: "bg-[#1f2937] text-white hover:bg-[#111827] disabled:bg-[#9aa3ae]",
-  ghost: "border border-[#d7dde4] bg-white text-[#1f2937] hover:border-[#9aa3ae] hover:bg-[#f7f9fb]",
-  danger: "border border-[#f0c4c1] bg-white text-[#b42318] hover:bg-[#fef3f2]",
-  quiet: "text-[#5b6470] hover:bg-[#eef1f5] hover:text-[#1f2937]",
+  primary:
+    "bg-crm-accent text-white shadow-[0_1px_2px_rgba(0,0,0,.16)] hover:bg-crm-accent-2 disabled:bg-crm-ink-3 disabled:shadow-none",
+  ghost:
+    "border border-crm-line-2 bg-crm-surface text-crm-ink hover:border-crm-ink-3 hover:bg-crm-raise",
+  danger: "border border-crm-danger/40 bg-crm-surface text-crm-danger hover:bg-crm-danger-soft",
+  quiet: "text-crm-ink-2 hover:bg-crm-soft hover:text-crm-ink",
 };
 
 export function Button({
@@ -55,7 +60,7 @@ export function Button({
       onClick={onClick}
       disabled={disabled || loading}
       title={title}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${
+      className={`inline-flex items-center justify-center gap-2 rounded-[10px] font-semibold transition-[background-color,border-color,color] duration-150 disabled:cursor-not-allowed disabled:opacity-70 ${
         size === "sm" ? "h-8 px-3 text-[13px]" : "h-10 px-4 text-[14px]"
       } ${VARIANTS[variant]} ${className}`}
     >
@@ -87,17 +92,17 @@ export function Field({
 }) {
   return (
     <label className={`block ${className}`}>
-      <span className="mb-1 block text-[12px] font-semibold uppercase tracking-[0.04em] text-[#7b8593]">
+      <span className="mb-1.5 block text-[11.5px] font-semibold uppercase tracking-[0.06em] text-crm-ink-3">
         {label}
       </span>
       {children}
-      {hint ? <span className="mt-1 block text-[12px] text-[#8a93a0]">{hint}</span> : null}
+      {hint ? <span className="mt-1.5 block text-[12px] text-crm-ink-3">{hint}</span> : null}
     </label>
   );
 }
 
 const INPUT_CLASS =
-  "h-10 w-full rounded-lg border border-[#d7dde4] bg-white px-3 text-[14px] text-[#111827] outline-none transition-colors placeholder:text-[#aab2bd] focus:border-[#1f2937] disabled:bg-[#f3f5f7]";
+  "h-10 w-full rounded-[10px] border border-crm-line-2 bg-crm-surface px-3 text-[14px] text-crm-ink outline-none transition-colors placeholder:text-crm-ink-3 focus:border-crm-accent disabled:bg-crm-soft disabled:text-crm-ink-3";
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   const { className = "", ...rest } = props;
@@ -109,7 +114,7 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return (
     <textarea
       {...rest}
-      className={`min-h-[84px] w-full rounded-lg border border-[#d7dde4] bg-white px-3 py-2 text-[14px] leading-relaxed text-[#111827] outline-none transition-colors placeholder:text-[#aab2bd] focus:border-[#1f2937] ${className}`}
+      className={`min-h-[84px] w-full rounded-[10px] border border-crm-line-2 bg-crm-surface px-3 py-2 text-[14px] leading-relaxed text-crm-ink outline-none transition-colors placeholder:text-crm-ink-3 focus:border-crm-accent ${className}`}
     />
   );
 }
@@ -137,10 +142,12 @@ export function Card({
   action?: ReactNode;
 }) {
   return (
-    <section className={`rounded-xl border border-[#e3e8ee] bg-white ${className}`}>
+    <section
+      className={`rounded-2xl border border-crm-line bg-crm-surface shadow-[var(--crm-shadow)] ${className}`}
+    >
       {title ? (
-        <header className="flex items-center justify-between gap-3 border-b border-[#eef1f5] px-4 py-3">
-          <h3 className="text-[14px] font-bold text-[#111827]">{title}</h3>
+        <header className="flex items-center justify-between gap-3 border-b border-crm-line px-4 py-3">
+          <h3 className="text-[14px] font-bold text-crm-ink">{title}</h3>
           {action}
         </header>
       ) : null}
@@ -161,7 +168,7 @@ export function Badge({
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold ${className}`}
-      style={color ? { backgroundColor: `${color}1a`, color } : undefined}
+      style={color ? { backgroundColor: `${color}22`, color } : undefined}
     >
       {children}
     </span>
@@ -171,7 +178,7 @@ export function Badge({
 export function Spinner({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center justify-center py-16 ${className}`}>
-      <Loader2 className="h-6 w-6 animate-spin text-[#9aa3ae]" />
+      <Loader2 className="h-6 w-6 animate-spin text-crm-ink-3" />
     </div>
   );
 }
@@ -179,8 +186,8 @@ export function Spinner({ className = "" }: { className?: string }) {
 export function Empty({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
     <div className="px-6 py-14 text-center">
-      <p className="text-[15px] font-bold text-[#111827]">{title}</p>
-      {hint ? <p className="mx-auto mt-1.5 max-w-sm text-[13.5px] text-[#6b7480]">{hint}</p> : null}
+      <p className="text-[15px] font-bold text-crm-ink">{title}</p>
+      {hint ? <p className="mx-auto mt-1.5 max-w-sm text-[13.5px] text-crm-ink-2">{hint}</p> : null}
       {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
     </div>
   );
@@ -221,19 +228,19 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#0d1116]/45 p-4 sm:p-8">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-[2px] sm:p-8">
       <div
-        className={`w-full rounded-xl bg-white shadow-[0_30px_80px_-20px_rgba(13,17,22,0.4)] ${
+        className={`w-full rounded-2xl border border-crm-line bg-crm-surface shadow-[var(--crm-shadow-lg)] ${
           wide ? "max-w-3xl" : "max-w-lg"
         }`}
       >
-        <header className="flex items-center justify-between gap-3 border-b border-[#eef1f5] px-5 py-3.5">
-          <h3 className="text-[15px] font-bold text-[#111827]">{title}</h3>
+        <header className="flex items-center justify-between gap-3 border-b border-crm-line px-5 py-3.5">
+          <h3 className="text-[15px] font-bold text-crm-ink">{title}</h3>
           <button
             type="button"
             onClick={onClose}
             aria-label="Закрыть"
-            className="rounded-lg p-1.5 text-[#7b8593] transition-colors hover:bg-[#eef1f5] hover:text-[#111827]"
+            className="rounded-lg p-1.5 text-crm-ink-3 transition-colors hover:bg-crm-soft hover:text-crm-ink"
           >
             <X className="h-[18px] w-[18px]" />
           </button>
@@ -270,8 +277,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {items.map((item) => (
           <div
             key={item.id}
-            className={`pointer-events-auto rounded-lg px-4 py-3 text-[13.5px] font-semibold text-white shadow-lg ${
-              item.kind === "error" ? "bg-[#b42318]" : "bg-[#1f2937]"
+            className={`pointer-events-auto rounded-xl px-4 py-3 text-[13.5px] font-semibold text-white shadow-[var(--crm-shadow-lg)] ${
+              item.kind === "error" ? "bg-crm-danger" : "bg-crm-accent"
             }`}
           >
             {item.text}
