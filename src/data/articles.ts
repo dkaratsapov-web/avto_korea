@@ -32,7 +32,7 @@ export type Article = {
 export const articles: Article[] = [
   {
     slug: "avto-iz-korei-pod-klyuch-2026",
-    cover: "/articles/koreya.jpg",
+    cover: "/covers/koreya.jpg",
     related: ["sroki-dostavki-avto", "utilsbor-2026-kak-schitaetsya"],
     title: "Как пригнать авто из Кореи под ключ в 2026 году: пошаговый гид",
     description:
@@ -130,7 +130,7 @@ export const articles: Article[] = [
   },
   {
     slug: "rastamozhka-avto-iz-kitaya-2026",
-    cover: "/articles/rastamozhka.jpg",
+    cover: "/covers/rastamozhka.jpg",
     related: ["utilsbor-2026-kak-schitaetsya", "epts-na-import-avto"],
     title:
       "Растаможка авто из Китая в 2026: пошлины, утильсбор, ЭПТС и реальная цена",
@@ -217,7 +217,7 @@ export const articles: Article[] = [
   },
   {
     slug: "koreya-kitay-yaponiya-otkuda-vygodnee",
-    cover: "/articles/sravnenie.jpg",
+    cover: "/covers/sravnenie.jpg",
     related: ["aukcionnyy-list-yaponiya", "sroki-dostavki-avto"],
     title:
       "Откуда выгоднее пригнать авто в Россию: Корея, Китай или Япония — сравнение",
@@ -320,7 +320,7 @@ export const articles: Article[] = [
     ],
     date: "2026-03-04",
     readMin: 8,
-    cover: "/articles/utilsbor.jpg",
+    cover: "/covers/utilsbor.jpg",
     related: ["rastamozhka-avto-iz-kitaya-2026", "epts-na-import-avto"],
     body: [
       {
@@ -364,7 +364,7 @@ export const articles: Article[] = [
       },
       {
         t: "img",
-        src: "/articles/utilsbor-inner.jpg",
+        src: "/covers/utilsbor-inner.jpg",
         alt: "Составляющие цены автомобиля под ключ при импорте",
         caption:
           "Утильсбор — одна из четырёх крупных статей в итоговой цене, и часто не самая маленькая",
@@ -413,7 +413,7 @@ export const articles: Article[] = [
     ],
     date: "2026-03-11",
     readMin: 7,
-    cover: "/articles/epts.jpg",
+    cover: "/covers/epts.jpg",
     related: ["utilsbor-2026-kak-schitaetsya", "rastamozhka-avto-iz-kitaya-2026"],
     body: [
       {
@@ -449,7 +449,7 @@ export const articles: Article[] = [
       },
       {
         t: "img",
-        src: "/articles/epts-inner.jpg",
+        src: "/covers/epts-inner.jpg",
         alt: "Порядок оформления документов на импортный автомобиль",
         caption: "Каждый следующий документ невозможно получить без предыдущего",
       },
@@ -502,7 +502,7 @@ export const articles: Article[] = [
     ],
     date: "2026-03-18",
     readMin: 9,
-    cover: "/articles/aukcion.jpg",
+    cover: "/covers/aukcion.jpg",
     related: ["koreya-kitay-yaponiya-otkuda-vygodnee", "priznaki-obmana-pri-importe"],
     body: [
       {
@@ -552,7 +552,7 @@ export const articles: Article[] = [
       },
       {
         t: "img",
-        src: "/articles/aukcion-inner.jpg",
+        src: "/covers/aukcion-inner.jpg",
         alt: "Обозначения дефектов на схеме кузова в аукционном листе",
         caption: "Буквы на схеме говорят о машине больше, чем общая оценка",
       },
@@ -590,7 +590,7 @@ export const articles: Article[] = [
     ],
     date: "2026-03-25",
     readMin: 7,
-    cover: "/articles/sroki.jpg",
+    cover: "/covers/sroki.jpg",
     related: ["koreya-kitay-yaponiya-otkuda-vygodnee", "epts-na-import-avto"],
     body: [
       {
@@ -622,7 +622,7 @@ export const articles: Article[] = [
       },
       {
         t: "img",
-        src: "/articles/sroki-inner.jpg",
+        src: "/covers/sroki-inner.jpg",
         alt: "Этапы пути автомобиля от площадки за границей до постановки на учёт",
         caption: "Шесть этапов, и задержка на любом сдвигает всю цепочку",
       },
@@ -666,7 +666,7 @@ export const articles: Article[] = [
     ],
     date: "2026-04-01",
     readMin: 8,
-    cover: "/articles/obman.jpg",
+    cover: "/covers/obman.jpg",
     related: ["aukcionnyy-list-yaponiya", "utilsbor-2026-kak-schitaetsya"],
     body: [
       {
@@ -719,7 +719,7 @@ export const articles: Article[] = [
       },
       {
         t: "img",
-        src: "/articles/obman-inner.jpg",
+        src: "/covers/obman-inner.jpg",
         alt: "Чек-лист проверки поставщика автомобилей до предоплаты",
         caption:
           "Ни один пункт не требует специальных знаний — всё проверяется до перевода денег",

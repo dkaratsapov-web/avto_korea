@@ -17,10 +17,10 @@ if (!defined('CRM_BOOTED')) {
     define('CRM_BOOTED', true);
 
     /**
-     * Каталог данных. От /www/<домен>/crm/api/lib/ поднимаемся на четыре
-     * уровня — до /www/, где рядом с сайтом уже лежит private-leads.
+     * Каталог данных. От /www/<домен>/crm-api/lib/ поднимаемся на три уровня —
+     * до /www/, где рядом с сайтом уже лежит private-leads.
      */
-    define('CRM_DATA_DIR', __DIR__ . '/../../../../private-crm');
+    define('CRM_DATA_DIR', __DIR__ . '/../../../private-crm');
 
     define('CRM_DB_FILE', CRM_DATA_DIR . '/crm.sqlite');
     define('CRM_KEY_FILE', CRM_DATA_DIR . '/session.key');
