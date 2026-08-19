@@ -74,6 +74,11 @@ const TelegramLanding = lazy(() =>
 const TmaApp = lazy(() =>
   import("@/components/pages/TmaApp").then((m) => ({ default: m.TmaApp })),
 );
+// CRM — отдельное направление: свой чанк, свой вход, своё хранилище.
+// Код сайта её не тянет, а она не тянет код сайта.
+const CrmApp = lazy(() =>
+  import("@/crm/CrmApp").then((m) => ({ default: m.CrmApp })),
+);
 
 function ScrollManager() {
   const { pathname } = useLocation();
@@ -93,6 +98,10 @@ function MetrikaTracker() {
   const prev = useRef<string | null>(null);
 
   useEffect(() => {
+    // CRM — внутренний раздел: её переходы не должны попадать в статистику
+    // сайта и портить отчёты по рекламе.
+    if (pathname.startsWith("/crm")) return;
+
     const url = window.location.origin + pathname + search;
     if (prev.current === null) {
       prev.current = url;
@@ -144,6 +153,8 @@ export function App() {
           <Route path="/quiz" element={<QuizLanding />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/tma" element={<TmaApp />} />
+          {/* CRM со своими доступами — не пересекается ни с сайтом, ни с ботом */}
+          <Route path="/crm/*" element={<CrmApp />} />
         </Routes>
       </Suspense>
       <Toaster />

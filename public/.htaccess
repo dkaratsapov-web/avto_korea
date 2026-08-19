@@ -30,6 +30,12 @@
   RewriteRule ^api/tgphoto$ /api/media.php [L,QSA]
   RewriteRule ^api/tgvideo$ /api/media.php?video=1 [L,QSA]
 
+  # --- CRM: отдельное направление со своим API ---
+  # Все адреса /crm/api/... заворачиваются в единую точку входа. Правило стоит
+  # выше SPA-фолбэка, иначе запросы к API вернули бы index.html.
+  RewriteRule ^crm/api/?$ /crm/api/index.php [L,QSA]
+  RewriteRule ^crm/api/(.+)$ /crm/api/index.php?__route=$1 [L,QSA]
+
   # --- SPA fallback: любой маршрут → index.html (кроме реальных файлов) ---
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
