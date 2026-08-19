@@ -49,6 +49,24 @@ const CRM_EVENT_TYPES = [
     'FILE_DELETED',
 ];
 
+/** Названия этапов для уведомлений. В интерфейсе свой список, здесь — свой. */
+const CRM_STAGE_LABELS = [
+    'NEW' => 'Новая заявка',
+    'SELECTION' => 'Подбор авто',
+    'APPROVAL' => 'Согласование и предоплата',
+    'PURCHASED' => 'Куплено на аукционе',
+    'SHIPPING' => 'В пути',
+    'CUSTOMS' => 'Таможня',
+    'DELIVERY' => 'Выдача клиенту',
+    'DONE' => 'Сделка завершена',
+    'LOST' => 'Отказ',
+];
+
+function crm_stage_label(string $stage): string
+{
+    return CRM_STAGE_LABELS[$stage] ?? $stage;
+}
+
 const CRM_FILE_KINDS = ['PHOTO', 'INVOICE', 'CONTRACT', 'CUSTOMS', 'CLIENT_DOC', 'OTHER'];
 
 function crm_round2(float $value): float
@@ -131,6 +149,7 @@ function crm_deal_json(array $row, ?array $manager = null): array
 
         'purchaseDate' => $row['purchase_date'],
         'etaDate' => $row['eta_date'],
+        'callbackAt' => $row['callback_at'] ?? null,
         'closedAt' => $row['closed_at'],
 
         // Условия договора: у каждой машины свои, поэтому живут в сделке,
@@ -319,6 +338,19 @@ function crm_settings(): array
 
     $stored = json_decode((string) $row['data'], true);
     return is_array($stored) ? array_merge($defaults, $stored) : $defaults;
+}
+
+/**
+ * Настройки для отдачи наружу.
+ *
+ * Токен бота вырезается: показать его на экране — значит однажды показать
+ * на скриншоте. Интерфейсу достаточно знать, настроен канал или нет.
+ */
+function crm_public_settings(): array
+{
+    $settings = crm_settings();
+    unset($settings['telegramToken']);
+    return $settings;
 }
 
 function crm_save_settings(array $values): array

@@ -54,6 +54,9 @@ export type Deal = {
   etaDate: string | null;
   closedAt: string | null;
 
+  /** Когда обещали перезвонить клиенту. Дата со временем, без часового пояса. */
+  callbackAt: string | null;
+
   /** Условия договора по этой машине. */
   deliveryDays: number | null;
   prepaymentPercent: number | null;

@@ -29,7 +29,7 @@ import {
 import { api, ApiError } from "../lib/api";
 import { STAGE_COLORS, STAGE_LABELS, STAGES, isStage, type Stage } from "../lib/stages";
 import { money } from "../lib/money";
-import { formatDayShort, formatMoment, formatSize, today } from "../lib/format";
+import { formatDayShort, formatMoment, formatSize, isCallbackDue, today } from "../lib/format";
 import type { Deal, DealEvent, DealFile, FileKind, Task, User } from "../lib/types";
 import { useAuth } from "../auth";
 import { Badge, Button, Card, Empty, Field, Input, Modal, Select, Spinner, Textarea, useToast } from "../ui";
@@ -219,6 +219,11 @@ export function DealPage() {
               <Row label="Ответственный" value={deal.managerName ?? "—"} />
               <Row label="VIN" value={deal.vin ?? "—"} />
               <Row label="Пробег" value={deal.carMileage ? `${deal.carMileage.toLocaleString("ru-RU")} км` : "—"} />
+              <Row
+                label="Перезвонить"
+                value={deal.callbackAt ? formatMoment(deal.callbackAt) : "—"}
+                tone={isCallbackDue(deal.callbackAt) ? "warn" : undefined}
+              />
               <Row label="Покупка" value={formatDayShort(deal.purchaseDate)} />
               <Row label="Прибытие" value={formatDayShort(deal.etaDate)} />
             </dl>

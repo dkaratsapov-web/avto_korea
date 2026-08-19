@@ -12,7 +12,7 @@ function crm_route_settings(string $method, array $path): void
 {
     if ($method === 'GET') {
         crm_require_user();
-        crm_json(['ok' => true, 'settings' => crm_settings()]);
+        crm_json(['ok' => true, 'settings' => crm_public_settings()]);
     }
 
     if ($method === 'PUT' || $method === 'PATCH') {
@@ -38,7 +38,8 @@ function crm_route_settings(string $method, array $path): void
         // Срок поставки и предоплата здесь больше не хранятся: они
         // договариваются по каждой машине отдельно и живут в сделке.
 
-        crm_json(['ok' => true, 'settings' => crm_save_settings($values)]);
+        crm_save_settings($values);
+        crm_json(['ok' => true, 'settings' => crm_public_settings()]);
     }
 
     crm_fail(404, 'not_found', 'Неизвестный метод раздела реквизитов');

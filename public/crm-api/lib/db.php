@@ -220,6 +220,33 @@ function crm_migrations(): array
             'ALTER TABLE crm_deals ADD COLUMN client_address VARCHAR(500)',
             'ALTER TABLE crm_deals ADD COLUMN client_email VARCHAR(190)',
         ],
+
+        // Уведомления: привязка сотрудника к Telegram и подписки браузера
+        // на push. Каналы разные, но включаются и отключаются вместе.
+        4 => [
+            'ALTER TABLE crm_users ADD COLUMN telegram_chat_id VARCHAR(64)',
+            'ALTER TABLE crm_users ADD COLUMN telegram_code VARCHAR(16)',
+            'ALTER TABLE crm_users ADD COLUMN notify_muted INTEGER NOT NULL DEFAULT 0',
+
+            "CREATE TABLE crm_push (
+                id VARCHAR(64) PRIMARY KEY,
+                user_id VARCHAR(64) NOT NULL,
+                endpoint VARCHAR(500) NOT NULL,
+                p256dh VARCHAR(190) NOT NULL,
+                auth VARCHAR(64) NOT NULL,
+                label VARCHAR(120),
+                created_at VARCHAR(32) NOT NULL,
+                failed_at VARCHAR(32)
+            )",
+            'CREATE INDEX crm_push_user ON crm_push (user_id)',
+            'CREATE UNIQUE INDEX crm_push_endpoint ON crm_push (endpoint)',
+        ],
+
+        // Дата и время перезвона. Отдельно от задач: перезвонить — не «дело
+        // по машине», а обещание клиенту, и его нужно видеть на доске.
+        5 => [
+            'ALTER TABLE crm_deals ADD COLUMN callback_at VARCHAR(32)',
+        ],
     ];
 }
 

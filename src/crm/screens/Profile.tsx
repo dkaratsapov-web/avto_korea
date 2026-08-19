@@ -12,6 +12,7 @@ import { api, ApiError } from "../lib/api";
 import { useAuth } from "../auth";
 import { formatMoment } from "../lib/format";
 import { Button, Card, Field, Input, useToast } from "../ui";
+import { Notifications } from "./Notifications";
 import { PageHead } from "./Layout";
 
 export function Profile() {
@@ -54,6 +55,10 @@ export function Profile() {
   return (
     <>
       <PageHead title="Профиль" />
+
+      <div className="mb-4">
+        <Notifications />
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Учётная запись">
