@@ -32,10 +32,25 @@ export function documentNumber(deal: Pick<Deal, "number">, prefix: string): stri
   return `${prefix}-${String(deal.number).padStart(4, "0")}`;
 }
 
-/** Суммы, которые попадают в договор и счёт. */
-export function documentTotals(deal: Deal, settings: Settings) {
+/** Доля предоплаты по сделке. Не задана — считаем половину. */
+export function prepaymentPercent(deal: Deal): number {
+  return deal.prepaymentPercent ?? 50;
+}
+
+/** Срок поставки по сделке. Не задан — берём типовые 60 дней. */
+export function deliveryDays(deal: Deal): number {
+  return deal.deliveryDays ?? 60;
+}
+
+/**
+ * Суммы, которые попадают в договор и счёт.
+ *
+ * Доля предоплаты берётся из сделки, а не из реквизитов компании: по одной
+ * машине договариваются на треть вперёд, по другой — на всю сумму.
+ */
+export function documentTotals(deal: Deal, _settings: Settings) {
   const totals = calcTotals(deal);
-  const prepayment = Math.round((totals.totalRub * settings.prepaymentPercent) / 100);
+  const prepayment = Math.round((totals.totalRub * prepaymentPercent(deal)) / 100);
 
   return {
     total: totals.totalRub,
@@ -66,6 +81,22 @@ export function missingRequisites(settings: Settings, kind: "invoice" | "contrac
     if (!settings.bankAccount.trim()) missing.push("расчётный счёт");
     if (!settings.bankBic.trim()) missing.push("БИК");
   }
+
+  return missing;
+}
+
+/**
+ * Чего не хватает в данных заказчика для договора.
+ *
+ * Договор без паспорта и адреса регистрации подписать нельзя, а обнаруживается
+ * это обычно уже за столом с клиентом.
+ */
+export function missingClientRequisites(deal: Deal): string[] {
+  const missing: string[] = [];
+
+  if (!deal.clientFullName?.trim()) missing.push("ФИО заказчика полностью");
+  if (!deal.clientPassport?.trim()) missing.push("паспорт заказчика");
+  if (!deal.clientAddress?.trim()) missing.push("адрес заказчика");
 
   return missing;
 }

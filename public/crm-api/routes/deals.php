@@ -17,6 +17,14 @@ const CRM_DEAL_FIELDS = [
     'client_phone' => 'nullable',
     'client_telegram' => 'nullable',
     'source' => 'nullable',
+
+    // Реквизиты клиента для договора.
+    'client_full_name' => 'nullable',
+    'client_birth_date' => 'date',
+    'client_passport' => 'nullable',
+    'client_passport_issued' => 'nullable',
+    'client_address' => 'nullable',
+    'client_email' => 'nullable',
     'car_brand' => 'nullable',
     'car_model' => 'nullable',
     'car_year' => 'int',
@@ -36,6 +44,8 @@ const CRM_DEAL_FIELDS = [
     'paid_amount' => 'money',
     'purchase_date' => 'date',
     'eta_date' => 'date',
+    'delivery_days' => 'int',
+    'prepayment_percent' => 'int',
     'notes' => 'nullable',
 ];
 
@@ -356,25 +366,4 @@ function crm_deals_token(string $id, array $user): void
     );
 
     crm_json(['ok' => true, 'publicToken' => $token]);
-}
-
-/** История сделки с именами авторов. */
-function crm_deal_events(string $dealId): array
-{
-    $rows = crm_all(
-        'SELECT e.*, u.name AS user_name FROM crm_events e
-         LEFT JOIN crm_users u ON u.id = e.user_id
-         WHERE e.deal_id = ? ORDER BY e.created_at DESC, e.id DESC',
-        [$dealId],
-    );
-
-    return array_map(fn($row) => [
-        'id' => $row['id'],
-        'type' => $row['type'],
-        'text' => $row['text'],
-        'from' => $row['from_value'],
-        'to' => $row['to_value'],
-        'userName' => $row['user_name'],
-        'createdAt' => $row['created_at'],
-    ], $rows);
 }

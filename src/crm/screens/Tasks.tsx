@@ -90,7 +90,7 @@ export function Tasks() {
             hint="Задачи ставятся в карточке сделки — так они всегда привязаны к конкретной машине."
           />
         ) : (
-          <ul className="divide-y divide-[#eef1f5]">
+          <ul className="divide-y divide-crm-soft">
             {tasks.map((task) => (
               <li key={task.id} className="flex items-start gap-3 px-4 py-3">
                 <button
@@ -99,8 +99,8 @@ export function Tasks() {
                   aria-label={task.isDone ? "Вернуть в работу" : "Отметить выполненной"}
                   className={`mt-0.5 flex h-[18px] w-[18px] flex-none items-center justify-center rounded border transition-colors ${
                     task.isDone
-                      ? "border-[#16a34a] bg-[#16a34a] text-white"
-                      : "border-[#c6cdd6] hover:border-[#1f2937]"
+                      ? "border-crm-ok bg-crm-ok text-white"
+                      : "border-crm-line-2 hover:border-crm-accent"
                   }`}
                 >
                   {task.isDone ? <Check className="h-3 w-3" /> : null}
@@ -109,18 +109,18 @@ export function Tasks() {
                 <div className="min-w-0 flex-1">
                   <p
                     className={`text-[14px] leading-snug ${
-                      task.isDone ? "text-[#9aa3ae] line-through" : "text-[#111827]"
+                      task.isDone ? "text-crm-ink-3 line-through" : "text-crm-ink"
                     }`}
                   >
                     {task.title}
                   </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-[#8a93a0]">
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-crm-ink-3">
                     {task.dueDate ? <UrgencyBadge task={task} /> : <span>без срока</span>}
                     {task.assigneeName ? <span>· {task.assigneeName}</span> : null}
                     {task.dealNumber ? (
                       <Link
                         to={`/crm/deals/${task.dealId}`}
-                        className="font-semibold text-[#1f6feb] hover:underline"
+                        className="font-semibold text-crm-link hover:underline"
                       >
                         · №{task.dealNumber} {task.dealClient ?? ""}
                       </Link>

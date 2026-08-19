@@ -23,6 +23,14 @@ export type Deal = {
   clientTelegram: string | null;
   source: string | null;
 
+  /** Реквизиты клиента для договора. */
+  clientFullName: string | null;
+  clientBirthDate: string | null;
+  clientPassport: string | null;
+  clientPassportIssued: string | null;
+  clientAddress: string | null;
+  clientEmail: string | null;
+
   carBrand: string | null;
   carModel: string | null;
   carYear: number | null;
@@ -46,6 +54,10 @@ export type Deal = {
   etaDate: string | null;
   closedAt: string | null;
 
+  /** Условия договора по этой машине. */
+  deliveryDays: number | null;
+  prepaymentPercent: number | null;
+
   notes: string | null;
   publicToken: string | null;
 
@@ -64,9 +76,22 @@ export type Deal = {
   dueTasks?: number;
 };
 
+export type DealEventType =
+  | "CREATED"
+  | "STAGE_CHANGED"
+  | "UPDATED"
+  | "COMMENT"
+  | "TASK_ADDED"
+  | "TASK_UPDATED"
+  | "TASK_DONE"
+  | "TASK_REOPENED"
+  | "TASK_DELETED"
+  | "FILE_ADDED"
+  | "FILE_DELETED";
+
 export type DealEvent = {
   id: string;
-  type: "CREATED" | "STAGE_CHANGED" | "UPDATED" | "COMMENT";
+  type: DealEventType;
   text: string | null;
   from: string | null;
   to: string | null;
@@ -117,8 +142,6 @@ export type Settings = {
   bankBic: string;
   signerName: string;
   signerPosition: string;
-  deliveryDays: number;
-  prepaymentPercent: number;
 };
 
 export type Dashboard = {

@@ -12,6 +12,7 @@
 import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth";
+import { ThemeProvider, themeAttribute, useTheme } from "./theme";
 import { Spinner, ToastProvider } from "./ui";
 import { Layout } from "./screens/Layout";
 import { Login } from "./screens/Login";
@@ -47,7 +48,7 @@ function Guarded() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f4f6f8]">
+      <div className="flex min-h-screen items-center justify-center bg-crm-bg">
         <Spinner />
       </div>
     );
@@ -79,15 +80,43 @@ export function CrmApp() {
   useNoIndex();
 
   return (
-    <div className="crm min-h-screen bg-[#f4f6f8] text-[#111827]">
-      <ToastProvider>
-        <Routes>
-          {/* Публичные экраны — до проверки входа. */}
-          <Route path="track/:token" element={<Track />} />
-          <Route path="print/:id/:kind" element={<PrintGuarded />} />
-          <Route path="*" element={<AuthProvider><Guarded /></AuthProvider>} />
-        </Routes>
-      </ToastProvider>
+    <ThemeProvider>
+      <ThemedRoot>
+        <ToastProvider>
+          <Routes>
+            {/* Публичные экраны — до проверки входа. */}
+            <Route path="track/:token" element={<Track />} />
+            <Route path="print/:id/:kind" element={<PrintGuarded />} />
+            <Route path="*" element={<AuthProvider><Guarded /></AuthProvider>} />
+          </Routes>
+        </ToastProvider>
+      </ThemedRoot>
+    </ThemeProvider>
+  );
+}
+
+/**
+ * Корень CRM с проставленной темой.
+ *
+ * Атрибут вешается только при явном выборе: без него работает системная
+ * настройка. Заодно на время жизни CRM подкрашиваем фон самой страницы —
+ * иначе при прокрутке за пределы содержимого из-под тёмного интерфейса
+ * проглядывал бы светлый фон сайта.
+ */
+function ThemedRoot({ children }: { children: React.ReactNode }) {
+  const { choice, resolved } = useTheme();
+
+  useEffect(() => {
+    const previous = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = resolved === "dark" ? "#0c1015" : "#f4f6f9";
+    return () => {
+      document.body.style.backgroundColor = previous;
+    };
+  }, [resolved]);
+
+  return (
+    <div className="crm min-h-screen bg-crm-bg text-crm-ink" data-crm-theme={themeAttribute(choice)}>
+      {children}
     </div>
   );
 }

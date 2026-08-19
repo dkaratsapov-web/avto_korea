@@ -138,12 +138,16 @@ export const api = {
     request<{ tasks: Task[] }>(`/tasks?scope=${scope}${withDone ? "&done=1" : ""}`),
 
   createTask: (input: { dealId: string; title: string; dueDate?: string; assigneeId?: string }) =>
-    request<{ tasks: Task[] }>("/tasks", { body: input }),
+    request<{ tasks: Task[]; events: DealEvent[] }>("/tasks", { body: input }),
 
   updateTask: (id: string, patch: Record<string, unknown>) =>
-    request<{ task: Task; tasks: Task[] }>(`/tasks/${id}`, { method: "PATCH", body: patch }),
+    request<{ task: Task; tasks: Task[]; events: DealEvent[] }>(`/tasks/${id}`, {
+      method: "PATCH",
+      body: patch,
+    }),
 
-  deleteTask: (id: string) => request<unknown>(`/tasks/${id}`, { method: "DELETE" }),
+  deleteTask: (id: string) =>
+    request<{ events: DealEvent[] }>(`/tasks/${id}`, { method: "DELETE" }),
 
   // --- файлы ---
   uploadFile: (dealId: string, file: File, kind: FileKind) => {
@@ -151,12 +155,16 @@ export const api = {
     form.append("dealId", dealId);
     form.append("kind", kind);
     form.append("file", file);
-    return request<{ files: DealFile[] }>("/files", { form });
+    return request<{ files: DealFile[]; events: DealEvent[] }>("/files", { form });
   },
 
-  deleteFile: (id: string) => request<unknown>(`/files/${id}`, { method: "DELETE" }),
+  deleteFile: (id: string) =>
+    request<{ events: DealEvent[] }>(`/files/${id}`, { method: "DELETE" }),
 
   fileUrl: (id: string) => `${BASE}/files/${id}`,
+
+  /** Уменьшенная копия для сетки превью — оригиналы там неподъёмны. */
+  fileThumbUrl: (id: string) => `${BASE}/files/${id}?thumb=1`,
 
   // --- прочее ---
   settings: () => request<{ settings: Settings }>("/settings"),
@@ -171,5 +179,6 @@ export const api = {
 
   track: (token: string) => request<{ deal: PublicDeal }>(`/track/${token}`),
 
-  trackPhotoUrl: (token: string, fileId: string) => `${BASE}/track/${token}/photo/${fileId}`,
+  trackPhotoUrl: (token: string, fileId: string, thumb = false) =>
+    `${BASE}/track/${token}/photo/${fileId}${thumb ? "?thumb=1" : ""}`,
 };

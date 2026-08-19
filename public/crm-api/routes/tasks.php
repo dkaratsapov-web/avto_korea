@@ -28,12 +28,16 @@ function crm_route_tasks(string $method, array $path): void
     }
 
     if ($id !== '' && $method === 'DELETE') {
-        crm_require_user();
-        if (crm_one('SELECT id FROM crm_tasks WHERE id = ?', [$id]) === null) {
+        $user = crm_require_user();
+        $task = crm_one('SELECT * FROM crm_tasks WHERE id = ?', [$id]);
+        if ($task === null) {
             crm_fail(404, 'not_found', 'Задача не найдена');
         }
+
         crm_exec('DELETE FROM crm_tasks WHERE id = ?', [$id]);
-        crm_json(['ok' => true]);
+        crm_log_event((string) $task['deal_id'], (string) $user['id'], 'TASK_DELETED', (string) $task['title']);
+
+        crm_json(['ok' => true, 'events' => crm_deal_events((string) $task['deal_id'])]);
     }
 
     crm_fail(404, 'not_found', 'Неизвестный метод раздела задач');
@@ -102,7 +106,9 @@ function crm_tasks_create(array $user): void
         [$id, $dealId, $assigneeId, $user['id'], $title, crm_date_or_null($body, 'dueDate'), $now, $now],
     );
 
-    crm_json(['ok' => true, 'tasks' => crm_deal_tasks($dealId)]);
+    crm_log_event($dealId, (string) $user['id'], 'TASK_ADDED', $title);
+
+    crm_json(['ok' => true, 'tasks' => crm_deal_tasks($dealId), 'events' => crm_deal_events($dealId)]);
 }
 
 function crm_tasks_update(string $id, array $user): void
@@ -122,7 +128,22 @@ function crm_tasks_update(string $id, array $user): void
         $params[] = $done ? 1 : 0;
         $fields[] = 'done_at = ?';
         $params[] = $done ? crm_now() : null;
+
+        // Отмечаем в истории только смену состояния: повторное нажатие
+        // на уже выполненную задачу событием не является.
+        if ($done !== (bool) $task['is_done']) {
+            crm_log_event(
+                (string) $task['deal_id'],
+                (string) $user['id'],
+                $done ? 'TASK_DONE' : 'TASK_REOPENED',
+                (string) $task['title'],
+            );
+        }
     }
+
+    // Правку описания и срока тоже пишем в историю: «когда сдвинули срок»
+    // — вопрос, который потом задают чаще всего.
+    $changed = [];
 
     if (array_key_exists('title', $body)) {
         $title = crm_str($body, 'title', 500);
@@ -131,11 +152,18 @@ function crm_tasks_update(string $id, array $user): void
         }
         $fields[] = 'title = ?';
         $params[] = $title;
+        if ($title !== (string) $task['title']) {
+            $changed[] = 'описание';
+        }
     }
 
     if (array_key_exists('dueDate', $body)) {
+        $due = crm_date_or_null($body, 'dueDate');
         $fields[] = 'due_date = ?';
-        $params[] = crm_date_or_null($body, 'dueDate');
+        $params[] = $due;
+        if ((string) $due !== (string) ($task['due_date'] ?? '')) {
+            $changed[] = $due === null ? 'срок снят' : 'срок — ' . $due;
+        }
     }
 
     if (array_key_exists('assigneeId', $body)) {
@@ -156,6 +184,15 @@ function crm_tasks_update(string $id, array $user): void
 
     crm_exec('UPDATE crm_tasks SET ' . implode(', ', $fields) . ' WHERE id = ?', $params);
 
+    if ($changed !== []) {
+        crm_log_event(
+            (string) $task['deal_id'],
+            (string) $user['id'],
+            'TASK_UPDATED',
+            ($body['title'] ?? $task['title']) . ' (' . implode(', ', $changed) . ')',
+        );
+    }
+
     $updated = crm_one(
         'SELECT t.*, u.name AS assignee_name, d.number AS deal_number, d.client_name AS deal_client
          FROM crm_tasks t
@@ -169,5 +206,6 @@ function crm_tasks_update(string $id, array $user): void
         'ok' => true,
         'task' => crm_task_json($updated ?? []),
         'tasks' => crm_deal_tasks((string) $task['deal_id']),
+        'events' => crm_deal_events((string) $task['deal_id']),
     ]);
 }

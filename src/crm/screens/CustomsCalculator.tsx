@@ -104,10 +104,10 @@ export function CustomsCalculator({
         </Field>
       </div>
 
-      <div className="mt-4 rounded-lg border border-[#e3e8ee] bg-[#fafbfc] p-4">
-        <p className="text-[12.5px] leading-relaxed text-[#6b7480]">{result.explanation}</p>
+      <div className="mt-4 rounded-lg border border-crm-line bg-crm-raise p-4">
+        <p className="text-[12.5px] leading-relaxed text-crm-ink-2">{result.explanation}</p>
 
-        <dl className="mt-3 divide-y divide-[#e8ecf1] text-[13.5px]">
+        <dl className="mt-3 divide-y divide-crm-soft text-[13.5px]">
           <Line label={`Пошлина (${result.dutyEur.toLocaleString("ru-RU")} €)`} value={money(result.dutyRub)} />
           <Line label="Утильсбор" value={money(result.utilFeeRub)} />
           <Line label="Сбор за оформление" value={money(result.clearanceFeeRub)} />
@@ -115,7 +115,7 @@ export function CustomsCalculator({
         </dl>
       </div>
 
-      <p className="mt-3 rounded-lg bg-[#fff8e6] px-3 py-2.5 text-[12px] leading-relaxed text-[#8a6100]">
+      <p className="mt-3 rounded-lg bg-crm-warn-soft px-3 py-2.5 text-[12px] leading-relaxed text-crm-warn">
         Ставки в расчёте собраны на {RATES_UPDATED_AT} и с тех пор могли измениться.
         Это предварительная оценка для разговора с клиентом — перед подписанием
         договора сверьте суммы с действующими ставками.
@@ -143,8 +143,8 @@ export function CustomsCalculator({
 function Line({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2">
-      <dt className="text-[#6b7480]">{label}</dt>
-      <dd className={`tnum ${strong ? "text-[15px] font-bold" : "font-semibold"} text-[#111827]`}>
+      <dt className="text-crm-ink-2">{label}</dt>
+      <dd className={`tnum ${strong ? "text-[15px] font-bold" : "font-semibold"} text-crm-ink`}>
         {value}
       </dd>
     </div>

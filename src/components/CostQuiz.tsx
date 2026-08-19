@@ -5,6 +5,7 @@ import { Flag } from "@/components/icons/Flag";
 import { showToast } from "@/lib/toast";
 import { site } from "@/lib/site";
 import { GOALS, reachGoal } from "@/lib/metrika";
+import { maskPhone } from "@/lib/phone";
 import { useCars } from "@/lib/carsStore";
 import { formatPrice, type Car } from "@/data/cars";
 
@@ -33,22 +34,6 @@ const STEPS: Step[] = [
   },
 ];
 
-// Маска российского номера: +7 (XXX) XXX-XX-XX
-function maskPhone(value: string) {
-  let d = value.replace(/\D/g, "");
-  if (d[0] === "8") d = "7" + d.slice(1);
-  else if (d[0] === "9") d = "7" + d;
-  else if (d.length > 0 && d[0] !== "7") d = "7" + d;
-  d = d.slice(0, 11);
-  const rest = d.slice(1);
-  if (!rest) return d ? "+7" : "";
-  let out = "+7 (" + rest.slice(0, 3);
-  if (rest.length >= 3) out += ")";
-  if (rest.length > 3) out += " " + rest.slice(3, 6);
-  if (rest.length >= 6) out += "-" + rest.slice(6, 8);
-  if (rest.length >= 8) out += "-" + rest.slice(8, 10);
-  return out;
-}
 
 /**
  * Квиз-расчёт. По умолчанию сам показывает экран «Заявка принята» — так он

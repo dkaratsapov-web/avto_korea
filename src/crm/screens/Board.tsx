@@ -15,11 +15,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertCircle, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { api, ApiError } from "../lib/api";
-import { BOARD_STAGES, CLOSED_STAGES, STAGE_COLORS, STAGE_LABELS, STAGE_SHORT, isStage, type Stage } from "../lib/stages";
+import { BOARD_STAGES, CLOSED_STAGES, STAGE_COLORS, STAGE_SHORT, isStage, type Stage } from "../lib/stages";
 import { moneyShort } from "../lib/money";
 import { formatDayShort, plural } from "../lib/format";
 import type { Deal, User } from "../lib/types";
-import { Badge, Button, Empty, Input, Select, Spinner, useToast } from "../ui";
+import { Button, Empty, Input, Select, Spinner, useToast } from "../ui";
 import { PageHead } from "./Layout";
 
 export function Board() {
@@ -127,7 +127,7 @@ export function Board() {
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <label className="relative min-w-[220px] flex-1 sm:max-w-[320px]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9aa3ae]" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-crm-ink-3" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -170,10 +170,17 @@ export function Board() {
           }
         />
       ) : (
-        // Доска прокручивается по горизонтали внутри себя: страница при этом
-        // остаётся на месте, иначе на телефоне уезжала бы вся вёрстка.
-        <div className="-mx-4 overflow-x-auto px-4 pb-3">
-          <div className="flex min-w-max gap-3">
+        /**
+         * На широком экране все этапы видны сразу: колонки делят ширину
+         * поровну, прокрутки нет. Смысл доски в том, чтобы охватить воронку
+         * одним взглядом, — если за «Таможней» приходится ехать вбок, доска
+         * превращается в неудобный список.
+         *
+         * Ниже 1100px семь колонок физически не помещаются: там прокрутка
+         * возвращается, и колонкам задаётся минимальная ширина.
+         */
+        <div className="crm-scroll -mx-4 overflow-x-auto px-4 pb-3 xl:mx-0 xl:overflow-visible xl:px-0">
+          <div className="flex min-w-max gap-2.5 xl:min-w-0">
             {columns.map((stage) => {
               const items = byStage.get(stage) ?? [];
               const sum = items.reduce((acc, d) => acc + d.totals.totalRub, 0);
@@ -192,10 +199,10 @@ export function Board() {
                     const id = e.dataTransfer.getData("text/plain");
                     if (id) void move(id, stage);
                   }}
-                  className={`flex w-[268px] flex-none flex-col rounded-xl border transition-colors ${
+                  className={`flex w-[248px] flex-none flex-col rounded-2xl border transition-colors xl:w-auto xl:flex-1 xl:basis-0 xl:min-w-0 ${
                     overStage === stage
-                      ? "border-[#1f2937] bg-[#eef1f5]"
-                      : "border-[#e3e8ee] bg-[#fafbfc]"
+                      ? "border-crm-accent bg-crm-accent-soft"
+                      : "border-crm-line bg-crm-raise"
                   }`}
                 >
                   <header className="flex items-center gap-2 px-3 py-2.5">
@@ -203,14 +210,14 @@ export function Board() {
                       className="h-2 w-2 flex-none rounded-full"
                       style={{ backgroundColor: STAGE_COLORS[stage] }}
                     />
-                    <h2 className="text-[13px] font-bold text-[#111827]">{STAGE_SHORT[stage]}</h2>
-                    <span className="tnum ml-auto text-[12px] font-bold text-[#8a93a0]">
+                    <h2 className="text-[13px] font-bold text-crm-ink">{STAGE_SHORT[stage]}</h2>
+                    <span className="tnum ml-auto text-[12px] font-bold text-crm-ink-3">
                       {items.length}
                     </span>
                   </header>
 
                   {sum > 0 ? (
-                    <p className="tnum -mt-1 px-3 pb-2 text-[11.5px] font-semibold text-[#8a93a0]">
+                    <p className="tnum -mt-1 px-3 pb-2 text-[11.5px] font-semibold text-crm-ink-3">
                       {moneyShort(sum)}
                     </p>
                   ) : null}
@@ -273,8 +280,8 @@ function DealCard({
           moved.current = false;
         }, 0);
       }}
-      className={`rounded-lg border border-[#e3e8ee] bg-white p-2.5 transition-shadow ${
-        dragging ? "opacity-40" : "hover:shadow-[0_6px_18px_-8px_rgba(13,17,22,0.3)]"
+      className={`cursor-grab rounded-xl border border-crm-line bg-crm-surface p-2.5 transition-[box-shadow,border-color] active:cursor-grabbing ${
+        dragging ? "opacity-40" : "hover:border-crm-line-2 hover:shadow-[var(--crm-shadow)]"
       }`}
     >
       <Link
@@ -285,30 +292,30 @@ function DealCard({
         className="block"
       >
         <div className="flex items-start justify-between gap-2">
-          <span className="text-[13.5px] font-bold leading-snug text-[#111827]">
+          <span className="text-[13.5px] font-bold leading-snug text-crm-ink">
             {deal.clientName}
           </span>
-          <span className="tnum flex-none text-[11.5px] font-bold text-[#aab2bd]">
+          <span className="tnum flex-none text-[11.5px] font-bold text-crm-ink-3">
             №{deal.number}
           </span>
         </div>
 
-        {car ? <p className="mt-0.5 text-[12.5px] text-[#6b7480]">{car}</p> : null}
+        {car ? <p className="mt-0.5 text-[12.5px] text-crm-ink-2">{car}</p> : null}
 
         <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1">
           {deal.totals.totalRub > 0 ? (
-            <span className="tnum text-[12.5px] font-bold text-[#111827]">
+            <span className="tnum text-[12.5px] font-bold text-crm-ink">
               {moneyShort(deal.totals.totalRub)}
             </span>
           ) : null}
           {deal.etaDate ? (
-            <span className="tnum text-[11.5px] text-[#8a93a0]">{formatDayShort(deal.etaDate)}</span>
+            <span className="tnum text-[11.5px] text-crm-ink-3">{formatDayShort(deal.etaDate)}</span>
           ) : null}
           {deal.dueTasks ? (
-            <Badge color="#ef4444" className="!px-2 !py-0.5">
+            <span className="inline-flex items-center gap-1 rounded-full bg-crm-danger-soft px-2 py-0.5 text-[11.5px] font-bold text-crm-danger">
               <AlertCircle className="h-3 w-3" />
               {deal.dueTasks}
-            </Badge>
+            </span>
           ) : null}
         </div>
       </Link>
@@ -320,11 +327,13 @@ function DealCard({
           if (isStage(e.target.value)) onStage(e.target.value);
         }}
         aria-label={`Этап сделки №${deal.number}`}
-        className="mt-2 w-full rounded-md border border-[#e8ecf1] bg-[#fafbfc] px-2 py-1.5 text-[12px] font-semibold text-[#4b5563] outline-none focus:border-[#1f2937]"
+        className="mt-2 w-full rounded-lg border border-crm-line bg-crm-raise px-2 py-1.5 text-[12px] font-semibold text-crm-ink-2 outline-none transition-colors focus:border-crm-accent"
       >
+        {/* Короткие подписи: в узкой колонке «Согласование и предоплата»
+            всё равно обрезается, а обрезанный текст читается хуже краткого. */}
         {[...BOARD_STAGES, ...CLOSED_STAGES].map((stage) => (
           <option key={stage} value={stage}>
-            {STAGE_LABELS[stage]}
+            {STAGE_SHORT[stage]}
           </option>
         ))}
       </select>

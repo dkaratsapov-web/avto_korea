@@ -8,8 +8,21 @@
 
 import { useState, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { BarChart3, Building2, KanbanSquare, ListTodo, LogOut, Menu, Users2, X } from "lucide-react";
+import {
+  BarChart3,
+  Building2,
+  KanbanSquare,
+  ListTodo,
+  LogOut,
+  Menu,
+  Monitor,
+  Moon,
+  Sun,
+  Users2,
+  X,
+} from "lucide-react";
 import { useAuth } from "../auth";
+import { useTheme } from "../theme";
 import { initials } from "../lib/format";
 
 const NAV = [
@@ -37,28 +50,35 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-[#e3e8ee] bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-[1500px] items-center gap-3 px-4">
-          <Link to="/crm" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1f2937] text-[13px] font-bold text-white">
-              Д
-            </span>
-            <span className="text-[15px] font-bold text-[#111827]">
-              CRM <span className="text-[#8a93a0]">ДиАвто69</span>
+      <header className="sticky top-0 z-30 border-b border-crm-line bg-crm-surface/85 backdrop-blur-md">
+        <div className="mx-auto flex h-14 w-full max-w-[1720px] items-center gap-3 px-4">
+          <Link to="/crm" className="flex flex-none items-center gap-2.5">
+            {/* Квадратная иконка, а не овальный логотип: в круглой рамке овал
+                дал бы две вложенные окружности и выглядел бы криво. */}
+            <img
+              src="/favicon-512.png"
+              alt="ДиАвто69"
+              width={32}
+              height={32}
+              decoding="async"
+              className="h-8 w-8 flex-none rounded-[10px] object-cover shadow-[0_2px_8px_-3px_rgba(0,0,0,.5)]"
+            />
+            <span className="text-[15px] font-bold tracking-[-0.01em] text-crm-ink">
+              CRM <span className="font-semibold text-crm-ink-3">ДиАвто69</span>
             </span>
           </Link>
 
-          <nav className="ml-4 hidden items-center gap-1 md:flex">
+          <nav className="ml-3 hidden items-center gap-0.5 md:flex">
             {items.map(({ to, label, icon: Icon, end }) => (
               <NavLink
                 key={to}
                 to={to}
                 end={end}
                 className={({ isActive }) =>
-                  `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[13.5px] font-semibold transition-colors ${
+                  `inline-flex items-center gap-2 rounded-[10px] px-3 py-2 text-[13.5px] font-semibold transition-colors ${
                     isActive
-                      ? "bg-[#eef1f5] text-[#111827]"
-                      : "text-[#6b7480] hover:bg-[#f4f6f8] hover:text-[#111827]"
+                      ? "bg-crm-soft text-crm-ink"
+                      : "text-crm-ink-2 hover:bg-crm-raise hover:text-crm-ink"
                   }`
                 }
               >
@@ -68,11 +88,13 @@ export function Layout({ children }: { children: ReactNode }) {
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-none items-center gap-1.5">
+            <ThemeToggle />
+
             <Link
               to="/crm/profile"
               title={user?.name ?? ""}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#eef1f5] text-[12px] font-bold text-[#3c4655] transition-colors hover:bg-[#e2e7ee]"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-crm-soft text-[12px] font-bold text-crm-ink-2 transition-colors hover:bg-crm-line hover:text-crm-ink"
             >
               {initials(user?.name)}
             </Link>
@@ -81,7 +103,7 @@ export function Layout({ children }: { children: ReactNode }) {
               type="button"
               onClick={leave}
               title="Выйти"
-              className="hidden rounded-lg p-2 text-[#7b8593] transition-colors hover:bg-[#eef1f5] hover:text-[#111827] md:inline-flex"
+              className="hidden rounded-[10px] p-2 text-crm-ink-3 transition-colors hover:bg-crm-soft hover:text-crm-ink md:inline-flex"
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -90,7 +112,8 @@ export function Layout({ children }: { children: ReactNode }) {
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Меню"
-              className="rounded-lg p-2 text-[#3c4655] transition-colors hover:bg-[#eef1f5] md:hidden"
+              aria-expanded={menuOpen}
+              className="rounded-[10px] p-2 text-crm-ink-2 transition-colors hover:bg-crm-soft md:hidden"
             >
               {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -99,7 +122,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
         {/* Мобильное меню: на телефоне пункты не помещаются в строку. */}
         {menuOpen ? (
-          <nav className="border-t border-[#eef1f5] bg-white px-4 py-2 md:hidden">
+          <nav className="border-t border-crm-line bg-crm-surface px-4 py-2 md:hidden">
             {items.map(({ to, label, icon: Icon, end }) => (
               <NavLink
                 key={to}
@@ -107,8 +130,8 @@ export function Layout({ children }: { children: ReactNode }) {
                 end={end}
                 onClick={() => setMenuOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[14px] font-semibold ${
-                    isActive ? "bg-[#eef1f5] text-[#111827]" : "text-[#4b5563]"
+                  `flex items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-[14px] font-semibold ${
+                    isActive ? "bg-crm-soft text-crm-ink" : "text-crm-ink-2"
                   }`
                 }
               >
@@ -119,7 +142,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={leave}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-[14px] font-semibold text-[#b42318]"
+              className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-left text-[14px] font-semibold text-crm-danger"
             >
               <LogOut className="h-4 w-4" />
               Выйти
@@ -128,8 +151,35 @@ export function Layout({ children }: { children: ReactNode }) {
         ) : null}
       </header>
 
-      <main className="mx-auto w-full max-w-[1500px] px-4 py-5">{children}</main>
+      <main className="mx-auto w-full max-w-[1720px] px-4 py-5">{children}</main>
     </div>
+  );
+}
+
+/**
+ * Переключатель темы: система → светлая → тёмная → система.
+ *
+ * Три состояния, а не два: «как в системе» — не то же самое, что «светлая».
+ * Иначе сотрудник, переключивший систему в тёмную вечером, получал бы утром
+ * прибитую светлую тему и не понимал, почему CRM больше не слушается.
+ */
+function ThemeToggle() {
+  const { choice, cycle } = useTheme();
+
+  const Icon = choice === "system" ? Monitor : choice === "light" ? Sun : Moon;
+  const label =
+    choice === "system" ? "Тема: как в системе" : choice === "light" ? "Тема: светлая" : "Тема: тёмная";
+
+  return (
+    <button
+      type="button"
+      onClick={cycle}
+      title={label}
+      aria-label={label}
+      className="rounded-[10px] p-2 text-crm-ink-3 transition-colors hover:bg-crm-soft hover:text-crm-ink"
+    >
+      <Icon className="h-4 w-4" />
+    </button>
   );
 }
 
@@ -146,8 +196,8 @@ export function PageHead({
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-[19px] font-bold text-[#111827]">{title}</h1>
-        {subtitle ? <p className="mt-0.5 text-[13.5px] text-[#6b7480]">{subtitle}</p> : null}
+        <h1 className="text-[20px] font-bold tracking-[-0.015em] text-crm-ink">{title}</h1>
+        {subtitle ? <p className="mt-0.5 text-[13.5px] text-crm-ink-2">{subtitle}</p> : null}
       </div>
       {action}
     </div>

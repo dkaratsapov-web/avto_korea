@@ -46,12 +46,19 @@ function crm_route_files(string $method, array $path): void
     }
 
     if ($id !== '' && $method === 'DELETE') {
-        crm_require_user();
-        if (crm_one('SELECT id FROM crm_files WHERE id = ?', [$id]) === null) {
+        $user = crm_require_user();
+        // Берём только метаданные: содержимое файла для удаления не нужно,
+        // а тянуть из базы несколько мегабайт ради имени — расточительство.
+        $file = crm_one('SELECT id, deal_id, name FROM crm_files WHERE id = ?', [$id]);
+        if ($file === null) {
             crm_fail(404, 'not_found', 'Файл не найден');
         }
+
         crm_exec('DELETE FROM crm_files WHERE id = ?', [$id]);
-        crm_json(['ok' => true]);
+        @unlink(CRM_DATA_DIR . '/thumbs/' . preg_replace('/[^0-9a-f]/', '', (string) $file['id']) . '.jpg');
+        crm_log_event((string) $file['deal_id'], (string) $user['id'], 'FILE_DELETED', (string) $file['name']);
+
+        crm_json(['ok' => true, 'events' => crm_deal_events((string) $file['deal_id'])]);
     }
 
     crm_fail(404, 'not_found', 'Неизвестный метод раздела файлов');
@@ -130,7 +137,13 @@ function crm_files_upload(array $user): void
     $stmt->bindValue(9, crm_now());
     $stmt->execute();
 
-    crm_json(['ok' => true, 'files' => crm_deal_files($dealId)]);
+    crm_log_event($dealId, (string) $user['id'], 'FILE_ADDED', $name, null, $kind);
+
+    crm_json([
+        'ok' => true,
+        'files' => crm_deal_files($dealId),
+        'events' => crm_deal_events($dealId),
+    ]);
 }
 
 /**
@@ -161,19 +174,104 @@ function crm_files_download(string $id): void
         crm_fail(404, 'not_found', 'Файл не найден');
     }
 
-    $content = $row['content'];
-    // SQLite отдаёт двоичные поля потоком — читаем его целиком.
-    if (is_resource($content)) {
-        $content = stream_get_contents($content);
+    crm_serve_file_row($row, ($_GET['thumb'] ?? '') === '1');
+}
+
+/**
+ * Отдаёт вложение: полностью или миниатюрой.
+ *
+ * Миниатюра нужна не для красоты. В карточке сделки бывает три десятка фото
+ * с телефона по несколько мегабайт: без уменьшения каждое открытие страницы
+ * тянуло бы сотню мегабайт, причём заново — вложения запрещены к кэшированию
+ * во всех промежуточных узлах.
+ */
+function crm_serve_file_row(array $row, bool $thumb): never
+{
+    $mime = (string) $row['mime_type'];
+
+    if ($thumb) {
+        $small = crm_thumbnail((string) $row['id'], $mime, fn() => crm_file_content($row));
+        if ($small !== null) {
+            crm_send_file($small, 'image/jpeg', 'thumb.jpg', true);
+        }
+        // Миниатюру сделать не удалось (не картинка, нет GD, формат вроде
+        // HEIC) — отдаём оригинал: пусть лучше будет тяжело, чем пусто.
     }
 
     crm_send_file(
-        (string) $content,
-        (string) $row['mime_type'],
+        crm_file_content($row),
+        $mime,
         (string) $row['name'],
-        // Картинки и PDF показываем прямо в браузере, остальное — скачиванием.
-        str_starts_with((string) $row['mime_type'], 'image/') || $row['mime_type'] === 'application/pdf',
+        // Картинки и PDF показываем как есть, остальное — скачиванием.
+        str_starts_with($mime, 'image/') || $mime === 'application/pdf',
     );
+}
+
+/** Содержимое вложения. SQLite отдаёт двоичные поля потоком. */
+function crm_file_content(array $row): string
+{
+    $content = $row['content'];
+    return is_resource($content) ? (string) stream_get_contents($content) : (string) $content;
+}
+
+/** Максимальная сторона миниатюры. Хватает и сетке превью, и ретине. */
+const CRM_THUMB_MAX = 640;
+
+/**
+ * Миниатюра в JPEG или null, если сделать её нельзя.
+ *
+ * Готовая миниатюра кладётся рядом с базой и переиспользуется: пересжимать
+ * одно и то же фото на каждый показ на общем хостинге слишком дорого.
+ * Содержимое оригинала читается только при промахе кэша — поэтому оно
+ * передаётся замыканием, а не значением.
+ */
+function crm_thumbnail(string $id, string $mime, callable $source): ?string
+{
+    static $supported = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+    if (!in_array($mime, $supported, true) || !function_exists('imagecreatefromstring')) {
+        return null;
+    }
+
+    $dir = CRM_DATA_DIR . '/thumbs';
+    $path = $dir . '/' . preg_replace('/[^0-9a-f]/', '', $id) . '.jpg';
+
+    if (is_file($path)) {
+        $cached = @file_get_contents($path);
+        if ($cached !== false && $cached !== '') {
+            return $cached;
+        }
+    }
+
+    $image = @imagecreatefromstring($source());
+    if ($image === false) {
+        return null;
+    }
+
+    $width = imagesx($image);
+    $height = imagesy($image);
+    $scale = min(1, CRM_THUMB_MAX / max($width, $height));
+    $targetWidth = max(1, (int) round($width * $scale));
+    $targetHeight = max(1, (int) round($height * $scale));
+
+    $canvas = imagecreatetruecolor($targetWidth, $targetHeight);
+    // JPEG не умеет прозрачность: подкладываем белое, иначе прозрачные
+    // области PNG станут чёрными.
+    imagefill($canvas, 0, 0, imagecolorallocate($canvas, 255, 255, 255));
+    imagecopyresampled($canvas, $image, 0, 0, 0, 0, $targetWidth, $targetHeight, $width, $height);
+    imagedestroy($image);
+
+    ob_start();
+    imagejpeg($canvas, null, 78);
+    $jpeg = (string) ob_get_clean();
+    imagedestroy($canvas);
+
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0700, true);
+    }
+    @file_put_contents($path, $jpeg, LOCK_EX);
+
+    return $jpeg;
 }
 
 /** Отдаёт файл с заголовками, при которых он не выполнится как страница. */
@@ -185,7 +283,10 @@ function crm_send_file(string $content, string $mime, string $name, bool $inline
     header('Content-Type: ' . $mime);
     header('Content-Length: ' . strlen($content));
     header('X-Content-Type-Options: nosniff');
-    header('Cache-Control: no-store, private');
+    // Содержимое вложения к своему адресу привязано навсегда — новый файл
+    // получает новый идентификатор. Поэтому кэшировать можно надолго, но
+    // только в браузере владельца: private не пускает файл в общие кэши.
+    header('Cache-Control: private, max-age=604800, immutable');
     header(sprintf(
         "Content-Disposition: %s; filename=\"%s\"; filename*=UTF-8''%s",
         $disposition,

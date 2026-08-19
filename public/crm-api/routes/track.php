@@ -131,11 +131,8 @@ function crm_track_photo(array $deal, string $fileId): never
         crm_fail(404, 'not_found', 'Файл не найден');
     }
 
-    $content = $file['content'];
-    if (is_resource($content)) {
-        $content = stream_get_contents($content);
-    }
-
     require_once __DIR__ . '/files.php';
-    crm_send_file((string) $content, (string) $file['mime_type'], (string) $file['name'], true);
+    // Клиент чаще всего открывает ссылку с телефона по мобильной сети —
+    // отдавать ему исходные снимки с камеры незачем.
+    crm_serve_file_row($file, ($_GET['thumb'] ?? '') === '1');
 }

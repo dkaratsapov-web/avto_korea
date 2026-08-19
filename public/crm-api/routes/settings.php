@@ -33,11 +33,10 @@ function crm_route_settings(string $method, array $path): void
             'bankBic' => crm_str($body, 'bankBic', 12),
             'signerName' => crm_str($body, 'signerName', 190),
             'signerPosition' => crm_str($body, 'signerPosition', 120),
-            // Границы намеренно широкие: договор бывает и на две недели,
-            // и на полгода, а предоплата — от символической до полной.
-            'deliveryDays' => max(1, min(365, (int) ($body['deliveryDays'] ?? 60))),
-            'prepaymentPercent' => max(0, min(100, (int) ($body['prepaymentPercent'] ?? 50))),
         ];
+
+        // Срок поставки и предоплата здесь больше не хранятся: они
+        // договариваются по каждой машине отдельно и живут в сделке.
 
         crm_json(['ok' => true, 'settings' => crm_save_settings($values)]);
     }
