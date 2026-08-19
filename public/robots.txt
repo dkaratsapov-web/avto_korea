@@ -1,5 +1,8 @@
 User-agent: *
 Allow: /
 
+# CRM — внутренний раздел, в поиске ему делать нечего.
+Disallow: /crm
+
 # автоимпорт-69.рф в punycode — роботы читают адреса только в ASCII.
 Sitemap: https://xn---69-5cdk0b2aocjmsg.xn--p1ai/sitemap.xml
