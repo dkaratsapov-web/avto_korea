@@ -21,6 +21,15 @@ import type { Stage } from "./stages";
 
 const BASE = "/crm/api";
 
+/** Потолок вложения. Тот же, что и на сервере (routes/files.php). */
+export const FILE_MAX_BYTES = 8 * 1024 * 1024;
+
+function formatBytes(bytes: number): string {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} МБ`
+    : `${Math.max(1, Math.round(bytes / 1024))} КБ`;
+}
+
 export class ApiError extends Error {
   code: string;
   status: number;
@@ -40,9 +49,28 @@ type Options = {
   form?: FormData;
 };
 
+/**
+ * Текст для случая, когда запрос вообще не дошёл до ответа.
+ *
+ * Раньше на все три случая было одно «Нет связи с сервером», и менеджер
+ * не понимал ни причины, ни того, что делать дальше. Хуже всего это работало
+ * при сохранении: запрос мог упасть уже ПОСЛЕ записи в базу, и повторная
+ * отправка заводила второй раз то же самое.
+ */
+function networkMessage(method: string): string {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    return "Нет интернета — проверьте связь и повторите";
+  }
+  if (method === "GET") {
+    return "Сервер не ответил. Обновите страницу";
+  }
+  return "Сервер не ответил. Обновите страницу — возможно, изменение уже сохранилось";
+}
+
 async function request<T>(path: string, options: Options = {}): Promise<T> {
+  const method = options.method ?? (options.body || options.form ? "POST" : "GET");
   const init: RequestInit = {
-    method: options.method ?? (options.body || options.form ? "POST" : "GET"),
+    method,
     // Кука сессии ограничена путём /crm, но включить её нужно явно.
     credentials: "same-origin",
   };
@@ -58,7 +86,20 @@ async function request<T>(path: string, options: Options = {}): Promise<T> {
   try {
     response = await fetch(BASE + path, init);
   } catch {
-    throw new ApiError("Нет связи с сервером", "network", 0);
+    // Чтение повторяем один раз: одиночный сбой связи на общем хостинге —
+    // обычное дело, и показывать из-за него ошибку не за что. Запись
+    // не повторяем никогда: сервер мог её принять, и второй заход создал бы
+    // дубль сделки или задачи.
+    if (method !== "GET") {
+      throw new ApiError(networkMessage(method), "network", 0);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    try {
+      response = await fetch(BASE + path, init);
+    } catch {
+      throw new ApiError(networkMessage(method), "network", 0);
+    }
   }
 
   let payload: unknown = null;
@@ -151,6 +192,20 @@ export const api = {
 
   // --- файлы ---
   uploadFile: (dealId: string, file: File, kind: FileKind) => {
+    // Размер проверяем ДО отправки. Слишком большое тело хостинг обрывает
+    // на своём уровне, не доходя до PHP: браузер видит разрыв соединения,
+    // и вместо понятного «файл больше 8 МБ» менеджер получал «нет связи
+    // с сервером» — на ровном месте и без единой подсказки, что делать.
+    if (file.size > FILE_MAX_BYTES) {
+      return Promise.reject(
+        new ApiError(
+          `«${file.name}» — ${formatBytes(file.size)}, а можно до 8 МБ`,
+          "file_too_large",
+          413,
+        ),
+      );
+    }
+
     const form = new FormData();
     form.append("dealId", dealId);
     form.append("kind", kind);
