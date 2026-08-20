@@ -19,16 +19,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/model.php';
-
-/** Куда складываются неудачные отправки, чтобы было что показать при разборе. */
-function crm_notify_log(string $line): void
-{
-    @file_put_contents(
-        CRM_DATA_DIR . '/notify.log',
-        crm_now() . ' ' . $line . "\n",
-        FILE_APPEND | LOCK_EX,
-    );
-}
+// crm_is_https() — из неё собирается ссылка на сделку в тексте уведомления.
+require_once __DIR__ . '/auth.php';
+// Второй канал: crm_notify() вызывает crm_push_send(), и без этой строки
+// любое уведомление роняло запрос уже после записи в базу.
+require_once __DIR__ . '/push.php';
 
 /* ------------------------------------------------------------------ Telegram */
 

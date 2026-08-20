@@ -19,6 +19,9 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/boot.php';
+// Подписки лежат в базе, адрес отправителя — в настройках компании.
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/model.php';
 
 /** Файл с парой ключей VAPID. Лежит рядом с базой, вне каталога сайта. */
 function crm_vapid_file(): string

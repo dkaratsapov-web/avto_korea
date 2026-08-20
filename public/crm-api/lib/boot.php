@@ -13,6 +13,10 @@
 
 declare(strict_types=1);
 
+// crm_fatal() нужна уже здесь: без каталога данных дальше идти некуда,
+// а сообщить об этом надо ответом, а не белым экраном.
+require_once __DIR__ . '/http.php';
+
 if (!defined('CRM_BOOTED')) {
     define('CRM_BOOTED', true);
 
@@ -110,6 +114,22 @@ function crm_session_key(): string
     @chmod(CRM_KEY_FILE, 0600);
 
     return $key = $generated;
+}
+
+/**
+ * Журнал доставки уведомлений.
+ *
+ * Лежит здесь, а не в notify.php, потому что пишут в него оба канала —
+ * и Telegram, и push. Если бы функция жила в одном из них, второму пришлось бы
+ * его подключать, и модули замкнулись бы друг на друга.
+ */
+function crm_notify_log(string $line): void
+{
+    @file_put_contents(
+        CRM_DATA_DIR . '/notify.log',
+        crm_now() . ' ' . $line . "\n",
+        FILE_APPEND | LOCK_EX,
+    );
 }
 
 /** Текущий момент в формате, в котором время лежит в базе. */
