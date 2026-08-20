@@ -81,12 +81,40 @@ if ($fresh) {
     exit;
 }
 
+/*
+ * Обновляет кэш только один процесс.
+ *
+ * Кэш каталога живёт минуту. Без замка в момент его протухания ВСЕ посетители,
+ * пришедшие одновременно, шли к воркеру разом — и каждый занимал процесс PHP
+ * до двенадцати секунд. На общем хостинге процессов у аккаунта единицы, так что
+ * очередь упиралась в лимит, и сервер начинал рвать соединения ещё до ответа —
+ * включая обычные страницы сайта.
+ *
+ * Теперь обновляет один, а остальные сразу получают прошлую версию. Данные
+ * минутной давности в каталоге никому не мешают, а недоступный сайт — мешает.
+ */
+$lock = @fopen($cacheFile . '.lock', 'c');
+$leader = $lock !== false && flock($lock, LOCK_EX | LOCK_NB);
+
+if (!$leader && is_file($cacheFile)) {
+    if ($lock !== false) {
+        fclose($lock);
+    }
+    header('Cache-Control: public, max-age=15');
+    header('X-Stale-Cache: 1');
+    readfile($cacheFile);
+    exit;
+}
+
 $body = null;
 if (function_exists('curl_init')) {
     $ch = curl_init(WORKER . '/api/' . $p);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 12,
+        // Потолок удержания процесса. Лучше отдать прошлую версию, чем
+        // держать место в очереди двенадцать секунд.
+        CURLOPT_TIMEOUT => 8,
+        CURLOPT_CONNECTTIMEOUT => 4,
         CURLOPT_FOLLOWLOCATION => true,
     ]);
     $res = curl_exec($ch);
@@ -95,6 +123,11 @@ if (function_exists('curl_init')) {
     if ($res !== false && $code === 200 && $res !== '') {
         $body = $res;
     }
+}
+
+if ($lock !== false) {
+    flock($lock, LOCK_UN);
+    fclose($lock);
 }
 
 if ($body !== null) {
