@@ -68,10 +68,6 @@ if ($ip !== '') {
     @file_put_contents($throttle, json_encode($hits), LOCK_EX);
 }
 
-if (!is_dir(STORE_DIR) && !@mkdir(STORE_DIR, 0700, true) && !is_dir(STORE_DIR)) {
-    fail(500, 'storage unavailable');
-}
-
 // Фото в первичную запись не кладём — файл заявок должен оставаться лёгким,
 // изображение уходит только в уведомление.
 $record = $data;
@@ -80,12 +76,44 @@ $record['ts'] = date('c');
 $record['ip'] = $ip;
 $record['ua'] = substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 300);
 
-$file = STORE_DIR . '/leads-' . date('Y-m') . '.jsonl';
 $line = json_encode($record, JSON_UNESCAPED_UNICODE) . "\n";
-if (@file_put_contents($file, $line, FILE_APPEND | LOCK_EX) === false) {
+
+/**
+ * Пишет заявку, перебирая места хранения по очереди.
+ *
+ * Основное место может отказать: на хостинге кончилось место (CRM и сайт делят
+ * одну квоту), слетели права на каталог, каталог не создался. Раньше любой
+ * из этих случаев заканчивался ошибкой посетителю — то есть оплаченный клик
+ * приводил клиента, а заявка исчезала бесследно.
+ *
+ * Запасное место — тот же российский сервер, поэтому требование хранить
+ * первичную запись в РФ (152-ФЗ, ст. 18 ч. 5) выполняется и в этом случае.
+ * Ошибку отдаём, только если не сработало вообще ничего.
+ */
+function store_lead(string $line): ?string
+{
+    $targets = [
+        STORE_DIR . '/leads-' . date('Y-m') . '.jsonl',
+        sys_get_temp_dir() . '/diauto-leads-' . date('Y-m') . '.jsonl',
+    ];
+
+    foreach ($targets as $file) {
+        $dir = dirname($file);
+        if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
+            continue;
+        }
+        if (@file_put_contents($file, $line, FILE_APPEND | LOCK_EX) !== false) {
+            @chmod($file, 0600);
+            return $file;
+        }
+    }
+
+    return null;
+}
+
+if (store_lead($line) === null) {
     fail(500, 'write failed');
 }
-@chmod($file, 0600);
 
 // Уведомление менеджеру. Заявка уже сохранена в РФ, поэтому сбой пересылки
 // не должен приводить к ошибке для посетителя.
