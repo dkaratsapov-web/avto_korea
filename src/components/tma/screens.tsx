@@ -17,6 +17,7 @@ import {
   Loader2,
   Maximize2,
   ClipboardList,
+  Play,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
@@ -297,65 +298,117 @@ export function ListView({
         Найдено: <span className="font-num text-white">{list.length}</span>
       </div>
 
-      <div className="space-y-4">
+      {/* Две колонки, как в каталоге на телефоне: за экран видно вчетверо
+          больше машин, а листать до нужной приходится вчетверо меньше. */}
+      <div className="grid grid-cols-2 gap-2.5">
         {list.map((car) => (
-          <div
+          <CarTile
             key={car.id}
-            className="overflow-hidden rounded-[18px] border border-line-dark bg-graphite-2"
-          >
-            <button
-              type="button"
-              onClick={() => onOpen(car.id)}
-              className="relative block aspect-[16/10] w-full bg-black"
-            >
-              {/* eslint-disable-next-line */}
-              <img
-                src={car.images[0]}
-                alt=""
-                loading="lazy"
-                className="h-full w-full object-cover"
-              />
-              <span className="absolute bottom-2.5 right-2.5 rounded-full bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
-                {car.images.length} фото
-              </span>
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleFav(car.id);
-                }}
-                className={`absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full ${
-                  isFav(car.id) ? "bg-bordeaux text-white" : "bg-black/45 text-white"
-                }`}
-              >
-                <Heart className={`h-[18px] w-[18px] ${isFav(car.id) ? "fill-white" : ""}`} />
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onOpen(car.id)}
-              className="block w-full p-3.5 text-left"
-            >
-              <div className="flex items-center gap-1.5">
-                <Flag code={car.country} className="h-3 w-4" />
-                <span className="truncate font-bold">{car.model}</span>
-              </div>
-              <div className="text-[12.5px] text-[#9AA4B2]">
-                {car.year} · {car.engine}
-                {car.bodyType ? ` · ${car.bodyType}` : ""}
-              </div>
-              <div className="mt-0.5 font-num text-[19px] font-extrabold text-bordeaux-bright">
-                {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
-              </div>
-            </button>
-          </div>
+            car={car}
+            fav={isFav(car.id)}
+            onToggleFav={onToggleFav}
+            onOpen={onOpen}
+          />
         ))}
-        {list.length === 0 ? (
-          <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
-            Ничего не найдено
-          </p>
+      </div>
+      {list.length === 0 ? (
+        <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
+          Ничего не найдено
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/* ---------- Карточка авто в списке ---------- */
+
+/**
+ * Компактная плитка — та же, что в каталоге сайта на телефоне.
+ *
+ * Раньше карточка занимала всю ширину: на экран помещалось полторы машины,
+ * и до нужной приходилось долго листать. В две колонки видно четыре, а выбор
+ * из каталога — это в первую очередь сравнение, ради него сюда и заходят.
+ *
+ * Характеристики убраны намеренно: на узкой карточке они превращаются
+ * в нечитаемую строку и вытесняют цену. Всё, что нужно для выбора на этом
+ * шаге, — машина, год, мощность и цена; остальное открывается по нажатию.
+ */
+function CarTile({
+  car,
+  fav,
+  onToggleFav,
+  onOpen,
+}: {
+  car: Car;
+  fav: boolean;
+  onToggleFav: (id: string) => void;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <article
+      onClick={() => onOpen(car.id)}
+      className="flex cursor-pointer flex-col overflow-hidden rounded-[16px] border border-line-dark bg-graphite-2 transition-transform active:scale-[0.98]"
+    >
+      <div className="relative aspect-[16/10] bg-black">
+        {/* eslint-disable-next-line */}
+        <img
+          src={car.images[0]}
+          alt=""
+          loading="lazy"
+          className="h-full w-full object-cover"
+        />
+        {/* Затемнение по краям: флаг и сердце должны читаться на любом фото. */}
+        <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/25" />
+
+        <span className="absolute left-1.5 top-1.5 flex items-center rounded-full border border-white/25 bg-black/50 px-1.5 py-1 backdrop-blur">
+          <Flag code={car.country} className="h-[11px] w-4" />
+        </span>
+
+        <button
+          type="button"
+          aria-label={fav ? "Убрать из избранного" : "В избранное"}
+          aria-pressed={fav}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFav(car.id);
+          }}
+          className={`absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur ${
+            fav ? "bg-bordeaux text-white" : "border border-white/25 bg-black/50 text-white"
+          }`}
+        >
+          <Heart className={`h-4 w-4 ${fav ? "fill-white" : ""}`} />
+        </button>
+
+        {car.video ? (
+          <span className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded-full border border-white/20 bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+            <Play className="h-2.5 w-2.5 fill-white" />
+            Видео
+          </span>
         ) : null}
       </div>
-    </>
+
+      <div className="flex flex-1 flex-col p-2.5">
+        <h3 className="line-clamp-2 text-[13px] font-extrabold leading-tight text-white">
+          {car.model}
+        </h3>
+        <div className="mt-0.5 text-[11px] leading-tight text-[#9AA4B2]">
+          {car.year}
+          {car.powerHp ? ` · ${car.powerHp} л.с.` : ""}
+        </div>
+
+        {/* mt-auto прижимает цену к низу: у соседних карточек названия разной
+            высоты, и без этого цены не встают в одну линию. */}
+        <div className="mt-auto pt-2">
+          <div className="text-[9px] font-bold uppercase tracking-[0.07em] text-[#8A939C]">
+            Под ключ до Твери
+          </div>
+          <div className="mt-0.5 whitespace-nowrap font-num text-[15px] font-extrabold leading-none text-bordeaux-bright">
+            {formatPrice(car.priceTverRub ?? car.priceRub)}
+            <small className="ml-0.5 text-[11px] font-semibold text-[#9AA4B2]">₽</small>
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }
 
