@@ -53,16 +53,20 @@ export const site = {
   telegram: "@Dmitriicarexport",
   telegramHref: "https://t.me/Dmitriicarexport",
 
-  // Мессенджер MAX. TODO: подставить реальную ссылку профиля/канала MAX.
-  maxHref: "https://max.ru/",
+  // Личные сообщения в MAX. До этого здесь стояла заглушка «https://max.ru/»,
+  // то есть кнопка «написать в MAX» вела на главную мессенджера и не работала.
+  maxHref: "https://max.ru/join/t9qi7K-MMwl06Nym7_my5b4r2LUF6uQOY2KLxhDkPKA",
 
   // Юзернейм бота без «собаки» — из него собирается диплинк на прокладке /bot.
   // Переименуете бота в BotFather — поменяйте и здесь, иначе кнопка на
   // прокладке приведёт в несуществующий чат.
   botUsername: "DI_AVTO_69_BOT",
 
-  // Каналы для посадочной страницы под Директ (/go).
+  // Каналы: блок на главной и посадочные под Директ (/tg, /direct).
   telegramChannelHref: "https://t.me/+QTRyuliyCAM2M2Ri",
+  // ВНИМАНИЕ: сейчас здесь та же ссылка, что и в maxHref, то есть кнопка
+  // «канал MAX» ведёт в личные сообщения. Нужна настоящая ссылка канала MAX —
+  // до неё это поле считать незаполненным.
   maxChannelHref:
     "https://max.ru/join/t9qi7K-MMwl06Nym7_my5b4r2LUF6uQOY2KLxhDkPKA",
 

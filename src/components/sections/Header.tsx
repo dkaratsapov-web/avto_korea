@@ -22,18 +22,29 @@ import { GOALS, reachGoal } from "@/lib/metrika";
 
 const capsule = "glass rounded-full shadow-[0_12px_34px_rgba(0,0,0,.4)]";
 
-// Каналы с новыми поступлениями — в шапке и в мобильном меню.
-const channels = [
+/**
+ * Написать нам — в шапке и в мобильном меню.
+ *
+ * Раньше здесь стояли ссылки на каналы. Но человек в шапке ищет способ
+ * связаться, а не подписаться: переписка с менеджером почти равна заявке,
+ * подписка — только повод вернуться. Поэтому наверху личные сообщения,
+ * а каналы остались там, где они уместны: в блоке на главной и на
+ * рекламных посадочных под Директ.
+ *
+ * Цели соответственно click_*, а не channel_*: это разные по цене действия,
+ * и смешивать их в отчётах нельзя.
+ */
+const messengers = [
   {
     label: "Telegram",
-    href: site.telegramChannelHref,
-    goal: GOALS.telegramChannel,
+    href: site.telegramHref,
+    goal: GOALS.telegram,
     icon: <TelegramIcon className="h-[17px] w-[17px]" />,
   },
   {
     label: "MAX",
-    href: site.maxChannelHref,
-    goal: GOALS.maxChannel,
+    href: site.maxHref,
+    goal: GOALS.max,
     icon: <MaxIcon className="h-[17px] w-[17px]" />,
   },
 ];
@@ -115,12 +126,12 @@ export function Header() {
           Каталог
         </Link>
 
-        {/* Каналы: свободное место справа от «Каталога». Скрываем раньше
-            навигации — на узких экранах каналы есть в мобильном меню. */}
+        {/* Мессенджеры: свободное место справа от «Каталога». Скрываем раньше
+            навигации — на узких экранах они есть в мобильном меню. */}
         <div
           className={`${capsule} ${h} hidden items-center gap-1 px-2 xl:flex`}
         >
-          {channels.map((c) => (
+          {messengers.map((c) => (
             <a
               key={c.href}
               href={c.href}
@@ -306,10 +317,10 @@ export function Header() {
 
               <div className="mt-3 border-t border-line-dark pt-3">
                 <span className="px-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#7C8792]">
-                  Наши каналы
+                  Написать нам
                 </span>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {channels.map((c) => (
+                  {messengers.map((c) => (
                     <a
                       key={c.href}
                       href={c.href}
@@ -354,19 +365,9 @@ export function Header() {
                     </a>
                   ))}
 
-                  <a
-                    href={site.telegramHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => {
-                      reachGoal(GOALS.telegram, { place: "Мобильное меню" });
-                      setOpen(false);
-                    }}
-                    className="flex items-center justify-center gap-2 rounded-xl border border-line-dark px-3 py-3 text-[15px] font-bold text-white transition-colors hover:bg-white/[0.08]"
-                  >
-                    <TelegramIcon className="h-[18px] w-[18px]" />
-                    Написать менеджеру
-                  </a>
+                  {/* Кнопки «написать» — выше, в блоке «Написать нам»: там
+                      теперь и Telegram, и MAX. Здесь остались телефоны
+                      и заявка, чтобы не предлагать одно и то же дважды. */}
 
                   <button
                     type="button"
