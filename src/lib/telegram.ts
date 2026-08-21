@@ -95,11 +95,22 @@ export function telegramAppLink(href: string): string | null {
     return `tg://join?invite=${invite[1]}`;
   }
 
-  // Имя публичного канала: буква в начале, дальше буквы, цифры и подчёркивания.
-  // Служебные разделы t.me именами каналов не являются.
+  // Имя публичного канала или бота: буква в начале, дальше буквы, цифры
+  // и подчёркивания. Служебные разделы t.me именами не являются.
   const domain = href.match(/t\.me\/([A-Za-z][A-Za-z0-9_]{3,})/);
   if (domain && !["joinchat", "share", "addstickers", "proxy"].includes(domain[1])) {
-    return `tg://resolve?domain=${domain[1]}`;
+    /*
+     * Метку запуска переносим как есть.
+     *
+     * У бота в ней едет вариант A/Б-теста и источник кампании
+     * (?start=a-yd_koreya). Потеряй мы её при переходе в приложение — бот
+     * открылся бы, человек ничего бы не заметил, а в статистике вся
+     * реклама слилась бы в «органику». Молчаливая потеря данных.
+     */
+    const start = href.match(/[?&](start(?:app|group)?)=([A-Za-z0-9_-]{1,64})/);
+    return start
+      ? `tg://resolve?domain=${domain[1]}&${start[1]}=${start[2]}`
+      : `tg://resolve?domain=${domain[1]}`;
   }
 
   return null;

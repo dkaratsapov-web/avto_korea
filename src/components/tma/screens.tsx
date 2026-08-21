@@ -350,13 +350,23 @@ function CarTile({
       onClick={() => onOpen(car.id)}
       className="flex cursor-pointer flex-col overflow-hidden rounded-[16px] border border-line-dark bg-graphite-2 transition-transform active:scale-[0.98]"
     >
-      <div className="relative aspect-[16/10] bg-black">
+      {/*
+       * Окно под фото задано пропорцией и жёстко обрезает содержимое.
+       *
+       * Само изображение выведено из потока (absolute): пока оно висело
+       * в потоке, его собственные пропорции могли растянуть окно, и у соседних
+       * карточек верх и низ фото расходились на несколько пикселей — ряд
+       * читался как кривой. Теперь размер окна не зависит от того, какое фото
+       * в него попало: вертикальный кадр с площадки и широкий кадр из салона
+       * дают одинаковую рамку.
+       */}
+      <div className="relative aspect-[16/10] overflow-hidden bg-black">
         {/* eslint-disable-next-line */}
         <img
           src={car.images[0]}
           alt=""
           loading="lazy"
-          className="h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
         />
         {/* Затемнение по краям: флаг и сердце должны читаться на любом фото. */}
         <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/25" />
