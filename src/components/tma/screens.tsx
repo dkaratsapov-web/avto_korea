@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { brandOf } from "@/lib/brand";
+import { matchQuizCars, relaxedLabel } from "@/lib/quizMatch";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { useCars } from "@/lib/carsStore";
 import { countries, site, type CountryCode } from "@/lib/site";
@@ -1266,16 +1267,15 @@ export function QuizView({
     setStep((s) => s + 1);
   }
 
-  // подбор под ответы
+  // Подбор под ответы. Жёсткий фильтр по всем четырём сразу почти всегда
+  // давал пусто — теперь условия ослабляются по очереди, от самого гибкого.
   const budget = typeof a.budget === "number" ? BUDGETS[a.budget] : null;
-  const matches = cars.filter((c) => {
-    const price = c.priceTverRub ?? c.priceRub;
-    if (budget && (price < budget.min || price > budget.max)) return false;
-    if (a.body && a.body !== "any" && c.bodyType !== a.body) return false;
-    if (a.country && a.country !== "any" && c.country !== a.country) return false;
-    if (a.condition === "new" && !c.isNew) return false;
-    if (a.condition === "used" && c.isNew) return false;
-    return true;
+  const { cars: matches, exact, relaxed } = matchQuizCars(cars, {
+    budgetMin: budget?.min,
+    budgetMax: budget?.max,
+    body: a.body,
+    country: a.country,
+    condition: a.condition,
   });
 
   function summary() {
@@ -1387,8 +1387,14 @@ export function QuizView({
       {matches.length ? (
         <>
           <div className="mb-2 text-[13px] font-semibold text-[#9AA4B2]">
-            Подходит из наличия: <span className="font-num text-white">{matches.length}</span>
+            {exact ? "Подходит из наличия: " : "Близкие варианты: "}
+            <span className="font-num text-white">{matches.length}</span>
           </div>
+          {exact ? null : (
+            <p className="mb-2.5 rounded-[12px] border border-line-dark bg-graphite-2 px-3 py-2 text-[12.5px] leading-snug text-[#9AA4B2]">
+              {relaxedLabel(relaxed)}. Точное — привезём под заказ.
+            </p>
+          )}
           <div className="mb-4 space-y-2.5">
             {matches.slice(0, 5).map((car) => (
               <button
