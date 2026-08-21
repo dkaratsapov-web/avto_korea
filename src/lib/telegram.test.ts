@@ -49,6 +49,33 @@ test("служебные разделы t.me за канал не принима
   assert.equal(telegramAppLink("https://t.me/addstickers/set"), null);
 });
 
+test("метка запуска бота не теряется при переходе в приложение", () => {
+  // В метке едет вариант A/Б-теста и источник кампании. Потеряется —
+  // реклама сольётся в «органику», и заметить это будет нечем.
+  assert.equal(
+    telegramAppLink("https://t.me/DI_AVTO_69_BOT?start=a-yd_koreya"),
+    "tg://resolve?domain=DI_AVTO_69_BOT&start=a-yd_koreya",
+  );
+  assert.equal(
+    telegramAppLink("https://t.me/DI_AVTO_69_BOT?start=b-direct"),
+    "tg://resolve?domain=DI_AVTO_69_BOT&start=b-direct",
+  );
+});
+
+test("бот без метки открывается просто по имени", () => {
+  assert.equal(
+    telegramAppLink("https://t.me/DI_AVTO_69_BOT"),
+    "tg://resolve?domain=DI_AVTO_69_BOT",
+  );
+});
+
+test("посторонние параметры за метку не принимаются", () => {
+  assert.equal(
+    telegramAppLink("https://t.me/DI_AVTO_69_BOT?utm_source=yandex"),
+    "tg://resolve?domain=DI_AVTO_69_BOT",
+  );
+});
+
 test("не телеграмовская ссылка отбрасывается", () => {
   assert.equal(telegramAppLink("https://example.com/channel"), null);
   assert.equal(telegramAppLink(""), null);

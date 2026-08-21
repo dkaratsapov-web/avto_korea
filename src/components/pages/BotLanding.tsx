@@ -1,24 +1,43 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowRight, Calculator, Car, Bell } from "lucide-react";
-import { TelegramIcon } from "@/components/icons/TelegramIcon";
-import { HeroBackdrop } from "@/components/ui/HeroBackdrop";
 import { site } from "@/lib/site";
 import { GOALS, reachGoal } from "@/lib/metrika";
+import { telegramAppLink } from "@/lib/telegram";
 
 /**
  * Прокладка под Директ: единственное действие — уйти в бота (/bot).
+ *
+ * Свёрстана как страница приглашения самого Telegram — обои с дудлами, белая
+ * карточка, круглая аватарка и синяя кнопка внизу. Отдельной рекламной кнопки
+ * нет намеренно: по знакомому элементу интерфейса кликают охотнее, чем по
+ * баннеру. Тот же приём работает на /tg под канал.
+ *
+ * Текст обрывается под нижним краем и растворяется в белом: обрыв на середине
+ * фразы — сильный повод дочитать, а дочитать можно только в боте.
  *
  * Вариант А/Б берётся из адреса (?v=a или ?v=b) и уезжает в бота меткой
  * диплинка. Страница у обоих вариантов одинаковая — различается только то,
  * что бот сделает дальше: «a» просит подписаться на канал, «b» пускает сразу.
  * Так в тесте сравнивается механика, а не оформление.
  *
- * Метка кампании из utm тоже уходит в бота — тогда в статистике видно всю
- * цепочку от объявления до заявки, а не только клик.
+ * Метка кампании из utm тоже уходит в бота — тогда в статистике видна вся
+ * цепочка от объявления до заявки, а не только клик.
  *
  * Закрыта от индексации, чтобы не конкурировать с основным сайтом в поиске.
  */
+
+/** Экранный шрифт Telegram — системный, как в самом приложении. */
+const TG_FONT =
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif';
+
+/** Ширина колонки: и карточка, и растворение, и кнопка держатся её. */
+const COL = "min(620px, 100%)";
+
+const WALLPAPER = {
+  backgroundColor: "#90ac78",
+  backgroundImage: "url(/tg-pattern.svg)",
+  backgroundSize: "260px 260px",
+} as const;
 
 const TRANSLIT: Record<string, string> = {
   а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z",
@@ -44,14 +63,30 @@ function slug(v: string): string {
     .slice(0, 60);
 }
 
-const BENEFITS = [
-  { icon: Car, text: "Каталог с ценами под ключ" },
-  { icon: Calculator, text: "Расчёт стоимости за 2 минуты" },
-  { icon: Bell, text: "Новые поступления — первым" },
-];
-
 export function BotLanding() {
   const [params] = useSearchParams();
+
+  // Растворение прибито к низу экрана, поэтому у конца страницы оно оказалось
+  // бы белой полосой поверх обоев — карточка там уже закончилась. Гасим его,
+  // когда прятать больше нечего.
+  const [atEnd, setAtEnd] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const left =
+        document.documentElement.scrollHeight -
+        window.scrollY -
+        window.innerHeight;
+      setAtEnd(left < 180);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
 
   useEffect(() => {
     const prevTitle = document.title;
@@ -80,71 +115,169 @@ export function BotLanding() {
     };
   }, [params]);
 
+  /*
+   * Предложение открыть Telegram сразу, не дожидаясь нажатия на кнопку.
+   *
+   * Схема tg:// не уводит со страницы: браузер показывает своё окно «Открыть
+   * приложение?», а посадочная остаётся под ним. Для модерации Директа это
+   * важно: автоматического перехода на другой сайт нет, есть предложение
+   * открыть приложение.
+   *
+   * Пробуем дважды: сразу при открытии — этого хватает на телефоне; и по
+   * первому действию человека — на десктопе Chrome нередко гасит запуск
+   * приложения, пока со страницей ничего не сделали.
+   *
+   * Один раз за вкладку: возврат кнопкой «назад» не должен снова выбрасывать
+   * окно, которое человек только что закрыл.
+   */
+  useEffect(() => {
+    const appHref = telegramAppLink(href);
+    if (appHref === null) {
+      return;
+    }
+
+    // Внутри самого Telegram открывать Telegram незачем.
+    if (/Telegram/i.test(navigator.userAgent) || window.Telegram?.WebApp) {
+      return;
+    }
+
+    const KEY = "bot-landing-opened";
+    try {
+      if (sessionStorage.getItem(KEY) === "1") {
+        return;
+      }
+    } catch {
+      // Приватный режим может запрещать хранилище — тогда просто пробуем.
+    }
+
+    let done = false;
+
+    const launch = () => {
+      if (done) {
+        return;
+      }
+      done = true;
+      try {
+        sessionStorage.setItem(KEY, "1");
+      } catch {
+        // Не записалось — не страшно, попытка всё равно одна за загрузку.
+      }
+      reachGoal(GOALS.bot, { place: "Прокладка /bot, автооткрытие", variant });
+      window.location.href = appHref;
+      stop();
+    };
+
+    const events = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
+    const stop = () => {
+      window.clearTimeout(timer);
+      events.forEach((name) => window.removeEventListener(name, launch));
+    };
+
+    // Небольшая задержка: страница должна успеть отрисоваться, иначе человек
+    // видит окно поверх пустого экрана и не понимает, куда попал.
+    const timer = window.setTimeout(launch, 700);
+    events.forEach((name) =>
+      window.addEventListener(name, launch, { once: true, passive: true }),
+    );
+
+    return stop;
+  }, [href, variant]);
+
+  const open = () => reachGoal(GOALS.bot, { place: "Прокладка /bot", variant });
+
   return (
-    <main className="relative flex min-h-screen flex-col overflow-hidden bg-[radial-gradient(900px_500px_at_50%_-10%,#27313d,#11151A_65%)] text-white">
-      <HeroBackdrop silhouette={false} />
+    // Отступ сверху — падингом, а не марджином карточки: марджин ребёнка
+    // схлопнулся бы наружу и сдвинул саму страницу вместе с обоями.
+    <main
+      className="min-h-screen pb-40 sm:pt-8"
+      style={{ ...WALLPAPER, fontFamily: TG_FONT }}
+    >
+      {/* Карточка кликабельна целиком: промах мимо кнопки стоит нам перехода. */}
+      <a
+        href={href}
+        onClick={open}
+        aria-label="Открыть бота ДиАвто69 в Telegram"
+        className="mx-auto block bg-white px-6 pb-16 pt-10 sm:rounded-[14px] sm:px-12 sm:pt-12"
+        style={{ width: COL }}
+      >
+        {/* Аватарка бота. Берём квадратную иконку, а не овальный логотип:
+            овал внутри круга даёт две вложенные окружности и выглядит криво. */}
+        <img
+          src="/favicon-512.png"
+          alt="ДиАвто69"
+          className="mx-auto aspect-square w-[74%] max-w-[300px] rounded-full object-cover"
+          decoding="async"
+        />
 
-      <div className="relative mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center px-5 py-12 text-center">
-        <picture>
-          <source srcSet="/logo-wordmark.webp" type="image/webp" />
-          <img
-            src="/logo-wordmark.png"
-            alt="ДиАвто69"
-            className="logo-outline h-10 w-auto sm:h-14"
-            decoding="async"
-          />
-        </picture>
-
-        <h1 className="mt-8 text-[clamp(27px,6vw,44px)] font-extrabold uppercase leading-[1.06]">
-          Подберём авто из Кореи,
-          <br />
-          Китая и Японии — в Telegram
+        {/* font-body и normal-case перебивают общий стиль заголовков сайта:
+            здесь мы имитируем Telegram, а не фирменную типографику. */}
+        <h1 className="mt-10 font-body text-[19.5px] font-bold normal-case leading-snug text-[#111]">
+          Подбор авто из Кореи, Китая и Японии — прямо в Telegram 🚗
         </h1>
-        <p className="mt-4 max-w-md text-[15px] leading-relaxed text-[#C7CFD6] sm:text-[16px]">
-          Каталог, честный расчёт с доставкой и растаможкой и подбор под ваш
-          бюджет — прямо в мессенджере. Без звонков и заполнения форм.
-        </p>
 
-        <ul className="mt-8 flex w-full max-w-md flex-col gap-2.5">
-          {BENEFITS.map(({ icon: Icon, text }) => (
-            <li
-              key={text}
-              className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.06] px-5 py-3 text-left text-[14.5px] font-bold backdrop-blur-sm"
-            >
-              <Icon className="h-[18px] w-[18px] flex-none text-chrome" />
-              {text}
-            </li>
-          ))}
-        </ul>
+        <div className="mt-5 space-y-4 text-[16px] leading-[1.55] text-[#222]">
+          <p>
+            Каталог с ценами под ключ, расчёт с доставкой и растаможкой и подбор
+            под ваш бюджет — в одном чате.
+            <br />
+            <b className="font-semibold">
+              Без звонков, форм и ожидания менеджера.
+            </b>
+          </p>
 
-        <a
-          href={href}
-          onClick={() => reachGoal(GOALS.bot, { place: "Прокладка /bot", variant })}
-          className="mt-9 flex h-14 w-full max-w-sm items-center justify-center gap-2.5 rounded-full bg-[#229ED9] text-[16px] font-extrabold text-white shadow-[0_12px_30px_-12px_rgba(34,158,217,0.9)] transition-transform hover:scale-[1.02]"
-        >
-          <TelegramIcon className="h-7 w-7" />
-          Открыть в Telegram
-          <ArrowRight className="h-[18px] w-[18px]" />
-        </a>
+          <p>
+            Бот покажет живой каталог — все машины в наличии и под заказ,
+            с фото, характеристиками и честной ценой до Твери. Фильтры по
+            стране, бюджету, кузову и году: нужное находится за минуту.
+          </p>
 
-        <p className="mt-3 text-[12.5px] text-[#8b95a1]">
-          Откроется чат с ботом — нажмите «Старт»
-        </p>
-      </div>
+          <p>
+            Ответьте на 5 вопросов — и получите подборку под свой бюджет вместе
+            с расчётом: сколько стоит сама машина, доставка, пошлина, утильсбор
+            и оформление по отдельности.
+          </p>
 
-      {/* Реквизиты и оговорка — требование к рекламным посадочным страницам. */}
-      <footer className="relative px-5 pb-7 text-center text-[11.5px] leading-relaxed text-[#7d8792]">
-        <p>
+          <p>
+            Включите оповещения — и новые поступления будете видеть первым, ещё
+            до того, как они попадут на сайт. Хорошие варианты уходят за дни,
+            и обычно выигрывает тот, кто узнал раньше.
+          </p>
+        </div>
+
+        {/* Реквизиты — требование к рекламным посадочным страницам. */}
+        <p className="mt-10 text-[12px] leading-relaxed text-[#8b9199]">
           {site.requisites.name} · ИНН {site.requisites.inn} · ОГРНИП{" "}
           {site.requisites.ogrnip}
-        </p>
-        <p className="mt-1">
+          <br />
           Информация не является публичной офертой.{" "}
-          <a href="/privacy" className="underline hover:text-chrome">
+          <a href="/privacy" className="underline">
             Политика конфиденциальности
           </a>
         </p>
-      </footer>
+      </a>
+
+      {/* Растворение текста под кнопкой. Держится колонки, чтобы белое
+          не заезжало на обои по бокам. */}
+      <div
+        aria-hidden
+        className={`pointer-events-none fixed bottom-0 left-1/2 h-44 -translate-x-1/2 transition-opacity duration-200 ${
+          atEnd ? "opacity-0" : "opacity-100"
+        }`}
+        style={{
+          width: COL,
+          background:
+            "linear-gradient(to top, #fff 34%, rgba(255,255,255,0.92) 55%, rgba(255,255,255,0))",
+        }}
+      />
+
+      <a
+        href={href}
+        onClick={open}
+        className="fixed bottom-8 left-1/2 flex h-[58px] w-[min(300px,calc(100%-48px))] -translate-x-1/2 items-center justify-center gap-2.5 rounded-full bg-[#3390ec] text-[15.5px] font-bold uppercase tracking-[0.02em] text-white shadow-[0_10px_28px_-10px_rgba(51,144,236,0.85)] transition-transform hover:scale-[1.03]"
+      >
+        <span aria-hidden>🚀</span>
+        Запустить бота
+      </a>
     </main>
   );
 }
