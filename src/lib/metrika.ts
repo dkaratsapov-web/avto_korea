@@ -36,6 +36,15 @@ export const GOALS = {
   deepView: "catalog_deep_view",
   /** Переход в бота с прокладки /bot (А/Б-тест трафика из Директа). */
   bot: "click_bot",
+  /**
+   * Прокладка /bot сама предложила открыть приложение.
+   *
+   * Отдельная цель, а не параметр click_bot: автооткрытие срабатывает почти
+   * у каждого, кто дошёл до страницы. Смешай их — и click_bot покажет
+   * конверсию под 100%, на которой автостратегии Директа обучаться не смогут:
+   * им нужно отличать тех, кто действительно ушёл в бота, от всех подряд.
+   */
+  botAutoOpen: "bot_auto_open",
 } as const;
 
 type Ym = (id: number, action: string, ...rest: unknown[]) => void;
@@ -47,5 +56,43 @@ export function reachGoal(goal: string, params?: Record<string, unknown>) {
     ym?.(METRIKA_ID, "reachGoal", goal, params);
   } catch {
     /* аналитика не должна ломать интерфейс */
+  }
+}
+
+/**
+ * Отправить цель и уйти по ссылке только после того, как она ушла.
+ *
+ * Обычный переход по ссылке выгружает страницу сразу, и запрос Метрики может
+ * не успеть — цель теряется тем чаще, чем медленнее связь. Здесь переход ждёт
+ * подтверждения от счётчика.
+ *
+ * Ожидание ограничено: если Метрику режет блокировщик или она не загрузилась,
+ * подтверждения не будет никогда, и без предохранителя кнопка просто перестала
+ * бы работать. Аналитика не имеет права ломать переход — уходим по таймауту.
+ */
+export function reachGoalThen(
+  goal: string,
+  params: Record<string, unknown> | undefined,
+  go: () => void,
+  timeoutMs = 700,
+) {
+  let done = false;
+  const once = () => {
+    if (done) return;
+    done = true;
+    go();
+  };
+
+  window.setTimeout(once, timeoutMs);
+
+  try {
+    const ym = (window as unknown as { ym?: Ym }).ym;
+    if (!ym) {
+      once();
+      return;
+    }
+    ym(METRIKA_ID, "reachGoal", goal, params, once);
+  } catch {
+    once();
   }
 }
