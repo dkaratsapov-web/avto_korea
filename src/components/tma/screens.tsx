@@ -389,7 +389,15 @@ function CarTile({
       </div>
 
       <div className="flex flex-1 flex-col p-2.5">
-        <h3 className="line-clamp-2 text-[13px] font-extrabold leading-tight text-white">
+        {/*
+         * Под название всегда отведены две строки, даже если имя короткое.
+         *
+         * Иначе «Kia K3» даёт карточку в одну строку, а «VW Teramont Pro
+         * 450TSI» — в две, ряд становится на 17 пикселей выше соседнего,
+         * и лента карточек идёт рваной лесенкой. Замер это и показал:
+         * 210 против 227 пикселей при одинаковых обложках.
+         */}
+        <h3 className="line-clamp-2 h-8 text-[13px] font-extrabold leading-tight text-white">
           {car.model}
         </h3>
         <div className="mt-0.5 text-[11px] leading-tight text-[#9AA4B2]">
@@ -1048,7 +1056,7 @@ export function HomeView({
      * dvh, а не vh: в Telegram адресная строка меняет высоту окна.
      */
     <div className="flex min-h-[calc(100dvh-98px)] flex-col">
-      <div className="mb-3 px-0.5">
+      <div className="mb-2.5 px-0.5">
         <div className="mb-2 flex items-center gap-2.5">
           <span className="h-[2px] w-7 rounded-full bg-bordeaux-bright" />
           <span className="text-[10.5px] font-extrabold uppercase tracking-[0.22em] text-bordeaux-bright">
@@ -1071,37 +1079,50 @@ export function HomeView({
         </div>
       </div>
 
-      {/* Промо-кнопка квиза */}
+      {/*
+       * Каталог — первая и единственная яркая кнопка экрана.
+       *
+       * За ним сюда и приходят: посмотреть, что есть в наличии. Остальное —
+       * квиз и разделы — приглушено намеренно: когда всё выделено, не выделено
+       * ничто, и человек тратит секунду на выбор там, где выбора быть не должно.
+       * Содержимое по центру, чтобы кнопка читалась как главная цель экрана,
+       * а не как первый пункт списка.
+       */}
+      <button
+        onClick={() => go("list")}
+        className="mb-2.5 flex w-full flex-col items-center gap-1.5 rounded-[18px] bg-gradient-to-b from-bordeaux-bright to-bordeaux px-4 py-3 text-center shadow-[0_12px_28px_-14px_rgba(177,31,22,0.9)] transition-transform active:scale-[0.99]"
+      >
+        {/* Иконка в строку с заголовком, а не над ним: кнопка остаётся
+            центрированной, но не съедает высоту, которой на маленьком
+            экране не хватает остальным. */}
+        <span className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
+            <CarIcon className="h-5 w-5 text-white" />
+          </span>
+          <span className="text-[19px] font-extrabold leading-none text-white">
+            Каталог
+          </span>
+        </span>
+        <span className="block text-[12.5px] leading-none text-white/75">
+          Все авто под заказ
+        </span>
+      </button>
+
+      {/* Квиз — вторым и приглушённым: это запасной путь для тех, кто
+          не хочет листать каталог сам. */}
       <button
         onClick={() => go("quiz")}
-        className="mb-2.5 flex w-full items-center gap-3 rounded-[18px] border border-bordeaux-bright bg-bordeaux/[0.15] p-3.5 text-left transition-transform active:scale-[0.99]"
+        className="mb-2.5 flex w-full items-center gap-3 rounded-[18px] border border-line-dark bg-graphite-2 p-3 text-left transition-transform active:scale-[0.99]"
       >
-        <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-bordeaux text-white">
+        <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-graphite text-[#8A939C]">
           <ClipboardList className="h-5 w-5" />
         </span>
         <span className="min-w-0">
           <span className="block text-[15px] font-extrabold">
             Ответьте на 5 вопросов
           </span>
-          <span className="block text-[12.5px] text-[#C7CFD6]">
+          <span className="block text-[12.5px] text-[#9AA4B2]">
             Подберём авто и расчёт под ваш бюджет
-          </span>
-        </span>
-      </button>
-
-      {/* Каталог — главная кнопка экрана, поэтому во всю ширину и с иконкой
-          слева, а не столбиком: так она заметно крупнее остальных. */}
-      <button
-        onClick={() => go("list")}
-        className="mb-2.5 flex w-full items-center gap-3 rounded-[18px] border border-bordeaux-bright bg-bordeaux/[0.12] p-3.5 text-left transition-transform active:scale-[0.99]"
-      >
-        <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-bordeaux text-white">
-          <CarIcon className="h-5 w-5" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-[15px] font-extrabold">Каталог</span>
-          <span className="block text-[12.5px] text-[#C7CFD6]">
-            Все авто под заказ
           </span>
         </span>
       </button>
@@ -1113,11 +1134,15 @@ export function HomeView({
             onClick={() => go(it.name)}
             className="flex flex-col items-center gap-1.5 rounded-[16px] border border-line-dark bg-graphite-2 px-2 py-2.5 text-center transition-transform active:scale-[0.98]"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-graphite text-bordeaux-bright">
+            {/* Иконки второстепенных разделов — серые, а не фирменные красные:
+                красный на этом экране принадлежит каталогу. */}
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-graphite text-[#8A939C]">
               <it.icon className="h-[18px] w-[18px]" />
             </span>
-            <span className="text-[13px] font-extrabold leading-tight">{it.label}</span>
-            <span className="text-[10.5px] leading-tight text-[#9AA4B2]">{it.sub}</span>
+            <span className="text-[13px] font-extrabold leading-tight text-[#C7CFD6]">
+              {it.label}
+            </span>
+            <span className="text-[10.5px] leading-tight text-[#7C8792]">{it.sub}</span>
           </button>
         ))}
       </div>
@@ -1125,7 +1150,7 @@ export function HomeView({
       {/* mt-auto прижимает заявку к низу: на высоком экране кнопка остаётся
           там, где её ищут, а не висит посередине с пустотой под собой. */}
       <button onClick={onLead} className="btn btn-primary mt-auto w-full">
-        <Send className="h-[18px] w-[18px]" /> Оставить заявку
+        <Send className="h-[18px] w-[18px]" /> Подобрать под мой бюджет
       </button>
     </div>
   );
