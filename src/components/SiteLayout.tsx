@@ -2,7 +2,7 @@ import { useEffect, useState, lazy, Suspense } from "react";
 import { Outlet } from "react-router-dom";
 import { Header } from "@/components/sections/Header";
 import { Footer } from "@/components/sections/Footer";
-import { FloatingTelegram } from "@/components/FloatingTelegram";
+import { FloatingMessengers } from "@/components/FloatingMessengers";
 import { FloatingCall } from "@/components/FloatingCall";
 import { QuizFab } from "@/components/QuizFab";
 import { CompareTray } from "@/components/CompareTray";
@@ -46,7 +46,7 @@ export function SiteLayout() {
       <Footer />
       <QuizFab />
       <FloatingCall />
-      <FloatingTelegram />
+      <FloatingMessengers />
       <CompareTray />
       <CookieNotice />
       <ModalHost />
