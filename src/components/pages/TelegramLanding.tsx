@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { site } from "@/lib/site";
 import { GOALS, reachGoal } from "@/lib/metrika";
+import { telegramAppLink } from "@/lib/telegram";
 
 /**
  * Посадочная только под Telegram-канал (/tg).
@@ -65,6 +66,76 @@ export function TelegramLanding() {
       document.title = prevTitle;
       robots.remove();
     };
+  }, []);
+
+  /*
+   * Предложение открыть Telegram сразу, не дожидаясь нажатия на кнопку.
+   *
+   * Схема tg:// не уводит со страницы: браузер показывает своё окно «Открыть
+   * приложение?», а посадочная остаётся под ним и продолжает работать. Это
+   * важно и для модерации Директа: автоматического перехода на другой сайт
+   * здесь нет, есть предложение открыть приложение.
+   *
+   * Пробуем дважды. Сначала сразу при открытии — так делают сервисы вроде
+   * t-me.pro, и на телефоне это срабатывает. На десктопе Chrome нередко гасит
+   * запуск приложения, пока человек ничего на странице не сделал, поэтому
+   * вторая попытка привязана к первому же действию — касанию, клику, прокрутке
+   * или нажатию клавиши.
+   *
+   * Один раз за вкладку: возврат на страницу кнопкой «назад» не должен снова
+   * выбрасывать окно, которое человек только что закрыл.
+   */
+  useEffect(() => {
+    const appHref = telegramAppLink(site.telegramChannelHref);
+    if (appHref === null) {
+      return;
+    }
+
+    // Внутри самого Telegram открывать Telegram незачем.
+    if (/Telegram/i.test(navigator.userAgent) || window.Telegram?.WebApp) {
+      return;
+    }
+
+    const KEY = "tg-landing-opened";
+    try {
+      if (sessionStorage.getItem(KEY) === "1") {
+        return;
+      }
+    } catch {
+      // Приватный режим может запрещать хранилище — тогда просто пробуем.
+    }
+
+    let done = false;
+
+    const launch = () => {
+      if (done) {
+        return;
+      }
+      done = true;
+      try {
+        sessionStorage.setItem(KEY, "1");
+      } catch {
+        // Не записалось — не страшно, попытка всё равно одна за загрузку.
+      }
+      reachGoal(GOALS.telegramChannel, { place: "Посадочная /tg, автооткрытие" });
+      window.location.href = appHref;
+      stop();
+    };
+
+    const events = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
+    const stop = () => {
+      window.clearTimeout(timer);
+      events.forEach((name) => window.removeEventListener(name, launch));
+    };
+
+    // Небольшая задержка: страница должна успеть отрисоваться, иначе человек
+    // видит окно поверх пустого экрана и не понимает, куда попал.
+    const timer = window.setTimeout(launch, 700);
+    events.forEach((name) =>
+      window.addEventListener(name, launch, { once: true, passive: true }),
+    );
+
+    return stop;
   }, []);
 
   const open = () => reachGoal(GOALS.telegramChannel, { place: "Посадочная /tg" });
