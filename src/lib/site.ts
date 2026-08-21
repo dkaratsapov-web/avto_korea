@@ -63,7 +63,7 @@ export const site = {
   botUsername: "DI_AVTO_69_BOT",
 
   // Каналы: блок на главной и посадочные под Директ (/tg, /direct).
-  telegramChannelHref: "https://t.me/+QTRyuliyCAM2M2Ri",
+  telegramChannelHref: "https://t.me/+d3PeGP3FJk9mNWVi",
   // ВНИМАНИЕ: сейчас здесь та же ссылка, что и в maxHref, то есть кнопка
   // «канал MAX» ведёт в личные сообщения. Нужна настоящая ссылка канала MAX —
   // до неё это поле считать незаполненным.
