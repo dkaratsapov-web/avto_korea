@@ -74,3 +74,33 @@ export function loadTelegram(): Promise<TG | null> {
 export function haptic(tg: TG | null, style: Haptic = "light") {
   tg?.HapticFeedback?.impactOccurred(style);
 }
+
+/**
+ * Ссылка на канал в схеме приложения — та, что открывает Telegram напрямую.
+ *
+ * Обычная ссылка t.me сначала грузит веб-страницу Telegram и только оттуда
+ * предлагает открыть приложение: лишний экран и лишняя секунда, на которой
+ * часть людей отваливается. Схема tg:// ведёт в приложение сразу.
+ *
+ * Приглашение в закрытый канал и публичный канал открываются РАЗНЫМИ методами:
+ * у приглашения на руках только хэш, имени у канала нет вовсе. Перепутать их
+ * нельзя — Telegram молча ничего не откроет.
+ *
+ * Возвращает null, если ссылка не телеграмовская: тогда работаем как раньше,
+ * через обычный переход.
+ */
+export function telegramAppLink(href: string): string | null {
+  const invite = href.match(/(?:t\.me\/\+|t\.me\/joinchat\/)([A-Za-z0-9_-]+)/);
+  if (invite) {
+    return `tg://join?invite=${invite[1]}`;
+  }
+
+  // Имя публичного канала: буква в начале, дальше буквы, цифры и подчёркивания.
+  // Служебные разделы t.me именами каналов не являются.
+  const domain = href.match(/t\.me\/([A-Za-z][A-Za-z0-9_]{3,})/);
+  if (domain && !["joinchat", "share", "addstickers", "proxy"].includes(domain[1])) {
+    return `tg://resolve?domain=${domain[1]}`;
+  }
+
+  return null;
+}
