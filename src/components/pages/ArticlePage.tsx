@@ -131,7 +131,8 @@ export function ArticlePage() {
         <img
           src={article.cover}
           alt=""
-          className="mt-6 aspect-[16/9] w-full rounded-card border border-line object-cover"
+          className="mt-6 max-h-[50vh] w-full rounded-card border border-line object-cover"
+          style={{ aspectRatio: "16 / 9" }}
           decoding="async"
         />
       </div>
@@ -166,7 +167,7 @@ export function ArticlePage() {
                   alt={b.alt}
                   loading="lazy"
                   decoding="async"
-                  className="w-full rounded-card border border-line"
+                  className="max-h-[50vh] w-full rounded-card border border-line object-cover"
                 />
                 {b.caption ? (
                   <figcaption className="mt-2.5 text-[13.5px] leading-snug text-ink-2">

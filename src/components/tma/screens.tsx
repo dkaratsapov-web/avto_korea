@@ -1149,8 +1149,15 @@ export function HomeView({
 
       {/* mt-auto прижимает заявку к низу: на высоком экране кнопка остаётся
           там, где её ищут, а не висит посередине с пустотой под собой. */}
-      <button onClick={onLead} className="btn btn-primary mt-auto w-full">
-        <Send className="h-[18px] w-[18px]" /> Подобрать под мой бюджет
+      {/* Боковые отступы уже базовых, а иконка не сжимается: на экране 360 px
+          длинная подпись съедала иконку до нулевой ширины и вылезала
+          за кнопку. */}
+      <button
+        onClick={onLead}
+        className="btn btn-primary mt-auto w-full !px-3 !text-[14px]"
+      >
+        <Send className="h-[17px] w-[17px] flex-none" /> Подобрать авто под мой
+        бюджет
       </button>
     </div>
   );
