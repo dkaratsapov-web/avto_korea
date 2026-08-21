@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { site } from "@/lib/site";
-import { GOALS, reachGoal } from "@/lib/metrika";
+import { GOALS, reachGoal, reachGoalThen } from "@/lib/metrika";
 import { telegramAppLink } from "@/lib/telegram";
 
 /**
@@ -162,7 +162,7 @@ export function BotLanding() {
       } catch {
         // Не записалось — не страшно, попытка всё равно одна за загрузку.
       }
-      reachGoal(GOALS.bot, { place: "Прокладка /bot, автооткрытие", variant });
+      reachGoal(GOALS.botAutoOpen, { place: "Прокладка /bot", variant });
       window.location.href = appHref;
       stop();
     };
@@ -183,7 +183,23 @@ export function BotLanding() {
     return stop;
   }, [href, variant]);
 
-  const open = () => reachGoal(GOALS.bot, { place: "Прокладка /bot", variant });
+  /*
+   * Переход по ссылке выгружает страницу сразу, и запрос Метрики может
+   * не успеть — цель теряется. Поэтому уходим только после подтверждения
+   * от счётчика (или по таймауту, если Метрику режет блокировщик).
+   */
+  const open = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Клик с модификатором или средней кнопкой открывает в новой вкладке —
+    // туда вмешиваться нельзя, иначе сломаем привычное поведение браузера.
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+      reachGoal(GOALS.bot, { place: "Прокладка /bot", variant });
+      return;
+    }
+    e.preventDefault();
+    reachGoalThen(GOALS.bot, { place: "Прокладка /bot", variant }, () => {
+      window.location.href = href;
+    });
+  };
 
   return (
     // Отступ сверху — падингом, а не марджином карточки: марджин ребёнка
