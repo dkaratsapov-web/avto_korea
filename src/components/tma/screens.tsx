@@ -1329,14 +1329,59 @@ export function QuizView({
   if (sent) {
     return (
       <>
-        <Header2 title="Подбор по бюджету" onBack={onBack} />
-        <div className="rounded-[18px] border border-success/40 bg-success/10 p-5 text-center">
+        <Header2 title="Ваша подборка" onBack={onBack} />
+        <div className="mb-4 rounded-[18px] border border-success/40 bg-success/10 p-5 text-center">
           <Check className="mx-auto h-8 w-8 text-success" />
           <p className="mt-2 text-[16px] font-bold">Заявка отправлена!</p>
           <p className="mt-1 text-[13px] text-[#C7CFD6]">
             Подготовим расчёт под ваш бюджет и перезвоним в течение 15 минут.
           </p>
         </div>
+
+        {/*
+         * Подборка открывается здесь — после того, как человек оставил
+         * контакт. До отправки мы показывали её сразу: то, ради чего он
+         * и оставляет телефон, отдавалось бесплатно, и оставлять его
+         * было незачем.
+         */}
+        {matches.length ? (
+          <>
+            <div className="mb-2 text-[13px] font-semibold text-[#9AA4B2]">
+              {exact ? "Подобрали под ваши параметры: " : "Близкие варианты: "}
+              <span className="font-num text-white">{matches.length}</span>
+            </div>
+            {exact ? null : (
+              <p className="mb-2.5 rounded-[12px] border border-line-dark bg-graphite-2 px-3 py-2 text-[12.5px] leading-snug text-[#9AA4B2]">
+                {relaxedLabel(relaxed)}. Точное — привезём под заказ.
+              </p>
+            )}
+            <div className="space-y-2.5">
+              {matches.slice(0, 5).map((car) => (
+                <button
+                  key={car.id}
+                  onClick={() => onOpen(car.id)}
+                  className="flex w-full items-center gap-3 rounded-[14px] border border-line-dark bg-graphite-2 p-2.5 text-left"
+                >
+                  <div className="h-[52px] w-[74px] flex-none overflow-hidden rounded-[10px] bg-black">
+                    {/* eslint-disable-next-line */}
+                    <img src={car.images[0]} alt="" className="h-full w-full object-cover" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-bold">{car.model}</div>
+                    <div className="font-num text-[14px] font-bold text-bordeaux-bright">
+                      {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 flex-none text-chrome" />
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="rounded-[14px] border border-line-dark bg-graphite-2 p-4 text-center text-[13.5px] text-[#9AA4B2]">
+            Под ваши параметры подберём под заказ — менеджер пришлёт варианты.
+          </p>
+        )}
       </>
     );
   }
@@ -1384,39 +1429,28 @@ export function QuizView({
         🎯 Параметры: <b className="text-white">{summary() || "без уточнений"}</b>
       </div>
 
+      {/*
+       * До отправки — только счёт найденного, без самих карточек.
+       *
+       * Раньше подборка открывалась сразу: то, ради чего человек и оставляет
+       * телефон, он получал бесплатно, и заполнять форму было незачем.
+       * Теперь число подобранных — повод оставить контакт, а сама подборка
+       * открывается следующим экраном.
+       */}
       {matches.length ? (
-        <>
-          <div className="mb-2 text-[13px] font-semibold text-[#9AA4B2]">
-            {exact ? "Подходит из наличия: " : "Близкие варианты: "}
-            <span className="font-num text-white">{matches.length}</span>
+        <div className="mb-4 rounded-[14px] border border-bordeaux-bright/40 bg-bordeaux/[0.08] p-4 text-center">
+          <div className="font-num text-[30px] font-extrabold leading-none text-bordeaux-bright">
+            {matches.length}
           </div>
-          {exact ? null : (
-            <p className="mb-2.5 rounded-[12px] border border-line-dark bg-graphite-2 px-3 py-2 text-[12.5px] leading-snug text-[#9AA4B2]">
-              {relaxedLabel(relaxed)}. Точное — привезём под заказ.
-            </p>
-          )}
-          <div className="mb-4 space-y-2.5">
-            {matches.slice(0, 5).map((car) => (
-              <button
-                key={car.id}
-                onClick={() => onOpen(car.id)}
-                className="flex w-full items-center gap-3 rounded-[14px] border border-line-dark bg-graphite-2 p-2.5 text-left"
-              >
-                <div className="h-[52px] w-[74px] flex-none overflow-hidden rounded-[10px] bg-black">
-                  {/* eslint-disable-next-line */}
-                  <img src={car.images[0]} alt="" className="h-full w-full object-cover" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-bold">{car.model}</div>
-                  <div className="font-num text-[14px] font-bold text-bordeaux-bright">
-                    {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
-                  </div>
-                </div>
-                <ChevronRight className="h-4 w-4 flex-none text-chrome" />
-              </button>
-            ))}
-          </div>
-        </>
+          <p className="mt-1.5 text-[14px] font-bold text-white">
+            {exact ? "авто подходит под ваши параметры" : "близких вариантов в наличии"}
+          </p>
+          <p className="mt-1 text-[12.5px] leading-snug text-[#9AA4B2]">
+            {exact
+              ? "Оставьте контакты — откроем подборку и пришлём расчёт под ключ."
+              : `${relaxedLabel(relaxed)}. Оставьте контакты — откроем подборку, точное привезём под заказ.`}
+          </p>
+        </div>
       ) : (
         <p className="mb-4 rounded-[14px] border border-line-dark bg-graphite-2 p-4 text-center text-[13.5px] text-[#9AA4B2]">
           Точного совпадения пока нет — подберём под заказ под ваш бюджет.
@@ -1425,7 +1459,7 @@ export function QuizView({
 
       <div className="rounded-[18px] border border-bordeaux-bright/40 bg-bordeaux/[0.06] p-4">
         <p className="mb-3 text-[14px] font-bold">
-          Оставьте контакты — пришлём расчёт под ключ под ваш бюджет:
+          Куда прислать расчёт:
         </p>
         <div className="space-y-2.5">
           <input
