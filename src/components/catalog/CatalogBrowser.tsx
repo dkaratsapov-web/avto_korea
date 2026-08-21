@@ -13,6 +13,7 @@ import {
   type Car,
 } from "@/data/cars";
 import { countries, type CountryCode } from "@/lib/site";
+import { brandOf } from "@/lib/brand";
 
 type Sort = "default" | "price-asc" | "price-desc";
 type Condition = "all" | "new" | "used";
@@ -57,7 +58,7 @@ function toggle<T>(arr: T[], v: T): T[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 }
 const fmt = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
-const brandOf = (model: string) => model.trim().split(/\s+/)[0];
+
 
 function matchesCar(c: Car, f: Filters, search: string): boolean {
   const price = c.priceTverRub ?? c.priceRub;
