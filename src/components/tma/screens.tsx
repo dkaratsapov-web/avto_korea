@@ -20,6 +20,7 @@ import {
   Play,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
+import { brandOf } from "@/lib/brand";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { useCars } from "@/lib/carsStore";
 import { countries, site, type CountryCode } from "@/lib/site";
@@ -86,7 +87,7 @@ export function ListView({
     const prices = cars.map((c) => c.priceTverRub ?? c.priceRub);
     const powers = cars.map((c) => c.powerHp ?? 0).filter(Boolean);
     return {
-      brands: Array.from(new Set(cars.map((c) => c.model.trim().split(/\s+/)[0]))).sort(),
+      brands: Array.from(new Set(cars.map((c) => brandOf(c.model)).filter(Boolean))).sort(),
       bodies: Array.from(new Set(cars.map((c) => c.bodyType).filter(Boolean) as string[])).sort(),
       fuels: Array.from(new Set(cars.map((c) => c.fuelType).filter(Boolean) as string[])).sort(),
       colors: Array.from(new Set(cars.map((c) => c.color).filter(Boolean) as string[])).sort(),
@@ -121,7 +122,7 @@ export function ListView({
     const hp = c.powerHp ?? 0;
     if (filter !== "all" && c.country !== filter) return false;
     if (!c.model.toLowerCase().includes(q.toLowerCase())) return false;
-    if (brands.length && !brands.includes(c.model.trim().split(/\s+/)[0])) return false;
+    if (brands.length && !brands.includes(brandOf(c.model))) return false;
     if (bodies.length && !(c.bodyType && bodies.includes(c.bodyType))) return false;
     if (fuels.length && !(c.fuelType && fuels.includes(c.fuelType))) return false;
     if (colors.length && !(c.color && colors.includes(c.color))) return false;
