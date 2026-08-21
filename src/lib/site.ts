@@ -53,9 +53,11 @@ export const site = {
   telegram: "@Dmitriicarexport",
   telegramHref: "https://t.me/Dmitriicarexport",
 
-  // Личные сообщения в MAX. До этого здесь стояла заглушка «https://max.ru/»,
-  // то есть кнопка «написать в MAX» вела на главную мессенджера и не работала.
-  maxHref: "https://max.ru/join/t9qi7K-MMwl06Nym7_my5b4r2LUF6uQOY2KLxhDkPKA",
+  // Личные сообщения в MAX — ссылка на профиль (/u/...). Ссылка вида /join/ —
+  // это вступление в канал, и здесь она не годится: человек, нажавший
+  // «написать нам», попадал бы в канал вместо переписки с менеджером.
+  maxHref:
+    "https://max.ru/u/f9LHodD0cOK99itT-N_bHuA1p3GsBqirk2M9jbFjvwmFCq-XGojB1Qb32ic",
 
   // Юзернейм бота без «собаки» — из него собирается диплинк на прокладке /bot.
   // Переименуете бота в BotFather — поменяйте и здесь, иначе кнопка на
@@ -64,9 +66,8 @@ export const site = {
 
   // Каналы: блок на главной и посадочные под Директ (/tg, /direct).
   telegramChannelHref: "https://t.me/+d3PeGP3FJk9mNWVi",
-  // ВНИМАНИЕ: сейчас здесь та же ссылка, что и в maxHref, то есть кнопка
-  // «канал MAX» ведёт в личные сообщения. Нужна настоящая ссылка канала MAX —
-  // до неё это поле считать незаполненным.
+  // Канал в MAX — ссылка вступления (/join/...). Не путать с maxHref выше:
+  // там профиль для личных сообщений, здесь подписка на канал.
   maxChannelHref:
     "https://max.ru/join/t9qi7K-MMwl06Nym7_my5b4r2LUF6uQOY2KLxhDkPKA",
 
