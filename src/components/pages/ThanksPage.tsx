@@ -83,7 +83,28 @@ export function ThanksPage() {
             </p>
           ) : null}
 
+          {/*
+           * Сначала звонок, потом подписка.
+           *
+           * Раньше первыми стояли два канала, а телефон — мелкой ссылкой ниже.
+           * Порядок имел значение: звонок — это разговор сегодня, подписка —
+           * повод вернуться когда-нибудь. Кто готов говорить прямо сейчас,
+           * уходил подписываться и не звонил.
+           */}
           <div className="mx-auto mt-8 flex w-full max-w-sm flex-col gap-3">
+            <a
+              href={site.phoneHref}
+              onClick={() => reachGoal(GOALS.phone, { place: "Спасибо" })}
+              className="btn btn-primary !h-13 text-[15.5px]"
+            >
+              <Phone className="h-[18px] w-[18px]" />
+              Позвонить {site.phone}
+            </a>
+
+            <p className="text-center text-[13px] text-[#7d8792]">
+              Или подпишитесь — новые поступления первыми
+            </p>
+
             <a
               href={site.telegramChannelHref}
               target="_blank"
@@ -111,14 +132,8 @@ export function ThanksPage() {
           </div>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
-            <a
-              href={site.phoneHref}
-              onClick={() => reachGoal(GOALS.phone, { place: "Спасибо" })}
-              className="flex items-center gap-2 font-num text-[17px] font-bold text-white transition-colors hover:text-chrome"
-            >
-              <Phone className="h-[18px] w-[18px] text-bordeaux-bright" />
-              {site.phone}
-            </a>
+            {/* Телефон переехал наверх отдельной кнопкой — здесь остаётся
+                только переход в каталог. */}
             <Link
               to="/catalog"
               className="inline-flex items-center gap-1.5 text-[15px] font-bold text-chrome underline-offset-4 transition-colors hover:text-white hover:underline"

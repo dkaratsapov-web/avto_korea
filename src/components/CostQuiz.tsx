@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Phone, Sparkles } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { Flag } from "@/components/icons/Flag";
 import { showToast } from "@/lib/toast";
@@ -112,6 +112,39 @@ function matchCars(cars: Car[], answers: Record<string, string>) {
   return { list: near, total: near.length, exact: false };
 }
 
+/**
+ * Что предложить, когда форма — уже не главное.
+ *
+ * Порядок один и тот же везде: сначала звонок, потом подписка. Звонок —
+ * это разговор сегодня, подписка — повод вернуться когда-нибудь. Поставь
+ * их наоборот, и часть людей, готовых говорить прямо сейчас, уйдёт
+ * подписываться и не позвонит.
+ */
+function CallThenSubscribe({ place }: { place: string }) {
+  return (
+    <div className="mt-5 space-y-2.5 border-t border-line-dark pt-5">
+      <a
+        href={site.phoneHref}
+        onClick={() => reachGoal(GOALS.phone, { place })}
+        className="flex h-12 w-full items-center justify-center gap-2.5 rounded-[12px] bg-gradient-to-b from-bordeaux-bright to-bordeaux text-[15px] font-bold text-white"
+      >
+        <Phone className="h-[18px] w-[18px]" />
+        Позвонить {site.phone}
+      </a>
+      <a
+        href={site.telegramChannelHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => reachGoal(GOALS.telegramChannel, { place })}
+        className="flex h-12 w-full items-center justify-center gap-2.5 rounded-[12px] border border-line-dark text-[14.5px] font-semibold text-[#DCE2E7] transition-colors hover:border-bordeaux-bright hover:text-white"
+      >
+        <TelegramIcon className="h-[18px] w-[18px]" />
+        Или подпишитесь на канал — новинки первыми
+      </a>
+    </div>
+  );
+}
+
 export function CostQuiz({
   source = "Квиз — расчёт стоимости",
   onSent,
@@ -135,7 +168,16 @@ export function CostQuiz({
 
   const totalSteps = STEPS.length + 1; // + контактный шаг
   const isContact = step === STEPS.length;
-  const progress = Math.round((step / totalSteps) * 100);
+  /*
+   * Прогресс от номера текущего шага, а не от числа пройденных: на первом
+   * вопросе полоса была пустой, и квиз выглядел так, будто ничего
+   * не происходит. Теперь первый шаг — это уже 20 %, и видно движение.
+   */
+  const progress = Math.round(((step + 1) / totalSteps) * 100);
+
+  // «Просто смотрю» — человек не готов оставлять телефон. Давить формой
+  // бессмысленно: ему нужен способ уйти, не закрывая вкладку насовсем.
+  const justLooking = answers.when === "Просто смотрю";
 
   function pick(opt: string) {
     setAnswers((a) => ({ ...a, [STEPS[step].key]: opt }));
@@ -197,6 +239,11 @@ export function CostQuiz({
           Соберём для вас честный расчёт под ключ и перезвоним в течение 15
           минут.
         </p>
+        {/* Ждать звонка — не единственный вариант: кто готов говорить
+            сейчас, звонит сам, остальным остаётся канал. */}
+        <div className="mx-auto max-w-sm text-left">
+          <CallThenSubscribe place="Квиз — после отправки" />
+        </div>
       </div>
     );
   }
@@ -301,6 +348,12 @@ export function CostQuiz({
           >
             <TelegramIcon className="h-4 w-4" /> Или задайте вопрос в Telegram
           </a>
+
+          {/* «Просто смотрю» — человек прямо сказал, что не готов покупать.
+              Настаивать на телефоне тут бессмысленно: он его не оставит,
+              а уйдёт. Даём оба способа остаться на связи, не оставляя
+              контактов. */}
+          {justLooking ? <CallThenSubscribe place="Квиз — просто смотрю" /> : null}
         </form>
       ) : (
         <>
@@ -326,18 +379,20 @@ export function CostQuiz({
       <div className="mt-4 flex items-center justify-between text-[12.5px] text-[#8C97A1]">
         <span>
           Шаг {Math.min(step + 1, totalSteps)} из {totalSteps}
+          <span className="mx-1.5 text-[#5C6670]">·</span>
+          <span className="font-num font-bold text-chrome">{progress}%</span>
         </span>
-        {step > 0 ? (
-          <button
-            type="button"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-            className="flex items-center gap-1 font-semibold text-chrome transition-colors hover:text-white"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> Назад
-          </button>
-        ) : (
-          <span />
-        )}
+        {/* Кнопка на месте с первого шага, просто неактивна: раньше она
+            появлялась только со второго, и подвал прыгал под курсором
+            ровно в момент, когда человек тянулся к «Назад». */}
+        <button
+          type="button"
+          disabled={step === 0}
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          className="flex items-center gap-1 font-semibold text-chrome transition-colors enabled:hover:text-white disabled:cursor-default disabled:opacity-35"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Назад
+        </button>
       </div>
     </div>
   );
