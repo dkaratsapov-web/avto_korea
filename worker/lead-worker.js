@@ -190,35 +190,63 @@ async function adminChatIds(env) {
   ];
 }
 
-// Оповещение о новом пользователе (нажал «Старт») — всем админам.
+/** Текст, безопасный для parse_mode HTML. */
+function htmlEscape(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * Оповещение о новом пользователе (нажал «Старт») — в чат заявок.
+ *
+ * Раньше уходило личным сообщением каждому админу и в общий чат сразу.
+ * У владельца это выглядело так, будто бот пишет сам себе: уведомления
+ * о новых людях смешивались с рабочей перепиской и терялись. Теперь адресат
+ * тот же, что у заявок с сайта, — один чат, где всё видно в одном месте
+ * и куда можно добавить любого сотрудника, не выдавая ему прав админа.
+ *
+ * Порядок как у заявок: сначала чат из админки, при неудаче — чат из
+ * переменных Cloudflare. Неверно указанный id не должен приводить к полной
+ * потере уведомления.
+ *
+ * Разметка HTML, а не Markdown: имена приходят от людей, и «Ivan_Petrov»
+ * ломал разбор Markdown — Telegram отвечал ошибкой, а уведомление молча
+ * не доходило. В HTML достаточно экранировать три символа.
+ */
 async function notifyNewUser(env, from) {
   if (!from?.id) return;
-  const targets = await adminChatIds(env);
+
+  const st = await getSettings(env);
+  const custom = String(st.leadChatId || "").trim();
+  const targets = [...new Set([custom, env.TELEGRAM_CHAT_ID].filter(Boolean))];
   if (!targets.length) return;
 
   const name =
     [from.first_name, from.last_name].filter(Boolean).join(" ") || "—";
   const uname = from.username ? `@${from.username}` : "без username";
-  const lines = [
-    "👋 *Новый пользователь запустил бота*",
-    `👤 Имя: ${name}`,
-    `🔗 Username: ${uname}`,
+  const text = [
+    "👋 <b>Новый пользователь запустил бота</b>",
+    `👤 Имя: ${htmlEscape(name)}`,
+    `🔗 Username: ${htmlEscape(uname)}`,
     `🆔 ID: ${from.id}`,
-    `[Открыть профиль](tg://user?id=${from.id})`,
-  ];
-  const text = lines.join("\n");
+    `<a href="tg://user?id=${from.id}">Открыть профиль</a>`,
+  ].join("\n");
 
-  // Каждому отдельно: админ, который сам не запускал бота, даёт ошибку —
-  // она не должна отменять доставку остальным.
+  // До первой удачной доставки: запасной адрес нужен на случай неверного id
+  // в админке, а не для дублирования одного и того же сообщения.
   for (const chatId of targets) {
     try {
-      await api(env, "sendMessage", {
+      const r = await api(env, "sendMessage", {
         chat_id: chatId,
         text,
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
       });
+      const j = await r.json().catch(() => null);
+      if (j?.ok) return;
     } catch {
-      /* один недоступный адресат не ломает рассылку */
+      /* пробуем следующий адрес */
     }
   }
 }
