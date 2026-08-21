@@ -294,7 +294,7 @@ export function TmaApp() {
         </Suspense>
       ) : null}
       <div className="min-h-screen bg-graphite text-white">
-      <div className="mx-auto max-w-md px-4 pb-28">
+      <div className={`mx-auto max-w-md px-4 ${view.name === "home" ? "pb-5" : "pb-28"}`}>
         {/* Шапка — тёмная в стиле бота; лого как на сайте */}
         <div className="sticky top-0 z-40 -mx-4 mb-4 flex items-center justify-between gap-2 border-b border-line-dark/70 bg-graphite/95 px-4 py-2.5 backdrop-blur">
           <button
@@ -367,8 +367,6 @@ export function TmaApp() {
 
         {view.name === "home" ? (
           <HomeView
-            favCount={favorites.length}
-            compareCount={compareIds.length}
             go={(name) => {
               haptic(tgRef.current);
               setView({ name } as View);
