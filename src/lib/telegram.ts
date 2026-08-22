@@ -48,17 +48,40 @@ declare global {
 
 const SRC = "https://telegram.org/js/telegram-web-app.js";
 
+/**
+ * Сколько ждать библиотеку Telegram, прежде чем работать без неё.
+ *
+ * Недоступный хост отвечает ошибкой быстро — а вот заблокированный или
+ * придушенный чаще всего просто молчит: ни load, ни error не приходят
+ * никогда. Без этого ограничения обещание не выполнялось бы вовсе, и
+ * мини-апп навсегда оставался бы в состоянии «ещё гружусь»: нативная
+ * кнопка «Отправить заявку» не появлялась бы, и отправить заявку было бы
+ * нечем. Лучше показать всё сразу и без родных кнопок, чем не показать.
+ */
+const SDK_TIMEOUT_MS = 2500;
+
 export function loadTelegram(): Promise<TG | null> {
   if (typeof window === "undefined") return Promise.resolve(null);
   if (window.Telegram?.WebApp) return Promise.resolve(window.Telegram.WebApp);
   return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      resolve(window.Telegram?.WebApp ?? null);
+    };
+    const timer = window.setTimeout(done, SDK_TIMEOUT_MS);
+
+    // Скрипт мог быть добавлен ещё разметкой (см. index.html): там он
+    // запрашивается параллельно с бандлом, а не после него. Тогда его не
+    // надо добавлять второй раз — достаточно дождаться.
     const existing = document.querySelector<HTMLScriptElement>(
       `script[src="${SRC}"]`,
     );
-    const done = () => resolve(window.Telegram?.WebApp ?? null);
     if (existing) {
       existing.addEventListener("load", done);
-      existing.addEventListener("error", () => resolve(null));
+      existing.addEventListener("error", done);
       if (window.Telegram?.WebApp) done();
       return;
     }
@@ -66,7 +89,7 @@ export function loadTelegram(): Promise<TG | null> {
     s.src = SRC;
     s.async = true;
     s.onload = done;
-    s.onerror = () => resolve(null);
+    s.onerror = done;
     document.head.appendChild(s);
   });
 }
