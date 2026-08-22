@@ -10,6 +10,7 @@ import { CookieNotice } from "@/components/CookieNotice";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { CursorGlow } from "@/components/ui/CursorGlow";
 import { ModalHost } from "@/components/ModalHost";
+import { LeadCatcher } from "@/components/LeadCatcher";
 
 const Preloader = lazy(() =>
   import("@/components/Preloader").then((m) => ({ default: m.Preloader })),
@@ -50,6 +51,7 @@ export function SiteLayout() {
       <CompareTray />
       <CookieNotice />
       <ModalHost />
+      <LeadCatcher />
     </>
   );
 }
