@@ -180,6 +180,7 @@ export function LeadCatcher() {
             submitLabel="Записаться на консультацию"
             withCar={false}
             bare
+            stack
             onSent={sent}
           />
         </div>

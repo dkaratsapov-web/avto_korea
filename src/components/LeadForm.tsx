@@ -40,6 +40,15 @@ export type LeadFormProps = {
   withContacts?: boolean;
   /** Форма без собственной рамки/подложки и на всю ширину (когда уже внутри карточки). */
   bare?: boolean;
+  /**
+   * Поля столбиком, каждое во всю ширину.
+   *
+   * Обычная compact-форма ставит имя, телефон и кнопку в один ряд — это
+   * рассчитано на широкую полосу вроде секции сайта. В узком месте (модальное
+   * окно, боковая колонка) длинная подпись кнопки съедает всю ширину, а поля
+   * сжимаются до «Ваше и» и «+7 (___». Ряд там не нужен вовсе.
+   */
+  stack?: boolean;
   /** Вызывается после успешной отправки — модалке нужно закрыться перед
       переходом на страницу «Спасибо». */
   onSent?: () => void;
@@ -56,6 +65,7 @@ export function LeadForm({
   carValue,
   withContacts = false,
   bare = false,
+  stack = false,
   onSent,
 }: LeadFormProps) {
   const navigate = useNavigate();
@@ -150,6 +160,8 @@ export function LeadForm({
         <form
           onSubmit={handleSubmit}
           className={`flex flex-wrap items-center gap-[10px] ${
+            stack ? "[&>*]:!w-full [&>*]:!flex-none [&>*]:!basis-full" : ""
+          } ${
             bare
               ? "w-full"
               : "max-w-[560px] rounded-card border border-line-dark bg-white/[0.04] p-4"
