@@ -12,24 +12,25 @@ import { useUI } from "@/lib/ui";
  * решение стоит несколько миллионов, это почти все: человек читает, считает
  * в уме и уходит думать — а вернуться забывает.
  *
- * Показывается ОДИН раз и только тем, кто уже что-то посмотрел. Всплывать
- * сразу на входе нельзя: окно поверх ещё не прочитанной страницы читается
- * как «сначала заплати вниманием», и человек закрывает вкладку целиком.
+ * Появляется через 45 секунд после начала визита — и больше никогда,
+ * независимо от того, оставили заявку или закрыли. Всплывать сразу на входе
+ * нельзя: окно поверх ещё не прочитанной страницы читается как «сначала
+ * заплати вниманием», и человек закрывает вкладку целиком. А показывать
+ * второй раз — верный способ из предложения превратиться в помеху.
  *
- * Кто оставил заявку — не увидит его больше никогда: предлагать консультацию
- * тому, кто уже ждёт звонка, значит показать, что мы его не помним.
+ * Кто уже оставил заявку, не увидит его и в первый раз: предлагать
+ * консультацию тому, кто ждёт звонка, значит показать, что мы его не помним.
  */
 
-/** Через сколько на странице предложить консультацию. */
+/** Через сколько после начала визита предложить консультацию. */
 const AFTER_MS = 45_000;
 
-/** Какую долю страницы надо пролистать, чтобы предложение было уместным. */
-const AFTER_SCROLL = 0.5;
+/** Когда начался визит. Живёт во вкладке, а не в постоянной памяти. */
+const KEY_START = "diauto:visit-start";
 
-/** Сколько молчать после закрытия. Отказ — тоже ответ, и его надо уважать. */
-const SNOOZE_DAYS = 7;
+/** Показывали ли уже. Один раз — и больше никогда. */
+const KEY_SHOWN = "diauto:lead-catcher-shown";
 
-const KEY_SNOOZE = "diauto:lead-catcher-snooze";
 const KEY_SENT = "diauto:lead-sent";
 
 /** Страницы, где предложение только мешает. */
@@ -52,13 +53,31 @@ function write(key: string, value: string) {
   }
 }
 
-/** Можно ли вообще показывать: не отправлял заявку и не закрывал недавно. */
-function allowed(): boolean {
-  if (read(KEY_SENT)) {
-    return false;
+/**
+ * Момент начала визита.
+ *
+ * Хранится во вкладке, а не берётся от загрузки страницы: сайт — единое
+ * приложение, но переход между разделами всё равно перезапустил бы отсчёт,
+ * и человек, листающий каталог по одной странице в полминуты, не увидел бы
+ * предложения никогда.
+ */
+function visitStart(): number {
+  try {
+    const saved = Number(sessionStorage.getItem(KEY_START) || 0);
+    if (saved > 0) {
+      return saved;
+    }
+    const now = Date.now();
+    sessionStorage.setItem(KEY_START, String(now));
+    return now;
+  } catch {
+    return Date.now();
   }
-  const until = Number(read(KEY_SNOOZE) || 0);
-  return !(until > Date.now());
+}
+
+/** Можно ли показывать: не показывали раньше и заявку уже не оставляли. */
+function allowed(): boolean {
+  return !read(KEY_SHOWN) && !read(KEY_SENT);
 }
 
 export function LeadCatcher() {
@@ -73,51 +92,31 @@ export function LeadCatcher() {
       return;
     }
 
-    let fired = false;
+    /*
+     * Ждём остаток от 45 секунд визита, а не полные 45 от этой страницы.
+     * Иначе переход в другой раздел сбрасывал бы отсчёт, и тот, кто листает
+     * каталог, не увидел бы предложения никогда.
+     */
+    const left = AFTER_MS - (Date.now() - visitStart());
+
     const show = () => {
       // Условия перепроверяем в момент срабатывания: за 45 секунд человек мог
       // успеть отправить заявку из формы на странице.
-      if (fired || !allowed()) {
+      if (!allowed()) {
         return;
       }
-      fired = true;
+      // Помечаем сразу, а не при закрытии: показали — значит показали,
+      // и второй раз человек этого окна не увидит, чем бы ни кончилось.
+      write(KEY_SHOWN, "1");
       setOpen(true);
-      stop();
     };
 
-    const onScroll = () => {
-      const total = document.documentElement.scrollHeight - window.innerHeight;
-      if (total > 0 && window.scrollY / total >= AFTER_SCROLL) {
-        show();
-      }
-    };
-
-    /*
-     * Уход курсора за верхний край — намерение закрыть вкладку. Только на
-     * мыши: на телефоне такого события нет, а подделывать его прокруткой
-     * вверх нельзя — там это обычное движение по странице.
-     */
-    const onLeave = (e: MouseEvent) => {
-      if (e.clientY <= 0) {
-        show();
-      }
-    };
-
-    const timer = window.setTimeout(show, AFTER_MS);
-    const stop = () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("scroll", onScroll);
-      document.removeEventListener("mouseout", onLeave);
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    document.addEventListener("mouseout", onLeave);
-    return stop;
+    const timer = window.setTimeout(show, Math.max(0, left));
+    return () => window.clearTimeout(timer);
   }, [pathname]);
 
   function close() {
     setOpen(false);
-    write(KEY_SNOOZE, String(Date.now() + SNOOZE_DAYS * 24 * 3600 * 1000));
   }
 
   function sent() {
