@@ -215,10 +215,12 @@ function htmlEscape(value) {
  * ломал разбор Markdown — Telegram отвечал ошибкой, а уведомление молча
  * не доходило. В HTML достаточно экранировать три символа.
  */
-async function notifyNewUser(env, from) {
+async function notifyNewUser(env, from, settings) {
   if (!from?.id) return;
 
-  const st = await getSettings(env);
+  // Настройки принимаем снаружи: на пути /start они уже прочитаны, и второй
+  // поход в хранилище за тем же самым — лишняя задержка перед приветствием.
+  const st = settings || (await getSettings(env));
   const custom = String(st.leadChatId || "").trim();
   const targets = [...new Set([custom, env.TELEGRAM_CHAT_ID].filter(Boolean))];
   if (!targets.length) return;
@@ -330,14 +332,29 @@ function parseStartPayload(text) {
  * код сначала проверяет, что канал вообще настроен.
  */
 async function isChannelMember(env, channelId, userId) {
-  if (!channelId || !userId) return false;
+  if (!channelId || !userId) return null;
   try {
     const r = await api(env, "getChatMember", { chat_id: channelId, user_id: userId });
     const j = await r.json();
+    /*
+     * Telegram не ответил по существу — значит проверить нечем.
+     *
+     * Так бывает ровно в одном случае: бот не администратор канала. Тогда
+     * getChatMember отвечает ошибкой («chat not found», «bot is not a member»
+     * и подобными), и раньше это считалось «человек не подписан». Стена
+     * никогда не открывалась: человек подписывался, жал «Я подписался»,
+     * снова упирался в стену — и уходил. Со стороны это ровно «бот не
+     * работает», причём чинится не в боте, а в правах на канал.
+     *
+     * Поэтому неизвестность отделена от отказа: null означает «проверить не
+     * смогли», и выше по коду такого человека пускают. Сломанный замок
+     * должен открываться, а не запирать дверь навсегда.
+     */
+    if (!j || j.ok !== true) return null;
     const s = j?.result?.status;
     return s === "creator" || s === "administrator" || s === "member" || s === "restricted";
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -357,9 +374,14 @@ async function patchUser(env, userId, patch) {
     }
     users[userId] = cur;
     await kvPut(env, "users", users);
+    // Возвращаем итоговую карточку: вызывающему коду она нужна сразу после
+    // записи, а отдельное чтение того же самого — лишний поход в хранилище
+    // на пути, где человек ждёт ответа бота.
+    return cur;
   } catch {
     /* статистика не должна ломать сценарий */
   }
+  return null;
 }
 
 /** Клавиатура основного меню бота (каталог, подбор, менеджер, карты). */
@@ -537,8 +559,26 @@ async function permsOf(env, userId) {
 }
 
 /* ---------- Маршруты ---------- */
+/**
+ * Доделать работу уже после ответа Telegram.
+ *
+ * Служебные дела — уведомить админов, записать отметку времени — человека
+ * не касаются, но раньше он их ждал: пока мы не закончим, приветствие не
+ * уходило. Cloudflare умеет продлевать жизнь обработчика после ответа, этим
+ * и пользуемся. Если продлить нечем (вызов не из обработчика запроса),
+ * просто дожидаемся, как раньше, — потерять дело хуже, чем задержать.
+ */
+function later(ctx, promise) {
+  const p = Promise.resolve(promise).catch(() => {});
+  if (ctx && typeof ctx.waitUntil === "function") {
+    ctx.waitUntil(p);
+    return Promise.resolve();
+  }
+  return p;
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === "OPTIONS")
       return new Response(null, { headers: cors });
@@ -642,9 +682,11 @@ export default {
         );
         const uid = cm.new_chat_member?.user?.id;
         if (joined && uid && String(cm.chat?.id) === String(st.gateChannelId)) {
-          await patchUser(env, uid, { subAt: Date.now() });
           await sendWelcome(env, uid, st);
-          await patchUser(env, uid, { openedAt: Date.now() });
+          // Обе отметки — одной записью и уже после ответа: они читают и
+          // перезаписывают общий список пользователей целиком, поэтому
+          // двумя вызовами подряд затирали бы поля друг друга.
+          later(ctx, patchUser(env, uid, { subAt: Date.now(), openedAt: Date.now() }));
         }
         return new Response("ok");
       }
@@ -659,9 +701,11 @@ export default {
             chat_id: cjr.chat.id,
             user_id: cjr.from.id,
           });
-          await patchUser(env, cjr.from.id, { subAt: Date.now() });
           await sendWelcome(env, cjr.from.id, st);
-          await patchUser(env, cjr.from.id, { openedAt: Date.now() });
+          later(
+            ctx,
+            patchUser(env, cjr.from.id, { subAt: Date.now(), openedAt: Date.now() }),
+          );
         }
         return new Response("ok");
       }
@@ -674,16 +718,17 @@ export default {
         if (cq.data === "gate_check") {
           const st = await getSettings(env);
           const uid = cq.from?.id;
-          const ok = await isChannelMember(env, st.gateChannelId, uid);
+          // null — проверить не смогли (бот не админ канала). Такого
+          // человека пускаем: иначе он будет жать эту кнопку до бесконечности.
+          const ok = (await isChannelMember(env, st.gateChannelId, uid)) !== false;
           await api(env, "answerCallbackQuery", {
             callback_query_id: cq.id,
             text: ok ? "Готово! Открываю каталог" : "Подписка пока не видна. Подпишитесь и нажмите ещё раз.",
             show_alert: !ok,
           });
           if (ok && cq.message?.chat?.id) {
-            await patchUser(env, uid, { subAt: Date.now() });
             await sendWelcome(env, cq.message.chat.id, st);
-            await patchUser(env, uid, { openedAt: Date.now() });
+            later(ctx, patchUser(env, uid, { subAt: Date.now(), openedAt: Date.now() }));
           }
           return new Response("ok");
         }
@@ -807,30 +852,50 @@ export default {
         msg.chat?.type === "private"
       ) {
         const isNew = await recordUser(env, msg.from);
-        if (isNew) await notifyNewUser(env, msg.from);
         const settings = await getSettings(env);
+
+        /*
+         * Уведомление админам о новом человеке — уже после ответа.
+         *
+         * Раньше оно стояло здесь же, но с await: приветствие не уходило,
+         * пока мы не достучимся до чата заявок. То есть новый человек —
+         * ровно тот, у кого первое впечатление о боте, — ждал дольше всех,
+         * причём ждал нашей внутренней переписки. Теперь уведомление
+         * доставляется параллельно и на скорость ответа не влияет.
+         */
+        if (isNew) later(ctx, notifyNewUser(env, msg.from, settings));
 
         // Метка из диплинка: вариант А/Б и источник кампании. Фиксируется
         // один раз, чтобы повторный /start не перекинул человека в другую
         // группу теста.
         const { variant, src } = parseStartPayload(msg.text);
-        await patchUser(env, msg.from?.id, { v: variant, src });
-        const users = (await kvGet(env, "users", {})) || {};
-        const known = users[msg.from?.id] || {};
+        // Карточку берём из ответа записи, а не отдельным чтением: раньше
+        // здесь был третий за один /start поход за одним и тем же списком
+        // пользователей, который растёт с каждым новым человеком.
+        const known = (await patchUser(env, msg.from?.id, { v: variant, src })) || {};
         // Вариант берём сохранённый: человек мог вернуться уже без метки.
         const myVariant = known.v || variant;
 
+        // Отметки о подписке и открытии копим и записываем одной операцией
+        // после приветствия. Двумя записями подряд их писать нельзя: обе
+        // читают и перезаписывают общий список пользователей целиком, и
+        // запущенные разом они затирали бы поля друг друга.
+        const marks = {};
         if (gateApplies(settings, myVariant)) {
           const member = await isChannelMember(env, settings.gateChannelId, msg.from.id);
-          if (!member) {
+          // Стену показываем только при твёрдом «не подписан». Если проверка
+          // не удалась (null), пускаем: см. isChannelMember.
+          if (member === false) {
             await sendGate(env, msg.chat.id, settings);
             return new Response("ok");
           }
-          await patchUser(env, msg.from.id, { subAt: Date.now() });
+          if (member === true) marks.subAt = Date.now();
         }
 
         await sendWelcome(env, msg.chat.id, settings);
-        await patchUser(env, msg.from?.id, { openedAt: Date.now() });
+        // Отметки — статистика. Держать человека ради них ещё на одну
+        // запись в хранилище незачем: приветствие уже ушло.
+        later(ctx, patchUser(env, msg.from?.id, { ...marks, openedAt: Date.now() }));
       }
       return new Response("ok");
     }
