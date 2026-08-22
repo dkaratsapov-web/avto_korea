@@ -36,13 +36,50 @@
     />
     <meta name="twitter:card" content="summary_large_image" />
 
-    <!-- Fonts -->
+    <!-- Fonts.
+
+         Подключены так, чтобы НЕ задерживать первую отрисовку. Обычный
+         rel="stylesheet" браузер считает обязательным: пока ответ с
+         fonts.googleapis.com не пришёл, страница остаётся белой. С мобильного
+         в России этот ответ идёт долго, и особенно больно в мини-аппе внутри
+         Telegram — человек нажал «Каталог» и смотрит в пустоту.
+
+         Приём стандартный: грузим как стиль для печати (такой не блокирует
+         отрисовку), а по факту загрузки переключаем на экранный. Текст
+         показывается сразу системным шрифтом и подменяется фирменным, когда
+         тот доедет. Без JS остаётся <noscript> с обычной ссылкой. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Saira:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Saira:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+
+    <!-- Telegram Web App SDK — только для мини-аппа (/tma).
+
+         Раньше скрипт запрашивался из кода приложения: сначала грузился и
+         разбирался бандл, монтировался экран мини-аппа, и ТОЛЬКО потом
+         начиналась загрузка SDK. Лишний круг по сети на самом медленном
+         месте — внутри Telegram на мобильном интернете.
+
+         Теперь запрос уходит из разметки, параллельно с бандлом. На обычных
+         страницах сайта скрипт не нужен и не запрашивается. -->
+    <script>
+      if (location.pathname.indexOf("/tma") === 0) {
+        var tgs = document.createElement("script");
+        tgs.src = "https://telegram.org/js/telegram-web-app.js";
+        tgs.async = true;
+        document.head.appendChild(tgs);
+      }
+    </script>
 
     <!-- JSON-LD -->
     <script type="application/ld+json">
@@ -88,9 +125,13 @@
         a.parentNode.insertBefore(k, a);
       })(window, document, "script", "https://mc.yandex.ru/metrika/tag.js?id=111166439", "ym");
 
+      // Вебвизор пишет видео каждого сеанса — на сайте это полезно, а в
+      // мини-аппе внутри Telegram он только отъедает трафик и процессор
+      // телефона на самом узком месте. Счётчик при этом остаётся включённым:
+      // посещения и цели считаются везде одинаково.
       ym(111166439, "init", {
         ssr: true,
-        webvisor: true,
+        webvisor: location.pathname.indexOf("/tma") !== 0,
         clickmap: true,
         ecommerce: "dataLayer",
         referrer: document.referrer,
@@ -114,11 +155,20 @@
       Директом через тот же счётчик Метрики (111166439). Скрипт подменяет
       ссылки вида t.me на трекинговые, поэтому подключён на всех страницах:
       кнопки канала есть и в шапке, и на /go, и на «Спасибо».
+
+      Кроме мини-аппа. Там человек УЖЕ внутри Telegram — считать ему переход
+      в Telegram нечего, а подмена ссылок вредна: вместо прямого перехода
+      мини-апп полез бы на сторонний домен. Плюс это минус один внешний
+      запрос на самой медленной площадке.
     -->
-    <script
-      src="https://api.tgtrack.ru/API/landing_script/v1/?linkID=0aa1a7967c86fc&type=ya&counterID=111166439"
-      type="text/javascript"
-      defer
-    ></script>
+    <script>
+      if (location.pathname.indexOf("/tma") !== 0) {
+        var tgt = document.createElement("script");
+        tgt.src =
+          "https://api.tgtrack.ru/API/landing_script/v1/?linkID=0aa1a7967c86fc&type=ya&counterID=111166439";
+        tgt.defer = true;
+        document.body.appendChild(tgt);
+      }
+    </script>
   </body>
 </html>

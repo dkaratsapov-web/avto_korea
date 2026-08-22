@@ -4,8 +4,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  lazy,
-  Suspense,
 } from "react";
 import { Heart, ShieldCheck, Scale } from "lucide-react";
 import { useCars } from "@/lib/carsStore";
@@ -29,10 +27,21 @@ import {
   CompareView,
 } from "@/components/tma/screens";
 
-// Тот же прелоадер-глобус, что и на сайте (грузится отдельным чанком).
-const Preloader = lazy(() =>
-  import("@/components/Preloader").then((m) => ({ default: m.Preloader })),
-);
+/*
+ * Заставки в мини-аппе нет — сознательно.
+ *
+ * Раньше здесь показывался тот же прелоадер-глобус, что и на сайте: четыре
+ * секунды анимации плюс ещё семьсот миллисекунд на угасание. На сайте это
+ * уместно — человек пришёл на витрину, ему показывают марку. В мини-аппе
+ * всё наоборот: он уже внутри Telegram, уже нажал кнопку «Каталог» и ждёт
+ * машины. Пять секунд фирменной заставки поверх этого читаются однозначно —
+ * «не работает».
+ *
+ * И это было не всё ожидание, а добавка сверху: сначала грузится бандл,
+ * потом каталог, потом фотографии. Заставка накладывалась на самый медленный
+ * сценарий и удваивала его. Убрана — экран показывается сразу, как только
+ * разметка готова.
+ */
 
 type View =
   | { name: "home" }
@@ -91,11 +100,6 @@ export function TmaApp() {
   const initDataRef = useRef<string>("");
   const [admin, setAdmin] = useState<AdminMe | null>(null);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [intro, setIntro] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    return !reduce && !window.sessionStorage.getItem("diauto:tma:intro");
-  });
 
   // стабильные обёртки для нативных кнопок
   const mainCb = useRef<() => void>(() => {});
@@ -283,16 +287,6 @@ export function TmaApp() {
 
   return (
     <>
-      {intro ? (
-        <Suspense fallback={<div className="fixed inset-0 z-[100] bg-graphite" />}>
-          <Preloader
-            onDone={() => {
-              window.sessionStorage.setItem("diauto:tma:intro", "1");
-              setIntro(false);
-            }}
-          />
-        </Suspense>
-      ) : null}
       <div className="min-h-screen bg-graphite text-white">
       <div className={`mx-auto max-w-md px-4 ${view.name === "home" ? "pb-5" : "pb-28"}`}>
         {/* Шапка — тёмная в стиле бота; лого как на сайте */}
