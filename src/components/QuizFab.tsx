@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Sparkles, Check, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles, Check, Send, Lock } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { LeadForm } from "@/components/LeadForm";
 import { CarSilhouette } from "@/components/icons/CarSilhouette";
 import { formatPrice, type Car } from "@/data/cars";
 import { useCars } from "@/lib/carsStore";
-import { useUI } from "@/lib/ui";
 import { site } from "@/lib/site";
 import { GOALS, reachGoal } from "@/lib/metrika";
 
@@ -130,20 +129,28 @@ function messengerText(a: Record<string, string>, picked: Car[]): string {
     .join("\n");
 }
 
-function ResultCard({ car, onOpen }: { car: Car; onOpen: () => void }) {
+/**
+ * Строка подобранного авто — показываем, но не открываем.
+ *
+ * Модель, год, пробег и цена видны: человек должен убедиться, что подбор
+ * настоящий и попал в его запрос. А вот открыть карточку нельзя — иначе он
+ * уходит листать каталог и заявку не оставляет. Замок и приглушённая
+ * картинка говорят об этом прямо, без обмана: не «сломалось», а «откроем,
+ * когда будет куда прислать».
+ *
+ * Это div, а не кнопка: неактивная кнопка всё равно попадает в обход с
+ * клавиатуры и обещает действие, которого нет.
+ */
+function ResultCard({ car }: { car: Car }) {
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="flex gap-3 rounded-[14px] border border-line-dark bg-graphite p-2.5 text-left transition-colors hover:border-chrome/40"
-    >
-      <div className="h-16 w-24 flex-none overflow-hidden rounded-[10px] bg-graphite-2">
+    <div className="flex items-center gap-3 rounded-[14px] border border-line-dark bg-graphite p-2.5 text-left">
+      <div className="relative h-16 w-24 flex-none overflow-hidden rounded-[10px] bg-graphite-2">
         {car.images[0] ? (
           <img
             src={car.images[0]}
             alt=""
             loading="lazy"
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover opacity-70"
           />
         ) : (
           <CarSilhouette className="h-full w-full p-2 text-white/20" />
@@ -160,13 +167,13 @@ function ResultCard({ car, onOpen }: { car: Car; onOpen: () => void }) {
           {formatPrice(car.priceTverRub ?? car.priceRub)}
         </div>
       </div>
-    </button>
+      <Lock className="mr-1 h-[18px] w-[18px] flex-none text-[#6d7681]" />
+    </div>
   );
 }
 
 function QuizModal({ onClose }: { onClose: () => void }) {
   const { cars } = useCars();
-  const { openCar } = useUI();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
@@ -237,21 +244,14 @@ function QuizModal({ onClose }: { onClose: () => void }) {
             </h2>
             <p className="mt-2 text-[14px] text-[#9AA4B2]">
               {picked.length
-                ? "Это ближайшие варианты из наличия. Полную подборку под ваш бюджет пришлём в мессенджер."
+                ? "Это ближайшие варианты из наличия. Оставьте контакт — откроем карточки и пришлём полную подборку под ваш бюджет."
                 : "Под такие параметры в каталоге сейчас ничего нет — подберём под заказ и пришлём варианты."}
             </p>
 
             {picked.length ? (
               <div className="mt-4 grid gap-2.5">
                 {picked.map((c) => (
-                  <ResultCard
-                    key={c.id}
-                    car={c}
-                    onOpen={() => {
-                      onClose();
-                      openCar(c.id);
-                    }}
-                  />
+                  <ResultCard key={c.id} car={c} />
                 ))}
               </div>
             ) : null}
@@ -275,13 +275,23 @@ function QuizModal({ onClose }: { onClose: () => void }) {
                 <Check className="h-4 w-4 text-success" />
                 Или оставьте номер — вышлем полный список
               </div>
+              {/*
+               * Поля в столбик, а не в строку.
+               *
+               * Компактная раскладка ставит имя, телефон и кнопку в один ряд,
+               * и внутри модального окна на это не хватает ширины: поля
+               * сжимаются до огрызков, а длинная надпись на кнопке доедает
+               * остаток. Здесь ширины всегда мало — окно уже страницы.
+               */}
               <LeadForm
+                layout="compact"
                 source="Квиз-подбор на сайте"
                 submitLabel="Получить подборку"
                 onSent={onClose}
                 withCar={false}
                 withContacts={false}
                 bare
+                stack
               />
             </div>
 
@@ -311,11 +321,13 @@ export function QuizFab() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Подобрать автомобиль за 4 вопроса"
+        aria-label="Получить подборку авто за 4 вопроса"
         className="fixed bottom-5 left-5 z-40 flex items-center gap-2.5 rounded-full bg-gradient-to-b from-bordeaux-bright to-bordeaux px-4 py-3.5 font-extrabold uppercase tracking-[0.02em] text-white shadow-[0_10px_30px_rgba(122,20,16,.5)] ring-2 ring-white/85 transition-transform hover:scale-[1.04] sm:px-5"
       >
         <Sparkles className="h-[18px] w-[18px] flex-none" />
-        <span className="text-[14px] max-sm:hidden">Подобрать авто</span>
+        <span className="whitespace-nowrap text-[14px] max-sm:hidden">
+          Получить подборку
+        </span>
       </button>
 
       {open ? <QuizModal onClose={() => setOpen(false)} /> : null}
