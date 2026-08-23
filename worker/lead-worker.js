@@ -43,6 +43,20 @@ const DEFAULT_SETTINGS = {
   // Авто-публикация постов канала прямо в каталог (без черновиков).
   // По умолчанию включена — это основной сценарий (полностью авто-обновление).
   autoPublish: true,
+  /*
+   * Chat id канала, из которого собирается КАТАЛОГ.
+   *
+   * Пока пусто, каталогом считается любой канал, где бот администратор и
+   * который не назначен отзывами или новостями. Так было с самого начала, и
+   * пока бот сидел в одном канале, это работало. Но как только он становится
+   * администратором второго — например публичного, на который просят
+   * подписаться, — весь этот второй канал начинает сыпаться в каталог
+   * черновиками автомобилей. Достаточно одного анонса или поздравления.
+   *
+   * Поэтому: заполните это поле — и каталог будет собираться только из
+   * указанного канала, остальные бот просто не станет разбирать.
+   */
+  catalogChatId: "",
   // Chat id канала отзывов: посты оттуда идут в блок «Отзывы», а не в каталог.
   // Узнать id: опубликуйте пост в канале и посмотрите lastUpdate.chatId в /api/diag.
   reviewsChatId: "",
@@ -643,11 +657,47 @@ export default {
         // каталог не уходит — иначе команда осела бы черновиком авто.
         if (/^\/id(@\w+)?\s*$/.test(String(post.text || post.caption || "").trim())) {
           const title = post.chat?.title ? `\nНазвание: ${post.chat.title}` : "";
+          /*
+           * К идентификатору сразу показываем, чем этот канал уже назначен.
+           *
+           * Каналов теперь несколько, и все они задаются вручную одинаковыми
+           * на вид числами. Голый id тут — приглашение вписать его не в то
+           * поле: каталог начнёт собираться из публичного канала, а стена
+           * подписки будет проверять подписку на канал-источник. Поэтому бот
+           * сам говорит, кем он этот канал считает.
+           */
+          const roles = [];
+          if (st.catalogChatId && cid === String(st.catalogChatId))
+            roles.push("источник каталога");
+          if (st.reviewsChatId && cid === String(st.reviewsChatId))
+            roles.push("канал отзывов");
+          if (st.newsChatId && cid === String(st.newsChatId)) roles.push("канал новостей");
+          if (st.gateChannelId && cid === String(st.gateChannelId))
+            roles.push("канал подписки (гейт)");
+          const now = roles.length
+            ? `\n\nСейчас этот канал назначен как: ${roles.join(", ")}.`
+            : "\n\nСейчас этот канал ни за чем не закреплён." +
+              (st.catalogChatId
+                ? ""
+                : "\n⚠️ Поле «Источник каталога» пустое, поэтому посты отсюда" +
+                  " попадут в каталог автомобилей.");
+          const both =
+            st.catalogChatId &&
+            st.gateChannelId &&
+            String(st.catalogChatId) === String(st.gateChannelId)
+              ? "\n\nИсточник каталога и канал подписки у вас совпадают — это рабочая схема, так и задумано."
+              : "";
           for (const chatId of await adminChatIds(env)) {
             try {
               await api(env, "sendMessage", {
                 chat_id: chatId,
-                text: `Идентификатор канала: \`${cid}\`${title}\n\nВпишите его в настройках бота в поле «Канал для гейта».`,
+                text:
+                  `Идентификатор канала: \`${cid}\`${title}${now}${both}\n\n` +
+                  "Куда вписать в настройках бота:\n" +
+                  "• «Источник каталога» — канал, откуда берутся автомобили\n" +
+                  "• «Канал отзывов» / «Канал новостей» — если это они\n" +
+                  "• «Канал для гейта» — канал, на который просим подписаться\n\n" +
+                  "Каталог и гейт могут быть одним и тем же каналом — так тоже правильно.",
                 parse_mode: "Markdown",
               });
             } catch {
@@ -657,16 +707,48 @@ export default {
           return new Response("ok");
         }
 
+        /*
+         * Куда девать пост — решаем по каналу, из которого он пришёл.
+         *
+         * Порядок проверок важен: каналы назначаются вручную, и человек
+         * вполне может вписать один и тот же id в два поля. Тогда выигрывает
+         * первое совпадение, а не «оба сразу».
+         */
         if (st.newsChatId && cid === String(st.newsChatId)) {
           await publishNewsFromPost(env, post, url.origin);
-        } else if (st.reviewsChatId && cid === String(st.reviewsChatId)) {
-          await publishReviewFromPost(env, post, url.origin);
-        } else {
-          await handleChannelPost(env, post, {
-            auto: !!st.autoPublish,
-            origin: url.origin,
-          });
+          return new Response("ok");
         }
+        if (st.reviewsChatId && cid === String(st.reviewsChatId)) {
+          await publishReviewFromPost(env, post, url.origin);
+          return new Response("ok");
+        }
+
+        /*
+         * Каталог берётся ровно из назначенного канала.
+         *
+         * Один и тот же канал спокойно может быть и источником каталога, и
+         * каналом подписки — это нормальная схема: просим подписаться туда,
+         * откуда и так публикуем машины. Никакого запрета на совпадение тут
+         * нет и быть не должно.
+         *
+         * Опасно другое — молчаливое «каталогом считается любой канал». Пока
+         * бот сидел в одном канале, это работало. Как только он становится
+         * администратором второго, каждый посторонний пост оттуда уезжает в
+         * каталог карточкой автомобиля, а при включённой авто-публикации —
+         * сразу на сайт, минуя черновик. Поэтому заполненное поле «источник
+         * каталога» главнее всего: назначен канал — остальные не разбираем.
+         *
+         * Пустое поле оставляет прежнее поведение: иначе у тех, кто ещё не
+         * заполнил настройку, каталог перестал бы обновляться после этой
+         * правки, причём молча.
+         */
+        if (st.catalogChatId && cid !== String(st.catalogChatId)) {
+          return new Response("ok");
+        }
+        await handleChannelPost(env, post, {
+          auto: !!st.autoPublish,
+          origin: url.origin,
+        });
         return new Response("ok");
       }
 
@@ -1691,14 +1773,78 @@ function isCarListing(p, caption) {
   return hasPrice || structured >= 2;
 }
 
+/**
+ * Постоянный идентификатор записи, собранной из поста канала.
+ *
+ * Раньше это был просто номер сообщения: «tg-1234». Внутри одного канала он
+ * уникален, и пока канал был один, всё сходилось. Но нумерация сообщений у
+ * КАЖДОГО канала своя и начинается с единицы — а значит пост №1234 из нового
+ * канала опознавался бы как уже существующая карточка из старого и МОЛЧА
+ * затирал её: цену, фотографии, описание. Не «дубль появился», а «машина
+ * подменилась чужой».
+ *
+ * Поэтому в новый идентификатор входит и канал. Альбомы (media_group_id)
+ * обходятся без него: этот номер у Telegram глобальный.
+ */
+function postSrcId(post, groupId) {
+  if (groupId) return "tg-" + groupId;
+  const chat = String(post.chat?.id ?? "").replace(/^-100/, "");
+  return chat ? `tg-${chat}-${post.message_id}` : "tg-" + post.message_id;
+}
+
+/**
+ * Как та же запись называлась раньше.
+ *
+ * Нужен для поиска, а не для записи: всё, что уже лежит в каталоге, отзывах и
+ * новостях, сохранено под старым именем. Без этого правка в старом посте не
+ * обновляла бы карточку, а создавала бы рядом вторую.
+ */
+function legacySrcId(post, groupId) {
+  return "tg-" + (groupId || post.message_id);
+}
+
+/**
+ * Найти карточку каталога, которую этот пост уже создавал.
+ *
+ * Сначала — по новому имени, с каналом внутри: тут двусмысленности нет.
+ *
+ * Дальше сложнее. Всё, что лежит в каталоге с прежних времён, названо просто
+ * по номеру сообщения, и по этому имени в него может «попасть» пост из
+ * другого канала с тем же номером — а номера у каждого канала свои и
+ * начинаются с единицы. Поэтому старую карточку принимаем за ту же самую
+ * только если совпала модель. Не совпала — считаем это другой машиной и
+ * заводим отдельную карточку.
+ *
+ * Так худший исход — лишняя карточка, которую видно и которую можно убрать
+ * в админке. Без проверки худшим исходом была бы молча подменённая машина:
+ * чужая цена, чужие фотографии, чужое описание на месте настоящей.
+ *
+ * Карточки, записанные после этой правки, помечены каналом (chatId) — их
+ * этот запасной путь не касается вовсе.
+ */
+function findCarBySrc(catalog, srcId, legacyId, caption) {
+  const exact = catalog.find((c) => c.id === srcId);
+  if (exact || legacyId === srcId) return exact;
+
+  const legacy = catalog.find((c) => c.id === legacyId && !c.chatId);
+  if (!legacy || !caption) return undefined;
+
+  const model = String(parseCaption(caption).model || "").trim().toLowerCase();
+  if (!model) return undefined;
+  return String(legacy.model || "").trim().toLowerCase() === model ? legacy : undefined;
+}
+
 // Авто-публикация: пост канала → карточка в каталоге (upsert по стабильному id).
 async function publishFromPost(env, post, caption, fileId, groupId, origin, videoId) {
-  const srcId = "tg-" + (groupId || post.message_id);
+  const srcId = postSrcId(post, groupId);
+  const legacyId = legacySrcId(post, groupId);
   const url = fileId ? photoUrl(origin, fileId) : null;
   const vurl = videoId ? videoUrl(origin, videoId) : null;
   let catalog = (await kvGet(env, "catalog", [])) || [];
   if (!Array.isArray(catalog)) catalog = [];
-  let car = catalog.find((c) => c.id === srcId);
+  // Ищем и по новому имени, и по старому: карточки, добавленные до этой
+  // правки, лежат под старым — правка поста не должна плодить дубли.
+  let car = findCarBySrc(catalog, srcId, legacyId, caption);
   const isNewCar = !car;
 
   if (!car) {
@@ -1714,13 +1860,27 @@ async function publishFromPost(env, post, caption, fileId, groupId, origin, vide
     if (caption) {
       const imgs = car.images;
       const vid = car.video;
-      Object.assign(car, carFromPost(parseCaption(caption), srcId, imgs));
+      // Идентификатор оставляем прежним. Карточка могла быть заведена под
+      // старым именем, и на неё уже ссылаются: избранное у посетителей,
+      // ссылки в переписке с клиентом, открытая карточка в мини-аппе. Смена
+      // имени при первой же правке поста порвала бы их все.
+      const keepId = car.id;
+      Object.assign(car, carFromPost(parseCaption(caption), keepId, imgs));
+      car.id = keepId;
       car.images = imgs;
       if (vid) car.video = vid;
     }
   }
   // Видео из поста (первое найденное) — прикрепляем к карточке.
   if (vurl && !car.video) car.video = vurl;
+  /*
+   * Помечаем карточку каналом-источником.
+   *
+   * Это не украшение: по этой отметке видно, что карточка заведена уже с
+   * учётом номера канала, и её не надо искать по старому двусмысленному
+   * имени. Со временем помеченными станут все, и запасной путь отомрёт сам.
+   */
+  car.chatId = String(post.chat?.id ?? "");
   await kvPut(env, "catalog", catalog);
   if (isNewCar && env.TELEGRAM_CHAT_ID) {
     await api(env, "sendMessage", {
@@ -1737,12 +1897,18 @@ async function publishReviewFromPost(env, post, origin) {
   const videoId = videoFileId(post);
   if (!text && !fileId && !videoId) return;
   const groupId = post.media_group_id || null;
-  const srcId = "tg-" + (groupId || post.message_id);
+  const srcId = postSrcId(post, groupId);
   const media = fileId ? photoUrl(origin, fileId) : "";
   const video = videoId ? videoUrl(origin, videoId) : "";
 
   let reviews = (await kvGet(env, "reviews", [])) || [];
   if (!Array.isArray(reviews)) reviews = [];
+  /*
+   * Ищем строго по новому имени, с каналом внутри. Запасного пути по старому
+   * имени здесь нет намеренно: если канал отзывов когда-нибудь сменят, пост с
+   * тем же номером из нового канала подменил бы собой настоящий отзыв клиента.
+   * Лишний отзыв рядом видно и легко убрать, подменённый — нет.
+   */
   const ex = reviews.find((r) => r.id === srcId);
   if (ex) {
     // Альбом/правка: копим все фото и видео поста, а не только первые.
@@ -1764,6 +1930,7 @@ async function publishReviewFromPost(env, post, origin) {
       video,
       images: media ? [media] : [],
       videos: video ? [video] : [],
+      chatId: String(post.chat?.id ?? ""),
       ts: Date.now(),
     });
   }
@@ -1777,7 +1944,7 @@ async function publishNewsFromPost(env, post, origin) {
   const videoId = videoFileId(post);
   if (!raw && !fileId && !videoId) return;
   const groupId = post.media_group_id || null;
-  const srcId = "tg-" + (groupId || post.message_id);
+  const srcId = postSrcId(post, groupId);
   const media = fileId ? photoUrl(origin, fileId) : "";
   const video = videoId ? videoUrl(origin, videoId) : "";
   // Заголовок — первая содержательная строка, текст — остальное.
@@ -1787,6 +1954,8 @@ async function publishNewsFromPost(env, post, origin) {
 
   let news = (await kvGet(env, "news", [])) || [];
   if (!Array.isArray(news)) news = [];
+  // Как и с отзывами: только новое имя, чтобы пост из другого канала с тем
+  // же номером не подменил собой уже опубликованную новость.
   const ex = news.find((n) => n.id === srcId);
   if (ex) {
     if (raw && !ex.text && !ex.title) {
@@ -1796,7 +1965,15 @@ async function publishNewsFromPost(env, post, origin) {
     if (media && !ex.media) ex.media = media;
     if (video && !ex.video) ex.video = video;
   } else {
-    news.unshift({ id: srcId, title, text, media, video, ts: Date.now() });
+    news.unshift({
+      id: srcId,
+      title,
+      text,
+      media,
+      video,
+      chatId: String(post.chat?.id ?? ""),
+      ts: Date.now(),
+    });
   }
   await kvPut(env, "news", news.slice(0, 60));
 }
@@ -1887,6 +2064,7 @@ async function handleAdmin(env, action, payload, perm, user, origin) {
         "gateText",
         "gateSubscribeButton",
         "gateCheckButton",
+        "catalogChatId",
         "reviewsChatId",
         "newsChatId",
         "leadChatId",

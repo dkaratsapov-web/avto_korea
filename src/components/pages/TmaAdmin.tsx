@@ -1440,6 +1440,23 @@ function BotTab({
       </label>
 
       <label>
+        <span className={lab}>Chat id канала — источника каталога</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.catalogChatId ?? ""}
+          onChange={(e) => set("catalogChatId", e.target.value)}
+          placeholder="-100…"
+        />
+        <span className="mt-1 block text-[11px] leading-snug text-[#8C97A1]">
+          Канал, из которого собираются автомобили. Заполните обязательно, если
+          бот админ больше чем в одном канале: пока поле пустое, каталогом
+          считается любой канал — и посты из публичного канала подписки уедут в
+          каталог карточками авто. Узнать id: отправьте /id в нужном канале.
+        </span>
+      </label>
+
+      <label>
         <span className={lab}>Chat id канала отзывов</span>
         <input
           disabled={!canEdit}

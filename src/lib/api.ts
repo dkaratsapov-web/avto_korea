@@ -36,6 +36,8 @@ export type BotSettings = {
   miniAppUrl?: string;
   autoPublish?: boolean;
   leadChatId?: string;
+  /** Канал-источник каталога. Пусто — каталогом считается любой канал. */
+  catalogChatId?: string;
   reviewsChatId?: string;
   newsChatId?: string;
   /* Гейт подписки на канал — стена перед ботом для рекламного трафика. */
