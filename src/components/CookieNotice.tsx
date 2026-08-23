@@ -54,7 +54,7 @@ export function CookieNotice() {
      * не в экране, а в свободной полосе между ними: отступ слева пропускает
      * «Подобрать авто», отступ справа — столбик мессенджеров.
      */
-    <div className="fixed inset-x-3 bottom-[224px] z-[60] mx-auto max-w-[430px] rounded-2xl border border-line-dark bg-graphite-2 p-3.5 text-white shadow-[0_18px_44px_-18px_rgba(0,0,0,0.85)] sm:bottom-5 sm:left-[256px] sm:right-[88px] sm:translate-x-0">
+    <div className="fixed inset-x-3 bottom-[224px] z-[60] mx-auto max-w-[430px] rounded-2xl border border-line-dark bg-graphite-2 p-3.5 text-white shadow-[0_18px_44px_-18px_rgba(0,0,0,0.85)] sm:bottom-5 sm:left-[300px] sm:right-[88px] sm:translate-x-0">
       <div className="flex items-center gap-3">
         <p className="flex-1 text-[12.5px] leading-snug text-[#C7CFD6]">
           Мы используем cookie и Яндекс.Метрику. Продолжая, вы соглашаетесь с{" "}
