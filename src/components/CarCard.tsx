@@ -123,19 +123,40 @@ export function CarCard({ car }: { car: Car }) {
           <Spec icon={<DriveIcon />} text={car.drive} className="max-sm:hidden" />
         </div>
 
-        <div className="mt-auto flex flex-col items-stretch gap-2.5 pt-3 sm:flex-row sm:items-end sm:justify-between sm:gap-3 sm:pt-5">
-          <div className="leading-none">
+        {/*
+         * Подвал карточки: цена и «Подробнее».
+         *
+         * Раньше эти двое стояли в одну строку намертво — цена с
+         * whitespace-nowrap, кнопка с flex-none. Сжаться не мог никто, и когда
+         * карточка становилась узкой, кнопка просто выезжала за её край и
+         * обрезалась: на экране оставалось «Подробне» без стрелки.
+         *
+         * Узкой карточка становится не на телефоне, а на десктопе — там, где
+         * сетка переключается на три и четыре колонки раньше, чем карточкам
+         * хватает ширины: 292 px при 1280 и 332 px при 1440. Плюс цена бывает
+         * восьмизначной: «12 400 000 ₽» шире привычных семи знаков.
+         *
+         * Теперь так: крупный кегль цены включается только там, где место
+         * заведомо есть (2xl — от 1536 px), а до него цена и кнопка чуть
+         * компактнее. И на всякий случай разрешён перенос: если даже так не
+         * помещается, кнопка уходит на свою строку целиком. Перенос — это
+         * страховка от восьмизначных цен, а не основная раскладка.
+         */}
+        <div className="mt-auto flex flex-col items-stretch gap-2.5 pt-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-3 sm:gap-y-2.5 sm:pt-5">
+          <div className="min-w-0 leading-none">
             <div className="mb-1 text-[9.5px] font-bold uppercase tracking-[0.08em] text-ink-2 sm:mb-1.5 sm:text-[10.5px]">
               Под ключ до Твери
             </div>
-            <div className="whitespace-nowrap font-num text-[18px] font-extrabold text-bordeaux sm:text-[26px]">
+            <div className="whitespace-nowrap font-num text-[18px] font-extrabold text-bordeaux sm:text-[22px] 2xl:text-[26px]">
               {formatPrice(car.priceTverRub ?? car.priceRub)}
-              <small className="ml-1 text-[12px] font-semibold text-ink-2 sm:text-[15px]">₽</small>
+              <small className="ml-1 text-[12px] font-semibold text-ink-2 sm:text-[14px] 2xl:text-[15px]">
+                ₽
+              </small>
             </div>
           </div>
-          <span className="hidden h-10 flex-none items-center justify-center gap-1.5 rounded-[12px] sm:flex bg-gradient-to-b from-graphite-2 to-graphite px-3 text-[12.5px] font-bold text-white sm:h-[46px] sm:gap-2 sm:rounded-[13px] sm:px-4 sm:text-[14px] shadow-[0_8px_20px_-10px_rgba(17,21,26,0.7)] transition-all duration-300 group-hover:from-bordeaux-bright group-hover:to-bordeaux">
+          <span className="hidden h-10 flex-none items-center justify-center gap-1.5 rounded-[12px] sm:ml-auto sm:flex bg-gradient-to-b from-graphite-2 to-graphite px-3 text-[12.5px] font-bold text-white sm:h-[44px] sm:gap-2 sm:rounded-[13px] sm:px-3.5 sm:text-[13.5px] 2xl:h-[46px] 2xl:px-4 2xl:text-[14px] shadow-[0_8px_20px_-10px_rgba(17,21,26,0.7)] transition-all duration-300 group-hover:from-bordeaux-bright group-hover:to-bordeaux">
             Подробнее
-            <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+            <ArrowRight className="h-4 w-4 flex-none transition-transform duration-300 group-hover:translate-x-1" />
           </span>
         </div>
       </div>
