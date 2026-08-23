@@ -469,3 +469,127 @@ test("отзывы: пост из нового канала не затирае�
   assert.equal(old.text, "Спасибо, всё отлично!", "и не должен подмениться");
   assert.equal(reviews.length, 2, "новый добавляется рядом");
 });
+
+/* ---------- Приём заявок на вступление в канал ---------- */
+
+function joinRequest(chatId, userId = 777) {
+  return {
+    update_id: 9,
+    chat_join_request: {
+      chat: { id: chatId, type: "channel", title: "DI AUTO 69" },
+      from: { id: userId, first_name: "Пётр" },
+      date: Math.floor(Date.now() / 1000),
+    },
+  };
+}
+
+test("заявка одобряется ПЕРВЫМ действием, приветствие — после ответа", async () => {
+  const store = makeStore({
+    settings: { gateChannelId: "-1002875062656", gateEnabled: false },
+  });
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(joinRequest("-1002875062656"), { store, ctx: c.ctx });
+
+  // Главное — порядок: одобрение уходит первым, раньше всего остального.
+  assert.equal(
+    calls[0]?.method,
+    "approveChatJoinRequest",
+    "одобрение должно быть первым, было: " + calls.map((x) => x.method).join(","),
+  );
+  // А приветствие ответа вебхука не задерживает: оно вынесено в отложенные
+  // дела. Слаться параллельно оно может — важно, что его не ждут.
+  assert.ok(
+    c.pending.length > 0,
+    "приветствие и отметки должны быть отложены, а не ожидаться",
+  );
+
+  await c.settle();
+  assert.ok(
+    calls.some((x) => x.method === "sendMessage" || x.method === "sendPhoto"),
+    "приветствие должно уйти после одобрения",
+  );
+});
+
+test("заявка одобряется и при выключенной стене подписки", async () => {
+  const store = makeStore({
+    settings: { gateChannelId: "-1002875062656", gateEnabled: false },
+  });
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(joinRequest("-1002875062656"), { store, ctx: c.ctx });
+  await c.settle();
+
+  assert.ok(
+    calls.some((x) => x.method === "approveChatJoinRequest"),
+    "выключенная стена не должна отменять приём заявок",
+  );
+});
+
+test("канал задан только как источник каталога — заявка всё равно одобряется", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-1002875062656", gateChannelId: "" },
+  });
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(joinRequest("-1002875062656"), { store, ctx: c.ctx });
+  await c.settle();
+
+  assert.ok(
+    calls.some((x) => x.method === "approveChatJoinRequest"),
+    "канал компании опознаётся по любому из двух полей",
+  );
+});
+
+test("заявка из чужого канала не одобряется, но админам приходит разбор", async () => {
+  const store = makeStore({
+    settings: { gateChannelId: "-1002875062656", catalogChatId: "-1002875062656" },
+  });
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(joinRequest("-100OTHER"), { store, ctx: c.ctx });
+  await c.settle();
+
+  assert.ok(
+    !calls.some((x) => x.method === "approveChatJoinRequest"),
+    "чужой канал одобрять нельзя",
+  );
+  const warn = calls.find((x) =>
+    String(x.body?.text || "").includes("НЕизвестного канала"),
+  );
+  assert.ok(warn, "о промахе надо сообщить, а не молчать");
+  assert.ok(
+    String(warn.body.text).includes("-100OTHER") &&
+      String(warn.body.text).includes("-1002875062656"),
+    "в сообщении должны быть оба id, чтобы было что с чем сверить",
+  );
+  assert.equal(
+    warn.body.parse_mode,
+    undefined,
+    "разметки быть не должно: id с минусами и подчёркиваниями её ломают",
+  );
+});
+
+test("стена подписки по умолчанию выключена: /start сразу открывает бота", async () => {
+  // Настроек нет вовсе — значит работают значения по умолчанию.
+  const store = makeStore();
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(startUpdate("/start a-direct"), { store, ctx: c.ctx });
+  await c.settle();
+
+  const texts = calls
+    .filter((x) => x.method === "sendMessage")
+    .map((x) => String(x.body.text || ""));
+  assert.ok(
+    !texts.some((t) => t.includes("Каталог открыт подписчикам")),
+    "стены быть не должно даже у варианта «a»",
+  );
+  const users = await store.get("users");
+  assert.ok(users["555"].openedAt > 0, "человека должно пустить в бот сразу");
+});
