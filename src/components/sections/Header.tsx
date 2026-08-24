@@ -126,26 +126,34 @@ export function Header() {
           Каталог
         </Link>
 
-        {/* Мессенджеры: свободное место справа от «Каталога». Скрываем раньше
-            навигации — на узких экранах они есть в мобильном меню. */}
-        <div
-          className={`${capsule} ${h} hidden items-center gap-1 px-2 xl:flex`}
+        {/*
+         * Одна кнопка вместо двух: переход в бота.
+         *
+         * Раньше здесь стояли Telegram и MAX — два способа написать лично.
+         * Оба вели в переписку, то есть требовали от менеджера ответа, и
+         * между собой отличались только мессенджером: выбор без разницы,
+         * а места занимает вдвое. Бот отвечает сам и в любое время, поэтому
+         * в шапке полезнее он.
+         *
+         * Личные сообщения никуда не делись — они остались в мобильном меню
+         * и в блоке контактов, где человек их и ищет.
+         *
+         * Освободившееся место сразу пошло в дело: подпись раньше пряталась
+         * до 1700 px, теперь показывается с 1366 — почти на всех ноутбуках.
+         * Ниже остаётся один значок: на 1280 шапка с подписью уже не
+         * помещалась в строку и распирала капсулы. Замерено.
+         */}
+        <a
+          href={site.botHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => reachGoal(GOALS.bot, { place: "Шапка" })}
+          className={`${capsule} ${h} hidden items-center gap-2 whitespace-nowrap px-3.5 text-[14px] font-semibold text-[#C3CBD2] transition-colors hover:text-white xl:flex min-[1366px]:px-4`}
+          aria-label="Наш бот в Telegram"
         >
-          {messengers.map((c) => (
-            <a
-              key={c.href}
-              href={c.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => reachGoal(c.goal, { place: "Шапка" })}
-              className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-2 text-[14px] font-semibold text-[#C3CBD2] transition-colors hover:bg-white/10 hover:text-white 2xl:px-3"
-            >
-              {c.icon}
-              {/* До 1536 подписи прячем: с ними шапка не помещалась в строку. */}
-              <span className="hidden min-[1700px]:inline">{c.label}</span>
-            </a>
-          ))}
-        </div>
+          <TelegramIcon className="h-[17px] w-[17px] flex-none" />
+          <span className="hidden min-[1366px]:inline">Наш бот в Telegram</span>
+        </a>
 
         {/* Капсула: навигация */}
         <nav
