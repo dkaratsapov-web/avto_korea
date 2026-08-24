@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { site } from "@/lib/site";
 import { GOALS, reachGoal } from "@/lib/metrika";
-import { TelegramNotice } from "@/components/pages/TelegramNotice";
+import { TelegramNotice, CTA_LABEL } from "@/components/pages/TelegramNotice";
 
 /**
  * Посадочная только под Telegram-канал (/tg).
@@ -137,7 +137,9 @@ export function TelegramLanding() {
         className="fixed bottom-8 left-1/2 flex h-[58px] w-[min(300px,calc(100%-48px))] -translate-x-1/2 items-center justify-center gap-2.5 rounded-full bg-[#3390ec] text-[15.5px] font-bold uppercase tracking-[0.02em] text-white shadow-[0_10px_28px_-10px_rgba(51,144,236,0.85)] transition-transform hover:scale-[1.03]"
       >
         <span aria-hidden>☑️</span>
-        Перейти в канал
+        {/* Надпись берём из общего места: на неё дословно ссылается третий
+            шаг памятки, и разъехаться они не должны. */}
+        {CTA_LABEL["канал"]}
       </a>
     </main>
   );
