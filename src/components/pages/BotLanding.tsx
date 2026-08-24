@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { site } from "@/lib/site";
 import { GOALS, reachGoal, reachGoalThen } from "@/lib/metrika";
-import { TelegramNotice } from "@/components/pages/TelegramNotice";
+import { TelegramNotice, CTA_LABEL } from "@/components/pages/TelegramNotice";
 
 /**
  * Прокладка под Директ: единственное действие — уйти в бота (/bot).
@@ -198,7 +198,9 @@ export function BotLanding() {
         className="fixed bottom-8 left-1/2 flex h-[58px] w-[min(300px,calc(100%-48px))] -translate-x-1/2 items-center justify-center gap-2.5 rounded-full bg-[#3390ec] text-[15.5px] font-bold uppercase tracking-[0.02em] text-white shadow-[0_10px_28px_-10px_rgba(51,144,236,0.85)] transition-transform hover:scale-[1.03]"
       >
         <span aria-hidden>🚀</span>
-        Запустить бота
+        {/* Надпись берём из общего места: на неё дословно ссылается третий
+            шаг памятки, и разъехаться они не должны. */}
+        {CTA_LABEL["бот"]}
       </a>
     </main>
   );
