@@ -5,12 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#11151A" />
 
-    <!-- Favicon. /favicon.ico лежит в корне отдельным файлом: браузеры и
-         сервисы (Яндекс в том числе) запрашивают его по этому адресу, минуя
-         разметку, а SPA-фолбэк на такой запрос отдавал бы index.html. -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <!-- Favicon.
+
+         /favicon.ico лежит в корне отдельным файлом: браузеры и поисковики
+         запрашивают его по этому адресу, минуя разметку, а SPA-фолбэк на
+         такой запрос отдавал бы index.html.
+
+         Порядок ссылок не случаен. Браузер выбирает подходящий размер сам и
+         на порядок не смотрит, а вот роботы часто берут ПЕРВУЮ подходящую
+         ссылку. Раньше первым стоял SVG — формат, который поисковики берут
+         неохотно. Теперь первым идёт растровый значок крупного размера.
+
+         Внутри .ico шесть картинок, от 16 до 256 пикселей. Мелкие нужны
+         вкладке и закладкам, крупные — выдаче: Яндекс рекомендует значок от
+         120×120, а до этой правки самой большой картинкой в файле была 48. -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+    <link rel="icon" type="image/png" sizes="120x120" href="/favicon-120.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
     <title>ДиАвто69 — Авто из Кореи, Китая и Японии под ключ</title>
