@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { site } from "@/lib/site";
 import { GOALS, reachGoal, reachGoalThen } from "@/lib/metrika";
-import { telegramAppLink } from "@/lib/telegram";
+import { TelegramNotice } from "@/components/pages/TelegramNotice";
 
 /**
  * Прокладка под Директ: единственное действие — уйти в бота (/bot).
@@ -115,73 +115,6 @@ export function BotLanding() {
     };
   }, [params]);
 
-  /*
-   * Предложение открыть Telegram сразу, не дожидаясь нажатия на кнопку.
-   *
-   * Схема tg:// не уводит со страницы: браузер показывает своё окно «Открыть
-   * приложение?», а посадочная остаётся под ним. Для модерации Директа это
-   * важно: автоматического перехода на другой сайт нет, есть предложение
-   * открыть приложение.
-   *
-   * Пробуем дважды: сразу при открытии — этого хватает на телефоне; и по
-   * первому действию человека — на десктопе Chrome нередко гасит запуск
-   * приложения, пока со страницей ничего не сделали.
-   *
-   * Один раз за вкладку: возврат кнопкой «назад» не должен снова выбрасывать
-   * окно, которое человек только что закрыл.
-   */
-  useEffect(() => {
-    const appHref = telegramAppLink(href);
-    if (appHref === null) {
-      return;
-    }
-
-    // Внутри самого Telegram открывать Telegram незачем.
-    if (/Telegram/i.test(navigator.userAgent) || window.Telegram?.WebApp) {
-      return;
-    }
-
-    const KEY = "bot-landing-opened";
-    try {
-      if (sessionStorage.getItem(KEY) === "1") {
-        return;
-      }
-    } catch {
-      // Приватный режим может запрещать хранилище — тогда просто пробуем.
-    }
-
-    let done = false;
-
-    const launch = () => {
-      if (done) {
-        return;
-      }
-      done = true;
-      try {
-        sessionStorage.setItem(KEY, "1");
-      } catch {
-        // Не записалось — не страшно, попытка всё равно одна за загрузку.
-      }
-      reachGoal(GOALS.botAutoOpen, { place: "Прокладка /bot", variant });
-      window.location.href = appHref;
-      stop();
-    };
-
-    const events = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
-    const stop = () => {
-      window.clearTimeout(timer);
-      events.forEach((name) => window.removeEventListener(name, launch));
-    };
-
-    // Небольшая задержка: страница должна успеть отрисоваться, иначе человек
-    // видит окно поверх пустого экрана и не понимает, куда попал.
-    const timer = window.setTimeout(launch, 700);
-    events.forEach((name) =>
-      window.addEventListener(name, launch, { once: true, passive: true }),
-    );
-
-    return stop;
-  }, [href, variant]);
 
   /*
    * Переход по ссылке выгружает страницу сразу, и запрос Метрики может
@@ -231,31 +164,7 @@ export function BotLanding() {
           Подбор авто из Кореи, Китая и Японии — прямо в Telegram 🚗
         </h1>
 
-        <div className="mt-5 space-y-4 text-[16px] leading-[1.55] text-[#222]">
-          <p>
-            Каталог с ценами под ключ, расчёт с доставкой и растаможкой и подбор
-            под ваш бюджет — в одном чате.
-            <br />
-            <b className="font-semibold">
-              Без звонков, форм и ожидания менеджера.
-            </b>
-          </p>
-
-          {/* Город намеренно не называем: посадочная работает на рекламу
-              по всей стране, а привязка цены к одному городу отсекает
-              всех остальных. */}
-          <p>
-            Бот покажет живой каталог — все машины в наличии и под заказ,
-            с фото, характеристиками и честной ценой под ключ. Фильтры по
-            стране, бюджету, кузову и году: нужное находится за минуту.
-          </p>
-
-          <p>
-            Включите оповещения — и новые поступления будете видеть первым, ещё
-            до того, как они попадут на сайт. Хорошие варианты уходят за дни,
-            и обычно выигрывает тот, кто узнал раньше.
-          </p>
-        </div>
+        <TelegramNotice target="бот" />
 
         {/* Реквизиты — требование к рекламным посадочным страницам. */}
         <p className="mt-10 text-[12px] leading-relaxed text-[#8b9199]">

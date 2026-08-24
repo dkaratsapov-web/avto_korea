@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { site } from "@/lib/site";
 import { GOALS, reachGoal } from "@/lib/metrika";
-import { telegramAppLink } from "@/lib/telegram";
+import { TelegramNotice } from "@/components/pages/TelegramNotice";
 
 /**
  * Посадочная только под Telegram-канал (/tg).
@@ -68,75 +68,6 @@ export function TelegramLanding() {
     };
   }, []);
 
-  /*
-   * Предложение открыть Telegram сразу, не дожидаясь нажатия на кнопку.
-   *
-   * Схема tg:// не уводит со страницы: браузер показывает своё окно «Открыть
-   * приложение?», а посадочная остаётся под ним и продолжает работать. Это
-   * важно и для модерации Директа: автоматического перехода на другой сайт
-   * здесь нет, есть предложение открыть приложение.
-   *
-   * Пробуем дважды. Сначала сразу при открытии — так делают сервисы вроде
-   * t-me.pro, и на телефоне это срабатывает. На десктопе Chrome нередко гасит
-   * запуск приложения, пока человек ничего на странице не сделал, поэтому
-   * вторая попытка привязана к первому же действию — касанию, клику, прокрутке
-   * или нажатию клавиши.
-   *
-   * Один раз за вкладку: возврат на страницу кнопкой «назад» не должен снова
-   * выбрасывать окно, которое человек только что закрыл.
-   */
-  useEffect(() => {
-    const appHref = telegramAppLink(site.telegramChannelHref);
-    if (appHref === null) {
-      return;
-    }
-
-    // Внутри самого Telegram открывать Telegram незачем.
-    if (/Telegram/i.test(navigator.userAgent) || window.Telegram?.WebApp) {
-      return;
-    }
-
-    const KEY = "tg-landing-opened";
-    try {
-      if (sessionStorage.getItem(KEY) === "1") {
-        return;
-      }
-    } catch {
-      // Приватный режим может запрещать хранилище — тогда просто пробуем.
-    }
-
-    let done = false;
-
-    const launch = () => {
-      if (done) {
-        return;
-      }
-      done = true;
-      try {
-        sessionStorage.setItem(KEY, "1");
-      } catch {
-        // Не записалось — не страшно, попытка всё равно одна за загрузку.
-      }
-      reachGoal(GOALS.telegramChannel, { place: "Посадочная /tg, автооткрытие" });
-      window.location.href = appHref;
-      stop();
-    };
-
-    const events = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
-    const stop = () => {
-      window.clearTimeout(timer);
-      events.forEach((name) => window.removeEventListener(name, launch));
-    };
-
-    // Небольшая задержка: страница должна успеть отрисоваться, иначе человек
-    // видит окно поверх пустого экрана и не понимает, куда попал.
-    const timer = window.setTimeout(launch, 700);
-    events.forEach((name) =>
-      window.addEventListener(name, launch, { once: true, passive: true }),
-    );
-
-    return stop;
-  }, []);
 
   const open = () => reachGoal(GOALS.telegramChannel, { place: "Посадочная /tg" });
 
@@ -172,36 +103,7 @@ export function TelegramLanding() {
           Авто из Кореи, Китая и Японии без переплат — честно, под ключ 🚗
         </h1>
 
-        <div className="mt-5 space-y-4 text-[16px] leading-[1.55] text-[#222]">
-          <p>
-            Покупка авто из-за границы — всегда риск: неясная история, скрытые
-            наценки и страх переплатить на ровном месте.
-            <br />
-            Хотите знать,{" "}
-            <b className="font-semibold">
-              как выбрать надёжную машину и заплатить честную цену?
-            </b>
-          </p>
-
-          <p>
-            Мы в <b className="font-semibold">ДиАвто69</b> показываем реальные
-            цены, расчёты и готовые авто под ваш бюджет.
-            <br />
-            Без накруток и с полным сопровождением — от подбора до выдачи ключей.
-          </p>
-
-          <p>
-            В канале каждый день: новые поступления с ценами под ключ, фото и
-            видео прямо с площадки, разборы конкретных расчётов — сколько стоит
-            машина, доставка, растаможка и оформление по отдельности.
-          </p>
-
-          <p>
-            Показываем и то, о чём обычно молчат: как отличить честный расчёт от
-            заниженного, из-за чего цена вырастает уже после предоплаты и какие
-            автомобили сейчас невыгодно везти.
-          </p>
-        </div>
+        <TelegramNotice target="канал" />
 
         {/* Реквизиты — требование к рекламным посадочным страницам. */}
         <p className="mt-10 text-[12px] leading-relaxed text-[#8b9199]">
