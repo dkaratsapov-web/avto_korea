@@ -8,6 +8,7 @@ import {
   FileCheck2,
   Truck,
   Users,
+  ExternalLink,
 } from "lucide-react";
 import { LeadForm } from "@/components/LeadForm";
 import { Flag } from "@/components/icons/Flag";
@@ -42,6 +43,87 @@ const values = [
   { icon: Truck, title: "Полное сопровождение", text: "Ведём от заявки до выдачи ключей: подбор, торг, выкуп, доставка." },
   { icon: Users, title: "На связи на каждом шаге", text: "Показываем фото и статусы, отвечаем на вопросы до и после сделки." },
 ];
+
+/**
+ * Документы корейского партнёра.
+ *
+ * Главный страх покупателя в этой нише — что за красивым сайтом нет ничего:
+ * ни компании за границей, ни канала поставки, ни ответственности. Уставные
+ * бумаги отвечают на это лучше любых слов, поэтому они стоят до «как это
+ * работает» — сначала «мы существуем», потом «вот как мы работаем».
+ *
+ * Показываем разворот целиком, а не иконку файла: документ, который видно,
+ * работает, а документ по ссылке почти никто не открывает. PDF открывается в
+ * новой вкладке для тех, кто захочет разглядеть печати.
+ */
+const documents = [
+  {
+    title: "Свидетельство о регистрации бизнеса",
+    org: "Налоговая служба Республики Корея",
+    note: "DI GROUP · рег. № 575-27-01325 · Инчхон",
+    img: "/docs/di-group-business-license.jpg",
+    pdf: "/docs/di-group-business-license.pdf",
+  },
+  {
+    title: "Членство в Ассоциации международной торговли",
+    org: "Korea International Trade Association (KITA)",
+    note: "DI GROUP · членский № 10475919 · с 2023 года",
+    img: "/docs/di-group-kita-membership.jpg",
+    pdf: "/docs/di-group-kita-membership.pdf",
+  },
+];
+
+function Documents() {
+  return (
+    <section className="wrap mt-16">
+      <Reveal>
+        <SectionHeading
+          eyebrow="Документы"
+          title="Наш партнёр в Корее — с документами"
+          description="Машины выкупает и отгружает наша компания в Инчхоне. Не посредник, найденный на форуме, — юридическое лицо с регистрацией и членством в торговой ассоциации."
+        />
+      </Reveal>
+
+      <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        {documents.map((d, i) => (
+          <Reveal key={d.pdf} direction="up" delay={i * 90}>
+            <a
+              href={d.pdf}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex h-full flex-col overflow-hidden rounded-card border border-line bg-white transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_28px_54px_-26px_rgba(20,25,32,0.4)]"
+            >
+              {/* Показываем верх листа: там название документа, номер и
+                  реквизиты. Низ — печати и штрихкоды, они менее говорящие. */}
+              <div className="relative aspect-[4/3] overflow-hidden bg-[#f4f6f8]">
+                <img
+                  src={d.img}
+                  alt={d.title}
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-x-0 top-0 w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
+                />
+                <span className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent" />
+              </div>
+
+              <div className="flex flex-1 flex-col gap-1.5 border-t border-line p-5">
+                <h3 className="text-[17px] font-extrabold leading-tight text-ink">
+                  {d.title}
+                </h3>
+                <p className="text-[13.5px] text-ink-2">{d.org}</p>
+                <p className="text-[12.5px] text-ink-2/80">{d.note}</p>
+                <span className="mt-auto inline-flex items-center gap-1.5 pt-3 text-[13.5px] font-bold text-bordeaux">
+                  Открыть PDF
+                  <ExternalLink className="h-[15px] w-[15px]" />
+                </span>
+              </div>
+            </a>
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export function AboutPage() {
   useMeta(
@@ -120,6 +202,9 @@ export function AboutPage() {
           ))}
         </div>
       </section>
+
+      {/* Документы партнёра в Корее */}
+      <Documents />
 
       {/* Как это работает */}
       <HowItWorks />
