@@ -691,3 +691,131 @@ test("счётчики просмотров и избранного не зад�
     assert.ok(store.puts.includes(key), path + ": после ответа счётчик должен записаться");
   }
 });
+
+/* ---------- Повторная публикация одной машины ---------- */
+
+const COROLLA =
+  "Toyota Corolla\nELITE EDITION\nЦена: 1 660 000 ₽\nГод: 2023\nПробег: 68 000 км\nСтрана: Китай";
+
+function photoPost(chatId, msgId, text, fileId, groupId) {
+  return {
+    update_id: 20 + msgId,
+    channel_post: {
+      message_id: msgId,
+      chat: { id: chatId, type: "channel" },
+      caption: text,
+      photo: [{ file_id: fileId, file_unique_id: fileId, width: 1280, height: 720, file_size: 100 }],
+      ...(groupId ? { media_group_id: groupId } : {}),
+    },
+  };
+}
+
+test("альбом, разбитый Telegram надвое, даёт ОДНУ карточку", async () => {
+  /*
+   * В альбоме не больше десяти фотографий. Снял двенадцать — приложение само
+   * разбивает публикацию на два альбома с разными номерами, и для бота это
+   * два поста об одной машине.
+   */
+  const store = makeStore({
+    settings: { catalogChatId: "-100SRC", autoPublish: true },
+    catalog: [],
+  });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(photoPost("-100SRC", 101, COROLLA, "photoA", "alb1"), { store, ctx: c.ctx });
+  await run(photoPost("-100SRC", 111, COROLLA, "photoB", "alb2"), { store, ctx: c.ctx });
+  await c.settle();
+
+  const cat = (await store.get("catalog")) || [];
+  assert.equal(cat.length, 1, "должна остаться одна карточка, было " + cat.length);
+  assert.equal(cat[0].images.length, 2, "фотографии из обоих постов должны сложиться");
+});
+
+test("перепубликация того же поста не плодит карточку", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-100SRC", autoPublish: true },
+    catalog: [],
+  });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(photoPost("-100SRC", 201, COROLLA, "p1"), { store, ctx: c.ctx });
+  await run(photoPost("-100SRC", 202, COROLLA, "p2"), { store, ctx: c.ctx });
+  await run(photoPost("-100SRC", 203, COROLLA, "p3"), { store, ctx: c.ctx });
+  await c.settle();
+
+  const cat = (await store.get("catalog")) || [];
+  assert.equal(cat.length, 1, "три поста об одной машине — одна карточка");
+  assert.deepEqual(
+    cat[0].mergedFrom?.length,
+    2,
+    "в карточке должны отметиться два поглощённых поста",
+  );
+});
+
+test("правка поглощённого поста обновляет ту же карточку, а не создаёт новую", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-100SRC", autoPublish: true },
+    catalog: [],
+  });
+  stubTelegram();
+  let c = makeCtx();
+
+  await run(photoPost("-100SRC", 301, COROLLA, "p1"), { store, ctx: c.ctx });
+  await run(photoPost("-100SRC", 302, COROLLA, "p2"), { store, ctx: c.ctx });
+  await c.settle();
+
+  // Правим ВТОРОЙ пост — тот, что слился в карточку первого.
+  c = makeCtx();
+  await run(
+    {
+      update_id: 400,
+      edited_channel_post: {
+        message_id: 302,
+        chat: { id: "-100SRC", type: "channel" },
+        caption: COROLLA.replace("1 660 000", "1 590 000"),
+      },
+    },
+    { store, ctx: c.ctx },
+  );
+  await c.settle();
+
+  const cat = (await store.get("catalog")) || [];
+  assert.equal(cat.length, 1, "дубля появиться не должно");
+  assert.equal(cat[0].priceRub, 1590000, "новая цена должна примениться");
+});
+
+test("разные машины по-прежнему заводят разные карточки", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-100SRC", autoPublish: true },
+    catalog: [],
+  });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(photoPost("-100SRC", 501, COROLLA, "p1"), { store, ctx: c.ctx });
+  await run(
+    photoPost(
+      "-100SRC",
+      502,
+      "BMW 320L\nM-SPORT\nЦена: 3 790 000 ₽\nГод: 2023\nПробег: 23 000 км\nСтрана: Китай",
+      "p2",
+    ),
+    { store, ctx: c.ctx },
+  );
+  // Та же модель и год, но другой пробег — это другая машина.
+  await run(
+    photoPost(
+      "-100SRC",
+      503,
+      "Toyota Corolla\nELITE EDITION\nЦена: 1 660 000 ₽\nГод: 2023\nПробег: 41 000 км\nСтрана: Китай",
+      "p3",
+    ),
+    { store, ctx: c.ctx },
+  );
+  await c.settle();
+
+  const cat = (await store.get("catalog")) || [];
+  assert.equal(cat.length, 3, "три разные машины — три карточки, было " + cat.length);
+});
