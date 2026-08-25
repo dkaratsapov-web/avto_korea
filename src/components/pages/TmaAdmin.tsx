@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Plus,
@@ -18,6 +18,8 @@ import {
   FileStack,
   Upload,
   Sparkles,
+  Copy,
+  ChevronDown,
 } from "lucide-react";
 import { useCars } from "@/lib/carsStore";
 import { type Car, formatPrice } from "@/data/cars";
@@ -38,6 +40,11 @@ import {
   type Draft,
 } from "@/lib/api";
 import { haptic, type TG } from "@/lib/telegram";
+import {
+  findDuplicates,
+  suggestedRemovals,
+  type DuplicateGroup,
+} from "@/lib/duplicates";
 
 type Tab =
   | "catalog"
@@ -895,6 +902,154 @@ function BroadcastTab({ tg, initData }: { tg: TG | null; initData: string }) {
   );
 }
 
+/**
+ * Повторы в каталоге: показать и дать убрать руками.
+ *
+ * Появляются, когда одни и те же машины опубликованы в двух каналах — так
+ * бывает при переезде. Для бота это разные посты, и он честно заводит вторые
+ * карточки; понять, что это та же машина, а не ещё одна такая же на складе,
+ * он не может.
+ *
+ * Поэтому здесь ничего не удаляется само. Уверенные повторы (совпал пробег до
+ * километра) отмечены заранее, спорные (новые машины с нулевым пробегом) —
+ * только показаны. Снять и поставить галочку можно у любой строки.
+ */
+function DuplicatePanel({
+  groups,
+  extra,
+  open,
+  onToggle,
+  onRemove,
+}: {
+  groups: DuplicateGroup[];
+  extra: number;
+  open: boolean;
+  onToggle: () => void;
+  onRemove: (ids: Set<string>) => void;
+}) {
+  // Предвыбор — только уверенные повторы, и только лишние копии в каждой
+  // группе. Самая свежая карточка остаётся: она из действующего канала.
+  const [picked, setPicked] = useState<Set<string>>(
+    () => new Set(suggestedRemovals(groups).map((c) => c.id)),
+  );
+
+  const toggle = (id: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  return (
+    <div className="mb-3 overflow-hidden rounded-[16px] border border-bordeaux-bright/40 bg-bordeaux/10">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-2.5 px-3.5 py-3 text-left"
+      >
+        <Copy className="h-[18px] w-[18px] flex-none text-bordeaux-bright" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14.5px] font-bold text-white">
+            Похоже на повторы: {extra}{" "}
+            {extra === 1 ? "лишняя карточка" : "лишних карточек"}
+          </span>
+          <span className="block text-[12.5px] text-[#9AA4B2]">
+            {groups.length}{" "}
+            {groups.length === 1 ? "совпадение" : "совпадений"} по модели, году,
+            пробегу и цене
+          </span>
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 flex-none text-[#9AA4B2] transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open ? (
+        <div className="border-t border-bordeaux-bright/25 px-3.5 py-3">
+          <p className="mb-3 text-[12.5px] leading-snug text-[#9AA4B2]">
+            Отмечены только те, где пробег совпал до километра — два разных
+            автомобиля так не совпадают. Новые машины с нулевым пробегом не
+            отмечены: одинаковая цена у них норма, и это может быть второй
+            экземпляр в наличии.
+          </p>
+
+          <div className="space-y-3">
+            {groups.map((g) => (
+              <div key={g.key} className="rounded-[12px] border border-line-dark bg-graphite-2 p-2.5">
+                <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em]">
+                  <span className={g.certainty === "sure" ? "text-bordeaux-bright" : "text-[#9AA4B2]"}>
+                    {g.certainty === "sure" ? "Точно повтор" : "Возможно, разные машины"}
+                  </span>
+                  <span className="text-[#6d7681]">{g.cars.length} карточки</span>
+                </div>
+
+                <div className="space-y-1.5">
+                  {g.cars.map((car, i) => (
+                    <label
+                      key={car.id}
+                      className="flex cursor-pointer items-center gap-2.5 rounded-[10px] bg-black/25 p-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={picked.has(car.id)}
+                        onChange={() => toggle(car.id)}
+                        className="h-4 w-4 flex-none accent-[#9C1A12]"
+                      />
+                      <div className="h-10 w-14 flex-none overflow-hidden rounded-[8px] bg-black">
+                        {car.images[0] ? (
+                          // eslint-disable-next-line
+                          <img src={car.images[0]} alt="" className="h-full w-full object-cover" />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13px] font-semibold text-white">
+                          {car.model}
+                          {i === 0 ? (
+                            <span className="ml-1.5 text-[11px] font-bold text-success">
+                              свежая
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-[11.5px] text-[#9AA4B2]">
+                          {car.addedAt
+                            ? "в каталоге с " +
+                              new Date(car.addedAt).toLocaleDateString("ru-RU")
+                            : "дата неизвестна"}
+                          {" · "}
+                          {car.images.length} фото
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            disabled={picked.size === 0}
+            onClick={() => {
+              if (
+                confirm(
+                  `Удалить отмеченные карточки (${picked.size})? Остальные останутся на месте.`,
+                )
+              ) {
+                onRemove(picked);
+              }
+            }}
+            className="btn btn-primary mt-3 w-full disabled:opacity-40"
+          >
+            <Trash2 className="h-[18px] w-[18px]" />
+            Удалить отмеченные ({picked.size})
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /* ---------- Каталог ---------- */
 function CatalogTab({
   tg,
@@ -908,6 +1063,18 @@ function CatalogTab({
   const { cars, setAll } = useCars();
   const [editing, setEditing] = useState<Car | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showDupes, setShowDupes] = useState(false);
+
+  /*
+   * Повторы ищем при каждом изменении каталога, но только считаем — ничего
+   * не удаляем. Решение за человеком: одинаковая новая машина может быть и
+   * вторым экземпляром на складе, а не повтором публикации.
+   */
+  const dupeGroups = useMemo(() => findDuplicates(cars), [cars]);
+  const dupeExtra = useMemo(
+    () => dupeGroups.reduce((n, g) => n + g.cars.length - 1, 0),
+    [dupeGroups],
+  );
 
   async function persist(next: Car[]) {
     setAll(next);
@@ -953,6 +1120,16 @@ function CatalogTab({
           <Plus className="h-[18px] w-[18px]" /> Добавить авто
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         </button>
+      ) : null}
+
+      {canEdit && dupeGroups.length ? (
+        <DuplicatePanel
+          groups={dupeGroups}
+          extra={dupeExtra}
+          open={showDupes}
+          onToggle={() => setShowDupes((v) => !v)}
+          onRemove={(ids) => persist(cars.filter((c) => !ids.has(c.id)))}
+        />
       ) : null}
       <div className="space-y-2.5">
         {cars.map((car) => (
