@@ -1834,6 +1834,34 @@ function genDescriptionSrv(c) {
   return seg.join(". ") + ".";
 }
 
+/**
+ * Отпечаток машины — по нему узнаём повторную публикацию.
+ *
+ * Берём то, что описывает конкретный экземпляр и не зависит от оформления
+ * поста: модель, год, комплектацию, пробег и цену. Фотографии и текст не в
+ * счёт — у повторов они как раз разные.
+ *
+ * Модель приводим к общему виду: в постах она пишется то через дефис, то
+ * через пробел, то в разном регистре.
+ *
+ * Тот же расчёт продублирован на сайте (src/lib/duplicates.ts) для поиска
+ * уже накопившихся повторов. Держать их в одном файле нельзя — воркер и сайт
+ * это две разные сборки, — поэтому при правке одного правьте и второй.
+ */
+function carFingerprint(car) {
+  const model = String(car.model || "")
+    .toLowerCase()
+    .replace(/[^a-zа-яё0-9]+/gi, "");
+  const price = car.priceTverRub ?? car.priceRub ?? 0;
+  return [
+    model,
+    car.year ?? 0,
+    String(car.trim || "").toLowerCase().trim(),
+    car.mileageKm ?? 0,
+    price,
+  ].join("|");
+}
+
 // Полная карточка авто из поста канала (с стабильным id для правок).
 function carFromPost(p, id, images) {
   const price = p.price || 0;
@@ -1946,7 +1974,16 @@ function legacySrcId(post, groupId) {
  */
 function findCarBySrc(catalog, srcId, legacyId, caption) {
   const exact = catalog.find((c) => c.id === srcId);
-  if (exact || legacyId === srcId) return exact;
+  if (exact) return exact;
+
+  // Карточка могла вобрать в себя второй пост об этой же машине (см. слияние
+  // ниже). Тогда правка того поста должна обновлять её, а не заводить новую.
+  const merged = catalog.find(
+    (c) => Array.isArray(c.mergedFrom) && c.mergedFrom.includes(srcId),
+  );
+  if (merged) return merged;
+
+  if (legacyId === srcId) return undefined;
 
   const legacy = catalog.find((c) => c.id === legacyId && !c.chatId);
   if (!legacy || !caption) return undefined;
@@ -1974,7 +2011,46 @@ async function publishFromPost(env, post, caption, fileId, groupId, origin, vide
     // об авто. Благодарности/новости/видеоотчёты в каталог не попадают.
     const parsed = parseCaption(caption);
     if (!isCarListing(parsed, caption)) return;
-    car = carFromPost(parsed, srcId, url ? [url] : []);
+    const fresh = carFromPost(parsed, srcId, url ? [url] : []);
+
+    /*
+     * Прежде чем заводить карточку — проверяем, нет ли такой же.
+     *
+     * Одна машина попадает в канал несколькими постами чаще, чем кажется.
+     * Telegram разрешает в альбоме не больше десяти фотографий, и если их
+     * снять больше, приложение само разбивает публикацию на два альбома с
+     * РАЗНЫМИ номерами. Для бота это два поста об одной машине, и он заводил
+     * две карточки: одинаковые модель, год, пробег и цена, но разные фото.
+     * Так же выглядит и обычная перепубликация — когда пост удалили и
+     * выложили заново.
+     *
+     * Отличить это от второй такой же машины на складе нечем: совпадают все
+     * поля. Выбор в пользу слияния сознательный — повтор в каталоге видит
+     * каждый посетитель, а второй экземпляр всё равно продаётся по одной
+     * карточке, и менеджер разберётся, какой именно отдать. Если карточки
+     * действительно нужны две, вторую можно завести руками в админке.
+     *
+     * Фотографии из обоих постов складываем: это ровно то, ради чего альбом
+     * и разбивался.
+     */
+    const twinIdx = catalog.findIndex(
+      (c) => carFingerprint(c) === carFingerprint(fresh),
+    );
+    if (twinIdx !== -1) {
+      const twin = catalog[twinIdx];
+      if (url && Array.isArray(twin.images) && !twin.images.includes(url)) {
+        twin.images.push(url);
+      }
+      if (vurl && !twin.video) twin.video = vurl;
+      // Помним, какие посты слились в эту карточку: без этого правка второго
+      // поста выглядела бы как появление новой машины из ниоткуда.
+      twin.mergedFrom = [...new Set([...(twin.mergedFrom || []), srcId])];
+      twin.chatId = String(post.chat?.id ?? "");
+      await kvPut(env, "catalog", catalog);
+      return;
+    }
+
+    car = fresh;
     car.addedAt = Date.now(); // дата добавления в каталог
     catalog.unshift(car); // новые авто — в начало списка
   } else {
