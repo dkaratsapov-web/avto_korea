@@ -593,3 +593,101 @@ test("стена подписки по умолчанию выключена: /s
   const users = await store.get("users");
   assert.ok(users["555"].openedAt > 0, "человека должно пустить в бот сразу");
 });
+
+/* ---------- Скорость: сколько раз бот ходит в хранилище ---------- */
+
+/** Хранилище с приборами: считает обращения по ключам. */
+function countingStore(seed = {}) {
+  const data = new Map(Object.entries(seed).map(([k, v]) => [k, JSON.stringify(v)]));
+  const gets = [];
+  const puts = [];
+  return {
+    gets,
+    puts,
+    async get(k) {
+      gets.push(k);
+      return data.has(k) ? JSON.parse(data.get(k)) : null;
+    },
+    async put(k, v) {
+      puts.push(k);
+      data.set(k, v);
+    },
+  };
+}
+
+test("/start трогает список пользователей ровно один раз на чтение и один на запись", async () => {
+  /*
+   * Список пользователей хранится одним куском и растёт с каждым новым
+   * человеком. Раньше /start читал и писал его трижды: на трёх тысячах
+   * пользователей это больше мегабайта в каждую сторону на одно нажатие.
+   * Плюс три записи подряд в один ключ — это гонка: у Cloudflare запись в
+   * ключ ограничена одним разом в секунду.
+   */
+  const store = countingStore({ settings: { gateEnabled: false } });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(startUpdate("/start b-direct"), { store, ctx: c.ctx });
+  await c.settle();
+
+  const usersGets = store.gets.filter((k) => k === "users").length;
+  const usersPuts = store.puts.filter((k) => k === "users").length;
+  assert.equal(usersGets, 1, "чтений списка пользователей должно быть одно, было " + usersGets);
+  assert.equal(usersPuts, 1, "записей списка пользователей должна быть одна, было " + usersPuts);
+
+  // И всё равно всё сохранилось.
+  const users = await store.get("users");
+  assert.equal(users["555"].src, "direct", "источник должен сохраниться");
+  assert.ok(users["555"].openedAt > 0, "отметка открытия должна сохраниться");
+  assert.ok(users["555"].ts > 0, "дата первого запуска должна сохраниться");
+  assert.equal(users["555"].name, "Иван", "имя должно сохраниться");
+});
+
+test("упёршемуся в стену метка кампании всё равно сохраняется", async () => {
+  // Иначе при повторном заходе он попадёт в другую группу А/Б-теста.
+  const store = makeStore({
+    settings: { gateEnabled: true, gateChannelId: "-100777" },
+  });
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    const method = String(url).split("/").pop();
+    calls.push({ method, body: init?.body ? JSON.parse(init.body) : {} });
+    const result = method === "getChatMember" ? { status: "left" } : {};
+    return new Response(JSON.stringify({ ok: true, result }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  const c = makeCtx();
+  await run(startUpdate("/start a-yd_koreya"), { store, ctx: c.ctx });
+  await c.settle();
+
+  const users = await store.get("users");
+  assert.equal(users["555"].v, "a", "вариант теста должен зафиксироваться и у неподписанного");
+  assert.equal(users["555"].src, "yd_koreya", "и источник тоже");
+  assert.equal(users["555"].openedAt, undefined, "но бота он не открывал");
+});
+
+test("счётчики просмотров и избранного не задерживают ответ", async () => {
+  for (const [path, body, key] of [
+    ["/api/view", { id: "tg-1" }, "stats"],
+    ["/api/fav", { id: "tg-1", on: true }, "stats"],
+  ]) {
+    const store = countingStore({ stats: {} });
+    stubTelegram();
+    const c = makeCtx();
+    const res = await worker.fetch(
+      new Request("https://w.dev" + path, { method: "POST", body: JSON.stringify(body) }),
+      { TELEGRAM_BOT_TOKEN: "T", STORE: store },
+      c.ctx,
+    );
+    assert.equal(res.status, 200, path + " должен отвечать сразу");
+    assert.equal(
+      store.puts.length,
+      0,
+      path + ": до ответа записей быть не должно, было " + store.puts.join(","),
+    );
+    await c.settle();
+    assert.ok(store.puts.includes(key), path + ": после ответа счётчик должен записаться");
+  }
+});

@@ -653,7 +653,17 @@ export default {
           upd.message ||
           upd.edited_message;
         if (u && env.STORE) {
-          await env.STORE.put(
+          /*
+           * Пишем уже после ответа Telegram.
+           *
+           * Это диагностика — она нужна нам, а не человеку в чате, и держать
+           * ради неё ответ вебхука незачем. Запись в хранилище стоит около
+           * десяти миллисекунд, и раньше они добавлялись к КАЖДОМУ событию:
+           * к каждому посту канала, к каждому сообщению, к каждому нажатию.
+           */
+          later(
+            ctx,
+            env.STORE.put(
             "diag:last",
             JSON.stringify({
               ts: Date.now(),
@@ -672,6 +682,7 @@ export default {
               forwarded: !!(u.forward_from_chat || u.forward_origin),
               mediaGroup: u.media_group_id || null,
             }),
+            ),
           );
         }
       } catch {
@@ -1005,7 +1016,31 @@ export default {
         typeof msg.text === "string" &&
         msg.chat?.type === "private"
       ) {
-        const isNew = await recordUser(env, msg.from);
+        /*
+         * Весь /start работает с ОДНОЙ копией списка пользователей.
+         *
+         * Раньше здесь было три чтения и три записи этого списка: запись
+         * нового человека, фиксация метки кампании и отметки времени — каждая
+         * ходила в хранилище отдельно. Список хранится одним куском и растёт с
+         * каждым новым человеком, поэтому цена росла вместе с ним: на трёх
+         * десятках пользователей это 12 КБ чтения и 13 КБ записи на один
+         * /start, а на трёх тысячах — уже по 1,2 МБ в каждую сторону. Замерено.
+         *
+         * Хуже того, три записи подряд в один ключ — это ещё и гонка: у
+         * Cloudflare запись в один ключ ограничена одним разом в секунду, и
+         * при потоке с рекламы соседние /start затирали бы друг друга.
+         *
+         * Теперь читаем один раз, всё меняем в памяти, пишем один раз в конце.
+         */
+        const users = (await kvGet(env, "users", {})) || {};
+        const uid = String(msg.from?.id ?? "");
+        const wasKnown = !!users[uid];
+        const me = users[uid] || {
+          name: [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" "),
+          username: msg.from?.username || "",
+          ts: Date.now(),
+        };
+
         const settings = await getSettings(env);
 
         /*
@@ -1017,39 +1052,38 @@ export default {
          * причём ждал нашей внутренней переписки. Теперь уведомление
          * доставляется параллельно и на скорость ответа не влияет.
          */
-        if (isNew) later(ctx, notifyNewUser(env, msg.from, settings));
+        if (!wasKnown) later(ctx, notifyNewUser(env, msg.from, settings));
 
         // Метка из диплинка: вариант А/Б и источник кампании. Фиксируется
         // один раз, чтобы повторный /start не перекинул человека в другую
         // группу теста.
         const { variant, src } = parseStartPayload(msg.text);
-        // Карточку берём из ответа записи, а не отдельным чтением: раньше
-        // здесь был третий за один /start поход за одним и тем же списком
-        // пользователей, который растёт с каждым новым человеком.
-        const known = (await patchUser(env, msg.from?.id, { v: variant, src })) || {};
+        if (!me.v) me.v = variant;
+        if (!me.src && src) me.src = src;
         // Вариант берём сохранённый: человек мог вернуться уже без метки.
-        const myVariant = known.v || variant;
+        const myVariant = me.v || variant;
 
-        // Отметки о подписке и открытии копим и записываем одной операцией
-        // после приветствия. Двумя записями подряд их писать нельзя: обе
-        // читают и перезаписывают общий список пользователей целиком, и
-        // запущенные разом они затирали бы поля друг друга.
-        const marks = {};
         if (gateApplies(settings, myVariant)) {
           const member = await isChannelMember(env, settings.gateChannelId, msg.from.id);
           // Стену показываем только при твёрдом «не подписан». Если проверка
           // не удалась (null), пускаем: см. isChannelMember.
           if (member === false) {
             await sendGate(env, msg.chat.id, settings);
+            // Метку кампании сохраняем даже тому, кто упёрся в стену: иначе
+            // при повторном заходе он попал бы в другую группу теста.
+            users[uid] = me;
+            later(ctx, kvPut(env, "users", users));
             return new Response("ok");
           }
-          if (member === true) marks.subAt = Date.now();
+          if (member === true) me.subAt = Date.now();
         }
 
         await sendWelcome(env, msg.chat.id, settings);
-        // Отметки — статистика. Держать человека ради них ещё на одну
-        // запись в хранилище незачем: приветствие уже ушло.
-        later(ctx, patchUser(env, msg.from?.id, { ...marks, openedAt: Date.now() }));
+
+        // Единственная запись за весь /start — и та уже после приветствия.
+        me.openedAt = Date.now();
+        users[uid] = me;
+        later(ctx, kvPut(env, "users", users));
       }
       return new Response("ok");
     }
@@ -1309,7 +1343,15 @@ export default {
       } catch {
         return json({ ok: false }, 400);
       }
-      if (b?.id) await bumpView(env, String(b.id));
+      /*
+       * Счётчик просмотров ведём уже после ответа.
+       *
+       * Ответ на этот запрос никто не читает — страница просто сообщает, что
+       * карточку открыли. Держать её ради записи в хранилище незачем, а
+       * карточки открывают часто: на каждую уходило чтение и запись общей
+       * статистики, и всё это до ответа.
+       */
+      if (b?.id) later(ctx, bumpView(env, String(b.id)));
       return json({ ok: true });
     }
 
@@ -1321,15 +1363,21 @@ export default {
       } catch {
         return json({ ok: false }, 400);
       }
+      // Как и с просмотрами: считаем после ответа, ответ никто не ждёт.
       if (b?.id && b?.on && env.STORE) {
-        try {
-          const stats = (await kvGet(env, "stats", {})) || {};
-          stats.favs = stats.favs || {};
-          stats.favs[String(b.id)] = (stats.favs[String(b.id)] || 0) + 1;
-          await kvPut(env, "stats", stats);
-        } catch {
-          /* ignore */
-        }
+        later(
+          ctx,
+          (async () => {
+            try {
+              const stats = (await kvGet(env, "stats", {})) || {};
+              stats.favs = stats.favs || {};
+              stats.favs[String(b.id)] = (stats.favs[String(b.id)] || 0) + 1;
+              await kvPut(env, "stats", stats);
+            } catch {
+              /* статистика не должна ломать сценарий */
+            }
+          })(),
+        );
       }
       return json({ ok: true });
     }
@@ -1343,7 +1391,9 @@ export default {
         return json({ ok: false }, 400);
       }
       const auth = await verifyInitData(b?.initData, env.TELEGRAM_BOT_TOKEN);
-      if (auth.ok) await recordUser(env, auth.user);
+      // Запись «человек открыл мини-апп» — после ответа. Мини-апп ждёт этот
+      // ответ на старте, а запись трогает общий список пользователей.
+      if (auth.ok) later(ctx, recordUser(env, auth.user));
       return json({ ok: true });
     }
 
