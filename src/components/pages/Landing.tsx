@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Gem } from "lucide-react";
 import { Hero } from "@/components/sections/Hero";
 import { CarCard } from "@/components/CarCard";
-import { isPremium, PREMIUM_MIN_PRICE } from "@/data/cars";
+import { isPremium, PREMIUM_MIN_PRICE } from "@/lib/premium";
 import { useCars } from "@/lib/carsStore";
 import { BrandTicker } from "@/components/sections/BrandTicker";
 import { Channels } from "@/components/sections/Channels";
@@ -102,7 +102,7 @@ function HomeCatalog() {
 
           {tab === "premium" ? (
             <p className="text-[13.5px] font-semibold text-ink-2">
-              Mercedes-Benz, BMW и Audi от{" "}
+              Mercedes-Benz, BMW, Audi, Lexus, Hyundai, VW и Zeekr от{" "}
               {new Intl.NumberFormat("ru-RU").format(PREMIUM_MIN_PRICE)} ₽ под ключ
             </p>
           ) : null}
@@ -120,8 +120,8 @@ function HomeCatalog() {
               В премиум-подборке пока пусто
             </p>
             <p className="mx-auto mt-2 max-w-md text-[14px] text-ink-2">
-              Привезём Mercedes-Benz, BMW или Audi под заказ — оставьте заявку,
-              рассчитаем стоимость под ключ.
+              Привезём Mercedes-Benz, BMW, Audi, Lexus, Hyundai, VW или Zeekr
+              под заказ — оставьте заявку, рассчитаем стоимость под ключ.
             </p>
             <button
               type="button"

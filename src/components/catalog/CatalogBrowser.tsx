@@ -7,11 +7,8 @@ import { CarCard } from "@/components/CarCard";
 import { Flag } from "@/components/icons/Flag";
 import { Button } from "@/components/ui/Button";
 import { useCars } from "@/lib/carsStore";
-import {
-  isPremium,
-  PREMIUM_MIN_PRICE,
-  type Car,
-} from "@/data/cars";
+import { type Car } from "@/data/cars";
+import { isPremium, PREMIUM_MIN_PRICE } from "@/lib/premium";
 import { countries, type CountryCode } from "@/lib/site";
 import { brandOf } from "@/lib/brand";
 
@@ -343,7 +340,7 @@ export function CatalogBrowser() {
 
           {tab === "premium" ? (
             <p className="text-[13px] font-semibold text-ink-2">
-              Mercedes-Benz, BMW и Audi от {fmt(PREMIUM_MIN_PRICE)} ₽ под ключ
+              Mercedes-Benz, BMW, Audi, Lexus, Hyundai, VW и Zeekr от {fmt(PREMIUM_MIN_PRICE)} ₽ под ключ
             </p>
           ) : null}
         </div>
@@ -526,7 +523,7 @@ export function CatalogBrowser() {
             </p>
             <p className="mx-auto mt-2 max-w-md text-[14px] text-ink-2">
               {tab === "premium" && !premiumCount
-                ? `Здесь показываем Mercedes-Benz, BMW и Audi от ${fmt(PREMIUM_MIN_PRICE)} ₽ под ключ. Сейчас таких в подборке нет — оставьте заявку, привезём под заказ.`
+                ? `Здесь показываем Mercedes-Benz, BMW, Audi, Lexus, Hyundai, VW и Zeekr от ${fmt(PREMIUM_MIN_PRICE)} ₽ под ключ. Сейчас таких в подборке нет — оставьте заявку, привезём под заказ.`
                 : "Попробуйте сбросить часть фильтров или оставьте заявку — подберём под ваш запрос."}
             </p>
             {tab === "premium" && !premiumCount ? (
