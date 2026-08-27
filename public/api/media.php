@@ -54,10 +54,41 @@ const PUBLIC_DIR = __DIR__ . '/../media-cache';
 $publicName = $key . ($isVideo ? '.mp4' : '.jpg');
 $publicFile = PUBLIC_DIR . '/' . $publicName;
 
-function serveStatic(string $name): never
+/**
+ * Отдать файл вторым адресом — статикой, силами Apache.
+ *
+ * В адресе намеренно остаётся исходный file_id. Apache на существующий файл
+ * запрос со строкой параметров отдаёт как есть, а вот если файла НЕТ, по этому
+ * же адресу отрабатывает media.php и скачивает его заново (правило в
+ * .htaccess). Без file_id восстановить файл было бы не из чего: имя — это
+ * необратимый хэш.
+ *
+ * Зачем это нужно. Файл на конце адреса может исчезнуть: видео отзыва весит
+ * десятки мегабайт, и на общем хостинге такой файл рано или поздно уезжает —
+ * кончилось место, чистка у хостера. Раньше браузер после этого получал по
+ * тому же адресу страницу сайта с кодом 200, считал видео успешно
+ * загруженным и показывал чёрный прямоугольник. Обновление не помогало
+ * никогда: до PHP запрос уже не доходил, скачать файл заново было некому.
+ *
+ * СРОК КЭША. Здесь стоял год со словом immutable — и это была вторая половина
+ * той же беды. Пока браузер помнит редирект, он к media.php не обращается
+ * вовсе, поэтому даже исправленный сервер не мог до него достучаться: правка
+ * начала бы действовать только через год.
+ *
+ * Сутки — рабочий компромисс. Опасность, ради которой всё затевалось, была
+ * не в самом обращении к PHP, а в том, что процесс держался ЗАНЯТЫМ всё время
+ * передачи файла: на медленном мобильном интернете тридцать фотографий
+ * каталога занимали все процессы аккаунта. Здесь процесс живёт микросекунды —
+ * две проверки файла и заголовок. Разница на три порядка, а сломанный кэш
+ * теперь чинится за день сам, без бубна с Ctrl+F5 у каждого посетителя.
+ *
+ * Сам файл на том конце по-прежнему кэшируется на год: у него постоянное имя
+ * и неизменное содержимое.
+ */
+function serveStatic(string $name, string $id): never
 {
-    header('Cache-Control: public, max-age=31536000, immutable');
-    header('Location: /media-cache/' . $name, true, 302);
+    header('Cache-Control: public, max-age=86400');
+    header('Location: /media-cache/' . $name . '?id=' . rawurlencode($id), true, 302);
     exit;
 }
 
@@ -75,7 +106,7 @@ function serveFile(string $file, string $metaFile, bool $isVideo): never
 }
 
 if (is_file($publicFile) && filesize($publicFile) > 0) {
-    serveStatic($publicName);
+    serveStatic($publicName, $id);
 }
 
 if (is_file($file) && filesize($file) > 0) {
@@ -94,7 +125,7 @@ if (is_file($file) && filesize($file) > 0) {
     if (@rename($file, $publicFile)) {
         @chmod($publicFile, 0644);
         @unlink($metaFile);
-        serveStatic($publicName);
+        serveStatic($publicName, $id);
     }
     // Перенести не вышло (нет прав, кончилось место) — отдаём как раньше.
     serveFile($file, $metaFile, $isVideo);
@@ -146,7 +177,7 @@ if (!$leader) {
             if ($lock !== false) {
                 fclose($lock);
             }
-            serveStatic($publicName);
+            serveStatic($publicName, $id);
         }
         clearstatcache(true, $file);
         if (is_file($file) && filesize($file) > 0) {
@@ -229,7 +260,7 @@ flock($lock, LOCK_UN);
 fclose($lock);
 
 if ($stored) {
-    serveStatic($publicName);
+    serveStatic($publicName, $id);
 }
 
 serveFile($file, $metaFile, $isVideo);
