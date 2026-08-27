@@ -4,8 +4,6 @@ import {
   ChevronRight,
   CheckCircle2,
   Quote,
-  Image as ImageIcon,
-  Play,
 } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
@@ -73,6 +71,7 @@ type Card = {
   text: string;
   media?: string;
   video?: string;
+  poster?: string;
   city?: string;
   car?: string;
   country?: keyof typeof countries;
@@ -98,8 +97,12 @@ export function Reviews() {
           key: r.id,
           name: r.name,
           text: r.text,
-          media: r.media || undefined,
-          video: r.video || undefined,
+          // media/video — поля первых записей; у новых всё лежит в images и
+          // videos, и брать надо оттуда, иначе отзыв из альбома окажется
+          // без единой картинки.
+          media: r.images?.[0] || r.media || undefined,
+          video: r.videos?.[0] || r.video || undefined,
+          poster: r.poster || undefined,
         }))
       : reviews.map((r) => ({
           key: r.name + r.car,
@@ -145,18 +148,21 @@ export function Reviews() {
                 key={r.key}
                 className="flex w-[88%] flex-none snap-start flex-col overflow-hidden rounded-card border border-line bg-white sm:w-[420px]"
               >
-                {/* Медиа кейса: видео (плеер) → фото → заглушка */}
+                {/* Медиа кейса: видео (плеер) → фото. Без файлов блока нет:
+                    заглушка «Фото / видео кейса» обещала то, чего в отзыве
+                    не окажется, и выглядела как несработавшая загрузка. */}
+                {r.video || r.media ? (
                 <div className="relative aspect-[16/10] overflow-hidden bg-graphite">
                   {r.video ? (
                     <video
                       src={r.video}
-                      poster={r.media}
+                      poster={r.poster || r.media}
                       controls
                       playsInline
                       preload="metadata"
                       className="h-full w-full bg-black object-contain"
                     />
-                  ) : r.media ? (
+                  ) : (
                     // eslint-disable-next-line
                     <img
                       src={r.media}
@@ -164,16 +170,6 @@ export function Reviews() {
                       loading="lazy"
                       className="h-full w-full object-cover"
                     />
-                  ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[linear-gradient(160deg,#232C36,#11151A)]">
-                      <div className="flex items-center gap-3 text-chrome/70">
-                        <ImageIcon className="h-7 w-7" />
-                        <Play className="h-7 w-7" />
-                      </div>
-                      <span className="text-[12px] font-semibold uppercase tracking-[0.1em] text-steel">
-                        Фото / видео кейса
-                      </span>
-                    </div>
                   )}
                   {!r.video ? (
                     <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-white/90 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
@@ -186,8 +182,16 @@ export function Reviews() {
                     </span>
                   ) : null}
                 </div>
+                ) : null}
 
                 <div className="flex flex-1 flex-col p-6">
+                {/* У карточки без медиа бейджу негде стоять — он был приклеен
+                    к углу фотографии. Возвращаем его в текст. */}
+                {!r.video && !r.media ? (
+                  <span className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
+                    <CheckCircle2 className="h-4 w-4" /> Доставлено
+                  </span>
+                ) : null}
                 <Quote className="mb-2 h-6 w-6 text-chrome" />
                 <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-ink">
                   {r.text}
