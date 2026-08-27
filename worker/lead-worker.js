@@ -1798,11 +1798,44 @@ function bestFileId(m) {
   return null;
 }
 
-// file_id видео из сообщения (обычное видео или документ с видео-mime).
+/**
+ * file_id видео из сообщения.
+ *
+ * Кроме обычного видео и документа с видео-mime считаем видео ещё две вещи:
+ *
+ *   video_note — круглое видеосообщение. Именно им клиенты чаще всего и
+ *     записывают отзыв: снял с руки прямо в телеграме и отправил. Раньше такие
+ *     посты уходили в отзыв БЕЗ единого файла, и на сайте от них оставался
+ *     пустой прямоугольник.
+ *   animation — «беззвучное видео» (в телеграме это GIF). Тоже встречается:
+ *     короткая нарезка выдачи без звука приходит именно так.
+ */
 function videoFileId(m) {
   if (m?.video?.file_id) return m.video.file_id;
+  if (m?.video_note?.file_id) return m.video_note.file_id;
+  if (m?.animation?.file_id) return m.animation.file_id;
   if (m?.document && /^video\//i.test(m.document.mime_type || ""))
     return m.document.file_id;
+  return null;
+}
+
+/**
+ * file_id кадра-обложки для видео.
+ *
+ * Телеграм прикладывает к каждому видео маленькую картинку первого кадра.
+ * Без неё браузер до начала закачки самого видео показывает чёрный
+ * прямоугольник — а закачка идёт через наш сервер и у тяжёлого отзыва занимает
+ * секунды. Обложка весит килобайты и появляется сразу.
+ *
+ * Поле называется thumbnail; в старых версиях Bot API оно звалось thumb, и
+ * телеграм всё ещё присылает оба — проверяем оба, иначе обложка потеряется на
+ * части сообщений.
+ */
+function posterFileId(m) {
+  for (const src of [m?.video, m?.video_note, m?.animation, m?.document]) {
+    const t = src?.thumbnail || src?.thumb;
+    if (t?.file_id) return t.file_id;
+  }
   return null;
 }
 
@@ -2098,6 +2131,9 @@ async function publishReviewFromPost(env, post, origin) {
   const srcId = postSrcId(post, groupId);
   const media = fileId ? photoUrl(origin, fileId) : "";
   const video = videoId ? videoUrl(origin, videoId) : "";
+  // Обложка нужна только видео: у поста с фотографией её роль играет само фото.
+  const posterId = videoId ? posterFileId(post) : null;
+  const poster = posterId ? photoUrl(origin, posterId) : "";
 
   let reviews = (await kvGet(env, "reviews", [])) || [];
   if (!Array.isArray(reviews)) reviews = [];
@@ -2118,6 +2154,9 @@ async function publishReviewFromPost(env, post, origin) {
     // media/video оставляем для совместимости со старыми клиентами.
     ex.media = ex.media || media;
     ex.video = ex.video || video;
+    // Обложка хранится отдельно от images: иначе кадр из видео встал бы в
+    // ленту миниатюр как ещё одна «фотография» отзыва.
+    ex.poster = ex.poster || poster;
   } else {
     reviews.unshift({
       id: srcId,
@@ -2126,6 +2165,7 @@ async function publishReviewFromPost(env, post, origin) {
       rating: 5,
       media,
       video,
+      poster,
       images: media ? [media] : [],
       videos: video ? [video] : [],
       chatId: String(post.chat?.id ?? ""),

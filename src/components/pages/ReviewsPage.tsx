@@ -190,12 +190,18 @@ function ReviewCard({ review }: { review: ApiReview }) {
   const slides = slidesOf(review);
   const [idx, setIdx] = useState(0);
   const cur = slides[idx] ?? slides[0];
-  const poster = review.images?.[0] || review.media;
+  // Обложка: кадр из видео, если бот его сохранил, иначе первое фото отзыва.
+  const poster = review.poster || review.images?.[0] || review.media;
+
+  // Отзыв без единого файла карточке этого вида не подходит: она на три
+  // четверти состоит из медиа-блока, и на его месте оставался огромный
+  // пустой прямоугольник. Такие отзывы показываются текстовыми — см. ниже.
+  if (!cur) return null;
 
   return (
     <article className="flex w-[84%] flex-none snap-start flex-col overflow-hidden rounded-[20px] border border-line bg-white shadow-[0_10px_30px_-16px_rgba(20,25,32,0.4)] sm:w-[380px]">
       <div className="relative aspect-[3/4] overflow-hidden bg-graphite">
-        {cur?.type === "video" ? (
+        {cur.type === "video" ? (
           <video
             key={cur.src}
             src={cur.src}
@@ -205,10 +211,8 @@ function ReviewCard({ review }: { review: ApiReview }) {
             preload="metadata"
             className="h-full w-full bg-black object-contain"
           />
-        ) : cur ? (
-          <img src={cur.src} alt="" loading="lazy" className="h-full w-full object-cover" />
         ) : (
-          <div className="h-full w-full bg-[linear-gradient(160deg,#232C36,#11151A)]" />
+          <img src={cur.src} alt="" loading="lazy" className="h-full w-full object-cover" />
         )}
         <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-white/90 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
           <CheckCircle2 className="h-4 w-4" /> Доставлено
@@ -288,7 +292,23 @@ export function ReviewsPage() {
       )
       .catch(() => {});
   }, []);
-  const hasRemote = remote && remote.length > 0;
+  /*
+   * Отзывы делятся надвое, и показываются они по-разному.
+   *
+   * Карточка карусели на три четверти состоит из медиа-блока: он вертикальный,
+   * во всю ширину карточки. Отзыву с видео или фото это ровно то, что нужно.
+   * А у письменного отзыва файлов нет вовсе — и на месте медиа оставался
+   * огромный тёмный прямоугольник, из-за которого блок «Видео-отзывы»
+   * выглядел так, будто у него ничего не загрузилось.
+   *
+   * Поэтому письменные отзывы идут отдельной сеткой текстовых карточек, а в
+   * карусель попадают только те, у которых действительно есть что показать.
+   */
+  const withMedia = (remote ?? []).filter((r) => slidesOf(r).length > 0);
+  const textOnly = (remote ?? []).filter(
+    (r) => slidesOf(r).length === 0 && (r.text || "").trim().length > 2,
+  );
+  const hasRemote = withMedia.length > 0 || textOnly.length > 0;
   const rail = useDragScroll();
 
   return (
@@ -403,7 +423,7 @@ export function ReviewsPage() {
         </div>
       </section>
 
-      {hasRemote ? (
+      {withMedia.length ? (
         <section className="mt-12">
           <div className="wrap mb-4 flex items-end justify-between gap-3">
             <h2 className="text-[clamp(20px,2.6vw,30px)] font-extrabold uppercase text-ink">
@@ -437,12 +457,41 @@ export function ReviewsPage() {
             ref={rail.ref}
             className="flex cursor-grab snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-6 px-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {remote!.map((r) => (
+            {withMedia.map((r) => (
               <ReviewCard key={r.id} review={r} />
             ))}
           </div>
         </section>
-      ) : (
+      ) : null}
+
+      {textOnly.length ? (
+        <section className="wrap mt-12">
+          <h2 className="mb-4 text-[clamp(20px,2.6vw,30px)] font-extrabold uppercase text-ink">
+            Письменные отзывы
+          </h2>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {textOnly.map((r) => (
+              <article
+                key={r.id}
+                className="flex flex-col rounded-card border border-line bg-white p-6"
+              >
+                <span className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
+                  <CheckCircle2 className="h-4 w-4" /> Доставлено
+                </span>
+                <Quote className="mb-2 h-6 w-6 text-chrome" />
+                <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-ink">
+                  {r.text}
+                </p>
+                <div className="mt-5 border-t border-line pt-4 font-bold text-ink">
+                  {r.name}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {!hasRemote ? (
         <div className="wrap mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {cases.map((r) => (
             <article key={r.name + r.car} className="flex flex-col rounded-card border border-line bg-white p-6">
@@ -470,7 +519,7 @@ export function ReviewsPage() {
             </article>
           ))}
         </div>
-      )}
+      ) : null}
 
       <div className="wrap mt-14">
         <div className="rounded-card border border-line bg-graphite p-6 text-white sm:p-8">
