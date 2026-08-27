@@ -71,7 +71,6 @@ type Card = {
   text: string;
   media?: string;
   video?: string;
-  poster?: string;
   city?: string;
   car?: string;
   country?: keyof typeof countries;
@@ -102,7 +101,6 @@ export function Reviews() {
           // без единой картинки.
           media: r.images?.[0] || r.media || undefined,
           video: r.videos?.[0] || r.video || undefined,
-          poster: r.poster || undefined,
         }))
       : reviews.map((r) => ({
           key: r.name + r.car,
@@ -156,7 +154,7 @@ export function Reviews() {
                   {r.video ? (
                     <video
                       src={r.video}
-                      poster={r.poster || r.media}
+                      poster={r.media}
                       controls
                       playsInline
                       preload="metadata"

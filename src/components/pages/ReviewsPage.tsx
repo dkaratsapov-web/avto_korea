@@ -190,8 +190,7 @@ function ReviewCard({ review }: { review: ApiReview }) {
   const slides = slidesOf(review);
   const [idx, setIdx] = useState(0);
   const cur = slides[idx] ?? slides[0];
-  // Обложка: кадр из видео, если бот его сохранил, иначе первое фото отзыва.
-  const poster = review.poster || review.images?.[0] || review.media;
+  const poster = review.images?.[0] || review.media;
 
   // Отзыв без единого файла карточке этого вида не подходит: она на три
   // четверти состоит из медиа-блока, и на его месте оставался огромный
