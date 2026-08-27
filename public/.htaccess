@@ -36,6 +36,15 @@
   # после 250 символов, поэтому фид под него собирается иначе.
   RewriteRule ^feed/yandex\.xml$ /feed/yandex.php [L]
   RewriteRule ^feed/yandex-business\.xml$ /feed/yandex.php?mode=business [L]
+  # 2ГИС: витрина в карточке организации. Формат тот же (YML), но содержимое
+  # собрано под чтение человеком, а не под объявление, — см. feed/2gis-build.php.
+  # Вторым адресом тот же каталог таблицей, если товары придётся заводить файлом.
+  RewriteRule ^feed/2gis\.xml$ /feed/2gis.php [L]
+  RewriteRule ^feed/2gis\.csv$ /feed/2gis.php?format=csv [L]
+
+  # Сборщики фидов — не страницы: открывать их напрямую незачем, а вот попасть
+  # в поиск они могут, и тогда в выдаче окажется простыня XML вместо сайта.
+  RewriteRule ^feed/(catalog-source|2gis-build)\.php$ - [F]
 
   RewriteRule ^api/tgphoto$ /api/media.php [L,QSA]
   RewriteRule ^api/tgvideo$ /api/media.php?video=1 [L,QSA]

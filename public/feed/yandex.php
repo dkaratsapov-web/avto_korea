@@ -11,7 +11,13 @@
 
 declare(strict_types=1);
 
-const WORKER = 'https://diauto-bot.d-karatsapov.workers.dev';
+/*
+ * Источник данных, реквизиты и общие для всех фидов помощники — в отдельном
+ * файле: тем же каталогом кормится фид 2ГИС (2gis.php), и адрес воркера с
+ * названием ИП не должны лежать в двух местах.
+ */
+require_once __DIR__ . '/catalog-source.php';
+
 const CACHE_TTL = 3600;
 
 /**
@@ -28,140 +34,21 @@ $isBusiness = $mode === 'business';
 // У каждого режима свой кэш: иначе Бизнес получил бы файл, собранный для Директа.
 define('CACHE_FILE', __DIR__ . "/../../private-cache/yandex-feed-{$mode}.xml");
 
-const SITE_URL = 'https://автоимпорт-69.рф';
-const SHOP_NAME = 'ДиАвто69';
-const COMPANY = 'ИП Петренко Дмитрий Анатольевич';
-
-const COUNTRIES = [
-    'kr' => 'Корея',
-    'cn' => 'Китай',
-    'jp' => 'Япония',
-    'eu' => 'Европа',
-];
-
 header('Content-Type: application/xml; charset=utf-8');
 
-/**
- * Кэш годен, пока не истёк час и пока он новее самого скрипта.
- *
- * Кэш лежит вне сайта, деплой его не трогает — без второго условия правка
- * фида доезжала бы до Яндекса только через час, да ещё и после ручного
- * удаления файла. Выкладка обновляет время у yandex.php, и кэш протухает сам.
- */
-function cacheIsFresh(): bool
-{
-    if (!is_file(CACHE_FILE)) {
-        return false;
-    }
-    $age = (int) filemtime(CACHE_FILE);
-    return time() - $age < CACHE_TTL && $age >= (int) filemtime(__FILE__);
-}
-
-if (cacheIsFresh()) {
+// Кэш протухает и сам по себе, и при выкладке новой версии сборщика: он лежит
+// вне сайта, деплой его не трогает, а иначе правка фида доезжала бы до Яндекса
+// только через час и после ручного удаления файла.
+if (cacheIsFresh(CACHE_FILE, CACHE_TTL, [__FILE__, __DIR__ . '/catalog-source.php'])) {
     readfile(CACHE_FILE);
     exit;
-}
-
-/** Каталог из воркера. */
-function loadCatalog(): array
-{
-    if (!function_exists('curl_init')) {
-        return [];
-    }
-    $ch = curl_init(WORKER . '/api/catalog');
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 20,
-        CURLOPT_FOLLOWLOCATION => true,
-    ]);
-    $res = curl_exec($ch);
-    $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-    curl_close($ch);
-    if ($res === false || $code !== 200) {
-        return [];
-    }
-    $data = json_decode((string) $res, true);
-    return is_array($data['catalog'] ?? null) ? $data['catalog'] : [];
 }
 
 $catalog = loadCatalog();
 
 // Воркер недоступен — лучше отдать вчерашний фид, чем пустой.
 if (!$catalog) {
-    if (is_file(CACHE_FILE)) {
-        readfile(CACHE_FILE);
-        exit;
-    }
-    http_response_code(503);
-    echo '<?xml version="1.0" encoding="UTF-8"?><error>catalog unavailable</error>';
-    exit;
-}
-
-/** Марка — первое слово названия, остальное считаем моделью. */
-function splitModel(string $model): array
-{
-    $parts = preg_split('/\s+/u', trim($model), 2);
-    return [$parts[0] ?? $model, $parts[1] ?? ''];
-}
-
-/**
- * Короткое описание: не длиннее лимита и без обрыва посреди слова.
- * Режем по концу предложения, если он есть в пределах лимита, иначе по пробелу.
- */
-function shortDescription(string $text, int $limit = 250): string
-{
-    $text = trim(preg_replace('/\s+/u', ' ', $text));
-    if (mb_strlen($text) <= $limit) {
-        return $text;
-    }
-    $cut = mb_substr($text, 0, $limit);
-    foreach (['. ', '! ', '? '] as $end) {
-        $pos = mb_strrpos($cut, $end);
-        // Обрезок меньше половины лимита выглядит куцо — тогда режем по слову.
-        if ($pos !== false && $pos > $limit / 2) {
-            return mb_substr($cut, 0, $pos + 1);
-        }
-    }
-    $space = mb_strrpos($cut, ' ');
-    return rtrim($space !== false ? mb_substr($cut, 0, $space) : $cut, ' ,;:-—') . '…';
-}
-
-function x(string $v): string
-{
-    return htmlspecialchars($v, ENT_XML1 | ENT_QUOTES, 'UTF-8');
-}
-
-/**
- * Абсолютный адрес картинки на нашем домене.
- *
- * Воркер отдаёт фото ссылками на себя (*.workers.dev), а этот домен в России
- * блокируется — робот Яндекса такие картинки не скачает, и в объявлении вместо
- * фото остаётся заглушка. Сайт для браузера подменяет их в proxy.php; фид ходит
- * к воркеру напрямую, поэтому подменяет сам: /api/tgphoto отдаёт media.php с
- * российского хостинга.
- */
-function abs_url(string $u): string
-{
-    if (str_starts_with($u, WORKER . '/api/')) {
-        $u = substr($u, strlen(WORKER));
-    }
-    return preg_match('#^https?://#i', $u) ? $u : SITE_URL . $u;
-}
-
-const ROOT_CATEGORY_ID = 1;
-
-/**
- * Идентификатор категории по названию марки.
- *
- * Считаем от самого названия, а не по порядку в списке: при нумерации подряд
- * появление новой марки сдвинуло бы номера у всех следующих, и Яндекс на
- * каждой выгрузке считал бы категории новыми.
- *
- * Диапазон начинается с 2 — единица занята корневой «Автомобили».
- */
-function categoryId(string $brand): int
-{
-    return 2 + (crc32(mb_strtolower(trim($brand), 'UTF-8')) % 1000000);
+    serveStaleOrFail(CACHE_FILE, 'application/xml');
 }
 
 $out = [];
@@ -249,21 +136,7 @@ foreach ($catalog as $c) {
 
 // Разделы: корневая «Автомобили» и по одной категории на марку. Пустых не
 // будет — марки взяты из тех авто, что реально попали в фид.
-ksort($brands, SORT_NATURAL | SORT_FLAG_CASE);
-$out[] = '<categories>';
-$out[] = '<category id="' . ROOT_CATEGORY_ID . '">Автомобили</category>';
-foreach ($brands as $key => $spellings) {
-    // Показываем то написание, которое встречается в каталоге чаще: гадать
-    // про заглавные буквы не нужно — «BMW» и «Geely» приходят из данных.
-    // При равенстве берём алфавитно, чтобы фид не менялся от выгрузки к выгрузке.
-    arsort($spellings);
-    $top = max($spellings);
-    $best = array_keys(array_filter($spellings, fn($n) => $n === $top));
-    sort($best, SORT_NATURAL);
-    $out[] = '<category id="' . categoryId($key) . '" parentId="' . ROOT_CATEGORY_ID . '">'
-        . x($best[0]) . '</category>';
-}
-$out[] = '</categories>';
+$out = array_merge($out, categoriesXml($brands));
 
 $out[] = '<offers>';
 $out = array_merge($out, $offers);
@@ -273,10 +146,6 @@ $out[] = '</yml_catalog>';
 
 $xml = implode("\n", $out);
 
-$dir = dirname(CACHE_FILE);
-if (!is_dir($dir)) {
-    @mkdir($dir, 0700, true);
-}
-@file_put_contents(CACHE_FILE, $xml, LOCK_EX);
+cacheStore(CACHE_FILE, $xml);
 
 echo $xml;
