@@ -17,6 +17,40 @@ declare(strict_types=1);
 const WORKER = 'https://diauto-bot.d-karatsapov.workers.dev';
 const CACHE_DIR = __DIR__ . '/../../private-cache';
 
+/**
+ * Номер поколения ссылок на медиа.
+ *
+ * Адреса фотографий и видео браузер кэширует надолго — это и делает каталог
+ * быстрым. Обратная сторона: пока адрес лежит в кэше, до сервера запрос не
+ * доходит вовсе, и починить уже выданную ссылку нечем. Так и вышло: первая
+ * версия редиректа вела на файл, который мог исчезнуть с диска, и у всех, кто
+ * успел открыть сайт, в кэше остался адрес в никуда — на год.
+ *
+ * Увеличенный номер делает ссылку новой: старой записи под таким адресом в
+ * кэше нет, браузер идёт на сервер и получает уже исправленный ответ.
+ * Поднимать его нужно только тогда, когда сломан сам ФОРМАТ ссылки. Для смены
+ * содержимого он не нужен: имя файла считается от идентификатора в Telegram,
+ * и у другого файла оно другое.
+ */
+const MEDIA_REV = 2;
+
+/**
+ * Ссылки на медиа внутри ответа переводим на свой домен.
+ *
+ * Иначе картинки пойдут напрямую в Cloudflare, который в России блокируется.
+ */
+function localizeMedia(string $body): string
+{
+    foreach (['tgphoto', 'tgvideo'] as $kind) {
+        $body = str_replace(
+            WORKER . "/api/{$kind}?id=",
+            "/api/{$kind}?r=" . MEDIA_REV . '&id=',
+            $body,
+        );
+    }
+    return str_replace(WORKER . '/api/', '/api/', $body);
+}
+
 // Сколько секунд свежий кэш отдаётся без обращения к воркеру.
 const TTL = [
     'catalog' => 60,
@@ -71,7 +105,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         exit;
     }
     http_response_code($code ?: 200);
-    echo str_replace(WORKER . '/api/', '/api/', (string) $res);
+    echo localizeMedia((string) $res);
     exit;
 }
 
@@ -162,9 +196,7 @@ if ($lock !== false) {
 }
 
 if ($body !== null) {
-    // Ссылки на медиа внутри ответа тоже переводим на свой домен, иначе
-    // картинки снова пойдут напрямую в заблокированный Cloudflare.
-    $body = str_replace(WORKER . '/api/', '/api/', $body);
+    $body = localizeMedia($body);
     @file_put_contents($cacheFile, $body, LOCK_EX);
     header('Cache-Control: public, max-age=30');
     echo $body;
