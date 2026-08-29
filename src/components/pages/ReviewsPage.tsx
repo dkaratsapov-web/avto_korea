@@ -292,22 +292,14 @@ export function ReviewsPage() {
       .catch(() => {});
   }, []);
   /*
-   * Отзывы делятся надвое, и показываются они по-разному.
+   * В карусель идут только отзывы, у которых есть видео или фото.
    *
-   * Карточка карусели на три четверти состоит из медиа-блока: он вертикальный,
-   * во всю ширину карточки. Отзыву с видео или фото это ровно то, что нужно.
-   * А у письменного отзыва файлов нет вовсе — и на месте медиа оставался
-   * огромный тёмный прямоугольник, из-за которого блок «Видео-отзывы»
-   * выглядел так, будто у него ничего не загрузилось.
-   *
-   * Поэтому письменные отзывы идут отдельной сеткой текстовых карточек, а в
-   * карусель попадают только те, у которых действительно есть что показать.
+   * Карточка на три четверти состоит из медиа-блока во всю ширину. Отзыву без
+   * единого файла показывать там нечего, и на его месте оставался тёмный
+   * прямоугольник — снаружи неотличимо от несработавшей загрузки.
    */
   const withMedia = (remote ?? []).filter((r) => slidesOf(r).length > 0);
-  const textOnly = (remote ?? []).filter(
-    (r) => slidesOf(r).length === 0 && (r.text || "").trim().length > 2,
-  );
-  const hasRemote = withMedia.length > 0 || textOnly.length > 0;
+  const hasRemote = withMedia.length > 0;
   const rail = useDragScroll();
 
   return (
@@ -458,33 +450,6 @@ export function ReviewsPage() {
           >
             {withMedia.map((r) => (
               <ReviewCard key={r.id} review={r} />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {textOnly.length ? (
-        <section className="wrap mt-12">
-          <h2 className="mb-4 text-[clamp(20px,2.6vw,30px)] font-extrabold uppercase text-ink">
-            Письменные отзывы
-          </h2>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {textOnly.map((r) => (
-              <article
-                key={r.id}
-                className="flex flex-col rounded-card border border-line bg-white p-6"
-              >
-                <span className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
-                  <CheckCircle2 className="h-4 w-4" /> Доставлено
-                </span>
-                <Quote className="mb-2 h-6 w-6 text-chrome" />
-                <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-ink">
-                  {r.text}
-                </p>
-                <div className="mt-5 border-t border-line pt-4 font-bold text-ink">
-                  {r.name}
-                </div>
-              </article>
             ))}
           </div>
         </section>
