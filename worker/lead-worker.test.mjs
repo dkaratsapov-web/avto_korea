@@ -470,6 +470,166 @@ test("отзывы: пост из нового канала не затирае�
   assert.equal(reviews.length, 2, "новый добавляется рядом");
 });
 
+/* ---------- Потеря видео при правке отзыва в админке ---------- */
+
+/**
+ * Подписанные данные входа мини-аппа — те же, что присылает Telegram.
+ * Подделать их нельзя, поэтому для теста подписываем настоящим алгоритмом
+ * тем же «токеном бота», с которым запускаем воркер.
+ */
+async function signedInitData(botToken, userId) {
+  const enc = new TextEncoder();
+  const hmac = async (key, data) => {
+    const k = await crypto.subtle.importKey(
+      "raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+    );
+    return new Uint8Array(await crypto.subtle.sign("HMAC", k, data));
+  };
+  const params = new URLSearchParams({
+    auth_date: String(Math.floor(Date.now() / 1000)),
+    user: JSON.stringify({ id: userId, first_name: "Хозяин" }),
+  });
+  const check = [...params.entries()]
+    .map(([k, v]) => `${k}=${v}`)
+    .sort()
+    .join("\n");
+  const secret = await hmac(enc.encode("WebAppData"), enc.encode(botToken));
+  const sig = await hmac(secret, enc.encode(check));
+  params.set("hash", [...sig].map((b) => b.toString(16).padStart(2, "0")).join(""));
+  return params.toString();
+}
+
+/** Вызов админского действия от владельца. */
+async function admin(action, payload, store) {
+  const initData = await signedInitData("T", 777);
+  const req = new Request("https://w.dev/api/admin", {
+    method: "POST",
+    body: JSON.stringify({ action, payload, initData }),
+  });
+  return worker.fetch(req, {
+    TELEGRAM_BOT_TOKEN: "T",
+    TELEGRAM_CHAT_ID: "-100999",
+    ADMIN_IDS: "777",
+    STORE: store,
+  });
+}
+
+/*
+ * Так и пропали видео-отзывы с сайта: админка собирала запись заново из шести
+ * текстовых полей и клала её на место старой целиком. Достаточно было
+ * поправить опечатку в имени — и видео исчезало навсегда, молча.
+ */
+test("правка отзыва в админке не должна стирать видео", async () => {
+  const store = makeStore({
+    reviews: [
+      {
+        id: "tg-2875062656-40",
+        name: "Клиент ДиАвто69",
+        text: "Спасибо за новый автомобиль!",
+        rating: 5,
+        media: "/api/tgphoto?id=PHOTO_A",
+        video: "/api/tgvideo?id=VIDEO_A",
+        images: ["/api/tgphoto?id=PHOTO_A"],
+        videos: ["/api/tgvideo?id=VIDEO_A"],
+        chatId: "-1002875062656",
+        ts: 1000,
+      },
+    ],
+  });
+  stubTelegram();
+
+  const res = await admin(
+    "reviews.save",
+    { id: "tg-2875062656-40", name: "София С.", text: "Спасибо за новый автомобиль!", rating: 5 },
+    store,
+  );
+  const body = await res.json();
+  assert.equal(body.ok, true, "сохранение должно пройти: " + JSON.stringify(body));
+
+  const r = ((await store.get("reviews")) || [])[0];
+  assert.equal(r.name, "София С.", "имя должно поправиться");
+  assert.deepEqual(r.videos, ["/api/tgvideo?id=VIDEO_A"], "видео должно уцелеть");
+  assert.deepEqual(r.images, ["/api/tgphoto?id=PHOTO_A"], "фото должно уцелеть");
+  assert.equal(r.video, "/api/tgvideo?id=VIDEO_A", "и поле первой версии тоже");
+  assert.equal(r.chatId, "-1002875062656", "канал не должен потеряться");
+});
+
+/*
+ * Возврат уже потерянного: владелец трогает пост в канале, бот перечитывает
+ * его и прикладывает медиа к ТОЙ ЖЕ записи. Отзыв заведён до разделения
+ * каналов, поэтому лежит под старым именем «tg-<номер>».
+ */
+test("правка поста в канале возвращает медиа в старую запись, без дубля", async () => {
+  const store = makeStore({
+    reviews: [
+      { id: "tg-40", name: "София С.", text: "Спасибо за новый автомобиль!", rating: 5, ts: 1000 },
+    ],
+    settings: { reviewsChatId: "-1002000000002" },
+  });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 7,
+      edited_channel_post: {
+        message_id: 40,
+        chat: { id: "-1002000000002", type: "channel" },
+        caption: "Спасибо за новый автомобиль!",
+        video: { file_id: "VIDEO_BACK" },
+      },
+    },
+    { store, ctx: c.ctx },
+  );
+  await c.settle();
+
+  const list = (await store.get("reviews")) || [];
+  assert.equal(list.length, 1, "второй записи появиться не должно");
+  assert.ok(
+    list[0].videos?.[0]?.includes("VIDEO_BACK"),
+    "видео должно вернуться в существующий отзыв, было: " + JSON.stringify(list[0].videos),
+  );
+  assert.equal(list[0].name, "София С.", "правленое в админке имя должно остаться");
+  assert.equal(list[0].id, "tg-2000000002-40", "запись переезжает на новое имя");
+});
+
+/*
+ * Обратная сторона того же механизма: по одному лишь номеру сообщения
+ * связывать нельзя. Нумерация у каждого канала своя, и пост №40 из чужого
+ * канала не должен подменять собой настоящий отзыв клиента.
+ */
+test("чужой пост с тем же номером не подменяет отзыв", async () => {
+  const store = makeStore({
+    reviews: [
+      { id: "tg-40", name: "София С.", text: "Спасибо за новый автомобиль!", rating: 5, ts: 1000 },
+    ],
+    settings: { reviewsChatId: "-1002000000002" },
+  });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 8,
+      channel_post: {
+        message_id: 40,
+        chat: { id: "-1002000000002", type: "channel" },
+        caption: "Совершенно другой отзыв о другой машине",
+        video: { file_id: "VIDEO_OTHER" },
+      },
+    },
+    { store, ctx: c.ctx },
+  );
+  await c.settle();
+
+  const list = (await store.get("reviews")) || [];
+  assert.equal(list.length, 2, "должен появиться отдельный отзыв");
+  const old = list.find((r) => r.id === "tg-40");
+  assert.ok(old, "старый отзыв должен остаться на месте");
+  assert.equal(old.text, "Спасибо за новый автомобиль!", "и не должен подмениться");
+  assert.equal(old.videos, undefined, "и не должен получить чужое видео");
+});
+
 /* ---------- Приём заявок на вступление в канал ---------- */
 
 function joinRequest(chatId, userId = 777) {
