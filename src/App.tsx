@@ -1,6 +1,7 @@
 import { useEffect, useRef, lazy, Suspense } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/Toaster";
+import { BootScreen } from "@/components/ui/BootScreen";
 import { METRIKA_ID } from "@/lib/metrika";
 
 // Каждая зона приложения — отдельный чанк. Мини-апп (/tma) не тянет код сайта.
@@ -123,9 +124,9 @@ export function App() {
       <MetrikaTracker />
       <Suspense
         fallback={
-          <div className="flex min-h-screen items-center justify-center bg-paper pt-20">
-            <span className="h-10 w-10 animate-spin rounded-full border-2 border-line border-t-bordeaux" />
-          </div>
+          /* Тот же экран, что и заставка в разметке: на внутренних стилях,
+             поэтому виден даже до загрузки файла со стилями. */
+          <BootScreen />
         }
       >
         <Routes>

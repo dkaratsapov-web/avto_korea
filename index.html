@@ -5,6 +5,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#11151A" />
 
+    <!-- Стили заставки. Внутри разметки, а не в файле: пока внешний CSS
+         едет, заставка уже должна быть видна — ради этого всё и затевалось.
+
+         Тёмная в мини-аппе, светлая на сайте: метку ставит скрипт ниже,
+         вместе с загрузкой SDK Telegram. -->
+    <style>
+      .boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #f4f5f7;
+        color: #151b21;
+        font: 600 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+      }
+      html[data-boot="tma"] .boot {
+        background: #11151a;
+        color: #e6ebf0;
+      }
+      .boot-mark {
+        font-size: 27px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+      .boot-mark span {
+        color: #9c1a12;
+      }
+      html[data-boot="tma"] .boot-mark span {
+        color: #e2564c;
+      }
+      .boot-bar {
+        width: 132px;
+        height: 3px;
+        overflow: hidden;
+        border-radius: 2px;
+        background: rgba(21, 27, 33, 0.12);
+      }
+      html[data-boot="tma"] .boot-bar {
+        background: rgba(230, 235, 240, 0.16);
+      }
+      .boot-bar i {
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: 2px;
+        background: #9c1a12;
+        animation: boot-slide 1.15s ease-in-out infinite;
+      }
+      html[data-boot="tma"] .boot-bar i {
+        background: #e2564c;
+      }
+      @keyframes boot-slide {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(330%); }
+      }
+      .boot-note {
+        font-size: 13px;
+        font-weight: 500;
+        opacity: 0.62;
+      }
+      /* Полоса — единственная анимация на экране; при отключённом движении
+         оставляем её неподвижной, но видимой. */
+      @media (prefers-reduced-motion: reduce) {
+        .boot-bar i { animation: none; width: 100%; }
+      }
+    </style>
+
     <!-- Favicon.
 
          /favicon.ico лежит в корне отдельным файлом: браузеры и поисковики
@@ -87,6 +159,10 @@
          страницах сайта скрипт не нужен и не запрашивается. -->
     <script>
       if (location.pathname.indexOf("/tma") === 0) {
+        // Метка для заставки: в мини-аппе она тёмная, на сайте светлая.
+        // Ставится здесь, а не в приложении, — заставка живёт как раз до
+        // того, как приложение запустится.
+        document.documentElement.setAttribute("data-boot", "tma");
         var tgs = document.createElement("script");
         tgs.src = "https://telegram.org/js/telegram-web-app.js";
         tgs.async = true;
@@ -114,7 +190,30 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Заставка на время загрузки приложения.
+
+         Зачем. До первой отрисовки браузер скачивает около 470 КБ кода и
+         стилей. На домашнем интернете это доли секунды, а на мобильном в
+         400 кбит/с — почти десять секунд, и всё это время человек видит
+         БЕЛЫЙ ЭКРАН. Проверено замером: на таком канале до восьмой секунды
+         на странице нет ни одного символа. Со стороны это выглядит ровно
+         как «не работает», и человек закрывает вкладку, не дождавшись.
+
+         Заставка приезжает вместе с самим HTML — это десяток килобайт,
+         доли секунды на любом канале. Никаких внешних запросов она не
+         делает: стили внутри разметки, шрифт системный, картинок нет.
+         Ждать ей нечего, поэтому она появляется всегда.
+
+         React монтируется через createRoot (не гидратация), поэтому при
+         запуске приложения содержимое #root заменяется целиком — убирать
+         заставку отдельно не нужно. -->
+    <div id="root">
+      <div class="boot" role="status" aria-live="polite">
+        <div class="boot-mark">ДиАвто<span>69</span></div>
+        <div class="boot-bar"><i></i></div>
+        <div class="boot-note">Загружаем каталог…</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
 
     <!-- Yandex.Metrika counter -->
