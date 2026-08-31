@@ -128,6 +128,46 @@
   RewriteRule ^ index.html [L]
 </IfModule>
 
+# --- Сжатие ---
+#
+# Самая дорогая строчка во всём файле. До неё сервер отдавал код и стили как
+# есть: 474 КБ до первой отрисовки мини-аппа. На мобильном интернете в
+# 400 кбит/с это почти десять секунд, и всё это время человек смотрел в пустой
+# экран — ровно то, что выглядит как «бот не грузится».
+#
+# В сжатом виде те же файлы весят 127 КБ:
+#   главный код   250 → 79 КБ
+#   код мини-аппа 106 → 26 КБ
+#   стили          99 → 17 КБ
+#   разметка       14 →  5 КБ
+# Втрое меньше, значит и ждать втрое меньше. Ничего перестраивать для этого
+# не нужно — сервер жмёт на лету.
+#
+# Картинки, видео и шрифты в список НЕ входят: они уже сжаты своим форматом,
+# и повторное сжатие только тратит процессор, увеличивая время ответа.
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
+  AddOutputFilterByType DEFLATE text/javascript application/javascript
+  AddOutputFilterByType DEFLATE application/json application/xml
+  AddOutputFilterByType DEFLATE application/rss+xml image/svg+xml
+  AddOutputFilterByType DEFLATE application/manifest+json
+
+  # Кэширующие узлы по пути должны знать, что ответ зависит от того, умеет ли
+  # клиент разжимать: иначе сжатый ответ может достаться тому, кто не умеет.
+  <IfModule mod_headers.c>
+    Header append Vary Accept-Encoding
+  </IfModule>
+</IfModule>
+
+# Если на хостинге включён brotli — он жмёт ещё плотнее. Блок безвреден, когда
+# модуля нет: Apache просто пропускает его.
+<IfModule mod_brotli.c>
+  AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/xml
+  AddOutputFilterByType BROTLI_COMPRESS text/javascript application/javascript
+  AddOutputFilterByType BROTLI_COMPRESS application/json application/xml
+  AddOutputFilterByType BROTLI_COMPRESS image/svg+xml
+</IfModule>
+
 # --- Кэш: ассеты с хэшем — надолго, HTML — без кэша ---
 <IfModule mod_headers.c>
   # mp4 здесь ради скачанных видео-отзывов: имя у них — хэш от идентификатора
