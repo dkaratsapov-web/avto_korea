@@ -982,11 +982,21 @@ export default {
         const hasMedia = bestFileId(msg) || videoFileId(msg);
         const isForward = !!(msg.forward_from_chat || msg.forward_origin);
         if (perm?.owner && (hasMedia || isForward)) {
-          await publishReviewFromPost(env, msg, url.origin);
+          const saved = await publishReviewFromPost(env, msg, url.origin);
           if (!msg.media_group_id) {
+            /*
+             * Отвечаем тем, что реально записалось. Раньше здесь стояло
+             * безусловное «опубликован», и владелец видел галочку даже когда
+             * бот не понял вложение и сохранил один текст.
+             */
+            const got = [];
+            if (saved?.videos) got.push(`видео: ${saved.videos}`);
+            if (saved?.images) got.push(`фото: ${saved.images}`);
             await api(env, "sendMessage", {
               chat_id: msg.chat.id,
-              text: "✅ Отзыв опубликован на сайте и в боте.",
+              text: got.length
+                ? `✅ Отзыв опубликован (${got.join(", ")}).`
+                : "⚠️ Отзыв сохранён БЕЗ файлов — вложение бот прочитать не смог.\nПришлите видео обычным видеосообщением или файлом.",
             });
           }
           return new Response("ok");
@@ -1799,10 +1809,45 @@ function bestFileId(m) {
 }
 
 // file_id видео из сообщения (обычное видео или документ с видео-mime).
+/**
+ * file_id видео из сообщения.
+ *
+ * Кроме обычного видео и документа с видео-mime считаем видео ещё два вида —
+ * и это не мелочь, а причина потерянных отзывов:
+ *
+ *   video_note — кру́глое видеосообщение. Именно им клиент чаще всего и
+ *     записывает отзыв: снял с руки прямо в телеграме и отправил. Проверка
+ *     знала только про обычное video, поэтому такой пост заводил отзыв БЕЗ
+ *     единого файла — а бот при этом отвечал «опубликован».
+ *   animation — «беззвучное видео», в телеграме это GIF. Короткая нарезка
+ *     выдачи без звука приходит именно так.
+ */
 function videoFileId(m) {
   if (m?.video?.file_id) return m.video.file_id;
+  if (m?.video_note?.file_id) return m.video_note.file_id;
+  if (m?.animation?.file_id) return m.animation.file_id;
   if (m?.document && /^video\//i.test(m.document.mime_type || ""))
     return m.document.file_id;
+  return null;
+}
+
+/**
+ * file_id кадра-обложки для видео.
+ *
+ * Телеграм прикладывает к каждому видео картинку первого кадра. Без неё
+ * браузер до конца закачки показывает чёрный прямоугольник, а закачка идёт
+ * через наш сервер и у тяжёлого отзыва занимает секунды. Обложка весит
+ * килобайты и появляется сразу.
+ *
+ * Поле зовётся thumbnail; в старых версиях Bot API — thumb, и телеграм всё
+ * ещё присылает оба. Проверяем оба, иначе обложка потеряется на части
+ * сообщений.
+ */
+function posterFileId(m) {
+  for (const src of [m?.video, m?.video_note, m?.animation, m?.document]) {
+    const t = src?.thumbnail || src?.thumb;
+    if (t?.file_id) return t.file_id;
+  }
   return null;
 }
 
@@ -2118,6 +2163,9 @@ async function publishReviewFromPost(env, post, origin) {
   const srcId = postSrcId(post, groupId);
   const media = fileId ? photoUrl(origin, fileId) : "";
   const video = videoId ? videoUrl(origin, videoId) : "";
+  // Обложка нужна только видео: у поста с фотографией её роль играет фото.
+  const posterId = videoId ? posterFileId(post) : null;
+  const poster = posterId ? photoUrl(origin, posterId) : "";
 
   let reviews = (await kvGet(env, "reviews", [])) || [];
   if (!Array.isArray(reviews)) reviews = [];
@@ -2162,6 +2210,9 @@ async function publishReviewFromPost(env, post, origin) {
     // media/video оставляем для совместимости со старыми клиентами.
     ex.media = ex.media || media;
     ex.video = ex.video || video;
+    // Обложка отдельно от images: иначе кадр из видео встал бы в ленту
+    // миниатюр как ещё одна «фотография» отзыва.
+    ex.poster = ex.poster || poster;
   } else {
     reviews.unshift({
       id: srcId,
@@ -2170,6 +2221,7 @@ async function publishReviewFromPost(env, post, origin) {
       rating: 5,
       media,
       video,
+      poster,
       images: media ? [media] : [],
       videos: video ? [video] : [],
       chatId: String(post.chat?.id ?? ""),
@@ -2177,6 +2229,18 @@ async function publishReviewFromPost(env, post, origin) {
     });
   }
   await kvPut(env, "reviews", reviews.slice(0, 100));
+
+  /*
+   * Итог возвращаем вызывающему, чтобы бот мог отчитаться честно.
+   * Раньше он в любом случае отвечал «опубликован» — в том числе когда
+   * вложение прочитать не смог и сохранил один текст. Именно поэтому
+   * потерянные видео так долго не замечали.
+   */
+  const saved = reviews.find((r) => r.id === srcId) || {};
+  return {
+    videos: (saved.videos || []).length,
+    images: (saved.images || []).length,
+  };
 }
 
 // Пост из канала новостей → карточка новости (заголовок + текст + фото/видео).

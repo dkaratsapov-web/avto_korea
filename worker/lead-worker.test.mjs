@@ -979,3 +979,101 @@ test("разные машины по-прежнему заводят разны�
   const cat = (await store.get("catalog")) || [];
   assert.equal(cat.length, 3, "три разные машины — три карточки, было " + cat.length);
 });
+
+/* ---------- Потерянные видео-отзывы ---------- */
+
+/** Пересылка владельцем в личку боту — так отзывы и заводят руками. */
+function forwardToBot(extra, caption = "Спасибо за новый автомобиль!") {
+  return {
+    update_id: 30,
+    message: {
+      message_id: 501,
+      chat: { id: 777, type: "private" },
+      from: { id: 777, first_name: "Хозяин" },
+      caption,
+      forward_origin: { type: "channel" },
+      ...extra,
+    },
+  };
+}
+
+async function runAsOwner(update, store) {
+  const c = makeCtx();
+  const res = await worker.fetch(
+    new Request("https://w.dev/tg", { method: "POST", body: JSON.stringify(update) }),
+    { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", ADMIN_IDS: "777", STORE: store },
+    c.ctx,
+  );
+  await c.settle();
+  return res;
+}
+
+/*
+ * Главная причина пропавших отзывов: клиент записывает видео «кружком»
+ * (video_note), владелец пересылает его боту — а бот такое вложение не
+ * распознавал, сохранял один текст и отвечал «опубликован».
+ */
+test("кру́глое видео, пересланное боту, сохраняется в отзыв", async () => {
+  const store = makeStore();
+  const calls = stubTelegram();
+
+  await runAsOwner(
+    forwardToBot({ video_note: { file_id: "ROUND_VIDEO", thumbnail: { file_id: "ROUND_THUMB" } } }),
+    store,
+  );
+
+  const r = ((await store.get("reviews")) || [])[0];
+  assert.ok(r, "отзыв должен появиться");
+  assert.ok(
+    r.videos?.[0]?.includes("ROUND_VIDEO"),
+    "видео кружка должно попасть в отзыв, было: " + JSON.stringify(r.videos),
+  );
+  assert.ok(r.poster?.includes("ROUND_THUMB"), "обложка должна сохраниться");
+  assert.deepEqual(r.images ?? [], [], "обложка не должна стать отдельным фото");
+
+  const reply = calls.filter((c) => c.method === "sendMessage").pop();
+  assert.match(String(reply?.body?.text), /видео: 1/, "бот должен отчитаться, что записал видео");
+});
+
+test("беззвучное видео (animation) тоже сохраняется", async () => {
+  const store = makeStore();
+  stubTelegram();
+  await runAsOwner(
+    forwardToBot({ animation: { file_id: "ANIM_FILE", thumb: { file_id: "ANIM_THUMB" } } }),
+    store,
+  );
+  const r = ((await store.get("reviews")) || [])[0];
+  assert.ok(r?.videos?.[0]?.includes("ANIM_FILE"), "animation должно считаться видео");
+  assert.ok(r?.poster?.includes("ANIM_THUMB"), "обложка из старого поля thumb тоже берётся");
+});
+
+/*
+ * Обратная сторона: если вложение всё-таки не прочиталось, бот обязан
+ * сказать об этом прямо. Молчаливая галочка «опубликован» — то, из-за чего
+ * пропажу не замечали месяцами.
+ */
+test("не понял вложение — говорит об этом, а не рапортует об успехе", async () => {
+  const store = makeStore();
+  const calls = stubTelegram();
+
+  // Голосовое: не фото и не видео — сохранить нечего.
+  await runAsOwner(forwardToBot({ voice: { file_id: "VOICE_FILE" } }), store);
+
+  const reply = calls.filter((c) => c.method === "sendMessage").pop();
+  const text = String(reply?.body?.text || "");
+  assert.ok(!/✅/.test(text), "галочки быть не должно, было: " + text);
+  assert.match(text, /БЕЗ файлов/, "должен прямо сказать, что файлов нет");
+});
+
+test("обычное видео по-прежнему работает и отчёт верный", async () => {
+  const store = makeStore();
+  const calls = stubTelegram();
+  await runAsOwner(
+    forwardToBot({ video: { file_id: "PLAIN_VIDEO", thumbnail: { file_id: "PLAIN_THUMB" } } }),
+    store,
+  );
+  const r = ((await store.get("reviews")) || [])[0];
+  assert.ok(r?.videos?.[0]?.includes("PLAIN_VIDEO"));
+  const reply = calls.filter((c) => c.method === "sendMessage").pop();
+  assert.match(String(reply?.body?.text), /✅/, "успех должен подтверждаться");
+});
