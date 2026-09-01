@@ -1095,3 +1095,43 @@ test("нормальный адрес по-прежнему открывает �
   });
   assert.match(btn?.web_app?.url || "", /\/tma$/, "мини-апп должен открываться как раньше");
 });
+
+/*
+ * Синяя кнопка меню бота настраивалась руками в BotFather, и адрес там лежал
+ * с кириллическим доменом. Поэтому правки адреса в коде её не касались:
+ * кнопки в сообщениях чинились, а эта продолжала вести в никуда.
+ */
+test("привязка вебхука выставляет и кнопку меню — в машинной записи", async () => {
+  const store = makeStore({
+    settings: { miniAppUrl: "https://автоимпорт-69.рф/tma", catalogButtonText: "Каталог" },
+  });
+  const calls = stubTelegram();
+
+  await worker.fetch(
+    new Request("https://w.dev/setup"),
+    { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", STORE: store },
+    undefined,
+  );
+
+  const menu = calls.find((c) => c.method === "setChatMenuButton");
+  assert.ok(menu, "кнопка меню должна выставляться, было: " + calls.map((c) => c.method).join(","));
+  assert.equal(
+    menu.body.menu_button.web_app.url,
+    "https://xn---69-5cdk0b2aocjmsg.xn--p1ai/tma",
+    "кириллица наружу уходить не должна",
+  );
+});
+
+test("непригодный адрес — обычное меню команд, а не кнопка в никуда", async () => {
+  const store = makeStore({ settings: { miniAppUrl: "каталог" } });
+  const calls = stubTelegram();
+
+  await worker.fetch(
+    new Request("https://w.dev/setup"),
+    { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", STORE: store },
+    undefined,
+  );
+
+  const menu = calls.find((c) => c.method === "setChatMenuButton");
+  assert.equal(menu?.body?.menu_button?.type, "commands", "битый адрес в кнопку попадать не должен");
+});
