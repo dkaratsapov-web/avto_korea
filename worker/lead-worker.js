@@ -344,8 +344,51 @@ async function getSettings(env) {
   const saved = (await kvGet(env, "settings", {})) || {};
   return { ...DEFAULT_SETTINGS, ...saved };
 }
+/**
+ * Адрес мини-аппа — проверенный и приведённый к машинному виду.
+ *
+ * ГЛАВНОЕ ЗДЕСЬ — punycode. Домен сайта кириллический, и в настройках он
+ * хранился так же: https://автоимпорт-69.рф/tma. Встроенный браузер Telegram
+ * с кириллицей в адресе ведёт себя по-разному на разных устройствах, и на
+ * части из них адрес превращался в бессмыслицу: имя домена длиной 126
+ * символов при пределе в 63 по правилам DNS. Человек вместо каталога видел
+ * «не удалось найти IP-адрес сервера».
+ *
+ * new URL приводит имя домена к машинной записи: автоимпорт-69.рф →
+ * xn---69-5cdk0b2aocjmsg.xn--p1ai. Наружу уходит чистая латиница, портить
+ * которую нечему.
+ *
+ * Проверка — вторым слоем. Адрес правится в админке обычным текстовым полем,
+ * и раньше единственным условием было «начинается на https://»: любая строка
+ * с этим началом уезжала в кнопку как есть. Теперь непригодное значение
+ * превращается в пустую строку, и кнопка ведёт на каталог сайта — рабочую
+ * страницу вместо ошибки браузера.
+ *
+ * Проверка длины метки формально дублирует new URL (он такой адрес и сам не
+ * разбирает), но оставлена намеренно: разные среды разбирают адреса
+ * по-разному, а правило DNS одно и то же везде.
+ */
+function safeAppUrl(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  let u;
+  try {
+    u = new URL(s);
+  } catch {
+    return "";
+  }
+  if (u.protocol !== "https:") return "";
+  const labels = u.hostname.split(".");
+  if (labels.length < 2) return "";
+  if (labels.some((l) => !l || l.length > 63)) return "";
+  if (!/^[a-z0-9.-]+$/i.test(u.hostname)) return "";
+  return u.href;
+}
+
 function miniAppUrl(env, settings) {
-  return String(settings.miniAppUrl || env.MINI_APP_URL || "");
+  return (
+    safeAppUrl(settings.miniAppUrl) || safeAppUrl(env.MINI_APP_URL) || ""
+  );
 }
 
 /* ---------- Гейт подписки и метки кампаний ---------- */
@@ -429,13 +472,22 @@ async function patchUser(env, userId, patch) {
   return null;
 }
 
+/**
+ * Каталог на сайте — запасной адрес, когда мини-апп открыть нельзя.
+ * В машинной записи: кнопку открывает встроенный браузер Telegram, и
+ * кириллица в адресе на части устройств доезжает искажённой.
+ */
+const SITE_CATALOG_URL = "https://xn---69-5cdk0b2aocjmsg.xn--p1ai/catalog";
+
 /** Клавиатура основного меню бота (каталог, подбор, менеджер, карты). */
 function menuKeyboard(env, settings) {
+  // Адрес уже проверен: непригодный превращается в пустую строку, и кнопка
+  // ведёт на каталог сайта — рабочую страницу вместо ошибки браузера.
   const appUrl = miniAppUrl(env, settings);
-  const isApp = /^https:\/\//.test(appUrl);
+  const isApp = !!appUrl;
   const openBtn = isApp
     ? { text: settings.catalogButtonText, web_app: { url: appUrl } }
-    : { text: settings.catalogButtonText, url: "https://автоимпорт-69.рф/catalog" };
+    : { text: settings.catalogButtonText, url: SITE_CATALOG_URL };
   const rows = [[openBtn]];
   if (isApp) {
     const quizUrl = appUrl + (appUrl.includes("?") ? "&" : "?") + "screen=quiz";
