@@ -132,6 +132,37 @@ async function bindWebhook(env, origin) {
   return r.json().catch(() => ({}));
 }
 
+/**
+ * Синяя кнопка меню бота — та, что слева от поля ввода.
+ *
+ * Раньше её никогда не выставлял код: она была настроена руками в BotFather,
+ * и адрес там лежал с кириллическим доменом. Из-за этого правки адреса в
+ * нашем коде её не касались вовсе — кнопка продолжала открывать своё, и
+ * человек упирался в «не удалось найти IP-адрес сервера», сколько бы мы ни
+ * чинили кнопки в сообщениях.
+ *
+ * Теперь бот выставляет её сам, тем же проверенным адресом в машинной записи.
+ * Настройка из BotFather при этом перекрывается — источник адреса остаётся
+ * один, и его видно в коде.
+ *
+ * Вызывается при привязке вебхука: это то самое действие «переподключить
+ * бота», которое и так делают после правки настроек.
+ */
+async function bindMenuButton(env, settings) {
+  const appUrl = miniAppUrl(env, settings);
+  const button = appUrl
+    ? {
+        type: "web_app",
+        text: settings.catalogButtonText || "Каталог",
+        web_app: { url: appUrl },
+      }
+    // Адреса нет или он непригоден — возвращаем обычное меню команд.
+    // Пустая кнопка лучше кнопки в никуда.
+    : { type: "commands" };
+  const r = await api(env, "setChatMenuButton", { menu_button: button });
+  return r.json().catch(() => ({}));
+}
+
 function leadText(d) {
   const lines = [
     "🚗 Новая заявка — ДиАвто69",
@@ -685,7 +716,10 @@ export default {
       if (!env.TELEGRAM_BOT_TOKEN)
         return json({ error: "no TELEGRAM_BOT_TOKEN" }, 400);
       const out = await bindWebhook(env, url.origin);
-      return json({ setWebhook: `${url.origin}/tg`, telegram: out });
+      // Заодно перевыставляем синюю кнопку меню: её адрес должен приходить
+      // из кода, а не из BotFather, иначе правки адреса её не касаются.
+      const menu = await bindMenuButton(env, await getSettings(env));
+      return json({ setWebhook: `${url.origin}/tg`, telegram: out, menuButton: menu });
     }
 
     // --- Telegram webhook ---
@@ -2576,7 +2610,13 @@ async function handleAdmin(env, action, payload, perm, user, origin) {
     // выкладки, которая этот список меняет: Telegram помнит старый.
     case "webhook.setup": {
       const out = await bindWebhook(env, origin);
-      return json({ ok: !!out?.ok, telegram: out, updates: WEBHOOK_UPDATES });
+      const menu = await bindMenuButton(env, await getSettings(env));
+      return json({
+        ok: !!out?.ok,
+        telegram: out,
+        updates: WEBHOOK_UPDATES,
+        menuButton: menu,
+      });
     }
 
     case "broadcast.send": {
