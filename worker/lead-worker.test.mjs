@@ -1038,3 +1038,60 @@ test("обычное видео по-прежнему работает и отч
   const reply = calls.filter((c) => c.method === "sendMessage").pop();
   assert.match(String(reply?.body?.text), /✅/, "успех должен подтверждаться");
 });
+
+/* ---------- Адрес мини-аппа ---------- */
+
+/** Кнопки приветствия при заданных настройках. */
+async function menuOf(settings) {
+  const store = makeStore({ settings });
+  const calls = stubTelegram();
+  const c = makeCtx();
+  await run(startUpdate("/start"), { store, ctx: c.ctx });
+  await c.settle();
+  const msg = calls.find((x) => x.method === "sendMessage" && x.body.reply_markup);
+  return msg?.body?.reply_markup?.inline_keyboard?.[0]?.[0] ?? null;
+}
+
+/*
+ * Реальный случай: к адресу в настройке дописали текст без слэша, всё
+ * слиплось с именем домена, и главная кнопка бота открывала страницу
+ * «не удалось найти IP-адрес сервера». Метка такого домена — 126 символов
+ * при пределе в 63, то есть его не существует в принципе.
+ */
+test("склеенный адрес мини-аппа не уходит в кнопку", async () => {
+  const broken =
+    "https://xn---69-ved3475ghjb1yja62ua767ca454aa2xt7zvhm9mjwsjoyg32a4rjsilp7ly783fg8ciygha944qo2rha7842eha1af1ed9ab4e0iqi3a4kqe9a3l5cp64g.xn--rg4c00a/tma";
+  const btn = await menuOf({ gateEnabled: false, miniAppUrl: broken });
+  assert.ok(btn, "кнопка должна быть");
+  assert.equal(btn.web_app, undefined, "мини-апп по битому адресу открывать нельзя");
+  assert.match(btn.url || "", /\/catalog$/, "должен остаться рабочий каталог сайта");
+});
+
+test("кириллический домен приводится к машинной записи", async () => {
+  const btn = await menuOf({
+    gateEnabled: false,
+    miniAppUrl: "https://автоимпорт-69.рф/tma",
+  });
+  assert.equal(
+    btn?.web_app?.url,
+    "https://xn---69-5cdk0b2aocjmsg.xn--p1ai/tma",
+    "встроенный браузер Telegram надёжнее открывает машинную запись",
+  );
+});
+
+test("мусор вместо адреса не ломает меню", async () => {
+  for (const bad of ["каталог", "http://сайт.рф/tma", "https://", "https://безточки/tma", ""]) {
+    const btn = await menuOf({ gateEnabled: false, miniAppUrl: bad });
+    assert.ok(btn, `кнопка должна остаться при значении «${bad}»`);
+    assert.equal(btn.web_app, undefined, `«${bad}» не должно уходить в мини-апп`);
+    assert.match(btn.url || "", /^https:\/\//, `«${bad}» — запасной адрес должен быть рабочим`);
+  }
+});
+
+test("нормальный адрес по-прежнему открывает мини-апп", async () => {
+  const btn = await menuOf({
+    gateEnabled: false,
+    miniAppUrl: "https://xn---69-5cdk0b2aocjmsg.xn--p1ai/tma",
+  });
+  assert.match(btn?.web_app?.url || "", /\/tma$/, "мини-апп должен открываться как раньше");
+});
