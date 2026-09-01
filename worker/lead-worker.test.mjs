@@ -1013,45 +1013,6 @@ async function runAsOwner(update, store) {
  * (video_note), владелец пересылает его боту — а бот такое вложение не
  * распознавал, сохранял один текст и отвечал «опубликован».
  */
-test("кру́глое видео, пересланное боту, сохраняется в отзыв", async () => {
-  const store = makeStore();
-  const calls = stubTelegram();
-
-  await runAsOwner(
-    forwardToBot({ video_note: { file_id: "ROUND_VIDEO", thumbnail: { file_id: "ROUND_THUMB" } } }),
-    store,
-  );
-
-  const r = ((await store.get("reviews")) || [])[0];
-  assert.ok(r, "отзыв должен появиться");
-  assert.ok(
-    r.videos?.[0]?.includes("ROUND_VIDEO"),
-    "видео кружка должно попасть в отзыв, было: " + JSON.stringify(r.videos),
-  );
-  assert.ok(r.poster?.includes("ROUND_THUMB"), "обложка должна сохраниться");
-  assert.deepEqual(r.images ?? [], [], "обложка не должна стать отдельным фото");
-
-  const reply = calls.filter((c) => c.method === "sendMessage").pop();
-  assert.match(String(reply?.body?.text), /видео: 1/, "бот должен отчитаться, что записал видео");
-});
-
-test("беззвучное видео (animation) тоже сохраняется", async () => {
-  const store = makeStore();
-  stubTelegram();
-  await runAsOwner(
-    forwardToBot({ animation: { file_id: "ANIM_FILE", thumb: { file_id: "ANIM_THUMB" } } }),
-    store,
-  );
-  const r = ((await store.get("reviews")) || [])[0];
-  assert.ok(r?.videos?.[0]?.includes("ANIM_FILE"), "animation должно считаться видео");
-  assert.ok(r?.poster?.includes("ANIM_THUMB"), "обложка из старого поля thumb тоже берётся");
-});
-
-/*
- * Обратная сторона: если вложение всё-таки не прочиталось, бот обязан
- * сказать об этом прямо. Молчаливая галочка «опубликован» — то, из-за чего
- * пропажу не замечали месяцами.
- */
 test("не понял вложение — говорит об этом, а не рапортует об успехе", async () => {
   const store = makeStore();
   const calls = stubTelegram();

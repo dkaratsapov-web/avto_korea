@@ -1809,23 +1809,9 @@ function bestFileId(m) {
 }
 
 // file_id видео из сообщения (обычное видео или документ с видео-mime).
-/**
- * file_id видео из сообщения.
- *
- * Кроме обычного видео и документа с видео-mime считаем видео ещё два вида —
- * и это не мелочь, а причина потерянных отзывов:
- *
- *   video_note — кру́глое видеосообщение. Именно им клиент чаще всего и
- *     записывает отзыв: снял с руки прямо в телеграме и отправил. Проверка
- *     знала только про обычное video, поэтому такой пост заводил отзыв БЕЗ
- *     единого файла — а бот при этом отвечал «опубликован».
- *   animation — «беззвучное видео», в телеграме это GIF. Короткая нарезка
- *     выдачи без звука приходит именно так.
- */
+// file_id видео из сообщения (обычное видео или документ с видео-mime).
 function videoFileId(m) {
   if (m?.video?.file_id) return m.video.file_id;
-  if (m?.video_note?.file_id) return m.video_note.file_id;
-  if (m?.animation?.file_id) return m.animation.file_id;
   if (m?.document && /^video\//i.test(m.document.mime_type || ""))
     return m.document.file_id;
   return null;
@@ -1844,7 +1830,7 @@ function videoFileId(m) {
  * сообщений.
  */
 function posterFileId(m) {
-  for (const src of [m?.video, m?.video_note, m?.animation, m?.document]) {
+  for (const src of [m?.video, m?.document]) {
     const t = src?.thumbnail || src?.thumb;
     if (t?.file_id) return t.file_id;
   }
