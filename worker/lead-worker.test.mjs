@@ -1135,3 +1135,65 @@ test("непригодный адрес — обычное меню команд
   const menu = calls.find((c) => c.method === "setChatMenuButton");
   assert.equal(menu?.body?.menu_button?.type, "commands", "битый адрес в кнопку попадать не должен");
 });
+
+/*
+ * Петля, из-за которой владелец оказывался заперт: чтобы починить кнопку
+ * запуска мини-аппа, нужно было зайти в админку — которая открывается той
+ * самой кнопкой. Команда /fix эту петлю снимает.
+ */
+test("/fix чинит бота без захода в админку", async () => {
+  const store = makeStore({
+    settings: { miniAppUrl: "https://автоимпорт-69.рф/tma", catalogButtonText: "Каталог" },
+  });
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 90,
+      message: {
+        message_id: 900,
+        text: "/fix",
+        chat: { id: 777, type: "private" },
+        from: { id: 777, first_name: "Хозяин" },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.ok(calls.some((x) => x.method === "setWebhook"), "вебхук должен перепривязаться");
+  const menu = calls.find((x) => x.method === "setChatMenuButton");
+  assert.equal(
+    menu?.body?.menu_button?.web_app?.url,
+    "https://xn---69-5cdk0b2aocjmsg.xn--p1ai/tma",
+    "кнопка меню должна получить адрес в машинной записи",
+  );
+  const reply = calls.filter((x) => x.method === "sendMessage").pop();
+  assert.match(String(reply?.body?.text), /Кнопка меню/, "владельцу должен прийти отчёт");
+});
+
+test("/fix от постороннего ничего не меняет", async () => {
+  const store = makeStore({ settings: { miniAppUrl: "https://автоимпорт-69.рф/tma" } });
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 91,
+      message: {
+        message_id: 901,
+        text: "/fix",
+        chat: { id: 555, type: "private" },
+        from: { id: 555, first_name: "Чужой" },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.ok(
+    !calls.some((x) => x.method === "setChatMenuButton" || x.method === "setWebhook"),
+    "настройки бота посторонний менять не должен",
+  );
+});
