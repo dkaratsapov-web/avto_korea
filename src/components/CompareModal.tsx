@@ -5,6 +5,7 @@ import { type Car, formatPrice } from "@/data/cars";
 import { Flag } from "@/components/icons/Flag";
 import { countries } from "@/lib/site";
 import { useUI } from "@/lib/ui";
+import { displayPrice } from "@/lib/price";
 
 const ROWS: { label: string; get: (c: Car) => string }[] = [
   { label: "Год", get: (c) => String(c.year) },
@@ -27,7 +28,7 @@ export function CompareModal({
   onClose: () => void;
 }) {
   const { removeCompare, clearCompare, openCar } = useUI();
-  const prices = cars.map((c) => c.priceTverRub ?? c.priceRub);
+  const prices = cars.map(displayPrice);
   const minPrice = prices.length ? Math.min(...prices) : 0;
 
   return (
@@ -101,7 +102,7 @@ export function CompareModal({
                     Цена
                   </td>
                   {cars.map((car) => {
-                    const p = car.priceTverRub ?? car.priceRub;
+                    const p = displayPrice(car);
                     const best = p === minPrice;
                     return (
                       <td

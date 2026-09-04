@@ -8,6 +8,7 @@ import { GOALS, reachGoal } from "@/lib/metrika";
 import { maskPhone } from "@/lib/phone";
 import { useCars } from "@/lib/carsStore";
 import { formatPrice, type Car } from "@/data/cars";
+import { displayPrice } from "@/lib/price";
 
 type Step = { key: string; q: string; options: string[] };
 
@@ -55,7 +56,7 @@ const BUDGET_BY_ANSWER: Record<string, [number | null, number | null]> = {
   "от 5 млн ₽": [5_000_000, null],
 };
 
-const priceOf = (c: Car) => c.priceTverRub ?? c.priceRub;
+const priceOf = displayPrice;
 
 /** Адрес каталога с фильтрами по ответам — та самая «подборка». */
 function selectionUrl(answers: Record<string, string>): string {

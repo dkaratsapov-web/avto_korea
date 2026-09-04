@@ -7,6 +7,7 @@ import { formatPrice, type Car } from "@/data/cars";
 import { useCars } from "@/lib/carsStore";
 import { site } from "@/lib/site";
 import { GOALS, reachGoal } from "@/lib/metrika";
+import { displayPrice } from "@/lib/price";
 
 type Step = {
   key: "country" | "body" | "budget" | "state";
@@ -73,7 +74,7 @@ function pickCars(cars: Car[], a: Record<string, string>): Car[] {
 
   const scored = cars.map((c) => {
     let score = 0;
-    const price = c.priceTverRub ?? c.priceRub;
+    const price = displayPrice(c);
 
     if (a.country && a.country !== ANY && c.country === a.country) score += 3;
     if (
@@ -115,7 +116,7 @@ function messengerText(a: Record<string, string>, picked: Car[]): string {
   const list = picked
     .map(
       (c, i) =>
-        `${i + 1}) ${c.model} ${c.year} — ${formatPrice(c.priceTverRub ?? c.priceRub)}`,
+        `${i + 1}) ${c.model} ${c.year} — ${formatPrice(displayPrice(c))}`,
     )
     .join("\n");
 
@@ -164,7 +165,7 @@ function ResultCard({ car }: { car: Car }) {
           {car.year} · {car.mileage}
         </div>
         <div className="mt-0.5 font-num text-[15px] font-bold text-bordeaux-bright">
-          {formatPrice(car.priceTverRub ?? car.priceRub)}
+          {formatPrice(displayPrice(car))}
         </div>
       </div>
       <Lock className="mr-1 h-[18px] w-[18px] flex-none text-[#6d7681]" />

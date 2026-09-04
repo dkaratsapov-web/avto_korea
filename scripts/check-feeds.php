@@ -43,8 +43,9 @@ $catalog = [
         'engineCc' => 1498,
         'powerHp' => 115,
         'color' => 'Серый',
-        'priceRub' => 1800000,
+        'priceRub' => 1830000,
         'priceTverRub' => 1810000,
+        'priceMoscowRub' => 1800000,
         'images' => ['https://diauto-bot.d-karatsapov.workers.dev/api/tgphoto?id=AAA'],
         'description' => 'Пишите в телеграм @diavto69 или звоните +7 (999) 123-45-67. #корея',
     ],
@@ -130,7 +131,12 @@ foreach ($offers as $o) {
 
 $first = $offers[0];
 
-check('взята не тверская цена', (string) $first->price === '1810000', (string) $first->price);
+/*
+ * Цена в фиде должна совпадать с той, что показывает сайт, — до Москвы.
+ * Разная цена в объявлении и на сайте — первый повод усомниться в остальных
+ * цифрах, даже когда расхождение в пользу покупателя.
+ */
+check('взята не московская цена', (string) $first->price === '1800000', (string) $first->price);
 
 check(
     'комплектация не попала в заголовок',

@@ -11,6 +11,7 @@ import { type Car } from "@/data/cars";
 import { isPremium, PREMIUM_MIN_PRICE } from "@/lib/premium";
 import { countries, type CountryCode } from "@/lib/site";
 import { brandOf } from "@/lib/brand";
+import { displayPrice } from "@/lib/price";
 
 type Sort = "default" | "price-asc" | "price-desc";
 type Condition = "all" | "new" | "used";
@@ -58,7 +59,7 @@ const fmt = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
 
 
 function matchesCar(c: Car, f: Filters, search: string): boolean {
-  const price = c.priceTverRub ?? c.priceRub;
+  const price = displayPrice(c);
   const hp = c.powerHp ?? 0;
   if (search && !c.model.toLowerCase().includes(search.toLowerCase())) return false;
   if (f.countryTab !== "all" && c.country !== f.countryTab) return false;
@@ -118,7 +119,7 @@ export function CatalogBrowser() {
   );
 
   const facets = useMemo(() => {
-    const prices = cars.map((c) => c.priceTverRub ?? c.priceRub);
+    const prices = cars.map(displayPrice);
     const powers = cars.map((c) => c.powerHp ?? 0).filter(Boolean);
     return {
       countries: Array.from(new Set(cars.map((c) => c.country))),
@@ -175,11 +176,11 @@ export function CatalogBrowser() {
     let list = cars.filter((c) => matchesCar(c, applied, search));
     if (sort === "price-asc")
       list = [...list].sort(
-        (a, b) => (a.priceTverRub ?? a.priceRub) - (b.priceTverRub ?? b.priceRub),
+        (a, b) => displayPrice(a) - displayPrice(b),
       );
     if (sort === "price-desc")
       list = [...list].sort(
-        (a, b) => (b.priceTverRub ?? b.priceRub) - (a.priceTverRub ?? a.priceRub),
+        (a, b) => displayPrice(b) - displayPrice(a),
       );
     return list;
   }, [cars, applied, search, sort]);

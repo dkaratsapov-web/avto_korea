@@ -11,6 +11,7 @@ import { CarSilhouette } from "@/components/icons/CarSilhouette";
 import { type Car, formatPrice } from "@/data/cars";
 import { countries } from "@/lib/site";
 import { useUI } from "@/lib/ui";
+import { displayPrice, PRICE_LABEL } from "@/lib/price";
 
 // Фото авто с запасным вариантом: если картинка не загрузилась или её нет —
 // показываем фирменный силуэт вместо чёрного прямоугольника.
@@ -145,10 +146,10 @@ export function CarCard({ car }: { car: Car }) {
         <div className="mt-auto flex flex-col items-stretch gap-2.5 pt-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-3 sm:gap-y-2.5 sm:pt-5">
           <div className="min-w-0 leading-none">
             <div className="mb-1 text-[9.5px] font-bold uppercase tracking-[0.08em] text-ink-2 sm:mb-1.5 sm:text-[10.5px]">
-              Под ключ до Твери
+              {PRICE_LABEL}
             </div>
             <div className="whitespace-nowrap font-num text-[18px] font-extrabold text-bordeaux sm:text-[22px] 2xl:text-[26px]">
-              {formatPrice(car.priceTverRub ?? car.priceRub)}
+              {formatPrice(displayPrice(car))}
               <small className="ml-1 text-[12px] font-semibold text-ink-2 sm:text-[14px] 2xl:text-[15px]">
                 ₽
               </small>

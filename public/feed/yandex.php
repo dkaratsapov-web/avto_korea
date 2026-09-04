@@ -66,7 +66,7 @@ $offers = [];
 $brands = [];
 
 foreach ($catalog as $c) {
-    $price = (int) ($c['priceTverRub'] ?? $c['priceRub'] ?? 0);
+    $price = feedPrice($c);
     if ($price <= 0 || empty($c['id']) || empty($c['model'])) {
         continue;
     }
