@@ -29,7 +29,7 @@ export function EstimateMockup() {
         <div className="px-5 pb-5 pt-4">
           <div className="mb-3 flex items-center justify-between text-[12px] font-bold uppercase tracking-[0.06em] text-ink-2">
             <span>🇰🇷 Kia K3 · 2026</span>
-            <span>до Твери</span>
+            <span>до Москвы</span>
           </div>
 
           <ul className="space-y-2.5">

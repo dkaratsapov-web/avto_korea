@@ -45,6 +45,7 @@ import {
   suggestedRemovals,
   type DuplicateGroup,
 } from "@/lib/duplicates";
+import { displayPrice } from "@/lib/price";
 
 type Tab =
   | "catalog"
@@ -285,8 +286,9 @@ function DraftsTab({ tg, initData }: { tg: TG | null; initData: string }) {
 
   async function publish(car: Car, draftId: string) {
     const id = car.id || slug(car.model);
-    const price = car.priceTverRub || car.priceRub || 0;
-    const full = { ...car, id, priceRub: price, priceTverRub: price };
+    // Сайт показывает московскую цену — её и повторяем в общей.
+    const price = car.priceMoscowRub || car.priceRub || 0;
+    const full = { ...car, id, priceRub: price, priceMoscowRub: price };
     const next = cars.some((c) => c.id === id)
       ? cars.map((c) => (c.id === id ? full : c))
       : [...cars, full];
@@ -690,7 +692,7 @@ function StatsTab({ initData }: { initData: string }) {
   const sources = Object.entries(stats.bySource || {}).sort((a, b) => b[1] - a[1]);
 
   // Сводка по каталогу (из общих данных)
-  const prices = cars.map((c) => c.priceTverRub ?? c.priceRub).filter(Boolean);
+  const prices = cars.map(displayPrice).filter(Boolean);
   const byStatus = {
     in_stock: cars.filter((c) => c.status === "in_stock").length,
     in_transit: cars.filter((c) => c.status === "in_transit").length,
@@ -1091,8 +1093,9 @@ function CatalogTab({
 
   function onSave(car: Car) {
     const id = car.id || slug(car.model);
-    const price = car.priceTverRub || car.priceRub || 0;
-    const full = { ...car, id, priceRub: price, priceTverRub: price };
+    // Сайт показывает московскую цену — её и повторяем в общей.
+    const price = car.priceMoscowRub || car.priceRub || 0;
+    const full = { ...car, id, priceRub: price, priceMoscowRub: price };
     const next = cars.some((c) => c.id === id)
       ? cars.map((c) => (c.id === id ? full : c))
       : [...cars, full];
@@ -1149,7 +1152,7 @@ function CatalogTab({
                 <span className="truncate font-bold">{car.model}</span>
               </div>
               <div className="font-num text-[14px] font-bold text-bordeaux-bright">
-                {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+                {formatPrice(displayPrice(car))} ₽
               </div>
             </div>
             {canEdit ? (
@@ -1357,7 +1360,7 @@ function CarEditor({
           </select>
         </label>
         <label>
-          <span className={lab}>Цена до Твери, ₽</span>
+          <span className={lab}>Цена до Твери, ₽ — не показывается</span>
           <input
             type="number"
             inputMode="numeric"

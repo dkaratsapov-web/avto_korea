@@ -36,6 +36,7 @@ import {
   type Review,
   type Faq,
 } from "@/lib/api";
+import { displayPrice, PRICE_LABEL, PRICE_LABEL_SHORT } from "@/lib/price";
 function mtoggle<T>(arr: T[], v: T): T[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 }
@@ -86,7 +87,7 @@ export function ListView({
   const [powerTo, setPowerTo] = useState<number | null>(null);
 
   const facets = useMemo(() => {
-    const prices = cars.map((c) => c.priceTverRub ?? c.priceRub);
+    const prices = cars.map(displayPrice);
     const powers = cars.map((c) => c.powerHp ?? 0).filter(Boolean);
     return {
       brands: Array.from(new Set(cars.map((c) => brandOf(c.model)).filter(Boolean))).sort(),
@@ -120,7 +121,7 @@ export function ListView({
     (powerFrom != null || powerTo != null ? 1 : 0);
 
   const list = cars.filter((c) => {
-    const price = c.priceTverRub ?? c.priceRub;
+    const price = displayPrice(c);
     const hp = c.powerHp ?? 0;
     if (filter !== "all" && c.country !== filter) return false;
     if (!c.model.toLowerCase().includes(q.toLowerCase())) return false;
@@ -421,10 +422,10 @@ function CarTile({
             высоты, и без этого цены не встают в одну линию. */}
         <div className="mt-auto pt-2">
           <div className="text-[9px] font-bold uppercase tracking-[0.07em] text-[#8A939C]">
-            Под ключ до Твери
+            {PRICE_LABEL}
           </div>
           <div className="mt-0.5 whitespace-nowrap font-num text-[15px] font-extrabold leading-none text-bordeaux-bright">
-            {formatPrice(car.priceTverRub ?? car.priceRub)}
+            {formatPrice(displayPrice(car))}
             <small className="ml-0.5 text-[11px] font-semibold text-[#9AA4B2]">₽</small>
           </div>
         </div>
@@ -531,7 +532,7 @@ export function FavView({
               >
                 <div className="truncate font-bold">{car.model}</div>
                 <div className="font-num text-[15px] font-bold text-bordeaux-bright">
-                  {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+                  {formatPrice(displayPrice(car))} ₽
                 </div>
               </button>
               <button
@@ -658,11 +659,10 @@ export function CarView({
           ))}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <Price label="до Твери" value={car.priceTverRub ?? car.priceRub} accent />
-        {car.priceMoscowRub ? (
-          <Price label="до Москвы" value={car.priceMoscowRub} />
-        ) : null}
+      {/* Цена одна — до Москвы. Две рядом заставляли человека сначала
+          разбираться, какая из них его, вместо того чтобы смотреть машину. */}
+      <div className="mt-4">
+        <Price label={PRICE_LABEL_SHORT} value={displayPrice(car)} accent />
       </div>
 
       {car.description ? (
@@ -748,7 +748,7 @@ export function LeadView({
           <div>
             <div className="font-bold">{car.model}</div>
             <div className="font-num text-[14px] font-bold text-bordeaux-bright">
-              {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+              {formatPrice(displayPrice(car))} ₽
             </div>
           </div>
         </div>
@@ -1193,7 +1193,7 @@ function QuizCarRow({ car, onOpen }: { car: Car; onOpen?: (id: string) => void }
       <div className="min-w-0 flex-1">
         <div className="truncate font-bold">{car.model}</div>
         <div className="font-num text-[14px] font-bold text-bordeaux-bright">
-          {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+          {formatPrice(displayPrice(car))} ₽
         </div>
       </div>
       {onOpen ? (
@@ -1843,7 +1843,7 @@ export function CompareView({
   onOpenCatalog: () => void;
 }) {
   const rows: [string, (c: Car) => string][] = [
-    ["Цена под ключ", (c) => `${formatPrice(c.priceTverRub ?? c.priceRub)} ₽`],
+    ["Цена под ключ", (c) => `${formatPrice(displayPrice(c))} ₽`],
     ["Год", (c) => String(c.year)],
     ["Страна", (c) => countries[c.country].label],
     ["Кузов", (c) => c.bodyType || "—"],

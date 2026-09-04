@@ -15,6 +15,7 @@ import { useCars } from "@/lib/carsStore";
 import { type Car, type CarStatus, formatPrice } from "@/data/cars";
 import { countries, type CountryCode } from "@/lib/site";
 import { Flag } from "@/components/icons/Flag";
+import { displayPrice } from "@/lib/price";
 
 // Пароль задаётся только через переменную окружения. Без неё веб-админка
 // закрыта — управление каталогом перенесено в Telegram-бота (по подписи).
@@ -265,7 +266,7 @@ function AdminPanel({ onLogout }: { onLogout: () => void }) {
                   {car.year} · {car.trim || "—"} · {car.engine}
                 </div>
                 <div className="font-num text-[15px] font-bold text-bordeaux">
-                  {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+                  {formatPrice(displayPrice(car))} ₽
                 </div>
               </div>
               <button
@@ -313,8 +314,14 @@ function CarEditor({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const id = f.id || slug(f.model);
-    const priceTver = f.priceTverRub || f.priceRub || 0;
-    onSave({ ...f, id, priceRub: priceTver, priceTverRub: priceTver });
+    /*
+     * Общая цена повторяет московскую: сайт показывает именно её, а
+     * priceRub остаётся запасным путём для машин, у которых московской
+     * цены нет. Раньше сюда копировалась тверская — с тех пор как показ
+     * переехал на Москву, это давало расхождение между админкой и сайтом.
+     */
+    const priceMsk = f.priceMoscowRub || f.priceRub || 0;
+    onSave({ ...f, id, priceRub: priceMsk, priceMoscowRub: priceMsk });
   }
 
   const inp =
@@ -483,21 +490,21 @@ function CarEditor({
           </select>
         </label>
         <label>
-          <span className={lab}>Цена до Твери, ₽</span>
-          <input
-            type="number"
-            className={inp}
-            value={f.priceTverRub || 0}
-            onChange={(e) => set("priceTverRub", Number(e.target.value))}
-          />
-        </label>
-        <label>
-          <span className={lab}>Цена до Москвы, ₽</span>
+          <span className={lab}>Цена до Москвы, ₽ — её показывает сайт</span>
           <input
             type="number"
             className={inp}
             value={f.priceMoscowRub || 0}
             onChange={(e) => set("priceMoscowRub", Number(e.target.value))}
+          />
+        </label>
+        <label>
+          <span className={lab}>Цена до Твери, ₽ — не показывается, для расчётов</span>
+          <input
+            type="number"
+            className={inp}
+            value={f.priceTverRub || 0}
+            onChange={(e) => set("priceTverRub", Number(e.target.value))}
           />
         </label>
         <label className="flex items-center gap-2 sm:col-span-2">

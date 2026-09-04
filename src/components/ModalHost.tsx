@@ -11,6 +11,7 @@ import { Flag } from "@/components/icons/Flag";
 import { useUI } from "@/lib/ui";
 import { useCars } from "@/lib/carsStore";
 import { GOALS, reachGoal } from "@/lib/metrika";
+import { displayPrice } from "@/lib/price";
 
 export function ModalHost() {
   const { modal, close, favorites, removeFav, openCar, compare } = useUI();
@@ -105,7 +106,7 @@ export function ModalHost() {
                       <span className="truncate">{car.model}</span>
                     </div>
                     <div className="font-num text-[15px] font-bold text-bordeaux-bright">
-                      {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+                      {formatPrice(displayPrice(car))} ₽
                     </div>
                   </div>
                   <button

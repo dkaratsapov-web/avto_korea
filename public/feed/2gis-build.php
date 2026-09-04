@@ -190,9 +190,9 @@ function gisRows(array $catalog): array
         if (!is_array($c)) {
             continue;
         }
-        // Цена в Твери: организация в 2ГИС тверская, и цену человек увидит
-        // именно ту, по которой купит здесь.
-        $price = (int) ($c['priceTverRub'] ?? $c['priceRub'] ?? 0);
+        // Та же цена, что на сайте, — до Москвы. Расхождение между витриной
+        // и сайтом дороже, чем разница в сорок тысяч.
+        $price = feedPrice($c);
         $images = array_values(array_filter(
             (array) ($c['images'] ?? []),
             fn($i) => is_string($i) && $i !== '',

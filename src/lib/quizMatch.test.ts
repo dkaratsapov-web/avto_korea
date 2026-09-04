@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { displayPrice } from "./price";
 import { matchQuizCars, relaxedLabel, type QuizCar } from "./quizMatch";
 
 /**
@@ -64,7 +65,7 @@ test("бюджет расширяется последним и только н�
 
 test("близкие сортируются по близости к бюджету", () => {
   const r = matchQuizCars(каталог, { ...бюджет, body: "Седан", country: "kr", condition: "new" });
-  const цены = r.cars.map((c) => c.priceTverRub ?? c.priceRub);
+  const цены = r.cars.map(displayPrice);
   // Середина бюджета — 2,25 млн: 2,3 млн ближе, чем 2,4 млн.
   assert.deepEqual(цены, [2_300_000, 2_400_000]);
 });
@@ -83,7 +84,7 @@ test("ступень «и больше» не отбрасывает нижню�
   const r = matchQuizCars(каталог, { budgetMin: 2_500_000, budgetMax: Infinity });
   assert.equal(r.exact, true);
   assert.deepEqual(r.cars.map((c) => c.id), ["дорогой-кроссовер-кн"]);
-  assert.ok(r.cars.every((c) => (c.priceTverRub ?? c.priceRub) >= 2_500_000));
+  assert.ok(r.cars.every((c) => displayPrice(c) >= 2_500_000));
 });
 
 test("у открытой ступени сортировка целится в нижнюю границу", () => {

@@ -21,10 +21,12 @@
  * без честной подписи «ближе всего, но из Кореи» подборка выглядит так,
  * будто мы не поняли ответы.
  */
+import { displayPrice } from "@/lib/price";
+
 
 export type QuizCar = {
   priceRub: number;
-  priceTverRub?: number;
+  priceMoscowRub?: number;
   bodyType?: string;
   country: string;
   isNew?: boolean;
@@ -52,7 +54,7 @@ export type QuizMatch<T> = {
 const BUDGET_STRETCH = 0.25;
 
 function priceOf(car: QuizCar): number {
-  return car.priceTverRub ?? car.priceRub;
+  return displayPrice(car);
 }
 
 /** Задано ли условие вообще. «any» и пусто — это «не важно». */

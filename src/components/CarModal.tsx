@@ -15,6 +15,7 @@ import { type Car, formatPrice } from "@/data/cars";
 import { countries, site } from "@/lib/site";
 import { useUI } from "@/lib/ui";
 import { GOALS, reachGoal } from "@/lib/metrika";
+import { displayPrice, PRICE_LABEL } from "@/lib/price";
 
 export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
   const { isFav, toggleFav } = useUI();
@@ -181,25 +182,17 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
                 ))}
             </div>
 
-            <div className="mt-auto grid grid-cols-2 gap-3">
+            {/* Цена одна — до Москвы. Раньше их было две, рядом, и человек
+                первым делом спрашивал не «сколько», а «а мне какая». */}
+            <div className="mt-auto">
               <div className="min-w-0 rounded-card border border-line-dark bg-white/[0.03] px-4 py-3">
                 <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-2">
-                  Под ключ до Твери
+                  {PRICE_LABEL}
                 </div>
                 <div className="font-num text-[20px] font-bold text-bordeaux-bright sm:text-[24px]">
-                  {formatPrice(car.priceTverRub ?? car.priceRub)} ₽
+                  {formatPrice(displayPrice(car))} ₽
                 </div>
               </div>
-              {car.priceMoscowRub ? (
-                <div className="min-w-0 rounded-card border border-line-dark bg-white/[0.03] px-4 py-3">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-2">
-                    Под ключ до Москвы
-                  </div>
-                  <div className="font-num text-[20px] font-bold text-white sm:text-[24px]">
-                    {formatPrice(car.priceMoscowRub)} ₽
-                  </div>
-                </div>
-              ) : null}
             </div>
 
             <div className="flex gap-3">

@@ -1,5 +1,6 @@
 import { brandOf } from "@/lib/brand";
 import type { Car } from "@/data/cars";
+import { displayPrice } from "@/lib/price";
 
 /*
  * Правило премиум-подборки живёт здесь, а не рядом с данными каталога.
@@ -43,6 +44,6 @@ const PREMIUM_BRANDS = new Set([
 export function isPremium(c: Car): boolean {
   return (
     PREMIUM_BRANDS.has(brandOf(c.model)) &&
-    (c.priceTverRub ?? c.priceRub) >= PREMIUM_MIN_PRICE
+    displayPrice(c) >= PREMIUM_MIN_PRICE
   );
 }
