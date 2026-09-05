@@ -2094,3 +2094,159 @@ test("о новом человеке в MAX приходит уведомлен�
   assert.ok((await store.get("max:users"))["4242"], "человек должен попасть в свой список");
   assert.equal(await store.get("users"), null, "и не попасть в телеграмный");
 });
+
+/*
+ * Ответ менеджера человеку в MAX.
+ *
+ * Из Telegram в чат MAX перейти нельзя, поэтому единственный способ ответить
+ * новому человеку — через бота. Менеджер отвечает на уведомление, текст
+ * уходит адресату.
+ */
+test("ответ на уведомление уходит человеку в MAX", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    const body = init?.body ? JSON.parse(init.body) : null;
+    sent.push({ url: String(url), body });
+    return new Response(
+      JSON.stringify({ ok: true, result: { message_id: 555 }, message: {} }),
+      { headers: { "Content-Type": "application/json" } },
+    );
+  };
+  const store = makeStore({});
+  const env = { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", ADMIN_IDS: "777", STORE: store };
+
+  // Человек появился в MAX — менеджеру пришло уведомление.
+  await worker.fetch(
+    maxUpdate({ update_type: "bot_started", user: { user_id: 22145561, first_name: "Daniil" } }),
+    env,
+    undefined,
+  );
+  assert.equal((await store.get("max:replyTo"))["555"], "22145561", "связка должна запомниться");
+
+  // Менеджер отвечает на это уведомление.
+  const c = makeCtx();
+  await run(
+    {
+      update_id: 130,
+      message: {
+        message_id: 931,
+        text: "Добрый день! Подскажите, какой бюджет рассматриваете?",
+        chat: { id: -100999, type: "supergroup" },
+        from: { id: 777, first_name: "Менеджер" },
+        reply_to_message: { message_id: 555 },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  const toMax = sent.find(
+    (x) => x.url.includes("botapi.max.ru/messages") && /бюджет/.test(String(x.body?.text || "")),
+  );
+  assert.ok(toMax, "текст должен уйти в MAX");
+  assert.match(toMax.url, /user_id=22145561/, "и именно тому человеку");
+});
+
+test("посторонний в чате ответить от имени компании не может", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify({ ok: true, result: { message_id: 556 }, message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({ "max:replyTo": { "556": "22145561" } });
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 131,
+      message: {
+        message_id: 932,
+        text: "Пишу от имени компании",
+        chat: { id: -100999, type: "supergroup" },
+        from: { id: 555, first_name: "Чужой" },
+        reply_to_message: { message_id: 556 },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.ok(
+    !sent.some((x) => x.url.includes("botapi.max.ru/messages")),
+    "чужой текст в MAX уходить не должен",
+  );
+});
+
+/*
+ * Ссылку на переписку в MAX не выдумываем: спрашиваем у самого MAX про
+ * диалог. Уведомление без ссылки почти бесполезно — имя есть, а открыть
+ * чат нечем.
+ */
+test("в уведомлении о новом человеке есть ссылка на переписку в MAX", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    const u = String(url);
+    sent.push({ url: u, body: init?.body ? JSON.parse(init.body) : null });
+    if (u.includes("botapi.max.ru/chats/")) {
+      return new Response(JSON.stringify({ link: "https://max.ru/u/ABCDEF" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ ok: true, result: { message_id: 601 }, message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({});
+
+  await worker.fetch(
+    maxUpdate({
+      update_type: "message_created",
+      message: {
+        sender: { user_id: 4343, first_name: "Иван" },
+        recipient: { chat_id: 90210 },
+        body: { text: "привет" },
+      },
+    }),
+    { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store },
+    undefined,
+  );
+
+  const note = sent.find(
+    (x) => x.url.includes("api.telegram.org") && /Новый пользователь/.test(String(x.body?.text)),
+  );
+  assert.match(String(note.body.text), /max\.ru\/u\/ABCDEF/, "ссылка должна быть в уведомлении");
+  assert.match(String(note.body.text), /Открыть переписку в MAX/);
+});
+
+test("без ссылки уведомление честно зовёт ответить через бота", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    const u = String(url);
+    sent.push({ url: u, body: init?.body ? JSON.parse(init.body) : null });
+    // Диалог ссылки не отдал — так бывает у людей без ника.
+    if (u.includes("botapi.max.ru/chats/")) {
+      return new Response(JSON.stringify({}), { headers: { "Content-Type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ ok: true, result: { message_id: 602 }, message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({});
+
+  await worker.fetch(
+    maxUpdate({
+      update_type: "bot_started",
+      user: { user_id: 4444, first_name: "Daniil" },
+    }),
+    { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store },
+    undefined,
+  );
+
+  const note = sent.find(
+    (x) => x.url.includes("api.telegram.org") && /Новый пользователь/.test(String(x.body?.text)),
+  );
+  assert.match(String(note.body.text), /Ссылки на профиль у человека нет/);
+  assert.match(String(note.body.text), /ответьте на это сообщение/i);
+});
