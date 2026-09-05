@@ -46,6 +46,11 @@
   # в поиск они могут, и тогда в выдаче окажется простыня XML вместо сайта.
   RewriteRule ^feed/(catalog-source|2gis-build)\.php$ - [F]
 
+  # Оценка и отзывы компании в 2ГИС. Виджета, который вставляется рамкой,
+  # у 2ГИС нет — карточку рисуем сами, а данные для неё сервер забирает
+  # с их публичного адреса и держит в кэше.
+  RewriteRule ^api/2gis$ /api/2gis.php [L]
+
   RewriteRule ^api/tgphoto$ /api/media.php [L,QSA]
   RewriteRule ^api/tgvideo$ /api/media.php?video=1 [L,QSA]
 
