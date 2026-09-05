@@ -644,6 +644,30 @@ const NEED_CAP = {
   "admins.remove": "admins",
 };
 
+/*
+ * Что разрешено ключу CRM (см. POST /api/crm).
+ *
+ * Список нарочно короткий и лежит отдельно от NEED_CAP: право «reviews» в
+ * админке бота однажды может обрасти новыми действиями, и они не должны
+ * молча стать доступны стороннему серверу — их сюда придётся вписать руками.
+ */
+const CRM_ACTIONS = ["reviews.list", "reviews.remove", "reviews.clear"];
+
+/**
+ * Сравнение секретов за постоянное время.
+ *
+ * Обычное === выходит из сравнения на первом несовпавшем символе, и по
+ * времени ответа ключ подбирается посимвольно. Здесь проходим строку целиком.
+ */
+function timingSafeEqual(a, b) {
+  a = String(a);
+  b = String(b);
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 // Любой ли это админ (owner из env или запись в KV) — для гейта пересылки постов.
 async function roleOf(env, userId) {
   const perm = await permsOf(env, userId);
@@ -1121,6 +1145,44 @@ export default {
         return new Response("ok");
       }
 
+      /*
+       * /crm — ключ, которым CRM подключается к отзывам бота.
+       *
+       * Отзывы живут здесь, а удалять их владельцу удобнее с компьютера, из
+       * CRM. Чтобы CRM могла об этом попросить, ей нужно чем-то представиться:
+       * подписи мини-аппа у неё нет. Ключ выдаётся один раз, вставляется в
+       * CRM и больше не нужен.
+       *
+       * Повторная команда показывает тот же ключ, а не выписывает новый:
+       * иначе владелец, нажавший её из любопытства, тихо отключил бы CRM.
+       * Для замены — «/crm новый».
+       */
+      if (msg && typeof msg.text === "string" && /^\/crm(@\w+)?\b/.test(msg.text.trim())) {
+        const perm = await permsOf(env, msg.from?.id);
+        if (!perm?.owner) return new Response("ok");
+        // Без \b: граница слова в JS живёт только среди латиницы, и «/crm новый»
+        // мимо неё проходил бы молча.
+        const rotate = /(нов|new|сброс|reset)/i.test(msg.text);
+        let key = String((await kvGet(env, "crmKey", "")) || "");
+        if (!key || rotate) {
+          key = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+          await kvPut(env, "crmKey", key);
+        }
+        await api(env, "sendMessage", {
+          chat_id: msg.chat.id,
+          text:
+            "🔑 Ключ CRM для отзывов" +
+            (rotate ? " (новый — старый больше не работает)" : "") +
+            ":\n\n`" +
+            key +
+            "`\n\nОткройте CRM → «Отзывы» и вставьте его в поле подключения. " +
+            "Ключ даёт право только смотреть и удалять отзывы.\n\n" +
+            "Заменить ключ: /crm новый",
+          parse_mode: "Markdown",
+        });
+        return new Response("ok");
+      }
+
       // /id — узнать идентификатор текущего чата. Работает и в группах:
       // именно этот номер вписывается в админке как чат для заявок.
       // В группах с включённым режимом приватности Telegram отдаёт боту
@@ -1580,6 +1642,47 @@ export default {
         return json({ ok: false, error: "no_permission" }, 403);
 
       return handleAdmin(env, action, payload, perm, auth.user, url.origin);
+    }
+
+    /*
+     * --- Отзывы для CRM ---
+     *
+     * CRM живёт на своём сервере, входит по своему паролю и про Telegram
+     * ничего не знает — подписью мини-аппа она представиться не может. Поэтому
+     * у неё отдельный ключ: владелец берёт его в боте командой /crm и вставляет
+     * в CRM один раз.
+     *
+     * Ключ узкий по замыслу: им можно только смотреть и удалять отзывы.
+     * Утечка ключа с сервера сайта не должна означать доступ к каталогу,
+     * заявкам, рассылке и настройкам бота.
+     */
+    if (url.pathname === "/api/crm" && request.method === "POST") {
+      const key = String(await kvGet(env, "crmKey", "") || "");
+      const given = request.headers.get("X-Crm-Key") || "";
+      // Ключа нет — соединять не с чем; так и говорим, чтобы CRM показала
+      // владельцу инструкцию, а не «неверный ключ».
+      if (!key) return json({ ok: false, error: "not_paired" }, 401);
+      if (!timingSafeEqual(given, key))
+        return json({ ok: false, error: "bad_key" }, 401);
+
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ ok: false, error: "bad_json" }, 400);
+      }
+      const { action, payload } = body || {};
+      if (!CRM_ACTIONS.includes(action))
+        return json({ ok: false, error: "unknown_action" }, 400);
+
+      return handleAdmin(
+        env,
+        action,
+        payload,
+        { owner: false, caps: new Set(["reviews"]) },
+        { id: 0, first_name: "CRM" },
+        url.origin,
+      );
     }
 
     return new Response("DiAvto69 worker is running", { headers: cors });

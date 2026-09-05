@@ -191,3 +191,25 @@ export type PublicDeal = {
   photos: { id: string; name: string }[];
   updatedAt: string;
 };
+
+/**
+ * Отзыв с сайта.
+ *
+ * Живёт не в базе CRM, а у бота: владелец пересылает ему видео с выдачи, и тот
+ * публикует запись на сайте и в мини-аппе. CRM показывает список и умеет
+ * удалять — поля здесь ровно те, что нужны для показа карточки.
+ */
+export type SiteReview = {
+  id: string;
+  name: string;
+  text: string;
+  car?: string;
+  rating: number;
+  media?: string;
+  video?: string;
+  images?: string[];
+  videos?: string[];
+  /** Кадр-обложка видео — его присылает Telegram вместе с файлом. */
+  poster?: string;
+  ts: number;
+};

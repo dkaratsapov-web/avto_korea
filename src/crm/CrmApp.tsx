@@ -23,6 +23,7 @@ import { Tasks } from "./screens/Tasks";
 import { Dashboard } from "./screens/Dashboard";
 import { Users } from "./screens/Users";
 import { SettingsPage } from "./screens/SettingsPage";
+import { Reviews } from "./screens/Reviews";
 import { Profile } from "./screens/Profile";
 import { PrintPage } from "./screens/PrintPage";
 import { Track } from "./screens/Track";
@@ -68,6 +69,7 @@ function Guarded() {
         <Route path="tasks" element={<Tasks />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="users" element={<Users />} />
+        <Route path="reviews" element={<Reviews />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="profile" element={<Profile />} />
         <Route path="*" element={<Navigate to="/crm" replace />} />

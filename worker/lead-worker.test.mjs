@@ -1197,3 +1197,158 @@ test("/fix от постороннего ничего не меняет", async 
     "настройки бота посторонний менять не должен",
   );
 });
+
+/*
+ * Ключ CRM. Пульт отзывов на чужом сервере — это ровно та дверь, которую
+ * стоит проверить: она открывается без подписи Telegram, одной строкой в
+ * заголовке. Поэтому проверяем не «работает ли», а «что через неё нельзя».
+ */
+async function crmCall(store, key, action, payload) {
+  return worker.fetch(
+    new Request("https://w.dev/api/crm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(key === null ? {} : { "X-Crm-Key": key }) },
+      body: JSON.stringify({ action, payload }),
+    }),
+    { TELEGRAM_BOT_TOKEN: "T", STORE: store },
+    undefined,
+  );
+}
+
+test("/crm выдаёт владельцу ключ и запоминает его", async () => {
+  const store = makeStore({});
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 92,
+      message: {
+        message_id: 902,
+        text: "/crm",
+        chat: { id: 777, type: "private" },
+        from: { id: 777, first_name: "Хозяин" },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  const key = await store.get("crmKey");
+  assert.ok(typeof key === "string" && key.length >= 32, "ключ должен быть сохранён");
+  const reply = calls.filter((x) => x.method === "sendMessage").pop();
+  assert.ok(String(reply?.body?.text).includes(key), "ключ должен прийти владельцу");
+});
+
+test("повторный /crm показывает тот же ключ, а не отключает CRM", async () => {
+  const store = makeStore({ crmKey: "старыйключ" });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 93,
+      message: {
+        message_id: 903,
+        text: "/crm",
+        chat: { id: 777, type: "private" },
+        from: { id: 777, first_name: "Хозяин" },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.equal(await store.get("crmKey"), "старыйключ");
+});
+
+test("«/crm новый» выписывает другой ключ", async () => {
+  const store = makeStore({ crmKey: "старыйключ" });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 94,
+      message: {
+        message_id: 904,
+        text: "/crm новый",
+        chat: { id: 777, type: "private" },
+        from: { id: 777, first_name: "Хозяин" },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.notEqual(await store.get("crmKey"), "старыйключ");
+});
+
+test("/crm постороннему ключа не даёт", async () => {
+  const store = makeStore({});
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 95,
+      message: {
+        message_id: 905,
+        text: "/crm",
+        chat: { id: 555, type: "private" },
+        from: { id: 555, first_name: "Чужой" },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.equal(await store.get("crmKey"), null, "ключ выписываться не должен");
+  assert.ok(!calls.some((x) => x.method === "sendMessage"), "и отвечать постороннему нечем");
+});
+
+test("без ключа в хранилище дверь закрыта", async () => {
+  const r = await crmCall(makeStore({ reviews: [{ id: "a" }] }), "kakoy-nibud", "reviews.list");
+  assert.equal(r.status, 401);
+  assert.equal((await r.json()).error, "not_paired");
+});
+
+test("чужой ключ отзывы не отдаёт", async () => {
+  const store = makeStore({ crmKey: "pravilnyy", reviews: [{ id: "a" }] });
+  const r = await crmCall(store, "nepravilnyy", "reviews.list");
+  assert.equal(r.status, 401);
+  assert.equal((await r.json()).error, "bad_key");
+});
+
+test("по своему ключу CRM видит и удаляет отзывы", async () => {
+  const store = makeStore({
+    crmKey: "pravilnyy",
+    reviews: [{ id: "a", text: "Выдача BMW" }, { id: "b", text: "Выдача Kia" }],
+  });
+
+  const list = await (await crmCall(store, "pravilnyy", "reviews.list")).json();
+  assert.equal(list.reviews.length, 2);
+
+  const left = await (await crmCall(store, "pravilnyy", "reviews.remove", { id: "a" })).json();
+  assert.deepEqual(
+    left.reviews.map((x) => x.id),
+    ["b"],
+    "удалиться должен ровно названный отзыв",
+  );
+  assert.deepEqual((await store.get("reviews")).map((x) => x.id), ["b"]);
+});
+
+/*
+ * Ключ узкий по замыслу: он лежит на сервере сайта, и его утечка не должна
+ * означать доступ к каталогу, заявкам и рассылке.
+ */
+test("ключом CRM ничего, кроме отзывов, не сделать", async () => {
+  const store = makeStore({ crmKey: "pravilnyy", catalog: [{ id: "car" }] });
+
+  for (const action of ["catalog.save", "settings.save", "broadcast.send", "admins.set", "me"]) {
+    const r = await crmCall(store, "pravilnyy", action, []);
+    assert.equal(r.status, 400, action + " не должно приниматься");
+    assert.equal((await r.json()).error, "unknown_action");
+  }
+  assert.deepEqual(await store.get("catalog"), [{ id: "car" }], "каталог не тронут");
+});

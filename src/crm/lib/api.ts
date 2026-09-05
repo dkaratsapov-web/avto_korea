@@ -14,6 +14,7 @@ import type {
   FileKind,
   PublicDeal,
   Settings,
+  SiteReview,
   Task,
   User,
 } from "./types";
@@ -126,6 +127,14 @@ async function request<T>(path: string, options: Options = {}): Promise<T> {
 
   return payload as T;
 }
+
+/**
+ * Ответ раздела отзывов.
+ *
+ * `connected` — подключён ли раздел к боту. Пустой список без этого флага
+ * читался бы двусмысленно: то ли отзывов нет, то ли ключ не вставлен.
+ */
+type ReviewsReply = { connected: boolean; reviews: SiteReview[] };
 
 export const api = {
   // --- доступ ---
@@ -253,6 +262,15 @@ export const api = {
 
   pushUnsubscribe: (endpoint: string) =>
     request<unknown>("/notify/push", { method: "DELETE", body: { endpoint } }),
+
+  // --- отзывы сайта (данные у бота, CRM — пульт) ---
+  reviews: () => request<ReviewsReply>("/reviews"),
+
+  connectReviews: (key: string) => request<ReviewsReply>("/reviews/key", { body: { key } }),
+
+  deleteReview: (id: string) => request<ReviewsReply>(`/reviews/${id}`, { method: "DELETE" }),
+
+  deleteAllReviews: () => request<ReviewsReply>("/reviews", { method: "DELETE" }),
 
   // --- прочее ---
   settings: () => request<{ settings: Settings }>("/settings"),

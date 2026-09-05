@@ -70,6 +70,12 @@ try {
             crm_route_settings($method, array_slice($path, 1));
             break;
 
+        // Отзывы сайта: список и удаление. Данные лежат у бота, CRM — пульт.
+        case 'reviews':
+            require __DIR__ . '/routes/reviews.php';
+            crm_route_reviews($method, array_slice($path, 1));
+            break;
+
         case 'dashboard':
             require __DIR__ . '/routes/dashboard.php';
             crm_route_dashboard($method, array_slice($path, 1));
