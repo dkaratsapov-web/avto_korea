@@ -310,7 +310,7 @@ async function appHint(env, userId) {
        * Сама картинка — настоящий снимок экрана, сделанный владельцем, а не
        * нарисованный макет: человек ищет глазами ровно то, что перед ним.
        */
-      image: `${SITE}/max-app-hint-3.jpg`,
+      image: `${SITE}/max-app-hint-4.png`,
       keyboard: MENU,
     },
   );
