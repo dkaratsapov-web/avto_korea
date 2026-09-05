@@ -1572,7 +1572,7 @@ test("«Каталог авто» в MAX объясняет, где открыт
   );
 
   const msg = sent.find((x) => x.url.includes("botapi.max.ru/messages"));
-  assert.match(String(msg.body.text), /кнопку приложения слева от поля ввода/);
+  assert.match(String(msg.body.text), /синюю кнопку слева от поля ввода/);
   // Картинка с примером: без неё «кнопка слева» понятна только тому, кто
   // уже знает, где она.
   const image = msg.body.attachments.find((a) => a.type === "image");
@@ -1966,7 +1966,7 @@ test("команды из подсказок открывают нужные э�
     .filter((x) => x.url.includes("botapi.max.ru/messages"))
     .map((x) => String(x.body.text));
   assert.match(texts[0], /С чего начнём/, "/start — меню");
-  assert.match(texts[1], /кнопку приложения слева от поля ввода/, "/catalog — где открыть приложение");
+  assert.match(texts[1], /синюю кнопку слева от поля ввода/, "/catalog — где открыть приложение");
   assert.match(texts[2], /номер телефона/, "/lead — приём заявки");
   // И ни одна команда не улетела менеджеру как вопрос.
   assert.ok(
