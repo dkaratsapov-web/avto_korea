@@ -96,6 +96,33 @@ function maxSend(env, userId, text, { keyboard, image } = {}) {
   });
 }
 
+/**
+ * Ссылка, по которой менеджер откроет переписку с человеком в MAX.
+ *
+ * Из Telegram в чат MAX не перейти, поэтому уведомление без ссылки почти
+ * бесполезно: имя есть, а написать нечем. Ссылку не выдумываем — спрашиваем
+ * у самого MAX про этот диалог и берём ту, что он вернёт. Не вернул —
+ * пробуем ник (у мессенджеров профиль обычно открывается по нему), а нет и
+ * ника — честно возвращаем пустоту, и уведомление зовёт ответить через бота.
+ */
+export async function maxChatLink(env, chatId, username) {
+  if (chatId) {
+    const r = await maxCall(env, "GET", `/chats/${encodeURIComponent(chatId)}`);
+    const link = r.data?.link || r.data?.chat?.link || "";
+    if (link) return String(link).startsWith("http") ? link : `https://max.ru/${String(link).replace(/^@/, "")}`;
+  }
+  return username ? `https://max.ru/${String(username).replace(/^@/, "")}` : "";
+}
+
+/**
+ * Написать человеку в MAX из другого места — например, ответом менеджера,
+ * пришедшим в Telegram. Отдельная обёртка, чтобы воркеру не нужно было
+ * знать про устройство запросов к MAX.
+ */
+export async function maxWrite(env, userId, text) {
+  return maxSend(env, userId, text);
+}
+
 /** Ответ на нажатие кнопки: убирает «часики» и, если надо, шлёт новое окно. */
 function maxAnswer(env, callbackId, notification) {
   return maxCall(env, "POST", `/answers?callback_id=${encodeURIComponent(callbackId)}`, {
@@ -144,7 +171,7 @@ const MENU = [
  * Уведомление уходит один раз, при первом появлении. Считать «новым» каждое
  * нажатие кнопки нельзя: менеджер перестанет читать уведомления к концу дня.
  */
-async function remember(env, who, { kvGet, kvPut, onNewUser }) {
+async function remember(env, who, { kvGet, kvPut, onNewUser }, chatId) {
   const id = who?.user_id ?? who?.userId;
   if (!id) return;
 
@@ -161,10 +188,23 @@ async function remember(env, who, { kvGet, kvPut, onNewUser }) {
     [who.first_name, who.last_name].filter(Boolean).join(" ") ||
     who.name ||
     "";
-  users[key] = { name, username: who.username || "", ts: Date.now(), seenAt: Date.now() };
+  users[key] = {
+    name,
+    username: who.username || "",
+    chatId: chatId ? String(chatId) : "",
+    ts: Date.now(),
+    seenAt: Date.now(),
+  };
   await kvPut(env, "max:users", users);
 
-  if (onNewUser) await onNewUser(env, { id: key, name, username: who.username || "" });
+  if (onNewUser) {
+    await onNewUser(env, {
+      id: key,
+      name,
+      username: who.username || "",
+      chatId: chatId ? String(chatId) : "",
+    });
+  }
 }
 
 /**
@@ -186,7 +226,7 @@ export async function handleMaxUpdate(env, update, deps) {
     const userId = cb.user?.user_id ?? cb.user?.userId;
     const payload = String(cb.payload || "");
     await maxAnswer(env, cb.callback_id ?? cb.callbackId);
-    await remember(env, cb.user, { kvGet, kvPut, onNewUser });
+    await remember(env, cb.user, { kvGet, kvPut, onNewUser }, cb.message?.recipient?.chat_id);
     await route(env, userId, payload, { kvGet, kvPut, onLead });
     return;
   }
@@ -199,7 +239,12 @@ export async function handleMaxUpdate(env, update, deps) {
     update?.user?.userId;
   if (!userId) return;
 
-  await remember(env, who, { kvGet, kvPut, onNewUser });
+  await remember(
+    env,
+    who,
+    { kvGet, kvPut, onNewUser },
+    msg?.recipient?.chat_id ?? update?.chat_id ?? update?.chatId,
+  );
 
   // Бот только что добавлен/запущен — здороваемся.
   if (type === "bot_started" || type === "bot_added") {

@@ -808,7 +808,14 @@ function later(ctx, promise) {
  * телеграмным значит однажды сломать оба разом. Сюда приходят только три
  * строчки — вебхук, настройка и показания приборов.
  */
-import { handleMaxUpdate, maxBind, maxDiag, maxAppButtonReport } from "./max-bot.js";
+import {
+  handleMaxUpdate,
+  maxBind,
+  maxDiag,
+  maxAppButtonReport,
+  maxWrite,
+  maxChatLink,
+} from "./max-bot.js";
 
 export default {
   async fetch(request, env, ctx) {
@@ -1293,6 +1300,39 @@ export default {
           parse_mode: "Markdown",
         });
         return new Response("ok");
+      }
+
+      /*
+       * Ответ менеджера человеку в MAX.
+       *
+       * Работает как переписка: менеджер отвечает (reply) на уведомление о
+       * новом человеке или на его вопрос — и текст уходит адресату в MAX.
+       * Ничего запоминать и никуда переходить не нужно, а главное — из
+       * Telegram в чат MAX перейти нельзя в принципе, так что другого пути
+       * ответить у менеджера просто нет.
+       *
+       * Отвечать может только свой: уведомления приходят в рабочий чат, но
+       * писать от имени компании — не то право, которое раздают по факту
+       * присутствия в чате.
+       */
+      if (msg?.reply_to_message?.message_id && typeof msg.text === "string" && msg.text.trim()) {
+        const map = (await kvGet(env, "max:replyTo", {})) || {};
+        const target = map[String(msg.reply_to_message.message_id)];
+        if (target) {
+          const perm = await permsOf(env, msg.from?.id);
+          if (!perm) return new Response("ok");
+
+          const sent = await maxWrite(env, target, msg.text.trim());
+          await api(env, "sendMessage", {
+            chat_id: msg.chat.id,
+            reply_to_message_id: msg.message_id,
+            text: sent?.ok
+              ? "✅ Отправлено в MAX"
+              : "⚠️ MAX не принял сообщение: " +
+                JSON.stringify(sent?.data ?? sent?.raw ?? sent?.error ?? "неизвестно"),
+          });
+          return new Response("ok");
+        }
       }
 
       /*
@@ -1833,29 +1873,46 @@ export default {
           const targets = [
             ...new Set([String(st.leadChatId || "").trim(), e.TELEGRAM_CHAT_ID].filter(Boolean)),
           ];
+          /*
+           * Ссылку на переписку спрашиваем у самого MAX.
+           *
+           * Уведомление без неё почти бесполезно: имя есть, а открыть чат
+           * нечем — из Telegram в MAX не перейти. Если ссылки нет (у человека
+           * нет ника и диалог её не отдаёт), остаётся ответ через бота, и об
+           * этом сказано прямо, а не «свяжитесь как-нибудь».
+           */
+          const link = await maxChatLink(e, u.chatId, u.username);
           const text = [
             "👋 <b>Новый пользователь — бот в MAX</b>",
             `👤 Имя: ${htmlEscape(u.name || "—")}`,
             `🔗 Ник: ${htmlEscape(u.username ? "@" + u.username : "без ника")}`,
             `🆔 ID: ${u.id}`,
             "",
-            "Ответить можно в чате бота в MAX.",
+            link
+              ? `<a href="${htmlEscape(link)}">💬 Открыть переписку в MAX</a>`
+              : "💬 Ссылки на профиль у человека нет (не указан ник).",
+            "↩️ Или ответьте на это сообщение — ответ уйдёт ему в MAX.",
           ].join("\n");
           for (const chatId of targets) {
             try {
               const r = await api(e, "sendMessage", { chat_id: chatId, text, parse_mode: "HTML" });
               const j = await r.json().catch(() => null);
-              if (j?.ok) return;
+              if (j?.ok) {
+                await linkReply(e, j.result?.message_id, u.id);
+                return;
+              }
             } catch {
               /* пробуем следующий адрес */
             }
           }
         },
         onQuestion: async (e, userId, text) => {
-          await api(e, "sendMessage", {
+          const r = await api(e, "sendMessage", {
             chat_id: e.TELEGRAM_CHAT_ID,
-            text: `❓ Вопрос из MAX\n\n${text}\n\nОтветить: откройте чат бота в MAX (id ${userId}).`,
+            text: `❓ Вопрос из MAX\n\n${text}\n\n↩️ Ответьте на это сообщение — ответ уйдёт человеку в MAX.`,
           });
+          const j = await r.json().catch(() => null);
+          if (j?.ok) await linkReply(e, j.result?.message_id, userId);
         },
       }).catch(() => {});
       later(ctx, work);
@@ -1979,6 +2036,35 @@ async function sendLead(env, caption, photo) {
 }
 
 /* ---------- Заявки в KV (последние 50) ---------- */
+/*
+ * Связка «уведомление в Telegram → человек в MAX».
+ *
+ * Из Telegram в чат MAX не перейти: там другой мессенджер и другие
+ * идентификаторы. Значит либо менеджер вообще не может ответить новому
+ * человеку, либо отвечает через бота. Второе и делаем: запоминаем, какому
+ * человеку соответствует уведомление, и ответ на него пересылаем в MAX.
+ *
+ * Храним последние двести связок: переписка старше этого всё равно ведётся
+ * не ответом на давнее уведомление, а списком в CRM.
+ */
+async function linkReply(env, messageId, maxUserId) {
+  if (!messageId || !maxUserId) return;
+  try {
+    const map = (await kvGet(env, "max:replyTo", {})) || {};
+    map[String(messageId)] = String(maxUserId);
+    const keys = Object.keys(map);
+    if (keys.length > 200) {
+      // Ключи растут по номеру сообщения, поэтому старые — в начале списка.
+      for (const k of keys.sort((a, b) => Number(a) - Number(b)).slice(0, keys.length - 200)) {
+        delete map[k];
+      }
+    }
+    await kvPut(env, "max:replyTo", map);
+  } catch {
+    /* потеря связки не должна ронять уведомление */
+  }
+}
+
 async function storeLead(env, d) {
   if (!env.STORE) return;
   try {
