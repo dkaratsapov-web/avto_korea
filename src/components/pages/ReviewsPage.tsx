@@ -82,9 +82,9 @@ function slidesOf(r: ApiReview): Slide[] {
  * сразу, лента открывается минуту, а посмотрят от силы один. Обложка весит
  * килобайты и приезжает мгновенно.
  *
- * Подпись лежит ПОВЕРХ кадра, на затемнении. Раньше она стояла отдельным
- * блоком под медиа, и карточка разваливалась надвое: сверху картинка, снизу
- * текст, между ними шов. Теперь это одно целое — так витрина и читается.
+ * Подпись и лента миниатюр лежат ПОВЕРХ кадра, на затемнении. Так карточка
+ * читается как одно целое, и — важнее — у всех карточек одинаковая высота:
+ * ряды в сетке идут ровно, без тёмных полей между ними.
  */
 function ReviewCard({ review }: { review: ApiReview }) {
   const slides = slidesOf(review);
@@ -169,52 +169,69 @@ function ReviewCard({ review }: { review: ApiReview }) {
           </span>
         ) : null}
 
-        {/* Подпись поверх кадра — только если она есть. Видео с выдач
-            присылают без подписи, и выдуманный заголовок под каждым роликом
-            читался бы как штамп. Пока видео не запущено, плеер подпись не
-            перекрывает, а после запуска она не нужна и убирается. */}
-        {!playing && title ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4">
-            <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-white/60">
-              Выдача
-            </div>
-            <div className="mt-1 text-[16px] font-extrabold leading-tight text-white [text-wrap:balance]">
-              {title}
-            </div>
+        {/* Подпись и лента миниатюр — одним слоем ВНУТРИ кадра.
+            Лента раньше стояла отдельной полосой под ним, и карточка с
+            несколькими файлами оказывалась выше соседних: ряды в сетке шли
+            уступами, а между ними зияли тёмные поля. Внутри кадра высота у
+            всех карточек одна — сетка выравнивается сама.
+
+            Подпись показываем, только если она есть: видео с выдач присылают
+            без подписи, и выдуманный заголовок читался бы как штамп. Пока
+            видео не запущено, плеер их не перекрывает; после запуска слой
+            уходит целиком. */}
+        {!playing && (title || slides.length > 1) ? (
+          <div className="absolute inset-x-0 bottom-0 flex flex-col gap-2.5 p-3.5">
+            {title ? (
+              <div className="pointer-events-none">
+                <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-white/60">
+                  Выдача
+                </div>
+                <div className="mt-1 text-[15px] font-extrabold leading-tight text-white [text-wrap:balance]">
+                  {title}
+                </div>
+              </div>
+            ) : null}
+
+            {slides.length > 1 ? (
+              <div className="flex gap-1.5">
+                {slides.slice(0, 5).map((s, i) => (
+                  <button
+                    key={s.src + i}
+                    type="button"
+                    onClick={() => {
+                      setIdx(i);
+                      setPlaying(false);
+                    }}
+                    aria-label={`Медиа ${i + 1}`}
+                    className={`relative h-9 w-9 flex-none overflow-hidden rounded-[7px] border-2 transition-colors ${
+                      i === idx ? "border-white" : "border-white/25 hover:border-white/60"
+                    }`}
+                  >
+                    <img
+                      src={s.type === "video" ? poster : s.src}
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full bg-graphite object-cover"
+                    />
+                    {s.type === "video" ? (
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <Play className="h-3 w-3 fill-white text-white" />
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+                {/* Больше пяти в ряд не помещается, а прокрутка внутри
+                    карточки — та же боковая прокрутка, от которой ушли. */}
+                {slides.length > 5 ? (
+                  <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[7px] border-2 border-white/25 bg-black/40 font-num text-[11px] font-bold text-white">
+                    +{slides.length - 5}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
-
-      {slides.length > 1 ? (
-        <div className="flex gap-2 overflow-x-auto bg-graphite-2 px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {slides.map((s, i) => (
-            <button
-              key={s.src + i}
-              type="button"
-              onClick={() => {
-                setIdx(i);
-                setPlaying(false);
-              }}
-              aria-label={`Медиа ${i + 1}`}
-              className={`relative h-12 w-12 flex-none overflow-hidden rounded-[9px] border-2 transition-colors ${
-                i === idx ? "border-bordeaux-bright" : "border-transparent hover:border-white/30"
-              }`}
-            >
-              <img
-                src={s.type === "video" ? poster : s.src}
-                alt=""
-                loading="lazy"
-                className="h-full w-full bg-graphite object-cover"
-              />
-              {s.type === "video" ? (
-                <span className="absolute inset-0 flex items-center justify-center bg-black/40">
-                  <Play className="h-3.5 w-3.5 fill-white text-white" />
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
     </article>
   );
 }
@@ -535,7 +552,7 @@ export function ReviewsPage() {
         // Скелет на месте будущих карточек: место занято сразу, поэтому
         // страница не прыгает, когда отзывы приезжают.
         <section className="wrap mt-6">
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
@@ -578,7 +595,7 @@ export function ReviewsPage() {
             их не видно, а на телефоне горизонтальная прокрутка ещё и спорит
             с вертикальной. Отзывов теперь много — пусть все и будут на виду.
           */}
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {withMedia.map((r) => (
               <ReviewCard key={r.id} review={r} />
             ))}
