@@ -1516,3 +1516,131 @@ test("первый канал запоминается, второй в ката
     "админам должно прийти предупреждение о чужом канале",
   );
 });
+
+/* ---------- Бот в MAX ---------- */
+
+/*
+ * Второй мессенджер работает с тем же складом: каталог и заявки общие.
+ * Проверяем именно это — что MAX не заводит свою копию данных и что без
+ * токена не уходит ни одного запроса наружу.
+ */
+function maxUpdate(body) {
+  return new Request("https://w.dev/max", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+test("без токена MAX бот молчит и наружу не ходит", async () => {
+  let called = false;
+  globalThis.fetch = async () => {
+    called = true;
+    return new Response("{}");
+  };
+  const store = makeStore({ catalog: [{ id: "c1", model: "Kia K5" }] });
+
+  const r = await worker.fetch(
+    maxUpdate({ update_type: "bot_started", user: { user_id: 42 } }),
+    { TELEGRAM_BOT_TOKEN: "T", STORE: store },
+    undefined,
+  );
+
+  assert.equal(r.status, 200);
+  assert.equal(called, false, "без MAX_BOT_TOKEN запросов быть не должно");
+});
+
+test("MAX показывает тот же каталог, что и сайт", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify({ message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({
+    catalog: [
+      { id: "c1", model: "Kia K5", year: 2023, priceRub: 2000000, priceMoscowRub: 2100000 },
+    ],
+  });
+
+  await worker.fetch(
+    maxUpdate({
+      update_type: "message_callback",
+      callback: { callback_id: "cb1", user: { user_id: 42 }, payload: "cat:0" },
+    }),
+    { TELEGRAM_BOT_TOKEN: "T", MAX_BOT_TOKEN: "M", STORE: store },
+    undefined,
+  );
+
+  const message = sent.find((s) => s.url.includes("/messages"));
+  assert.ok(message, "каталог должен уйти сообщением");
+  assert.match(String(message.body.text), /Kia K5/);
+  // Цена — та же, что на сайте: под ключ до Москвы.
+  assert.match(String(message.body.text), /2 100 000|2 100 000/);
+});
+
+test("заявка из MAX попадает в общий список и к менеджеру", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify({ ok: true, result: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({});
+  const env = { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store };
+
+  // Нажал «Подобрать авто» — бот ждёт телефон.
+  await worker.fetch(
+    maxUpdate({
+      update_type: "message_callback",
+      callback: { callback_id: "cb2", user: { user_id: 77 }, payload: "lead" },
+    }),
+    env,
+    undefined,
+  );
+  // Прислал телефон.
+  await worker.fetch(
+    maxUpdate({
+      update_type: "message_created",
+      message: { sender: { user_id: 77 }, body: { text: "+7 900 111-22-33, кроссовер до 3 млн" } },
+    }),
+    env,
+    undefined,
+  );
+
+  const leads = (await store.get("leads")) || [];
+  assert.equal(leads.length, 1, "заявка должна лечь в общий список");
+  assert.equal(leads[0].phone, "+7 900 111-22-33");
+  assert.match(leads[0].source, /MAX/, "источник должен быть виден в статистике");
+
+  const toManager = sent.find((s) => s.url.includes("api.telegram.org") && s.body?.text);
+  assert.match(String(toManager?.body?.text), /Новая заявка/, "менеджеру должно уйти уведомление");
+});
+
+test("номер без цифр не превращается в заявку", async () => {
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ message: {} }), { headers: { "Content-Type": "application/json" } });
+  const store = makeStore({});
+  const env = { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store };
+
+  await worker.fetch(
+    maxUpdate({
+      update_type: "message_callback",
+      callback: { callback_id: "cb3", user: { user_id: 78 }, payload: "lead" },
+    }),
+    env,
+    undefined,
+  );
+  await worker.fetch(
+    maxUpdate({
+      update_type: "message_created",
+      message: { sender: { user_id: 78 }, body: { text: "перезвоните мне" } },
+    }),
+    env,
+    undefined,
+  );
+
+  assert.equal(await store.get("leads"), null, "заявки без телефона быть не должно");
+});
