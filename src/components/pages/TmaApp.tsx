@@ -56,6 +56,20 @@ type View =
   | { name: "faq" }
   | { name: "lead"; carId?: string; from: View };
 
+/**
+ * Как назвать источник заявки.
+ *
+ * Мини-апп теперь открывается из двух мессенджеров, и в учёте они должны
+ * различаться: иначе через месяц не понять, стоит ли MAX потраченного на
+ * него времени. Признак — метка в адресе, её выставляет сама ссылка,
+ * прописанная в настройках бота MAX.
+ */
+function sourceName(): string {
+  if (typeof window === "undefined") return "Telegram Mini App";
+  const ms = new URLSearchParams(window.location.search).get("ms");
+  return ms === "max" ? "MAX Mini App" : "Telegram Mini App";
+}
+
 export function TmaApp() {
   const { cars } = useCars();
   const { favorites, isFav, toggleFav } = useUI();
@@ -185,7 +199,7 @@ export function TmaApp() {
       car: car ? `${car.model} · ${car.id}` : "",
       username: tgUser?.username ? `@${tgUser.username}` : "",
       tgUserId: tgUser?.id || undefined,
-      source: "Telegram Mini App",
+      source: sourceName(),
     };
     const tg = tgRef.current;
 
@@ -361,6 +375,7 @@ export function TmaApp() {
 
         {view.name === "home" ? (
           <HomeView
+            inTg={inTg}
             go={(name) => {
               haptic(tgRef.current);
               setView({ name } as View);
