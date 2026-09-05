@@ -353,13 +353,29 @@ async function welcome(env, userId, deps) {
     ? [known, ...APP_BUTTON.keys()].filter((v, i, a) => a.indexOf(v) === i)
     : [...APP_BUTTON.keys()];
 
+  const refusals = [];
   for (const shape of order) {
     const r = await maxSend(env, userId, WELCOME, { keyboard: menuKeyboard(shape) });
     if (r.ok) {
       if (known !== shape) await kvPut(env, "max:appBtn", shape);
+      /*
+       * Отказы записываем — но только когда подбор был.
+       *
+       * Иначе про несработавшие написания знал бы только сам бот: снаружи
+       * видно лишь «открылся браузер», и почему именно — непонятно. Теперь
+       * ответ MAX виден в отчёте команды /max, и по нему сразу ясно, как у
+       * них называется кнопка приложения.
+       */
+      if (refusals.length) await kvPut(env, "max:appBtnErr", refusals);
       return r;
     }
+    refusals.push({
+      shape,
+      status: r.status ?? null,
+      answer: r.data ?? r.raw ?? r.error ?? null,
+    });
   }
+  await kvPut(env, "max:appBtnErr", refusals);
   return maxSend(env, userId, WELCOME);
 }
 
@@ -489,9 +505,33 @@ export async function maxBind(env, origin) {
 }
 
 /** Показания приборов: виден ли токен, кто бот, куда подписан. */
-export async function maxDiag(env) {
+export async function maxDiag(env, kv) {
   if (!env.MAX_BOT_TOKEN) return { ok: false, error: "MAX_BOT_TOKEN не задан" };
   const me = await maxCall(env, "GET", "/me");
   const subs = await maxCall(env, "GET", "/subscriptions");
-  return { ok: true, me: me.data ?? me, subscriptions: subs.data ?? subs };
+  return {
+    ok: true,
+    me: me.data ?? me,
+    subscriptions: subs.data ?? subs,
+    appButton: kv ? await kv(env, "max:appBtn", -1) : null,
+    appButtonRefusals: kv ? await kv(env, "max:appBtnErr", null) : null,
+  };
+}
+
+/** Человекочитаемый отчёт про кнопку приложения — для команды /max. */
+export async function maxAppButtonReport(env, kvGet) {
+  const shape = Number(await kvGet(env, "max:appBtn", -1));
+  const refusals = (await kvGet(env, "max:appBtnErr", null)) || [];
+  const names = ["open_app + web_app", "open_app + url", "обычная ссылка"];
+
+  if (shape < 0) return "ℹ️ Кнопка приложения ещё не проверялась — напишите боту в MAX /start";
+  if (shape < 2) return `✅ Кнопка открывает мини-приложение (${names[shape]})`;
+
+  const said = refusals
+    .map((r) => `${names[r.shape]}: ${JSON.stringify(r.answer)}`)
+    .join("\n");
+  return (
+    "⚠️ MAX не принял кнопку мини-приложения — осталась обычная ссылка (откроется браузер).\n" +
+    (said ? "Ответ MAX:\n" + said : "")
+  );
 }

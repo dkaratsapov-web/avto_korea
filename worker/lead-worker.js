@@ -808,7 +808,7 @@ function later(ctx, promise) {
  * телеграмным значит однажды сломать оба разом. Сюда приходят только три
  * строчки — вебхук, настройка и показания приборов.
  */
-import { handleMaxUpdate, maxBind, maxDiag } from "./max-bot.js";
+import { handleMaxUpdate, maxBind, maxDiag, maxAppButtonReport } from "./max-bot.js";
 
 export default {
   async fetch(request, env, ctx) {
@@ -1334,6 +1334,8 @@ export default {
             (bound.commands?.ok
               ? "✅ Команды в подсказках: /start, /catalog, /lead, /reviews"
               : "⚠️ Команды: " + JSON.stringify(bound.commands?.data ?? bound.commands?.raw ?? bound.commands)) +
+            "\n" +
+            (await maxAppButtonReport(env, kvGet)) +
             "\n\nНапишите боту в MAX «привет» — он должен ответить меню с каталогом.",
         });
         return new Response("ok");
@@ -1844,7 +1846,7 @@ export default {
     if (url.pathname === "/max/diag") {
       if (!env.TELEGRAM_BOT_TOKEN || url.searchParams.get("key") !== env.TELEGRAM_BOT_TOKEN)
         return json({ ok: false, error: "forbidden" }, 403);
-      return json(await maxDiag(env));
+      return json(await maxDiag(env, kvGet));
     }
 
     // --- Админ-API ---
