@@ -1644,3 +1644,96 @@ test("номер без цифр не превращается в заявку",
 
   assert.equal(await store.get("leads"), null, "заявки без телефона быть не должно");
 });
+
+test("/max без токена объясняет, где его завести", async () => {
+  const store = makeStore({});
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 110,
+      message: {
+        message_id: 910,
+        text: "/max",
+        chat: { id: 777, type: "private" },
+        from: { id: 777, first_name: "Хозяин" },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  const reply = calls.filter((x) => x.method === "sendMessage").pop();
+  assert.match(String(reply?.body?.text), /MAX_BOT_TOKEN/, "владельцу нужно имя секрета");
+});
+
+test("/max с токеном подписывает вебхук и отчитывается", async () => {
+  const store = makeStore({});
+  const seen = [];
+  globalThis.fetch = async (url, init) => {
+    const u = String(url);
+    seen.push(u);
+    if (u.includes("botapi.max.ru/me")) {
+      return new Response(JSON.stringify({ name: "ДиАвто69" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ ok: true, result: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 111,
+      message: {
+        message_id: 911,
+        text: "/max",
+        chat: { id: 777, type: "private" },
+        from: { id: 777, first_name: "Хозяин" },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777", MAX_BOT_TOKEN: "MAXSECRET123" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.ok(
+    seen.some((u) => u.includes("botapi.max.ru/subscriptions")),
+    "подписка на события MAX должна уйти",
+  );
+  // Токен уходит только в MAX — в телеграмных адресах его быть не должно.
+  assert.ok(
+    !seen.some((u) => u.includes("api.telegram.org") && u.includes("MAXSECRET123")),
+    "токен MAX не должен попадать в телеграмные адреса",
+  );
+});
+
+test("посторонний командой /max ничего не подключает", async () => {
+  const store = makeStore({});
+  const seen = [];
+  globalThis.fetch = async (url) => {
+    seen.push(String(url));
+    return new Response(JSON.stringify({ ok: true, result: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 112,
+      message: {
+        message_id: 912,
+        text: "/max",
+        chat: { id: 555, type: "private" },
+        from: { id: 555, first_name: "Чужой" },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777", MAX_BOT_TOKEN: "M" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.ok(!seen.some((u) => u.includes("botapi.max.ru")), "чужому MAX не отвечаем");
+});
