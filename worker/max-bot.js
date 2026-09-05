@@ -179,7 +179,7 @@ function catalogKeyboard(page, total, cars) {
  * этот файл не тянет за собой половину телеграмного бота.
  */
 export async function handleMaxUpdate(env, update, deps) {
-  const { kvGet, kvPut, onLead } = deps;
+  const { kvGet, kvPut, onLead, onQuestion } = deps;
 
   const type = update?.update_type || update?.updateType || "";
   const cb = update?.callback;
@@ -218,26 +218,25 @@ export async function handleMaxUpdate(env, update, deps) {
     return;
   }
 
-  if (/^\/?start|меню|menu/i.test(text)) {
+  if (isGreeting(text)) {
     await welcome(env, userId);
     return;
   }
-  if (/каталог|авто|машин/i.test(text)) {
+  if (/каталог|авто|машин/i.test(text) && text.length < 30) {
     await catalogPage(env, userId, 0, kvGet);
     return;
   }
 
   /*
-   * Всё остальное — свободный текст. Это чаще всего и есть вопрос: «есть
-   * ли такая-то машина», «сколько до Твери». Отвечать выдуманным не будем,
-   * но и терять человека нельзя: сохраняем как заявку и зовём менеджера.
+   * Осмысленный вопрос передаём менеджеру — но не заявкой.
+   *
+   * Первая версия заводила из любого текста заявку, и «привет» приехал в
+   * общий список как «Клиент из MAX, телефон —, авто: привет». Заявка без
+   * телефона бесполезна менеджеру и портит статистику: по этому списку
+   * считают, сколько обращений принесла реклама. Вопрос — это вопрос:
+   * менеджеру уходит уведомление, в списке заявок его нет.
    */
-  await onLead(env, {
-    name: "Клиент из MAX",
-    phone: "",
-    car: text.slice(0, 300),
-    source: "Бот MAX · вопрос",
-  });
+  await onQuestion(env, userId, text.slice(0, 500));
   await maxSend(
     env,
     userId,
@@ -245,6 +244,23 @@ export async function handleMaxUpdate(env, update, deps) {
       "А пока можно посмотреть каталог: там актуальные машины с ценой под ключ до Москвы.",
     { keyboard: MENU },
   );
+}
+
+/**
+ * Приветствие ли это.
+ *
+ * Отдельная проверка нужна, потому что первое сообщение человека почти
+ * всегда «привет» или «здравствуйте» — и оно означает «покажи, что у вас
+ * есть», а не вопрос. Сюда же короткие «ок», «спасибо» и смайлики: гнать
+ * их менеджеру незачем.
+ */
+function isGreeting(text) {
+  const t = text.toLowerCase().replace(/[!,.…\s]+$/g, "");
+  if (/^\/?(start|menu)$/.test(t)) return true;
+  if (/^(привет|здравствуй|здравствуйте|добрый (день|вечер|утро)|доброе утро|хай|ку|меню|menu|hello|hi)\b/.test(t))
+    return true;
+  // Совсем короткая реплика без цифр — не вопрос, а вежливость.
+  return t.length <= 12 && !/\d/.test(t);
 }
 
 async function route(env, userId, payload, { kvGet, kvPut, onLead }) {
