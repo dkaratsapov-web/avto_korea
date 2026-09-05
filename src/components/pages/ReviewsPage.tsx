@@ -4,14 +4,12 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
-  Quote,
   Star,
   Play,
   ExternalLink,
 } from "lucide-react";
-import { Flag } from "@/components/icons/Flag";
 import { LeadForm } from "@/components/LeadForm";
-import { countries, site } from "@/lib/site";
+import { site } from "@/lib/site";
 import { HeroBackdrop } from "@/components/ui/HeroBackdrop";
 import { fetchReviews, type Review as ApiReview } from "@/lib/api";
 
@@ -28,26 +26,6 @@ function useMeta(title: string, description: string) {
     };
   }, [title, description]);
 }
-
-type Case = {
-  name: string;
-  city: string;
-  country: keyof typeof countries;
-  car: string;
-  term: string;
-  price: string;
-  text: string;
-};
-
-// TODO: заменить на реальные отзывы и кейсы заказчика (можно с фото/видео).
-const cases: Case[] = [
-  { name: "Андрей М.", city: "Тверь", country: "kr", car: "Hyundai Palisade, 2022", term: "37 дней", price: "4 290 000 ₽", text: "Считали при мне, всё разложили по полочкам. Итог совпал с договором до рубля. Машина пришла идеальной." },
-  { name: "Сергей и Ольга", city: "Москва", country: "cn", car: "Zeekr 001, 2023", term: "от 25 дней", price: "4 950 000 ₽", text: "Брали электро из Китая, переживали по срокам. Держали в курсе на каждом этапе, привезли как обещали." },
-  { name: "Дмитрий К.", city: "Тверь", country: "jp", car: "Toyota LC Prado, 2021", term: "41 день", price: "5 690 000 ₽", text: "Проверили историю и состояние до выкупа, скинули видео осмотра. Никаких сюрпризов на таможне." },
-  { name: "Илья В.", city: "Санкт-Петербург", country: "eu", car: "BMW X5 xDrive40i, 2022", term: "52 дня", price: "7 250 000 ₽", text: "Премиум из Европы под ключ — документы, растаможка, всё аккуратно. Рекомендую за честность в цене." },
-  { name: "Марина Т.", city: "Тверь", country: "kr", car: "Kia Sportage, 2023", term: "от 25 дней", price: "3 150 000 ₽", text: "Первый раз пригоняла авто из-за границы, боялась. Всё объяснили по шагам, помогли с постановкой на учёт." },
-  { name: "Виктор П.", city: "Ярославль", country: "cn", car: "Li L7, 2023", term: "46 дней", price: "5 480 000 ₽", text: "Хотел конкретную комплектацию, которой нет у дилеров. Нашли, привезли, цена без сюрпризов." },
-];
 
 // Горизонтальная лента: стрелки + перетаскивание мышью (на десктопе колесо
 // само по себе ленту не листает, поэтому нужны явные элементы управления).
@@ -185,85 +163,191 @@ function slidesOf(r: ApiReview): Slide[] {
   ];
 }
 
-/** Карточка отзыва: крупное медиа + лента миниатюр, если их несколько. */
+/**
+ * Карточка отзыва.
+ *
+ * Сначала — кадр-обложка во всю карточку и крупная кнопка воспроизведения.
+ * Само видео подключается только по нажатию, и вот почему: отзыв весит
+ * десятки мегабайт и идёт через наш сервер. Если начинать грузить их все
+ * сразу, лента открывается минуту, а посмотрят от силы один. Обложка весит
+ * килобайты и приезжает мгновенно.
+ *
+ * Подпись лежит ПОВЕРХ кадра, на затемнении. Раньше она стояла отдельным
+ * блоком под медиа, и карточка разваливалась надвое: сверху картинка, снизу
+ * текст, между ними шов. Теперь это одно целое — так витрина и читается.
+ */
 function ReviewCard({ review }: { review: ApiReview }) {
   const slides = slidesOf(review);
   const [idx, setIdx] = useState(0);
+  const [playing, setPlaying] = useState(false);
   const cur = slides[idx] ?? slides[0];
-  const poster = review.images?.[0] || review.media;
 
-  // Отзыв без единого файла карточке этого вида не подходит: она на три
-  // четверти состоит из медиа-блока, и на его месте оставался огромный
-  // пустой прямоугольник. Такие отзывы показываются текстовыми — см. ниже.
+  // Обложка: кадр из видео, если бот его сохранил, иначе первое фото отзыва.
+  const poster = review.poster || review.images?.[0] || review.media;
+
+  // Отзыв без единого файла этой карточке не подходит: она вся состоит из
+  // медиа, и на его месте остался бы пустой прямоугольник.
   if (!cur) return null;
 
+  const isVideo = cur.type === "video";
+  const title = deliveredTitle(review.text);
+
   return (
-    <article className="flex w-[84%] flex-none snap-start flex-col overflow-hidden rounded-[20px] border border-line bg-white shadow-[0_10px_30px_-16px_rgba(20,25,32,0.4)] sm:w-[380px]">
-      <div className="relative aspect-[3/4] overflow-hidden bg-graphite">
-        {cur.type === "video" ? (
+    <article className="group relative flex w-[84%] flex-none snap-start flex-col overflow-hidden rounded-[20px] bg-graphite shadow-[0_18px_40px_-22px_rgba(20,25,32,0.75)] transition-shadow hover:shadow-[0_22px_50px_-20px_rgba(20,25,32,0.85)] sm:w-[340px]">
+      <div className="relative aspect-[3/4] overflow-hidden">
+        {isVideo && playing ? (
           <video
             key={cur.src}
             src={cur.src}
             poster={poster}
             controls
+            autoPlay
             playsInline
-            preload="metadata"
             className="h-full w-full bg-black object-contain"
           />
         ) : (
-          <img src={cur.src} alt="" loading="lazy" className="h-full w-full object-cover" />
+          <>
+            {/* object-cover, а не contain: кадр заполняет карточку целиком,
+                без чёрных полей по краям — карточки в ленте выглядят
+                одинаковыми по плотности. */}
+            <img
+              src={isVideo ? poster : cur.src}
+              alt=""
+              loading="lazy"
+              className="h-full w-full bg-graphite object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            />
+            {/* Затемнение снизу — под подпись. Сверху лёгкое, под бейдж. */}
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(10,13,17,0.92)_0%,rgba(10,13,17,0.55)_28%,rgba(10,13,17,0)_55%,rgba(10,13,17,0.35)_100%)]" />
+
+            {isVideo ? (
+              <button
+                type="button"
+                onClick={() => setPlaying(true)}
+                aria-label={`Смотреть отзыв: ${title}`}
+                className="absolute inset-0 flex items-center justify-center focus-visible:outline-none"
+              >
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/95 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.6)] transition-transform duration-200 group-hover:scale-110">
+                  {/* Треугольник чуть правее центра: у знака воспроизведения
+                      оптический центр не совпадает с геометрическим. */}
+                  <Play className="ml-1 h-6 w-6 fill-bordeaux text-bordeaux" />
+                </span>
+              </button>
+            ) : null}
+          </>
         )}
-        <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-white/90 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
-          <CheckCircle2 className="h-4 w-4" /> Доставлено
+
+        <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-[11.5px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57] backdrop-blur">
+          <CheckCircle2 className="h-3.5 w-3.5" /> Доставлено
         </span>
+
         {slides.length > 1 ? (
-          <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 font-num text-[12px] font-bold text-white">
+          <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 font-num text-[11.5px] font-bold text-white backdrop-blur">
             {idx + 1}/{slides.length}
           </span>
+        ) : null}
+
+        {/* Подпись поверх кадра. Пока видео не запущено — плеер её не
+            перекрывает, а после запуска она не нужна и убирается. */}
+        {!playing ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4">
+            <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-white/60">
+              Выдача
+            </div>
+            <div className="mt-1 text-[16px] font-extrabold leading-tight text-white [text-wrap:balance]">
+              {title}
+            </div>
+          </div>
         ) : null}
       </div>
 
       {slides.length > 1 ? (
-        <div className="flex gap-2 overflow-x-auto border-b border-line px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-2 overflow-x-auto bg-graphite-2 px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {slides.map((s, i) => (
             <button
               key={s.src + i}
               type="button"
-              onClick={() => setIdx(i)}
+              onClick={() => {
+                setIdx(i);
+                setPlaying(false);
+              }}
               aria-label={`Медиа ${i + 1}`}
-              className={`relative h-14 w-14 flex-none overflow-hidden rounded-[10px] border transition-colors ${
-                i === idx ? "border-bordeaux" : "border-line hover:border-ink/30"
+              className={`relative h-12 w-12 flex-none overflow-hidden rounded-[9px] border-2 transition-colors ${
+                i === idx ? "border-bordeaux-bright" : "border-transparent hover:border-white/30"
               }`}
             >
+              <img
+                src={s.type === "video" ? poster : s.src}
+                alt=""
+                loading="lazy"
+                className="h-full w-full bg-graphite object-cover"
+              />
               {s.type === "video" ? (
-                <>
-                  <img
-                    src={poster}
-                    alt=""
-                    loading="lazy"
-                    className="h-full w-full bg-graphite object-cover"
-                  />
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/45">
-                    <Play className="h-4 w-4 text-white" />
-                  </span>
-                </>
-              ) : (
-                <img src={s.src} alt="" loading="lazy" className="h-full w-full object-cover" />
-              )}
+                <span className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <Play className="h-3.5 w-3.5 fill-white text-white" />
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
       ) : null}
-
-      <div className="flex flex-1 flex-col justify-center p-5">
-        <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-2">
-          Выдача
-        </div>
-        <div className="mt-1 text-[17px] font-extrabold leading-tight text-ink">
-          {deliveredTitle(review.text)}
-        </div>
-      </div>
     </article>
+  );
+}
+
+type Tab = "video" | "maps";
+
+/**
+ * Переключатель источника отзывов.
+ *
+ * Отзывы у нас двух пород, и смешивать их в одну ленту нельзя: в справочниках
+ * пишут посторонние люди и оценку там не подделать — это доказательство; видео
+ * с выдач снимаем мы сами — это показ товара лицом. Посетитель приходит либо
+ * за первым, либо за вторым, поэтому даём выбрать, а не листать всё подряд.
+ */
+function SourceTabs({
+  tab,
+  onTab,
+  videoCount,
+}: {
+  tab: Tab;
+  onTab: (t: Tab) => void;
+  videoCount: number;
+}) {
+  const items: { key: Tab; label: string; note: string }[] = [
+    { key: "video", label: "Видео-отзывы", note: videoCount ? String(videoCount) : "" },
+    { key: "maps", label: "Яндекс.Карты", note: "" },
+  ];
+  return (
+    <div
+      role="tablist"
+      aria-label="Источник отзывов"
+      className="inline-flex w-full max-w-md rounded-full border border-line bg-white p-1 sm:w-auto"
+    >
+      {items.map((it) => {
+        const on = tab === it.key;
+        return (
+          <button
+            key={it.key}
+            role="tab"
+            aria-selected={on}
+            type="button"
+            onClick={() => onTab(it.key)}
+            className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-5 py-2.5 text-[14px] font-extrabold transition-colors sm:flex-none ${
+              on ? "bg-bordeaux text-white" : "text-ink-2 hover:text-ink"
+            }`}
+          >
+            {it.label}
+            {it.note ? (
+              <span
+                className={`font-num text-[12px] font-bold ${on ? "text-white/70" : "text-ink-2/70"}`}
+              >
+                {it.note}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -299,8 +383,17 @@ export function ReviewsPage() {
    * прямоугольник — снаружи неотличимо от несработавшей загрузки.
    */
   const withMedia = (remote ?? []).filter((r) => slidesOf(r).length > 0);
-  const hasRemote = withMedia.length > 0;
   const rail = useDragScroll();
+
+  /*
+   * Вкладка по умолчанию — видео, и она не меняется сама.
+   *
+   * Соблазн «если видео ещё не загрузились, открыть Яндекс» выглядит умно, но
+   * ведёт себя отвратительно: страница открывается на картах, через полсекунды
+   * приезжают отзывы — и вкладка перещёлкивается ровно тогда, когда человек уже
+   * потянулся к экрану. Лучше честный скелет на месте будущей ленты.
+   */
+  const [tab, setTab] = useState<Tab>("video");
 
   return (
     <main className="bg-paper pb-[96px]">
@@ -326,8 +419,12 @@ export function ReviewsPage() {
         <div className="chrome-line absolute inset-x-0 bottom-0" />
       </section>
 
+      <div className="wrap mt-8 flex justify-center sm:justify-start">
+        <SourceTabs tab={tab} onTab={setTab} videoCount={withMedia.length} />
+      </div>
+
       {/* Оценки на внешних площадках: слева площадки, справа живой виджет */}
-      <section className="wrap mt-10">
+      <section className={`wrap mt-6 ${tab === "maps" ? "" : "hidden"}`}>
         <div className="grid gap-6 lg:grid-cols-[1fr_560px] lg:items-start">
           <div className="flex flex-col rounded-card border border-line bg-white p-6 sm:p-7">
             <h2 className="text-[clamp(20px,2.4vw,28px)] font-extrabold uppercase leading-tight text-ink">
@@ -414,8 +511,44 @@ export function ReviewsPage() {
         </div>
       </section>
 
-      {withMedia.length ? (
-        <section className="mt-12">
+      {tab === "video" && remote === null ? (
+        // Скелет на месте ленты: место под карточки занято сразу, поэтому
+        // страница не прыгает, когда отзывы приезжают.
+        <section className="mt-6">
+          <div className="flex gap-5 overflow-hidden px-6 pb-4">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="aspect-[3/4] w-[84%] flex-none animate-pulse rounded-[20px] bg-graphite/10 sm:w-[340px]"
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {tab === "video" && remote !== null && !withMedia.length ? (
+        <section className="wrap mt-6">
+          <div className="rounded-card border border-line bg-white p-8 text-center">
+            <p className="text-[15px] font-bold text-ink">
+              Видео с выдач готовим — скоро появятся здесь.
+            </p>
+            <p className="mx-auto mt-2 max-w-md text-[14px] text-ink-2">
+              А оценки клиентов можно посмотреть прямо сейчас — их пишут в
+              справочниках, где отзыв нельзя ни удалить, ни подделать.
+            </p>
+            <button
+              type="button"
+              onClick={() => setTab("maps")}
+              className="btn btn-primary mt-5 !px-6"
+            >
+              <Star className="h-4 w-4" /> Отзывы на Яндекс.Картах
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {tab === "video" && withMedia.length ? (
+        <section className="mt-6">
           <div className="wrap mb-4 flex items-end justify-between gap-3">
             <h2 className="text-[clamp(20px,2.6vw,30px)] font-extrabold uppercase text-ink">
               Видео-отзывы клиентов
@@ -453,36 +586,6 @@ export function ReviewsPage() {
             ))}
           </div>
         </section>
-      ) : null}
-
-      {!hasRemote ? (
-        <div className="wrap mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {cases.map((r) => (
-            <article key={r.name + r.car} className="flex flex-col rounded-card border border-line bg-white p-6">
-              <div className="mb-3 flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.04em] text-[#1f9d57]">
-                  <CheckCircle2 className="h-4 w-4" /> Доставлено
-                </span>
-                <Flag code={r.country} className="h-5 w-7" />
-              </div>
-              <Quote className="mb-2 h-6 w-6 text-chrome" />
-              <p className="flex-1 text-[15px] leading-relaxed text-ink">{r.text}</p>
-              <div className="mt-5 border-t border-line pt-4">
-                <div className="font-bold text-ink">{r.name}</div>
-                <div className="text-[13.5px] text-ink-2">{r.city} · {r.car}</div>
-                <div className="mt-3 flex items-end justify-between gap-3">
-                  <div className="text-[13px] font-semibold text-ink-2">
-                    Срок: <span className="font-num text-ink">{r.term}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-ink-2">Под ключ</div>
-                    <div className="font-num text-[20px] font-bold text-bordeaux">{r.price}</div>
-                  </div>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
       ) : null}
 
       <div className="wrap mt-14">

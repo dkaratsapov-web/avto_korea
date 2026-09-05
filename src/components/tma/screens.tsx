@@ -1751,26 +1751,93 @@ function ReviewItem({ review }: { review: Review }) {
 
 export function ReviewsView({ onBack }: { onBack: () => void }) {
   const [reviews, setReviews] = useState<Review[] | null>(null);
+  /*
+   * Две породы отзывов, и выбирает между ними человек.
+   *
+   * Видео с выдач снимаем мы — это показ товара лицом. Отзывы на Яндекс.Картах
+   * пишут посторонние люди, и оценку там нельзя ни стереть, ни нарисовать —
+   * это доказательство. Смешивать их в одну ленту нельзя: смотрят их с разными
+   * вопросами в голове.
+   */
+  const [tab, setTab] = useState<"video" | "maps">("video");
   useEffect(() => {
+    /*
+     * Показываем только отзывы с видео или фото.
+     *
+     * Раньше сюда попадали и записи с одним текстом — на экране получался
+     * список серых плашек «ВЫДАЧА / Добрый день!», по которым непонятно ни
+     * что за машина, ни от кого отзыв. Отзыв без медиа убеждает хуже, чем
+     * его отсутствие.
+     */
     fetchReviews().then((rs) =>
-      setReviews(
-        rs.filter(
-          (r) => r.media || r.images?.length || (r.text || "").trim().length > 2,
-        ),
-      ),
+      setReviews(rs.filter((r) => r.videos?.length || r.images?.length || r.video || r.media)),
     );
   }, []);
   return (
     <>
       <Header2 title="Отзывы клиентов" onBack={onBack} />
-      {reviews === null ? (
+
+      <div className="mb-3 flex rounded-full border border-line-dark bg-graphite-2 p-1">
+        {(
+          [
+            ["video", "Видео-отзывы"],
+            ["maps", "Яндекс.Карты"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`flex-1 rounded-full py-2 text-[13.5px] font-bold transition-colors ${
+              tab === key ? "bg-bordeaux text-white" : "text-[#9AA4B2]"
+            }`}
+          >
+            {label}
+            {key === "video" && reviews?.length ? (
+              <span className="ml-1.5 font-num text-[12px] opacity-70">{reviews.length}</span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+
+      {tab === "maps" ? (
+        <div className="space-y-3">
+          {/* Виджет Яндекса — со своей светлой вёрсткой; заворачиваем в рамку,
+              чтобы белый блок не выглядел дырой в тёмном экране. */}
+          <div className="overflow-hidden rounded-[16px] border border-line-dark bg-white">
+            <iframe
+              title="Отзывы о ДиАвто69 на Яндекс.Картах"
+              src={`https://yandex.ru/maps-reviews-widget/${site.yandexOrgId}?comments`}
+              loading="lazy"
+              className="h-[520px] w-full"
+            />
+          </div>
+          <a
+            href={site.yandexReviewsHref}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary w-full"
+          >
+            Открыть на Яндекс.Картах
+          </a>
+          <p className="px-1 text-center text-[12px] text-[#8C97A1]">
+            Отзывы в справочнике нельзя удалить или подделать — поэтому смотреть
+            их стоит именно там.
+          </p>
+        </div>
+      ) : reviews === null ? (
         <div className="flex justify-center py-10 text-chrome">
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
       ) : reviews.length === 0 ? (
-        <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
-          Отзывы скоро появятся.
-        </p>
+        <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center">
+          <p className="text-[#9AA4B2]">Видео с выдач скоро появятся здесь.</p>
+          <button
+            onClick={() => setTab("maps")}
+            className="mt-3 text-[13.5px] font-bold text-bordeaux-bright"
+          >
+            Посмотреть отзывы на Яндекс.Картах →
+          </button>
+        </div>
       ) : (
         <div className="space-y-3">
           {reviews.map((r) => (
