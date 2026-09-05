@@ -1799,11 +1799,26 @@ export default {
       const work = handleMaxUpdate(env, upd, {
         kvGet,
         kvPut,
+        // Заявка — только с телефоном: она идёт в общий список и в чат заявок.
         onLead: async (e, lead) => {
           await storeLead(e, lead);
           await api(e, "sendMessage", {
             chat_id: e.TELEGRAM_CHAT_ID,
             text: leadText(lead),
+          });
+        },
+        /*
+         * Вопрос — не заявка.
+         *
+         * Уходит тем же людям, что и заявки (это чат менеджеров, клиенты его
+         * не видят), но в список заявок не попадает: по нему считают, сколько
+         * обращений принесла реклама, и «привет» без телефона там только
+         * портит счёт.
+         */
+        onQuestion: async (e, userId, text) => {
+          await api(e, "sendMessage", {
+            chat_id: e.TELEGRAM_CHAT_ID,
+            text: `❓ Вопрос из MAX\n\n${text}\n\nОтветить: откройте чат бота в MAX (id ${userId}).`,
           });
         },
       }).catch(() => {});

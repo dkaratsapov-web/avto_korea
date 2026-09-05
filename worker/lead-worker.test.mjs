@@ -1824,3 +1824,71 @@ test("посторонний командой /max ничего не подкл�
 
   assert.ok(!seen.some((u) => u.includes("botapi.max.ru")), "чужому MAX не отвечаем");
 });
+
+/*
+ * «Привет» — это не заявка.
+ *
+ * Первая версия заводила заявку из любого текста, и в чат менеджеров приехало
+ * «Клиент из MAX, телефон —, авто: привет». Заявка без телефона бесполезна, а
+ * список заявок — это то, по чему считают отдачу рекламы.
+ */
+test("приветствие в MAX открывает меню, а не заводит заявку", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify({ ok: true, result: {}, message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({ catalog: [] });
+
+  for (const text of ["привет", "Здравствуйте!", "добрый день", "ок", "спасибо"]) {
+    await worker.fetch(
+      maxUpdate({
+        update_type: "message_created",
+        message: { sender: { user_id: 91 }, body: { text } },
+      }),
+      { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store },
+      undefined,
+    );
+  }
+
+  assert.equal(await store.get("leads"), null, "из приветствий заявок быть не должно");
+  const toMax = sent.filter((x) => x.url.includes("botapi.max.ru/messages"));
+  assert.equal(toMax.length, 5, "на каждое приветствие — меню");
+  assert.match(String(toMax[0].body.text), /С чего начнём/);
+});
+
+test("настоящий вопрос уходит менеджеру, но не в список заявок", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify({ ok: true, result: {}, message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({ catalog: [] });
+
+  await worker.fetch(
+    maxUpdate({
+      update_type: "message_created",
+      message: {
+        sender: { user_id: 92 },
+        body: { text: "Есть ли Kia Sorento 2023 года до 4 миллионов?" },
+      },
+    }),
+    { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store },
+    undefined,
+  );
+
+  assert.equal(await store.get("leads"), null, "вопрос — не заявка");
+  const toManager = sent.find(
+    (x) => x.url.includes("api.telegram.org") && /Вопрос из MAX/.test(String(x.body?.text)),
+  );
+  assert.ok(toManager, "менеджеру должно уйти уведомление о вопросе");
+  assert.equal(
+    String(toManager.body.chat_id),
+    "-100999",
+    "и только в чат заявок — клиентам такое не рассылается",
+  );
+});
