@@ -2018,3 +2018,39 @@ test("меню MAX не уводит человека в браузер", async 
   assert.equal(sent.filter((x) => x.url.includes("/messages")).length, 1);
 });
 
+
+/*
+ * «Отзывы» в MAX ведут в справочники, а не показывают наши же видео: в
+ * Яндекс.Картах и 2ГИС отзыв нельзя ни стереть, ни дорисовать — именно это
+ * человек и проверяет у незнакомой компании.
+ */
+test("кнопка «Отзывы» в MAX присылает ссылки на Яндекс и 2ГИС", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify({ message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({ reviews: [{ id: "r1", text: "Спасибо!", videos: ["/v.mp4"] }] });
+
+  await worker.fetch(
+    maxUpdate({
+      update_type: "message_callback",
+      callback: { callback_id: "cb", user: { user_id: 99 }, payload: "rev" },
+    }),
+    { TELEGRAM_BOT_TOKEN: "T", MAX_BOT_TOKEN: "M", STORE: store },
+    undefined,
+  );
+
+  const msg = sent.find((x) => x.url.includes("botapi.max.ru/messages"));
+  const urls = msg.body.attachments
+    .find((a) => a.type === "inline_keyboard")
+    .payload.buttons.flat()
+    .map((b) => String(b.url || ""));
+
+  assert.ok(urls.some((u) => u.includes("yandex.ru/maps")), "нужна ссылка на Яндекс.Карты");
+  assert.ok(urls.some((u) => u.includes("2gis.ru")), "нужна ссылка на 2ГИС");
+  // Своих отзывов в чат не шлём, даже когда они есть в хранилище.
+  assert.equal(sent.filter((x) => x.url.includes("/messages")).length, 1);
+});

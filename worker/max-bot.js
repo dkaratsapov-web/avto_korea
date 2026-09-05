@@ -186,7 +186,7 @@ export async function handleMaxUpdate(env, update, deps) {
   const command = (text.match(/^\/([a-z_]+)/i) || [])[1]?.toLowerCase();
   if (command) {
     if (command === "catalog") return appHint(env, userId);
-    if (command === "reviews") return reviews(env, userId, kvGet);
+    if (command === "reviews") return reviews(env, userId);
     if (command === "lead") return route(env, userId, "lead", { kvGet, kvPut, onLead });
     // «/start» и всё незнакомое — меню: оно объясняет, что тут вообще есть.
     return welcome(env, userId);
@@ -239,7 +239,7 @@ function isGreeting(text) {
 
 async function route(env, userId, payload, { kvGet, kvPut, onLead }) {
   if (payload === "menu") return welcome(env, userId);
-  if (payload === "rev") return reviews(env, userId, kvGet);
+  if (payload === "rev") return reviews(env, userId);
   if (payload === "lead") {
     await kvPut(env, `max:wait:${userId}`, { car: "" });
     return maxSend(
@@ -302,35 +302,31 @@ async function appHint(env, userId) {
   );
 }
 
-async function reviews(env, userId, kvGet) {
-  const all = (await kvGet(env, "reviews", [])) || [];
-  const withPhoto = all.filter((r) => r.images?.length || r.media).slice(0, 3);
-
-  if (!withPhoto.length) {
-    return maxSend(env, userId, `Отзывы и видео с выдач — на сайте: ${SITE}/reviews`, {
-      keyboard: MENU,
-    });
-  }
-
-  for (const r of withPhoto) {
-    await maxSend(env, userId, (r.text || "Выдача автомобиля клиенту").slice(0, 400), {
-      image: siteMedia(r.images?.[0] || r.media),
-    });
-  }
-  return maxSend(env, userId, `Все отзывы и видео: ${SITE}/reviews`, { keyboard: MENU });
-}
-
-/**
- * Ссылка на файл — обязательно на наш домен.
+/*
+ * Отзывы — ссылками на справочники.
  *
- * В хранилище адреса лежат с доменом воркера, а он в России у провайдеров
- * закрыт: MAX картинку по такой ссылке может и не забрать. Сайт отдаёт те же
- * файлы со своего адреса.
+ * Свои видео с выдач у нас есть, но в мессенджере они убеждают хуже: там
+ * «нам написали хорошее» показываем мы сами. В Яндекс.Картах и 2ГИС отзыв
+ * нельзя ни стереть, ни дорисовать — именно это человек и хочет проверить,
+ * когда жмёт «Отзывы» у незнакомой компании.
  */
-function siteMedia(url) {
-  if (!url) return "";
-  const path = String(url).replace(/^https?:\/\/[^/]+/, "");
-  return path.startsWith("/api/") ? SITE + path : String(url);
+const YANDEX_REVIEWS = "https://yandex.ru/maps/org/di_avto_treyding/153399449714/reviews/";
+const GIS_CARD = "https://2gis.ru/tver/firm/70000001110299440";
+
+async function reviews(env, userId) {
+  return maxSend(
+    env,
+    userId,
+    "Отзывы клиентов — в справочниках. Там их пишут посторонние люди, " +
+      "и удалить или подделать оценку нельзя:",
+    {
+      keyboard: [
+        [{ type: "link", text: "⭐ Яндекс.Карты", url: YANDEX_REVIEWS }],
+        [{ type: "link", text: "📍 2ГИС", url: GIS_CARD }],
+        [{ type: "callback", text: "◀ В меню", payload: "menu" }],
+      ],
+    },
+  );
 }
 
 async function saveLead(env, userId, text, waiting, onLead) {
