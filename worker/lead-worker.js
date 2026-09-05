@@ -1295,6 +1295,46 @@ export default {
         return new Response("ok");
       }
 
+      /*
+       * /max — подключить бота в MAX и проверить связь.
+       *
+       * Настройка второго мессенджера через служебный адрес воркера не
+       * годится: его домен у российских провайдеров закрыт, и открыть
+       * ссылку получается не у всех — а нужна она ровно тогда, когда
+       * что-то не работает. Команда приходит обычным сообщением.
+       *
+       * Токен MAX в секретах воркера: код его не хранит и не показывает.
+       */
+      if (msg && typeof msg.text === "string" && /^\/max(@\w+)?\b/.test(msg.text.trim())) {
+        const perm = await permsOf(env, msg.from?.id);
+        if (!perm?.owner) return new Response("ok");
+
+        if (!env.MAX_BOT_TOKEN) {
+          await api(env, "sendMessage", {
+            chat_id: msg.chat.id,
+            text:
+              "⚠️ Токен MAX не задан.\n\nCloudflare → Workers & Pages → diauto-bot → " +
+              "Settings → Variables and Secrets → Add → тип Secret, имя `MAX_BOT_TOKEN`, " +
+              "значение — токен из настроек бота в MAX. После сохранения пришлите /max ещё раз.",
+            parse_mode: "Markdown",
+          });
+          return new Response("ok");
+        }
+
+        const bound = await maxBind(env, url.origin);
+        const who = bound.me?.data?.name || bound.me?.data?.username || "—";
+        const hookOk = bound.hook?.ok;
+        await api(env, "sendMessage", {
+          chat_id: msg.chat.id,
+          text:
+            (bound.me?.ok ? `✅ Токен принят. Бот в MAX: ${who}` : "⚠️ MAX не принял токен") +
+            "\n" +
+            (hookOk ? "✅ Вебхук подписан" : "⚠️ Вебхук: " + JSON.stringify(bound.hook?.data ?? bound.hook?.raw ?? bound.hook)) +
+            "\n\nНапишите боту в MAX «привет» — он должен ответить меню с каталогом.",
+        });
+        return new Response("ok");
+      }
+
       // /id — узнать идентификатор текущего чата. Работает и в группах:
       // именно этот номер вписывается в админке как чат для заявок.
       // В группах с включённым режимом приватности Telegram отдаёт боту
