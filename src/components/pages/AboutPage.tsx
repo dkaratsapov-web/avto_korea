@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ChevronRight,
@@ -9,6 +9,7 @@ import {
   Truck,
   Users,
   ExternalLink,
+  Maximize2,
 } from "lucide-react";
 import { LeadForm } from "@/components/LeadForm";
 import { Flag } from "@/components/icons/Flag";
@@ -18,6 +19,7 @@ import { Faq } from "@/components/sections/Faq";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { HeroBackdrop } from "@/components/ui/HeroBackdrop";
+import { Modal } from "@/components/ui/Modal";
 import { site } from "@/lib/site";
 
 // СТРАНИЦА-ЧЕРНОВИК. Места с [ЗАГЛУШКА] заполнит заказчик — они помечены на странице.
@@ -52,9 +54,10 @@ const values = [
  * бумаги отвечают на это лучше любых слов, поэтому они стоят до «как это
  * работает» — сначала «мы существуем», потом «вот как мы работаем».
  *
- * Показываем разворот целиком, а не иконку файла: документ, который видно,
- * работает, а документ по ссылке почти никто не открывает. PDF открывается в
- * новой вкладке для тех, кто захочет разглядеть печати.
+ * Показываем разворот, а не иконку файла: документ, который видно, работает,
+ * а документ по ссылке почти никто не открывает. Крупно он раскрывается тут
+ * же, окном поверх страницы; PDF остаётся внутри окна — для тех, кому нужен
+ * сам файл.
  */
 const documents = [
   {
@@ -74,12 +77,43 @@ const documents = [
 ];
 
 function Documents() {
+  /*
+   * Документ открывается окном на той же странице.
+   *
+   * Раньше карточка вела прямо в PDF, и человек уходил со страницы: браузер
+   * подменял вкладку просмотрщиком, а обратно возвращались единицы. Стоит
+   * это дороже, чем кажется, — документы стоят ровно там, где сомневающийся
+   * решает, серьёзная это компания или нет, и уводить его оттуда нельзя.
+   *
+   * В окне показываем сам разворот картинкой: она уже есть и грузится
+   * мгновенно. Ссылка на PDF остаётся внутри — для тех, кому нужен файл.
+   */
+  const [open, setOpen] = useState<number | null>(null);
+
+  // Esc закрывает окно, а фон под ним не прокручивается: иначе страница
+  // уезжает под документом и после закрытия человек оказывается не там.
+  useEffect(() => {
+    if (open === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(null);
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  const doc = open !== null ? documents[open] : null;
+
   return (
     <section className="wrap mt-16">
       <Reveal>
         <SectionHeading
           eyebrow="Документы"
-          title="Наш партнёр в Корее — с документами"
+          title="Своя компания в Корее"
           description="Машины выкупает и отгружает наша компания в Инчхоне. Не посредник, найденный на форуме, — юридическое лицо с регистрацией и членством в торговой ассоциации."
         />
       </Reveal>
@@ -95,13 +129,12 @@ function Documents() {
       <Reveal direction="up">
         <div className="mt-8 rounded-card border border-line bg-white p-4 sm:p-5">
           <ul className="grid gap-3 sm:grid-cols-2">
-            {documents.map((d) => (
+            {documents.map((d, i) => (
               <li key={d.pdf}>
-                <a
-                  href={d.pdf}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex h-full gap-4 rounded-[16px] border border-line bg-paper p-3 transition-colors hover:border-ink/25 hover:bg-white"
+                <button
+                  type="button"
+                  onClick={() => setOpen(i)}
+                  className="group flex h-full w-full gap-4 rounded-[16px] border border-line bg-paper p-3 text-left transition-colors hover:border-ink/25 hover:bg-white"
                 >
                   {/* Рамка с жёсткими размерами: у самой картинки высота не
                       задана, и без неё object-cover растягивал лист во весь
@@ -123,16 +156,44 @@ function Documents() {
                     <span className="mt-1 text-[12.5px] leading-snug text-ink-2">{d.org}</span>
                     <span className="mt-0.5 text-[12px] leading-snug text-ink-2/80">{d.note}</span>
                     <span className="mt-auto inline-flex items-center gap-1.5 pt-2 text-[12.5px] font-bold text-bordeaux">
-                      Открыть PDF
-                      <ExternalLink className="h-[14px] w-[14px]" />
+                      Посмотреть документ
+                      <Maximize2 className="h-[14px] w-[14px]" />
                     </span>
                   </span>
-                </a>
+                </button>
               </li>
             ))}
           </ul>
         </div>
       </Reveal>
+
+      {doc ? (
+        <Modal onClose={() => setOpen(null)} label={doc.title} className="sm:max-w-3xl">
+          <div className="max-h-[86vh] overflow-y-auto">
+            <div className="bg-graphite p-4 sm:p-5">
+              <img
+                src={doc.img}
+                alt={doc.title}
+                className="mx-auto w-full max-w-[760px] rounded-[12px] bg-white"
+              />
+            </div>
+            <div className="border-t border-line-dark p-4 sm:p-5">
+              <h3 className="text-[16px] font-extrabold text-white">{doc.title}</h3>
+              <p className="mt-1 text-[13.5px] text-[#C7CFD6]">{doc.org}</p>
+              <p className="mt-0.5 text-[12.5px] text-[#9AA4B2]">{doc.note}</p>
+              <a
+                href={doc.pdf}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex items-center gap-1.5 text-[13.5px] font-bold text-bordeaux-bright"
+              >
+                Скачать PDF
+                <ExternalLink className="h-[15px] w-[15px]" />
+              </a>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
     </section>
   );
 }
