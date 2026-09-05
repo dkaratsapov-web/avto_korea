@@ -1330,6 +1330,10 @@ export default {
             (bound.me?.ok ? `✅ Токен принят. Бот в MAX: ${who}` : "⚠️ MAX не принял токен") +
             "\n" +
             (hookOk ? "✅ Вебхук подписан" : "⚠️ Вебхук: " + JSON.stringify(bound.hook?.data ?? bound.hook?.raw ?? bound.hook)) +
+            "\n" +
+            (bound.commands?.ok
+              ? "✅ Команды в подсказках: /start, /catalog, /lead, /reviews"
+              : "⚠️ Команды: " + JSON.stringify(bound.commands?.data ?? bound.commands?.raw ?? bound.commands)) +
             "\n\nНапишите боту в MAX «привет» — он должен ответить меню с каталогом.",
         });
         return new Response("ok");
