@@ -157,7 +157,9 @@ export function Reviews() {
           {reviews.map((r) => {
             const slides = slidesOf(r);
             const video = slides.find((s) => s.type === "video");
-            const cover = r.poster || r.images?.[0] || r.media || slides.find((s) => s.type === "image")?.src;
+            // Фотография с выдачи вперёд кадра из видео — как и на сайте:
+            // владелец должен узнавать отзыв по той же картинке.
+            const cover = r.images?.[0] || r.media || r.poster;
 
             return (
               <Card key={r.id} className="overflow-hidden !p-0">
