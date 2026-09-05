@@ -1684,9 +1684,9 @@ function ReviewItem({ review }: { review: Review }) {
   const slides = reviewSlides(review);
   const [idx, setIdx] = useState(0);
   const cur = slides[idx] ?? slides[0];
-  // Кадр из видео бот сохраняет отдельно от фотографий отзыва — он и есть
-  // обложка; фото берётся только если кадра нет.
-  const poster = review.poster || review.images?.[0] || review.media;
+  // Обложка — фотография с выдачи: на ней клиент и машина. Кадр из видео
+  // (его отдаёт Telegram) идёт только как запасной: там случайный момент.
+  const poster = review.images?.[0] || review.media || review.poster;
   const title = deliveredTitle(review.text);
 
   return (

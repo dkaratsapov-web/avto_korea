@@ -84,43 +84,55 @@ function Documents() {
         />
       </Reveal>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        {documents.map((d, i) => (
-          <Reveal key={d.pdf} direction="up" delay={i * 90}>
-            <a
-              href={d.pdf}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex h-full flex-col overflow-hidden rounded-card border border-line bg-white transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_28px_54px_-26px_rgba(20,25,32,0.4)]"
-            >
-              {/* Показываем верх листа: там название документа, номер и
-                  реквизиты. Низ — печати и штрихкоды, они менее говорящие. */}
-              <div className="relative aspect-[4/3] overflow-hidden bg-[#f4f6f8]">
-                <img
-                  src={d.img}
-                  alt={d.title}
-                  loading="lazy"
-                  decoding="async"
-                  className="absolute inset-x-0 top-0 w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
-                />
-                <span className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent" />
-              </div>
+      {/*
+        Оба документа — в одном блоке и мелкими превью.
+        Раньше каждый разворот занимал пол-экрана, и получалось хуже вдвойне:
+        корейский текст всё равно не прочитать, а страница из-за них
+        разъезжалась. Разворот здесь работает не текстом, а видом бумаги —
+        печать, бланк, номер; читать его идут по ссылке в PDF. Значит и места
+        ему нужно ровно столько, чтобы стало ясно: документ есть.
+      */}
+      <Reveal direction="up">
+        <div className="mt-8 rounded-card border border-line bg-white p-4 sm:p-5">
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {documents.map((d) => (
+              <li key={d.pdf}>
+                <a
+                  href={d.pdf}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex h-full gap-4 rounded-[16px] border border-line bg-paper p-3 transition-colors hover:border-ink/25 hover:bg-white"
+                >
+                  {/* Рамка с жёсткими размерами: у самой картинки высота не
+                      задана, и без неё object-cover растягивал лист во весь
+                      блок — именно так документ и разъезжался. */}
+                  <span className="h-[112px] w-[84px] flex-none overflow-hidden rounded-[10px] border border-line bg-white">
+                    <img
+                      src={d.img}
+                      alt={d.title}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]"
+                    />
+                  </span>
 
-              <div className="flex flex-1 flex-col gap-1.5 border-t border-line p-5">
-                <h3 className="text-[17px] font-extrabold leading-tight text-ink">
-                  {d.title}
-                </h3>
-                <p className="text-[13.5px] text-ink-2">{d.org}</p>
-                <p className="text-[12.5px] text-ink-2/80">{d.note}</p>
-                <span className="mt-auto inline-flex items-center gap-1.5 pt-3 text-[13.5px] font-bold text-bordeaux">
-                  Открыть PDF
-                  <ExternalLink className="h-[15px] w-[15px]" />
-                </span>
-              </div>
-            </a>
-          </Reveal>
-        ))}
-      </div>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="text-[14.5px] font-extrabold leading-snug text-ink">
+                      {d.title}
+                    </span>
+                    <span className="mt-1 text-[12.5px] leading-snug text-ink-2">{d.org}</span>
+                    <span className="mt-0.5 text-[12px] leading-snug text-ink-2/80">{d.note}</span>
+                    <span className="mt-auto inline-flex items-center gap-1.5 pt-2 text-[12.5px] font-bold text-bordeaux">
+                      Открыть PDF
+                      <ExternalLink className="h-[14px] w-[14px]" />
+                    </span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Reveal>
     </section>
   );
 }
