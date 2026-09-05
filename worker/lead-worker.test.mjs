@@ -2250,3 +2250,34 @@ test("без ссылки уведомление честно зовёт отв�
   assert.match(String(note.body.text), /Ссылки на профиль у человека нет/);
   assert.match(String(note.body.text), /ответьте на это сообщение/i);
 });
+
+/*
+ * Внутри MAX «Написать менеджеру» должно вести в MAX. Ссылка на телеграм
+ * выбрасывала человека в другой мессенджер, где у него может не быть ни
+ * аккаунта, ни желания его заводить.
+ */
+test("«Написать менеджеру» в MAX ведёт в MAX, а не в Telegram", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify({ ok: true, result: {}, message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({});
+
+  await worker.fetch(
+    maxUpdate({ update_type: "bot_started", user: { user_id: 4545, first_name: "Гость" } }),
+    { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store },
+    undefined,
+  );
+
+  const menu = sent.find((x) => x.url.includes("botapi.max.ru/messages"));
+  const manager = menu.body.attachments
+    .find((a) => a.type === "inline_keyboard")
+    .payload.buttons.flat()
+    .find((b) => /менеджеру/i.test(b.text));
+
+  assert.match(String(manager.url), /^https:\/\/max\.ru\/u\//, "ссылка должна быть на профиль в MAX");
+  assert.ok(!/t\.me/.test(String(manager.url)), "телеграма в кнопке быть не должно");
+});
