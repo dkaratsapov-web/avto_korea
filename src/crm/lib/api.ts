@@ -136,6 +136,14 @@ async function request<T>(path: string, options: Options = {}): Promise<T> {
  */
 type ReviewsReply = { connected: boolean; reviews: SiteReview[] };
 
+/** Состояние раздела копий. */
+type BackupsReply = {
+  backups: { name: string; size: number; createdAt: string }[];
+  telegram: boolean;
+  everyHours: number;
+  keep: number;
+};
+
 export const api = {
   // --- доступ ---
   me: () => request<{ user: User | null; needsSetup: boolean }>("/auth/me"),
@@ -271,6 +279,22 @@ export const api = {
   deleteReview: (id: string) => request<ReviewsReply>(`/reviews/${id}`, { method: "DELETE" }),
 
   deleteAllReviews: () => request<ReviewsReply>("/reviews", { method: "DELETE" }),
+
+  // --- резервные копии ---
+  backups: () => request<BackupsReply>("/backup"),
+
+  makeBackup: () => request<BackupsReply & { sent: boolean }>("/backup", { method: "POST" }),
+
+  restoreBackup: (name: string) =>
+    request<BackupsReply & { safety: string; restored: Record<string, number> }>(
+      `/backup/${name}/restore`,
+      { method: "POST" },
+    ),
+
+  deleteBackup: (name: string) => request<BackupsReply>(`/backup/${name}`, { method: "DELETE" }),
+
+  /** Ссылка на выгрузку файла копии — скачивается браузером, не через fetch. */
+  backupUrl: (name: string) => `${BASE}/backup/${name}`,
 
   // --- прочее ---
   settings: () => request<{ settings: Settings }>("/settings"),

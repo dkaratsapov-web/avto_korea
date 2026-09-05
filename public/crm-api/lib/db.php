@@ -17,6 +17,28 @@ declare(strict_types=1);
 require_once __DIR__ . '/boot.php';
 require_once __DIR__ . '/http.php';
 
+/**
+ * Открыто ли уже соединение с базой в этом запросе.
+ *
+ * Нужно служебным делам, которые выполняются на завершении запроса: лезть в
+ * базу там, где её ещё ни разу не открывали, опасно — при неудаче обработчик
+ * ошибки допечатал бы свой JSON в уже отданный ответ.
+ */
+function crm_db_connected(): bool
+{
+    return crm_db_flag();
+}
+
+/** Общая ячейка памяти для флага соединения. */
+function crm_db_flag(?bool $set = null): bool
+{
+    static $connected = false;
+    if ($set !== null) {
+        $connected = $set;
+    }
+    return $connected;
+}
+
 function crm_db(): PDO
 {
     static $pdo = null;
@@ -61,6 +83,7 @@ function crm_db(): PDO
     $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
 
     crm_migrate($pdo);
+    crm_db_flag(true);
 
     return $pdo;
 }
