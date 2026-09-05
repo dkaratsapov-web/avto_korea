@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  ChevronLeft,
   ChevronRight,
   CheckCircle2,
   Star,
@@ -25,99 +24,6 @@ function useMeta(title: string, description: string) {
       if (tag) tag.setAttribute("content", prevDesc);
     };
   }, [title, description]);
-}
-
-// Горизонтальная лента: стрелки + перетаскивание мышью (на десктопе колесо
-// само по себе ленту не листает, поэтому нужны явные элементы управления).
-function useDragScroll() {
-  // Лента появляется только после загрузки отзывов, поэтому ссылку держим
-  // в состоянии: обычный ref остался бы пустым, и обработчики вешать было
-  // бы не на что.
-  const [el, setEl] = useState<HTMLDivElement | null>(null);
-  const ref = useCallback((node: HTMLDivElement | null) => setEl(node), []);
-  const [atStart, setAtStart] = useState(true);
-  const [atEnd, setAtEnd] = useState(false);
-
-  useEffect(() => {
-    if (!el) return;
-    const sync = () => {
-      setAtStart(el.scrollLeft <= 2);
-      setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 2);
-    };
-    sync();
-    el.addEventListener("scroll", sync, { passive: true });
-    window.addEventListener("resize", sync);
-    const ro = new ResizeObserver(sync);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener("scroll", sync);
-      window.removeEventListener("resize", sync);
-      ro.disconnect();
-    };
-  }, [el]);
-
-  const scrollByCard = useCallback(
-    (dir: 1 | -1) => {
-      if (!el) return;
-      const card = el.querySelector("article");
-      const step = card
-        ? card.getBoundingClientRect().width + 20
-        : el.clientWidth * 0.8;
-      el.scrollBy({ left: dir * step, behavior: "smooth" });
-    },
-    [el],
-  );
-
-  // Перетаскивание мышью. Тач не трогаем — там работает нативный скролл.
-  useEffect(() => {
-    if (!el) return;
-    let startX = 0;
-    let startScroll = 0;
-    let dragging = false;
-    let pointerId = -1;
-
-    const down = (e: PointerEvent) => {
-      if (e.pointerType !== "mouse" || e.button !== 0) return;
-      // Не мешаем управлению плеером и кнопками внутри карточки.
-      if ((e.target as HTMLElement).closest("video, button, a")) return;
-      // Без preventDefault браузер начинает выделять текст и тащить картинку.
-      e.preventDefault();
-      dragging = true;
-      pointerId = e.pointerId;
-      startX = e.clientX;
-      startScroll = el.scrollLeft;
-      el.setPointerCapture(e.pointerId);
-      // Привязка к карточкам возвращала ленту к ближайшей точке на каждом
-      // шаге — на время перетаскивания отключаем.
-      el.style.scrollSnapType = "none";
-      el.classList.add("cursor-grabbing", "select-none");
-    };
-    const move = (e: PointerEvent) => {
-      if (!dragging || e.pointerId !== pointerId) return;
-      e.preventDefault();
-      el.scrollLeft = startScroll - (e.clientX - startX);
-    };
-    const up = (e: PointerEvent) => {
-      if (!dragging) return;
-      dragging = false;
-      if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
-      el.style.scrollSnapType = "";
-      el.classList.remove("cursor-grabbing", "select-none");
-    };
-
-    el.addEventListener("pointerdown", down);
-    el.addEventListener("pointermove", move);
-    el.addEventListener("pointerup", up);
-    el.addEventListener("pointercancel", up);
-    return () => {
-      el.removeEventListener("pointerdown", down);
-      el.removeEventListener("pointermove", move);
-      el.removeEventListener("pointerup", up);
-      el.removeEventListener("pointercancel", up);
-    };
-  }, [el]);
-
-  return { ref, atStart, atEnd, scrollByCard };
 }
 
 type Slide = { type: "video" | "image"; src: string };
@@ -204,7 +110,7 @@ function ReviewCard({ review }: { review: ApiReview }) {
   const title = deliveredTitle(review.text);
 
   return (
-    <article className="group relative flex w-[84%] flex-none snap-start flex-col overflow-hidden rounded-[20px] bg-graphite shadow-[0_18px_40px_-22px_rgba(20,25,32,0.75)] transition-shadow hover:shadow-[0_22px_50px_-20px_rgba(20,25,32,0.85)] sm:w-[340px]">
+    <article className="group relative flex w-full flex-col overflow-hidden rounded-[20px] bg-graphite shadow-[0_18px_40px_-22px_rgba(20,25,32,0.75)] transition-shadow hover:shadow-[0_22px_50px_-20px_rgba(20,25,32,0.85)] sm:w-[340px]">
       <div className="relative aspect-[3/4] overflow-hidden">
         {isVideo && playing ? (
           <video
@@ -313,6 +219,161 @@ function ReviewCard({ review }: { review: ApiReview }) {
   );
 }
 
+/** Отзыв из справочника 2ГИС — ровно то, что отдаёт /api/2gis. */
+type GisReview = { name: string; date: string; rating: number; text: string };
+type GisData = { ok: boolean; rating?: number; count?: number; reviews?: GisReview[] };
+
+const MONTHS = "января февраля марта апреля мая июня июля августа сентября октября ноября декабря".split(" ");
+
+/** «21 отзыв», «22 отзыва», «25 отзывов». */
+function plural(n: number, one: string, few: string, many: string): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return many;
+  const mod10 = n % 10;
+  if (mod10 === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4) return few;
+  return many;
+}
+
+/** «2026-05-17 12:33:44» → «17 мая». Непонятную дату просто не показываем. */
+function gisDate(raw: string): string {
+  const d = new Date(raw.replace(" ", "T"));
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+function Stars({ n, className = "" }: { n: number; className?: string }) {
+  return (
+    <span className={`flex gap-0.5 ${className}`} aria-label={`Оценка ${n} из 5`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star
+          key={i}
+          className={`h-3.5 w-3.5 ${i <= n ? "fill-[#f5a623] text-[#f5a623]" : "fill-[#e2e6ea] text-[#e2e6ea]"}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+/**
+ * Карточка 2ГИС.
+ *
+ * У Яндекса виджет отзывов вставляется готовой рамкой, у 2ГИС такого нет —
+ * их карточку в рамку не пустить. Поэтому она собрана вручную и нарочно
+ * повторяет вид соседа: оценка крупно, звёзды, лента отзывов, кнопки. Иначе
+ * страница читалась бы как «в Яндексе нам есть что показать, а в 2ГИС нет».
+ *
+ * Данные приходят с нашего же сервера (public/api/2gis.php), он ходит к 2ГИС
+ * сам и держит ответ в кэше. Если данных нет — показываем карточку без цифр,
+ * но со ссылками. Нарисовать оценку из головы нельзя: это ровно тот обман,
+ * из-за которого отзывам на сайтах и перестают верить.
+ */
+function TwoGis() {
+  const [data, setData] = useState<GisData | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/2gis")
+      .then((r) => r.json())
+      .then((d: GisData) => alive && setData(d))
+      .catch(() => alive && setData({ ok: false }));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const live = data?.ok && data.rating ? data : null;
+
+  return (
+    <div className="flex h-[620px] flex-col overflow-hidden rounded-card border border-line bg-white">
+      <div className="flex items-start justify-between gap-3 px-5 pt-5">
+        <div>
+          <div className="text-[18px] font-extrabold leading-tight text-ink">Ди Авто Трейдинг</div>
+          <div className="mt-0.5 text-[13px] text-ink-2">Тверь, Коминтерна, 71</div>
+        </div>
+        <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-2">
+          <span className="flex h-5 items-center rounded-[5px] bg-[#00a651] px-1.5 text-[10px] font-extrabold text-white">
+            2ГИС
+          </span>
+        </span>
+      </div>
+
+      <div className="flex items-center gap-3 px-5 pt-4">
+        {live ? (
+          <>
+            <span className="font-num text-[40px] font-extrabold leading-none text-ink">
+              {String(live.rating).replace(".", ",")}
+            </span>
+            <span>
+              <Stars n={Math.round(live.rating ?? 0)} className="mb-1" />
+              <span className="text-[13px] text-ink-2">
+                {live.count} {plural(live.count ?? 0, "отзыв", "отзыва", "отзывов")}
+              </span>
+            </span>
+          </>
+        ) : (
+          <span className="text-[14px] text-ink-2">
+            Карточка компании в справочнике — с адресом, телефоном и отзывами.
+          </span>
+        )}
+      </div>
+
+      <div className="mx-5 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] bg-paper px-4 py-3">
+        <span className="text-[14px] font-semibold text-ink">Поставьте нам оценку</span>
+        <a
+          href={site.map2gisHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-[8px] bg-[#00a651] px-4 py-2 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
+        >
+          Оставить отзыв
+        </a>
+      </div>
+
+      <div className="mt-1 flex-1 overflow-y-auto px-5 py-4">
+        {live?.reviews?.length ? (
+          <ul className="space-y-5">
+            {live.reviews.map((r, i) => (
+              <li key={i} className="border-b border-line pb-5 last:border-0 last:pb-0">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-paper text-[13px] font-bold text-ink-2">
+                    {r.name.trim().charAt(0).toUpperCase() || "Г"}
+                  </span>
+                  <span>
+                    <span className="block text-[14px] font-bold text-ink">{r.name}</span>
+                    <span className="block text-[12px] text-ink-2">{gisDate(r.date)}</span>
+                  </span>
+                </div>
+                <Stars n={r.rating} className="mt-2" />
+                <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-2">{r.text}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center text-center">
+            <p className="max-w-xs text-[13.5px] leading-relaxed text-ink-2">
+              Отзывы и оценка — на карточке компании в 2ГИС. Открывается в одно
+              нажатие, там же можно оставить свой.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-line p-4">
+        <a
+          href={site.map2gisHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-paper py-2.5 text-[13.5px] font-bold text-ink transition-colors hover:bg-line/40"
+        >
+          Больше отзывов в 2ГИС
+          <ExternalLink className="h-4 w-4" />
+        </a>
+      </div>
+    </div>
+  );
+}
+
 type Tab = "video" | "maps";
 
 /**
@@ -334,7 +395,7 @@ function SourceTabs({
 }) {
   const items: { key: Tab; label: string; note: string }[] = [
     { key: "video", label: "Видео-отзывы", note: videoCount ? String(videoCount) : "" },
-    { key: "maps", label: "Яндекс.Карты", note: "" },
+    { key: "maps", label: "Яндекс и 2ГИС", note: "" },
   ];
   return (
     <div
@@ -403,7 +464,6 @@ export function ReviewsPage() {
    * прямоугольник — снаружи неотличимо от несработавшей загрузки.
    */
   const withMedia = (remote ?? []).filter((r) => slidesOf(r).length > 0);
-  const rail = useDragScroll();
 
   /*
    * Вкладка по умолчанию — видео, и она не меняется сама.
@@ -411,7 +471,7 @@ export function ReviewsPage() {
    * Соблазн «если видео ещё не загрузились, открыть Яндекс» выглядит умно, но
    * ведёт себя отвратительно: страница открывается на картах, через полсекунды
    * приезжают отзывы — и вкладка перещёлкивается ровно тогда, когда человек уже
-   * потянулся к экрану. Лучше честный скелет на месте будущей ленты.
+   * потянулся к экрану. Лучше честный скелет на месте будущих карточек.
    */
   const [tab, setTab] = useState<Tab>("video");
 
@@ -443,103 +503,43 @@ export function ReviewsPage() {
         <SourceTabs tab={tab} onTab={setTab} videoCount={withMedia.length} />
       </div>
 
-      {/* Оценки на внешних площадках: слева площадки, справа живой виджет */}
+      {/*
+        Две площадки — двумя равными половинами.
+        Раньше слева стояла карточка со ссылками, справа виджет Яндекса, и
+        выходило, что один справочник показан отзывами, а второй — строчкой со
+        ссылкой. Читалось это как «в Яндексе у нас есть что показать, а в 2ГИС
+        нет». Теперь обе колонки одного размера и вида: оценка, отзывы, кнопки.
+      */}
       <section className={`wrap mt-6 ${tab === "maps" ? "" : "hidden"}`}>
-        <div className="grid gap-6 lg:grid-cols-[1fr_560px] lg:items-start">
-          <div className="flex flex-col rounded-card border border-line bg-white p-6 sm:p-7">
-            <h2 className="text-[clamp(20px,2.4vw,28px)] font-extrabold uppercase leading-tight text-ink">
-              Нас оценивают на площадках
-            </h2>
-            <p className="mt-2 max-w-md text-[14px] leading-relaxed text-ink-2">
-              Отзывы в справочниках нельзя удалить или подделать — поэтому
-              смотреть их стоит именно там. Справа — живая лента из Яндекса,
-              ниже — ссылки на обе площадки.
-            </p>
-
-            <div className="mt-6 space-y-4">
-              <div className="flex flex-wrap items-center gap-4 rounded-[16px] border border-line bg-paper p-4">
-                <span className="flex h-12 w-12 flex-none items-center justify-center rounded-[14px] bg-[#fc3f1d] font-display text-[16px] font-extrabold text-white">
-                  Я
-                </span>
-                <div className="min-w-[120px] flex-1">
-                  <div className="text-[15px] font-extrabold text-ink">Яндекс.Карты</div>
-                  <div className="text-[13px] text-ink-2">Ди Авто Трейдинг</div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <a
-                    href={site.yandexReviewsHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-primary !h-10 !px-4 text-[13.5px]"
-                  >
-                    <ExternalLink className="h-4 w-4" /> Смотреть
-                  </a>
-                  <a
-                    href={site.yandexReviewsHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn !h-10 border border-line !px-4 text-[13.5px] text-ink hover:bg-white"
-                  >
-                    Оставить отзыв
-                  </a>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4 rounded-[16px] border border-line bg-paper p-4">
-                <span className="flex h-12 w-12 flex-none items-center justify-center rounded-[14px] bg-[#00a651] font-display text-[13px] font-extrabold text-white">
-                  2ГИС
-                </span>
-                <div className="min-w-[120px] flex-1">
-                  <div className="text-[15px] font-extrabold text-ink">2ГИС</div>
-                  <div className="text-[13px] text-ink-2">Карточка компании в Твери</div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <a
-                    href={site.map2gisHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-primary !h-10 !px-4 text-[13.5px]"
-                  >
-                    <ExternalLink className="h-4 w-4" /> Смотреть
-                  </a>
-                  <a
-                    href={site.map2gisHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn !h-10 border border-line !px-4 text-[13.5px] text-ink hover:bg-white"
-                  >
-                    Оставить отзыв
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Слот под живой виджет 2ГИС, если подключим агрегатор. */}
-            <div id="reviews-2gis-widget" className="mt-4 empty:hidden" />
-          </div>
-
-          {/* Виджет верстает карточку фиксированной ширины, поэтому колонка
-              под него ровно его формата. Внутри список прокручивается. */}
+        <div className="grid items-start gap-5 lg:grid-cols-2">
           {site.yandexOrgId ? (
             <iframe
               title="Отзывы о ДиАвто69 на Яндекс.Картах"
               src={`https://yandex.ru/maps-reviews-widget/${site.yandexOrgId}?comments`}
               loading="lazy"
-              className="mx-auto h-[620px] w-full max-w-[560px] rounded-card border border-line"
+              className="h-[620px] w-full rounded-card border border-line bg-white"
             />
           ) : null}
+
+          <TwoGis />
         </div>
+
+        <p className="mx-auto mt-4 max-w-2xl text-center text-[13.5px] leading-relaxed text-ink-2">
+          Отзывы в справочниках нельзя ни удалить, ни подделать — поэтому смотреть
+          их стоит именно там. Обе карточки живые: оценка и тексты подтягиваются
+          с площадок.
+        </p>
       </section>
 
       {tab === "video" && remote === null ? (
-        // Скелет на месте ленты: место под карточки занято сразу, поэтому
+        // Скелет на месте будущих карточек: место занято сразу, поэтому
         // страница не прыгает, когда отзывы приезжают.
-        <section className="mt-6">
-          <div className="flex gap-5 overflow-hidden px-6 pb-4">
-            {[0, 1, 2].map((i) => (
+        <section className="wrap mt-6">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="aspect-[3/4] w-[84%] flex-none animate-pulse rounded-[20px] bg-graphite/10 sm:w-[340px]"
+                className="aspect-[3/4] w-full animate-pulse rounded-[20px] bg-graphite/10"
               />
             ))}
           </div>
@@ -561,46 +561,24 @@ export function ReviewsPage() {
               onClick={() => setTab("maps")}
               className="btn btn-primary mt-5 !px-6"
             >
-              <Star className="h-4 w-4" /> Отзывы на Яндекс.Картах
+              <Star className="h-4 w-4" /> Отзывы в справочниках
             </button>
           </div>
         </section>
       ) : null}
 
       {tab === "video" && withMedia.length ? (
-        <section className="mt-6">
-          <div className="wrap mb-4 flex items-end justify-between gap-3">
-            <h2 className="text-[clamp(20px,2.6vw,30px)] font-extrabold uppercase text-ink">
-              Видео-отзывы клиентов
-            </h2>
-            <div className="hidden flex-none items-center gap-2 sm:flex">
-              <button
-                type="button"
-                onClick={() => rail.scrollByCard(-1)}
-                aria-label="Предыдущие отзывы"
-                className={`flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-ink transition-all hover:border-ink/30 hover:bg-paper ${
-                  rail.atStart ? "opacity-40" : ""
-                }`}
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => rail.scrollByCard(1)}
-                aria-label="Следующие отзывы"
-                className={`flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-ink transition-all hover:border-ink/30 hover:bg-paper ${
-                  rail.atEnd ? "opacity-40" : ""
-                }`}
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-          {/* Крупные карточки с горизонтальным скроллом */}
-          <div
-            ref={rail.ref}
-            className="flex cursor-grab snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-6 px-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
+        <section className="wrap mt-6">
+          <h2 className="mb-4 text-[clamp(20px,2.6vw,30px)] font-extrabold uppercase text-ink">
+            Видео-отзывы клиентов
+          </h2>
+          {/*
+            Рядами, а не лентой.
+            Лента листалась вбок и прятала половину отзывов за краем экрана:
+            их не видно, а на телефоне горизонтальная прокрутка ещё и спорит
+            с вертикальной. Отзывов теперь много — пусть все и будут на виду.
+          */}
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {withMedia.map((r) => (
               <ReviewCard key={r.id} review={r} />
             ))}
