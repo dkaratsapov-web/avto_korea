@@ -144,15 +144,39 @@ function carCard(car) {
 
 /* --------------------------------------------------------------- клавиатуры */
 
-const MENU = [
-  [{ type: "callback", text: "🚗 Каталог авто", payload: "cat:0" }],
-  [{ type: "callback", text: "📝 Подобрать авто", payload: "lead" }],
-  [{ type: "callback", text: "⭐ Отзывы", payload: "rev" }],
-  [
-    { type: "link", text: "Сайт", url: SITE },
-    { type: "link", text: "Написать менеджеру", url: "https://t.me/diavto69" },
-  ],
+/** Мини-приложение — тот же экран, что в Telegram. */
+const MINI_APP = `${SITE}/tma?ms=max`;
+
+/*
+ * Как в MAX называется кнопка, открывающая мини-приложение.
+ *
+ * Свериться с их документацией я не могу, а гадать вслепую нельзя: неверная
+ * кнопка — это не «кнопка не работает», это отказ на всё сообщение, то есть
+ * человек не увидит меню вообще. Поэтому держим несколько написаний, от
+ * самого вероятного к самому надёжному, пробуем по очереди и запоминаем то,
+ * которое MAX принял. Последнее — обычная ссылка: она работает точно, пусть
+ * и открывает каталог браузером.
+ */
+const APP_BUTTON = [
+  (text, url) => ({ type: "open_app", text, web_app: { url } }),
+  (text, url) => ({ type: "open_app", text, url }),
+  (text, url) => ({ type: "link", text, url }),
 ];
+
+function menuKeyboard(shape) {
+  return [
+    [APP_BUTTON[shape]("🚗 Каталог авто", MINI_APP)],
+    [{ type: "callback", text: "📝 Подобрать авто", payload: "lead" }],
+    [{ type: "callback", text: "⭐ Отзывы", payload: "rev" }],
+    [
+      { type: "callback", text: "📋 Список в чате", payload: "cat:0" },
+      { type: "link", text: "Менеджер", url: "https://t.me/diavto69" },
+    ],
+  ];
+}
+
+/** Меню без кнопки приложения — для ответов, где подбирать формат незачем. */
+const MENU = menuKeyboard(APP_BUTTON.length - 1);
 
 function catalogKeyboard(page, total, cars) {
   const rows = cars.map((c, i) => [
@@ -203,7 +227,7 @@ export async function handleMaxUpdate(env, update, deps) {
 
   // Бот только что добавлен/запущен — здороваемся.
   if (type === "bot_started" || type === "bot_added") {
-    await welcome(env, userId);
+    await welcome(env, userId, { kvGet, kvPut });
     return;
   }
 
@@ -226,11 +250,11 @@ export async function handleMaxUpdate(env, update, deps) {
     if (command === "reviews") return reviews(env, userId, kvGet);
     if (command === "lead") return route(env, userId, "lead", { kvGet, kvPut, onLead });
     // «/start» и всё незнакомое — меню: оно объясняет, что тут вообще есть.
-    return welcome(env, userId);
+    return welcome(env, userId, { kvGet, kvPut });
   }
 
   if (isGreeting(text)) {
-    await welcome(env, userId);
+    await welcome(env, userId, { kvGet, kvPut });
     return;
   }
   if (/каталог|авто|машин/i.test(text) && text.length < 30) {
@@ -275,7 +299,7 @@ function isGreeting(text) {
 }
 
 async function route(env, userId, payload, { kvGet, kvPut, onLead }) {
-  if (payload === "menu") return welcome(env, userId);
+  if (payload === "menu") return welcome(env, userId, { kvGet, kvPut });
   if (payload === "rev") return reviews(env, userId, kvGet);
   if (payload === "lead") {
     await kvPut(env, `max:wait:${userId}`, { car: "" });
@@ -304,18 +328,39 @@ async function route(env, userId, payload, { kvGet, kvPut, onLead }) {
         "Оставьте номер телефона, менеджер свяжется и расскажет по срокам и оплате.",
     );
   }
-  return welcome(env, userId);
+  return welcome(env, userId, { kvGet, kvPut });
 }
 
-async function welcome(env, userId) {
-  return maxSend(
-    env,
-    userId,
-    "Добрый день! Это ДиАвто69 — привозим автомобили из Кореи, Китая, Японии и ЕС под ключ.\n\n" +
-      "В каталоге — машины в наличии и в пути, цена сразу с доставкой, растаможкой и оформлением до Москвы.\n\n" +
-      "С чего начнём?",
-    { keyboard: MENU },
-  );
+const WELCOME =
+  "Добрый день! Это ДиАвто69 — привозим автомобили из Кореи, Китая, Японии и ЕС под ключ.\n\n" +
+  "В каталоге — машины в наличии и в пути, цена сразу с доставкой, растаможкой и оформлением до Москвы.\n\n" +
+  "С чего начнём?";
+
+/**
+ * Приветствие с меню.
+ *
+ * Формат кнопки мини-приложения подбираем один раз и запоминаем: перебирать
+ * его на каждое «привет» — три запроса вместо одного. Если запомненный
+ * однажды перестанет приниматься (MAX поменяет API), забываем его и
+ * подбираем заново — иначе бот замолчит навсегда.
+ */
+async function welcome(env, userId, deps) {
+  const { kvGet, kvPut } = deps || {};
+  if (!kvGet) return maxSend(env, userId, WELCOME, { keyboard: MENU });
+
+  const known = Number(await kvGet(env, "max:appBtn", -1));
+  const order = known >= 0 && known < APP_BUTTON.length
+    ? [known, ...APP_BUTTON.keys()].filter((v, i, a) => a.indexOf(v) === i)
+    : [...APP_BUTTON.keys()];
+
+  for (const shape of order) {
+    const r = await maxSend(env, userId, WELCOME, { keyboard: menuKeyboard(shape) });
+    if (r.ok) {
+      if (known !== shape) await kvPut(env, "max:appBtn", shape);
+      return r;
+    }
+  }
+  return maxSend(env, userId, WELCOME);
 }
 
 async function catalogPage(env, userId, page, kvGet) {
@@ -350,7 +395,7 @@ async function carDetails(env, userId, id, kvGet) {
     image: siteMedia(car.images?.[0]),
     keyboard: [
       [{ type: "callback", text: "Хочу это авто", payload: `want:${car.id}` }],
-      [{ type: "link", text: "Открыть на сайте", url: `${SITE}/catalog?car=${encodeURIComponent(car.id)}` }],
+      [{ type: "link", text: "Открыть карточку", url: `${MINI_APP}&car=${encodeURIComponent(car.id)}` }],
       [{ type: "callback", text: "◀ К каталогу", payload: "cat:0" }],
     ],
   });
