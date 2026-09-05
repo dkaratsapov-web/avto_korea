@@ -349,7 +349,9 @@ function crm_settings(): array
 function crm_public_settings(): array
 {
     $settings = crm_settings();
-    unset($settings['telegramToken']);
+    // Секреты наружу не отдаются никогда: токен бота уведомлений и ключ,
+    // которым CRM ходит к отзывам. Интерфейсу достаточно знать, настроено или нет.
+    unset($settings['telegramToken'], $settings['botReviewsKey']);
     return $settings;
 }
 
