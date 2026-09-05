@@ -1616,8 +1616,12 @@ test("заявка из MAX попадает в общий список и к м
   assert.equal(leads[0].phone, "+7 900 111-22-33");
   assert.match(leads[0].source, /MAX/, "источник должен быть виден в статистике");
 
-  const toManager = sent.find((s) => s.url.includes("api.telegram.org") && s.body?.text);
-  assert.match(String(toManager?.body?.text), /Новая заявка/, "менеджеру должно уйти уведомление");
+  // Сообщений менеджеру теперь два: сначала «новый пользователь», потом
+  // заявка. Ищем именно заявку.
+  const toManager = sent.find(
+    (s) => s.url.includes("api.telegram.org") && /Новая заявка/.test(String(s.body?.text || "")),
+  );
+  assert.ok(toManager, "менеджеру должно уйти уведомление о заявке");
 });
 
 test("номер без цифр не превращается в заявку", async () => {
@@ -2053,4 +2057,40 @@ test("кнопка «Отзывы» в MAX присылает ссылки на 
   assert.ok(urls.some((u) => u.includes("2gis.ru")), "нужна ссылка на 2ГИС");
   // Своих отзывов в чат не шлём, даже когда они есть в хранилище.
   assert.equal(sent.filter((x) => x.url.includes("/messages")).length, 1);
+});
+
+/*
+ * Новый человек в MAX должен быть замечен так же, как в Telegram: менеджеру
+ * всё равно, из какого мессенджера пришёл клиент, — важно не пропустить его.
+ */
+test("о новом человеке в MAX приходит уведомление — один раз", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify({ ok: true, result: {}, message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({});
+  const env = { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store };
+
+  const hello = {
+    update_type: "bot_started",
+    user: { user_id: 4242, first_name: "Пётр", username: "petr" },
+  };
+  await worker.fetch(maxUpdate(hello), env, undefined);
+  await worker.fetch(maxUpdate(hello), env, undefined);
+
+  const notes = sent.filter(
+    (x) => x.url.includes("api.telegram.org") && /Новый пользователь/.test(String(x.body?.text)),
+  );
+  assert.equal(notes.length, 1, "второе появление того же человека — не новость");
+  assert.match(String(notes[0].body.text), /бот в MAX/, "видно, из какого мессенджера");
+  assert.match(String(notes[0].body.text), /Пётр/);
+  assert.equal(String(notes[0].body.chat_id), "-100999");
+
+  // Список пользователей MAX ведём отдельно: телеграмная рассылка ходит по
+  // своему списку, и чужие идентификаторы сломали бы её на первом сообщении.
+  assert.ok((await store.get("max:users"))["4242"], "человек должен попасть в свой список");
+  assert.equal(await store.get("users"), null, "и не попасть в телеграмный");
 });

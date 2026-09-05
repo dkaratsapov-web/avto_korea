@@ -135,6 +135,39 @@ const MENU = [
 /* -------------------------------------------------------------- обработчики */
 
 /**
+ * Учёт пришедших и уведомление о новом человеке.
+ *
+ * Список хранится отдельно от телеграмного: там лежат адресаты рассылки, и
+ * чужие идентификаторы сломали бы её на первом же сообщении — Telegram про
+ * пользователя MAX ничего не знает.
+ *
+ * Уведомление уходит один раз, при первом появлении. Считать «новым» каждое
+ * нажатие кнопки нельзя: менеджер перестанет читать уведомления к концу дня.
+ */
+async function remember(env, who, { kvGet, kvPut, onNewUser }) {
+  const id = who?.user_id ?? who?.userId;
+  if (!id) return;
+
+  const users = (await kvGet(env, "max:users", {})) || {};
+  const key = String(id);
+  if (users[key]) {
+    // Отметку последнего визита пишем, но уведомление не шлём.
+    users[key].seenAt = Date.now();
+    await kvPut(env, "max:users", users);
+    return;
+  }
+
+  const name =
+    [who.first_name, who.last_name].filter(Boolean).join(" ") ||
+    who.name ||
+    "";
+  users[key] = { name, username: who.username || "", ts: Date.now(), seenAt: Date.now() };
+  await kvPut(env, "max:users", users);
+
+  if (onNewUser) await onNewUser(env, { id: key, name, username: who.username || "" });
+}
+
+/**
  * Разбор обновления MAX.
  *
  * kv — те же чтения/записи, что у телеграмного бота: каталог и отзывы общие.
@@ -142,7 +175,7 @@ const MENU = [
  * этот файл не тянет за собой половину телеграмного бота.
  */
 export async function handleMaxUpdate(env, update, deps) {
-  const { kvGet, kvPut, onLead, onQuestion } = deps;
+  const { kvGet, kvPut, onLead, onQuestion, onNewUser } = deps;
 
   const type = update?.update_type || update?.updateType || "";
   const cb = update?.callback;
@@ -153,16 +186,20 @@ export async function handleMaxUpdate(env, update, deps) {
     const userId = cb.user?.user_id ?? cb.user?.userId;
     const payload = String(cb.payload || "");
     await maxAnswer(env, cb.callback_id ?? cb.callbackId);
+    await remember(env, cb.user, { kvGet, kvPut, onNewUser });
     await route(env, userId, payload, { kvGet, kvPut, onLead });
     return;
   }
 
+  const who = msg?.sender || update?.user || null;
   const userId =
     msg?.sender?.user_id ??
     msg?.sender?.userId ??
     update?.user?.user_id ??
     update?.user?.userId;
   if (!userId) return;
+
+  await remember(env, who, { kvGet, kvPut, onNewUser });
 
   // Бот только что добавлен/запущен — здороваемся.
   if (type === "bot_started" || type === "bot_added") {
