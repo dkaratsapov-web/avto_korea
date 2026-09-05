@@ -1407,3 +1407,112 @@ test("видео без подписи публикуется как есть", 
   assert.equal(reviews[0].videos.length, 1);
   assert.ok(reviews[0].poster, "обложка из кадра видео должна сохраниться");
 });
+
+/*
+ * Кто может залить файл в бота.
+ *
+ * Бота можно добавить в чужую группу или чужой канал, зная его имя, — и до
+ * этих проверок этого хватало, чтобы посторонняя фотография уехала в наш
+ * каталог, а при авто-публикации сразу на сайт.
+ */
+function groupPhoto(chatId, fromId, extra = {}) {
+  return {
+    message_id: 1,
+    chat: { id: chatId, type: "supergroup", title: "Группа" },
+    from: { id: fromId, first_name: "Кто-то" },
+    photo: [{ file_id: "PH", file_unique_id: "PH", width: 1280, height: 720 }],
+    caption: COROLLA,
+    ...extra,
+  };
+}
+
+test("в чужой группе админ группы каталог не пополняет", async () => {
+  const store = makeStore({ settings: { autoPublish: true }, catalog: [] });
+  // getChatMember отвечает «создатель»: в своей группе человек всегда админ.
+  globalThis.fetch = async (url, init) => {
+    const method = String(url).split("/").pop();
+    const body = init?.body ? JSON.parse(init.body) : {};
+    if (method === "getChatMember") {
+      return new Response(JSON.stringify({ ok: true, result: { status: "creator" } }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ ok: true, result: {}, method, body }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const c = makeCtx();
+
+  await run(
+    { update_id: 100, message: groupPhoto(-100500, 555) },
+    { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.deepEqual(await store.get("catalog"), [], "чужая группа в каталог попадать не должна");
+  assert.equal(await store.get("drafts"), null, "и черновиком тоже");
+});
+
+test("в ненастроенной группе админ бота публикует как раньше", async () => {
+  const store = makeStore({ settings: { autoPublish: true }, catalog: [] });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    { update_id: 101, message: groupPhoto(-100500, 777) },
+    { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  const catalog = (await store.get("catalog")) || [];
+  assert.equal(catalog.length, 1, "своя публикация должна дойти до каталога");
+});
+
+test("в назначенном канале отзывов админ канала публикует отзыв", async () => {
+  const store = makeStore({ settings: { autoPublish: true, reviewsChatId: "-100777" }, catalog: [] });
+  globalThis.fetch = async (url) => {
+    const method = String(url).split("/").pop();
+    const result = method === "getChatMember" ? { status: "administrator" } : {};
+    return new Response(JSON.stringify({ ok: true, result }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 102,
+      message: groupPhoto(-100777, 555, { chat: { id: -100777, type: "supergroup", title: "Отзывы" } }),
+    },
+    { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.equal(((await store.get("reviews")) || []).length, 1);
+});
+
+test("первый канал запоминается, второй в каталог не пускают", async () => {
+  const store = makeStore({ settings: { autoPublish: true }, catalog: [] });
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  const channelPost = (chatId, title) => ({
+    message_id: 5,
+    chat: { id: chatId, type: "channel", title },
+    photo: [{ file_id: "PH", file_unique_id: "PH", width: 1280, height: 720 }],
+    caption: COROLLA,
+  });
+
+  await run({ update_id: 103, channel_post: channelPost(-1001, "Наш канал") }, { store, env: {}, ctx: c.ctx });
+  await c.settle();
+  assert.equal(String(await store.get("catalogChatSeen")), "-1001", "первый канал должен запомниться");
+  assert.equal(((await store.get("catalog")) || []).length, 1, "свой канал должен наполнять каталог");
+
+  await run({ update_id: 104, channel_post: channelPost(-1002, "Чужой канал") }, { store, env: {}, ctx: c.ctx });
+  await c.settle();
+  assert.equal(((await store.get("catalog")) || []).length, 1, "чужой канал каталог не пополняет");
+  assert.ok(
+    calls.some((x) => x.method === "sendMessage" && /не принят/.test(String(x.body?.text))),
+    "админам должно прийти предупреждение о чужом канале",
+  );
+});

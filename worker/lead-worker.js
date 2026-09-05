@@ -674,6 +674,78 @@ async function roleOf(env, userId) {
   return perm ? (perm.owner ? "owner" : "admin") : null;
 }
 
+/**
+ * Чем назначен этот чат в настройках бота: источником каталога, каналом
+ * отзывов, каналом новостей — или ничем.
+ *
+ * Пустая строка в настройках означает «не назначен», поэтому сравниваем
+ * только заполненные поля: иначе любой чат совпал бы с пустым значением.
+ */
+function chatPurpose(st, cid) {
+  cid = String(cid);
+  if (st.newsChatId && cid === String(st.newsChatId)) return "news";
+  if (st.reviewsChatId && cid === String(st.reviewsChatId)) return "reviews";
+  if (st.catalogChatId && cid === String(st.catalogChatId)) return "catalog";
+  return null;
+}
+
+/**
+ * Можно ли брать каталог из этого канала, когда источник в настройках не задан.
+ *
+ * «Не задан — значит любой» держалось на том, что бот сидит в одном канале.
+ * Но добавить его администратором в свой канал может кто угодно, зная имя, —
+ * и посторонние посты поехали бы к нам карточками автомобилей.
+ *
+ * Совсем закрыть тоже нельзя: у кого поле не заполнено, каталог перестал бы
+ * обновляться, причём молча — худший из возможных исходов. Поэтому запоминаем
+ * ПЕРВЫЙ канал, из которого пришёл пост, и дальше принимаем только его.
+ * Настоящий канал публикует каждый день, чужой появляется потом — так первым
+ * оказывается свой. О любом решении админам приходит сообщение: и о том, что
+ * канал запомнен, и о том, что чужой пост не принят.
+ */
+async function catalogSourceOk(env, post) {
+  const cid = String(post.chat?.id);
+  const seen = String((await kvGet(env, "catalogChatSeen", "")) || "");
+
+  if (!seen) {
+    await kvPut(env, "catalogChatSeen", cid);
+    await tellAdmins(
+      env,
+      `📥 Каталог теперь собирается из канала «${post.chat?.title || cid}» (\`${cid}\`).\n\n` +
+        "Поле «Источник каталога» в настройках пустое, поэтому бот запомнил первый канал, " +
+        "из которого пришёл пост. Если это не тот канал — впишите нужный в настройках бота.",
+    );
+    return true;
+  }
+
+  if (seen === cid) return true;
+
+  // Чужой канал. Молчать нельзя: владелец должен понимать, почему его посты
+  // не появляются, — и должен узнать, если бота куда-то добавили без него.
+  const told = (await kvGet(env, "catalogChatRejected", [])) || [];
+  if (!told.includes(cid)) {
+    await kvPut(env, "catalogChatRejected", [...told, cid].slice(-20));
+    await tellAdmins(
+      env,
+      `🚫 Пост из канала «${post.chat?.title || cid}» (\`${cid}\`) в каталог не принят.\n\n` +
+        `Каталог берётся из канала \`${seen}\`. Если публиковать нужно отсюда — впишите этот ` +
+        "идентификатор в поле «Источник каталога» в настройках бота.",
+    );
+  }
+  return false;
+}
+
+/** Сообщение всем админам бота. Недоступный админ не мешает остальным. */
+async function tellAdmins(env, text) {
+  for (const chatId of await adminChatIds(env)) {
+    try {
+      await api(env, "sendMessage", { chat_id: chatId, text, parse_mode: "Markdown" });
+    } catch {
+      /* один недоступный админ не должен ронять обработку */
+    }
+  }
+}
+
 // Является ли пользователь администратором/создателем данного чата (Telegram).
 // Нужно, чтобы в каталог публиковали только те, кто управляет каналом/группой,
 // а не любой участник.
@@ -894,7 +966,9 @@ export default {
          * заполнил настройку, каталог перестал бы обновляться после этой
          * правки, причём молча.
          */
-        if (st.catalogChatId && cid !== String(st.catalogChatId)) {
+        if (st.catalogChatId) {
+          if (cid !== String(st.catalogChatId)) return new Response("ok");
+        } else if (!(await catalogSourceOk(env, post))) {
           return new Response("ok");
         }
         await handleChannelPost(env, post, {
@@ -1036,20 +1110,35 @@ export default {
       ) {
         const st = await getSettings(env);
         if (st.autoPublish) {
-          // Публикуем ТОЛЬКО доверенный контент, иначе любой участник группы
-          // может залить что угодно в каталог:
-          //  • авто-пересылка из привязанного канала (контролирует канал), либо
-          //  • отправитель — админ бота (owner/admin из наших списков), либо
-          //  • отправитель — админ/создатель самой группы.
-          const trusted =
-            isAutoForward ||
-            (await roleOf(env, msg.from?.id)) ||
-            (await isChatAdmin(env, msg.chat?.id, msg.from?.id));
+          const cid = String(msg.chat?.id);
+          const purpose = chatPurpose(st, cid);
+          const botAdmin = await roleOf(env, msg.from?.id);
+
+          /*
+           * Кому здесь верим — зависит от того, наш это чат или чужой.
+           *
+           * В НАЗНАЧЕННОЙ группе (вписана в настройках как источник каталога,
+           * канал отзывов или новостей) доверяем её распорядителям: админам
+           * группы и авто-пересылке из привязанного канала. Группа наша,
+           * админы в ней наши.
+           *
+           * В любой ДРУГОЙ группе — только админу самого бота. Бота можно
+           * добавить в чужую группу, зная его имя, и раньше этого хватало:
+           * в своей группе человек по определению администратор, а значит
+           * его фотография уезжала к нам в каталог, при авто-публикации —
+           * сразу на сайт. Признак «пост пришёл автопересылкой из канала»
+           * тем более ничего не доказывает: канал у него свой.
+           */
+          const trusted = purpose
+            ? isAutoForward ||
+              botAdmin ||
+              (await isChatAdmin(env, msg.chat?.id, msg.from?.id))
+            : !!botAdmin;
+
           if (trusted) {
-            const cid = String(msg.chat?.id);
-            if (st.newsChatId && cid === String(st.newsChatId)) {
+            if (purpose === "news") {
               await publishNewsFromPost(env, msg, url.origin);
-            } else if (st.reviewsChatId && cid === String(st.reviewsChatId)) {
+            } else if (purpose === "reviews") {
               await publishReviewFromPost(env, msg, url.origin);
             } else {
               await handleChannelPost(env, msg, { auto: true, origin: url.origin });
