@@ -801,6 +801,15 @@ function later(ctx, promise) {
   return p;
 }
 
+/*
+ * Бот в MAX — второе окно в тот же каталог.
+ *
+ * Живёт отдельным файлом: у MAX другой Bot API, и мешать его разбор с
+ * телеграмным значит однажды сломать оба разом. Сюда приходят только три
+ * строчки — вебхук, настройка и показания приборов.
+ */
+import { handleMaxUpdate, maxBind, maxDiag } from "./max-bot.js";
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -1720,6 +1729,53 @@ export default {
         text: "🔔 Подписка оформлена! Сообщим, как только появится подходящее авто.",
       });
       return json({ ok: true });
+    }
+
+    /*
+     * --- MAX ---
+     *
+     * Вебхук второго мессенджера. Отвечаем ok всегда и как можно раньше:
+     * MAX, как и Telegram, повторяет доставку при неудаче, а повторно
+     * заведённая заявка хуже пропущенной ошибки.
+     */
+    if (url.pathname === "/max" && request.method === "POST") {
+      if (!env.MAX_BOT_TOKEN) return new Response("max off", { status: 200 });
+      let upd = null;
+      try {
+        upd = await request.json();
+      } catch {
+        return new Response("ok");
+      }
+      const work = handleMaxUpdate(env, upd, {
+        kvGet,
+        kvPut,
+        onLead: async (e, lead) => {
+          await storeLead(e, lead);
+          await api(e, "sendMessage", {
+            chat_id: e.TELEGRAM_CHAT_ID,
+            text: leadText(lead),
+          });
+        },
+      }).catch(() => {});
+      later(ctx, work);
+      // Без ctx (вызов вне Cloudflare) дожидаемся сами: иначе работа
+      // оборвётся вместе с ответом.
+      if (!ctx) await work;
+      return new Response("ok");
+    }
+
+    // Привязка вебхука MAX. Ключ — токен телеграмного бота: тот же приём,
+    // что и у остальных служебных адресов воркера.
+    if (url.pathname === "/max/setup") {
+      if (!env.TELEGRAM_BOT_TOKEN || url.searchParams.get("key") !== env.TELEGRAM_BOT_TOKEN)
+        return json({ ok: false, error: "forbidden" }, 403);
+      return json({ ok: true, ...(await maxBind(env, url.origin)) });
+    }
+
+    if (url.pathname === "/max/diag") {
+      if (!env.TELEGRAM_BOT_TOKEN || url.searchParams.get("key") !== env.TELEGRAM_BOT_TOKEN)
+        return json({ ok: false, error: "forbidden" }, 403);
+      return json(await maxDiag(env));
     }
 
     // --- Админ-API ---
