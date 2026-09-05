@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Heart, ShieldCheck, Scale } from "lucide-react";
+import { ArrowLeft, Heart, ShieldCheck, Scale } from "lucide-react";
 import { useCars } from "@/lib/carsStore";
 import { useUI } from "@/lib/ui";
 import { site } from "@/lib/site";
@@ -305,6 +305,23 @@ export function TmaApp() {
       <div className={`mx-auto max-w-md px-4 ${view.name === "home" ? "pb-5" : "pb-28"}`}>
         {/* Шапка — тёмная в стиле бота; лого как на сайте */}
         <div className="sticky top-0 z-40 -mx-4 mb-4 flex items-center justify-between gap-2 border-b border-line-dark/70 bg-graphite/95 px-4 py-2.5 backdrop-blur">
+          {/*
+            Кнопка «назад» в шапке — для тех, кто открыл мини-апп не из
+            Telegram. В Telegram назад ведёт родная кнопка мессенджера, и
+            вторая рядом с ней была бы лишней. В MAX её нет вовсе: человек
+            заходил в каталог и оставался там без выхода, кроме закрытия
+            всего приложения.
+          */}
+          {!inTg && view.name !== "home" ? (
+            <button
+              type="button"
+              onClick={back}
+              aria-label="Назад"
+              className="-ml-1 mr-1 flex h-10 w-10 flex-none items-center justify-center rounded-full border border-line-dark bg-white/[0.04] text-chrome"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => {
