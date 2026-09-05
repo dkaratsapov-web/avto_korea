@@ -1975,50 +1975,44 @@ test("команды из подсказок открывают нужные э�
 });
 
 /*
- * Кнопка мини-приложения. Как она называется у MAX — неизвестно, а ошибка в
- * названии роняет не кнопку, а всё сообщение: человек не увидит меню вовсе.
- * Поэтому формат подбирается и запоминается.
+ * Кнопки, открывающей мини-приложение, в меню быть не должно.
+ *
+ * Перепробованы три способа: вложение «open_app» в двух написаниях (MAX
+ * отверг оба), ссылка на сайт (открывает браузер поверх мессенджера) и
+ * внутренняя ссылка max.ru/<бот>/app («ссылка устарела»). Кнопка, уводящая
+ * человека из чата в браузер, хуже, чем её отсутствие.
  */
-test("формат кнопки мини-аппа подбирается и запоминается", async () => {
+test("меню MAX не уводит человека в браузер", async () => {
   const sent = [];
   globalThis.fetch = async (url, init) => {
-    const body = init?.body ? JSON.parse(init.body) : null;
-    sent.push({ url: String(url), body });
-    // Первое написание MAX не принимает, второе — принимает.
-    const btn = body?.attachments?.find((a) => a.type === "inline_keyboard")
-      ?.payload?.buttons?.[0]?.[0];
-    if (btn && btn.type === "open_app" && btn.web_app) {
-      return new Response(JSON.stringify({ code: "attachment.not.supported" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
+    sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
     return new Response(JSON.stringify({ message: {} }), {
       headers: { "Content-Type": "application/json" },
     });
   };
   const store = makeStore({});
-  const env = { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store };
 
   await worker.fetch(
-    maxUpdate({ update_type: "bot_started", user: { user_id: 95 } }),
-    env,
+    maxUpdate({ update_type: "bot_started", user: { user_id: 97 } }),
+    { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store },
     undefined,
   );
 
-  assert.equal(await store.get("max:appBtn"), 1, "рабочее написание должно запомниться");
+  const msg = sent.find((x) => x.url.includes("botapi.max.ru/messages"));
+  const buttons = msg.body.attachments
+    .find((a) => a.type === "inline_keyboard")
+    .payload.buttons.flat();
 
-  // Второй человек — сразу рабочим написанием, без перебора.
-  const before = sent.length;
-  await worker.fetch(
-    maxUpdate({ update_type: "bot_started", user: { user_id: 96 } }),
-    env,
-    undefined,
+  assert.ok(
+    !buttons.some((b) => /автоимпорт|xn--|max\.ru/.test(String(b.url || ""))),
+    "ссылок, открывающих браузер поверх чата, в меню быть не должно",
   );
-  assert.equal(sent.length - before, 1, "перебирать во второй раз незачем");
+  const catalog = buttons.find((b) => /Каталог/.test(b.text));
+  assert.equal(catalog.type, "callback", "каталог показывается в самой переписке");
+  // И человеку сказано, где искать полный каталог.
+  assert.match(String(msg.body.text), /кнопкой приложения слева от поля ввода/);
 
-  const btn = sent.at(-1).body.attachments.find((a) => a.type === "inline_keyboard")
-    .payload.buttons[0][0];
-  assert.equal(btn.type, "open_app");
-  assert.match(String(btn.url), /\/tma\?ms=max$/, "кнопка ведёт в мини-приложение");
+  // Приветствие — ровно одно сообщение: перебирать написания кнопки больше
+  // незачем, а три запроса вместо одного человек ждал бы вместо приветствия.
+  assert.equal(sent.filter((x) => x.url.includes("/messages")).length, 1);
 });
