@@ -1892,3 +1892,84 @@ test("настоящий вопрос уходит менеджеру, но не
     "и только в чат заявок — клиентам такое не рассылается",
   );
 });
+
+/*
+ * Подсказки команд. Без них человек, свернувший меню, остаётся один на один
+ * с пустым полем ввода: кнопки уехали вверх по переписке, а «/start» никто
+ * не помнит наизусть.
+ */
+test("подключение MAX выставляет команды в подсказках", async () => {
+  const store = makeStore({});
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({
+      url: String(url),
+      method: init?.method,
+      body: init?.body ? JSON.parse(init.body) : null,
+    });
+    return new Response(JSON.stringify({ name: "ДиАвто69", ok: true, result: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 120,
+      message: {
+        message_id: 920,
+        text: "/max",
+        chat: { id: 777, type: "private" },
+        from: { id: 777, first_name: "Хозяин" },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777", MAX_BOT_TOKEN: "M" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  const patch = calls.find((x) => x.url.endsWith("botapi.max.ru/me") && x.method === "PATCH");
+  assert.ok(patch, "команды должны выставляться отдельным запросом");
+  assert.deepEqual(
+    patch.body.commands.map((x) => x.name),
+    ["start", "catalog", "lead", "reviews"],
+  );
+  // Имя и картинку бота человек задал в MAX руками — их не трогаем.
+  assert.deepEqual(Object.keys(patch.body), ["commands"]);
+});
+
+test("команды из подсказок открывают нужные экраны", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify({ ok: true, result: {}, message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({
+    catalog: [{ id: "c1", model: "Kia K5", year: 2023, priceMoscowRub: 2100000 }],
+  });
+  const env = { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store };
+
+  for (const text of ["/start", "/catalog", "/lead"]) {
+    await worker.fetch(
+      maxUpdate({
+        update_type: "message_created",
+        message: { sender: { user_id: 93 }, body: { text } },
+      }),
+      env,
+      undefined,
+    );
+  }
+
+  const texts = sent
+    .filter((x) => x.url.includes("botapi.max.ru/messages"))
+    .map((x) => String(x.body.text));
+  assert.match(texts[0], /С чего начнём/, "/start — меню");
+  assert.match(texts[1], /Каталог — 1 авто/, "/catalog — каталог");
+  assert.match(texts[2], /номер телефона/, "/lead — приём заявки");
+  // И ни одна команда не улетела менеджеру как вопрос.
+  assert.ok(
+    !sent.some((x) => /Вопрос из MAX/.test(String(x.body?.text || ""))),
+    "команды — не вопросы клиента",
+  );
+});

@@ -218,6 +218,17 @@ export async function handleMaxUpdate(env, update, deps) {
     return;
   }
 
+  // Команда из подсказок. Пишется она как «/catalog», но человек может
+  // дописать что-то следом — берём только первое слово.
+  const command = (text.match(/^\/([a-z_]+)/i) || [])[1]?.toLowerCase();
+  if (command) {
+    if (command === "catalog") return catalogPage(env, userId, 0, kvGet);
+    if (command === "reviews") return reviews(env, userId, kvGet);
+    if (command === "lead") return route(env, userId, "lead", { kvGet, kvPut, onLead });
+    // «/start» и всё незнакомое — меню: оно объясняет, что тут вообще есть.
+    return welcome(env, userId);
+  }
+
   if (isGreeting(text)) {
     await welcome(env, userId);
     return;
@@ -404,14 +415,32 @@ async function saveLead(env, userId, text, waiting, onLead) {
 
 /* ---------------------------------------------------------------- настройка */
 
-/** Подписать MAX на наш адрес и заодно проверить токен. */
+/**
+ * Подсказки команд в чате.
+ *
+ * Без них человек, свернувший меню, остаётся один на один с пустым полем
+ * ввода: кнопки уехали вверх по переписке, а «/start» никто не помнит
+ * наизусть. Список повторяет кнопки меню — другого набора действий у бота
+ * и нет, а расхождение между подсказкой и кнопкой сбивает.
+ */
+const COMMANDS = [
+  { name: "start", description: "Главное меню" },
+  { name: "catalog", description: "Каталог авто" },
+  { name: "lead", description: "Подобрать авто" },
+  { name: "reviews", description: "Отзывы клиентов" },
+];
+
+/** Подписать MAX на наш адрес, выставить команды и проверить токен. */
 export async function maxBind(env, origin) {
   const me = await maxCall(env, "GET", "/me");
   const hook = await maxCall(env, "POST", "/subscriptions", {
     url: `${origin}/max`,
     update_types: ["message_created", "message_callback", "bot_started", "bot_added"],
   });
-  return { me, hook };
+  // PATCH меняет только переданные поля: имя, описание и картинка бота,
+  // выставленные в MAX руками, остаются как были.
+  const commands = await maxCall(env, "PATCH", "/me", { commands: COMMANDS });
+  return { me, hook, commands };
 }
 
 /** Показания приборов: виден ли токен, кто бот, куда подписан. */
