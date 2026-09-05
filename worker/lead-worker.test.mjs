@@ -1550,7 +1550,7 @@ test("без токена MAX бот молчит и наружу не ходи�
   assert.equal(called, false, "без MAX_BOT_TOKEN запросов быть не должно");
 });
 
-test("MAX показывает тот же каталог, что и сайт", async () => {
+test("«Каталог авто» в MAX объясняет, где открыть приложение", async () => {
   const sent = [];
   globalThis.fetch = async (url, init) => {
     sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
@@ -1559,25 +1559,26 @@ test("MAX показывает тот же каталог, что и сайт", 
     });
   };
   const store = makeStore({
-    catalog: [
-      { id: "c1", model: "Kia K5", year: 2023, priceRub: 2000000, priceMoscowRub: 2100000 },
-    ],
+    catalog: [{ id: "c1", model: "Kia K5", year: 2023, priceMoscowRub: 2100000 }],
   });
 
   await worker.fetch(
     maxUpdate({
       update_type: "message_callback",
-      callback: { callback_id: "cb1", user: { user_id: 42 }, payload: "cat:0" },
+      callback: { callback_id: "cb1", user: { user_id: 42 }, payload: "app" },
     }),
     { TELEGRAM_BOT_TOKEN: "T", MAX_BOT_TOKEN: "M", STORE: store },
     undefined,
   );
 
-  const message = sent.find((s) => s.url.includes("/messages"));
-  assert.ok(message, "каталог должен уйти сообщением");
-  assert.match(String(message.body.text), /Kia K5/);
-  // Цена — та же, что на сайте: под ключ до Москвы.
-  assert.match(String(message.body.text), /2 100 000|2 100 000/);
+  const msg = sent.find((x) => x.url.includes("botapi.max.ru/messages"));
+  assert.match(String(msg.body.text), /кнопку приложения слева от поля ввода/);
+  // Картинка с примером: без неё «кнопка слева» понятна только тому, кто
+  // уже знает, где она.
+  const image = msg.body.attachments.find((a) => a.type === "image");
+  assert.match(String(image.payload.url), /max-app-hint\.png$/);
+  // И ни одной машины списком: каталог в этом боте живёт только в приложении.
+  assert.ok(!/Kia K5/.test(String(msg.body.text)), "список машин в чат не идёт");
 });
 
 test("заявка из MAX попадает в общий список и к менеджеру", async () => {
@@ -1965,7 +1966,7 @@ test("команды из подсказок открывают нужные э�
     .filter((x) => x.url.includes("botapi.max.ru/messages"))
     .map((x) => String(x.body.text));
   assert.match(texts[0], /С чего начнём/, "/start — меню");
-  assert.match(texts[1], /Каталог — 1 авто/, "/catalog — каталог");
+  assert.match(texts[1], /кнопку приложения слева от поля ввода/, "/catalog — где открыть приложение");
   assert.match(texts[2], /номер телефона/, "/lead — приём заявки");
   // И ни одна команда не улетела менеджеру как вопрос.
   assert.ok(
@@ -2008,47 +2009,12 @@ test("меню MAX не уводит человека в браузер", async 
     "ссылок, открывающих браузер поверх чата, в меню быть не должно",
   );
   const catalog = buttons.find((b) => /Каталог/.test(b.text));
-  assert.equal(catalog.type, "callback", "каталог показывается в самой переписке");
-  // И человеку сказано, где искать полный каталог.
-  assert.match(String(msg.body.text), /кнопкой приложения слева от поля ввода/);
+  assert.equal(catalog.type, "callback", "кнопка ведёт к инструкции, а не в браузер");
+  // И приветствие сразу говорит, что каталог живёт в приложении.
+  assert.match(String(msg.body.text), /Каталог открывается в приложении/);
 
   // Приветствие — ровно одно сообщение: перебирать написания кнопки больше
   // незачем, а три запроса вместо одного человек ждал бы вместо приветствия.
   assert.equal(sent.filter((x) => x.url.includes("/messages")).length, 1);
 });
 
-test("каталог в MAX подсказывает, где открыть приложение — но только раз", async () => {
-  const sent = [];
-  globalThis.fetch = async (url, init) => {
-    sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
-    return new Response(JSON.stringify({ message: {} }), {
-      headers: { "Content-Type": "application/json" },
-    });
-  };
-  const store = makeStore({
-    catalog: Array.from({ length: 12 }, (_, i) => ({
-      id: "c" + i,
-      model: "Kia K5",
-      year: 2023,
-      priceMoscowRub: 2100000,
-    })),
-  });
-  const env = { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store };
-
-  for (const payload of ["cat:0", "cat:1"]) {
-    await worker.fetch(
-      maxUpdate({
-        update_type: "message_callback",
-        callback: { callback_id: "cb", user: { user_id: 98 }, payload },
-      }),
-      env,
-      undefined,
-    );
-  }
-
-  const texts = sent
-    .filter((x) => x.url.includes("botapi.max.ru/messages"))
-    .map((x) => String(x.body.text));
-  assert.match(texts[0], /значок ▦ слева от поля ввода/, "на первой странице — подсказка");
-  assert.ok(!/▦/.test(texts[1]), "на второй странице подсказка уже навязчивость");
-});
