@@ -1710,6 +1710,93 @@ test("/max с токеном подписывает вебхук и отчиты
   );
 });
 
+/*
+ * MAX перестал принимать токен параметром адреса: «access_token is
+ * deprecated, use Authorization header». Ошибка вышла тихой — вебхук просто
+ * не подписывался, а бот молчал.
+ */
+test("токен MAX уходит заголовком, а не в адресе", async () => {
+  const store = makeStore({});
+  const seen = [];
+  globalThis.fetch = async (url, init) => {
+    seen.push({ url: String(url), auth: init?.headers?.Authorization ?? null });
+    if (String(url).includes("botapi.max.ru")) {
+      return new Response(JSON.stringify({ name: "ДиАвто69" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ ok: true, result: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 113,
+      message: {
+        message_id: 913,
+        text: "/max",
+        chat: { id: 777, type: "private" },
+        from: { id: 777, first_name: "Хозяин" },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777", MAX_BOT_TOKEN: "MAXSECRET123" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  const toMax = seen.filter((x) => x.url.includes("botapi.max.ru"));
+  assert.ok(toMax.length, "запросы к MAX должны уйти");
+  for (const x of toMax) {
+    assert.ok(!x.url.includes("MAXSECRET123"), "секрет в адресе: " + x.url);
+    assert.equal(x.auth, "Bearer MAXSECRET123", "токен должен идти заголовком");
+  }
+});
+
+/*
+ * Если MAX снова передумает насчёт формы заголовка, подключение не должно
+ * ломаться молча: на отказ с кодом про токен пробуем голый токен.
+ */
+test("на отказ по токену пробуем вторую форму заголовка", async () => {
+  const store = makeStore({});
+  const auths = [];
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("botapi.max.ru")) {
+      const auth = init?.headers?.Authorization ?? null;
+      auths.push(auth);
+      if (auth?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ code: "verify.token", message: "nope" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ name: "ДиАвто69" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ ok: true, result: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 114,
+      message: {
+        message_id: 914,
+        text: "/max",
+        chat: { id: 777, type: "private" },
+        from: { id: 777, first_name: "Хозяин" },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777", MAX_BOT_TOKEN: "MAXSECRET123" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.ok(auths.includes("MAXSECRET123"), "вторая попытка должна пойти без приставки");
+});
+
 test("посторонний командой /max ничего не подключает", async () => {
   const store = makeStore({});
   const seen = [];

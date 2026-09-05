@@ -9,7 +9,7 @@
  * какой из них главный.
  *
  * Про API. У MAX свой Bot API (https://botapi.max.ru), устроенный иначе, чем
- * телеграмный: токен идёт параметром access_token, вложения приезжают
+ * телеграмный: токен идёт заголовком Authorization, вложения приезжают
  * отдельным списком, кнопки — вложением inline_keyboard. Поэтому весь диалог
  * с MAX собран здесь, а общая начинка (каталог, заявки) переиспользуется как
  * есть.
@@ -28,6 +28,15 @@ const PAGE = 5;
 /**
  * Запрос к MAX.
  *
+ * Токен уходит заголовком Authorization: параметром в адресе MAX его больше
+ * не принимает («access_token is deprecated»). Заголовок и правильнее по
+ * сути — адреса попадают в журналы прокси и в историю браузера, секретам
+ * там не место.
+ *
+ * Форму заголовка подбираем на месте: сначала «Bearer <токен>», а если MAX
+ * ответил, что токен не проверен, — тем же токеном без приставки. Так
+ * подключение переживёт и обратную смену требований, и наши догадки о них.
+ *
  * Ответ всегда разбираем, даже когда он с ошибкой: текст ошибки — то немногое,
  * что расскажет, чем именно наш формат не подошёл. Первое живое сообщение
  * должно объяснять причину, а не молчать.
@@ -36,11 +45,15 @@ async function maxCall(env, method, path, body) {
   const token = env.MAX_BOT_TOKEN;
   if (!token) return { ok: false, error: "no_token" };
 
-  const url = `${API}${path}${path.includes("?") ? "&" : "?"}access_token=${encodeURIComponent(token)}`;
-  try {
+  const url = `${API}${path}`;
+
+  const once = async (authorization) => {
     const r = await fetch(url, {
       method,
-      headers: body ? { "Content-Type": "application/json" } : undefined,
+      headers: {
+        Authorization: authorization,
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
     const text = await r.text();
@@ -51,6 +64,13 @@ async function maxCall(env, method, path, body) {
       /* MAX ответил не-JSON: оставляем текст как есть — он и будет диагнозом */
     }
     return { ok: r.ok, status: r.status, data, raw: data ? null : text.slice(0, 300) };
+  };
+
+  try {
+    const first = await once(`Bearer ${token}`);
+    // «verify.token» — MAX не понял, чем мы представились. Пробуем голый токен.
+    const rejected = !first.ok && String(first.data?.code || "").includes("token");
+    return rejected ? await once(token) : first;
   } catch (e) {
     return { ok: false, error: String(e) };
   }
