@@ -152,11 +152,21 @@ const MINI_APP = `${SITE}/tma?ms=max`;
  * Когда выяснится, как MAX называет кнопку приложения, эта развилка
  * схлопнется в одну строчку.
  */
+/*
+ * Личный чат менеджера — внутри MAX, а не в Telegram.
+ *
+ * Раньше кнопка вела в телеграм: человек, пришедший в MAX, выпадал в другой
+ * мессенджер, где у него может не быть ни аккаунта, ни желания его заводить.
+ * Ссылка та же, что на сайте (site.ts, maxHref).
+ */
+const MANAGER_MAX =
+  "https://max.ru/u/f9LHodD0cOK99itT-N_bHuA1p3GsBqirk2M9jbFjvwmFCq-XGojB1Qb32ic";
+
 const MENU = [
   [{ type: "callback", text: "🚗 Каталог авто", payload: "app" }],
   [{ type: "callback", text: "📝 Подобрать авто", payload: "lead" }],
   [{ type: "callback", text: "⭐ Отзывы", payload: "rev" }],
-  [{ type: "link", text: "Написать менеджеру", url: "https://t.me/diavto69" }],
+  [{ type: "link", text: "Написать менеджеру", url: MANAGER_MAX }],
 ];
 
 /* -------------------------------------------------------------- обработчики */
