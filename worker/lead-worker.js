@@ -1821,6 +1821,36 @@ export default {
          * обращений принесла реклама, и «привет» без телефона там только
          * портит счёт.
          */
+        /*
+         * Новый человек в MAX — уведомление туда же, куда телеграмное.
+         *
+         * Менеджеру всё равно, из какого мессенджера пришёл клиент; ему важно
+         * не пропустить его. Поэтому один чат на оба бота, а мессенджер
+         * назван в первой строке — по ней и понятно, где отвечать.
+         */
+        onNewUser: async (e, u) => {
+          const st = await getSettings(e);
+          const targets = [
+            ...new Set([String(st.leadChatId || "").trim(), e.TELEGRAM_CHAT_ID].filter(Boolean)),
+          ];
+          const text = [
+            "👋 <b>Новый пользователь — бот в MAX</b>",
+            `👤 Имя: ${htmlEscape(u.name || "—")}`,
+            `🔗 Ник: ${htmlEscape(u.username ? "@" + u.username : "без ника")}`,
+            `🆔 ID: ${u.id}`,
+            "",
+            "Ответить можно в чате бота в MAX.",
+          ].join("\n");
+          for (const chatId of targets) {
+            try {
+              const r = await api(e, "sendMessage", { chat_id: chatId, text, parse_mode: "HTML" });
+              const j = await r.json().catch(() => null);
+              if (j?.ok) return;
+            } catch {
+              /* пробуем следующий адрес */
+            }
+          }
+        },
         onQuestion: async (e, userId, text) => {
           await api(e, "sendMessage", {
             chat_id: e.TELEGRAM_CHAT_ID,
