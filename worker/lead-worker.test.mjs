@@ -1576,7 +1576,7 @@ test("«Каталог авто» в MAX объясняет, где открыт
   // Картинка с примером: без неё «кнопка слева» понятна только тому, кто
   // уже знает, где она.
   const image = msg.body.attachments.find((a) => a.type === "image");
-  assert.match(String(image.payload.url), /max-app-hint-2\.png$/);
+  assert.match(String(image.payload.url), /max-app-hint-3\.jpg$/);
   // И ни одной машины списком: каталог в этом боте живёт только в приложении.
   assert.ok(!/Kia K5/.test(String(msg.body.text)), "список машин в чат не идёт");
 });
