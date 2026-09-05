@@ -30,6 +30,25 @@ function crm_route(): array
     return array_values(array_filter(explode('/', $raw), fn($p) => $p !== ''));
 }
 
+/*
+ * Суточная копия записей.
+ *
+ * Крон на общем хостинге либо недоступен, либо требует от владельца действия,
+ * которое он однажды не сделает, — поэтому копию снимает сам сайт. Обработчик
+ * завершения означает: сначала человек получает ответ, и только потом, когда
+ * ему уже ничего не мешает, проверяется, не прошли ли сутки с прошлой копии.
+ *
+ * Внутри всё завёрнуто в try/catch: сбой служебного дела не должен превращать
+ * выполненный запрос в ошибку.
+ */
+register_shutdown_function(static function (): void {
+    if (function_exists('fastcgi_finish_request')) {
+        @fastcgi_finish_request();
+    }
+    require_once __DIR__ . '/lib/backup.php';
+    crm_backup_tick();
+});
+
 $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 $path = crm_route();
 $section = $path[0] ?? '';
@@ -68,6 +87,11 @@ try {
         case 'settings':
             require __DIR__ . '/routes/settings.php';
             crm_route_settings($method, array_slice($path, 1));
+            break;
+
+        case 'backup':
+            require __DIR__ . '/routes/backup.php';
+            crm_route_backup($method, array_slice($path, 1));
             break;
 
         // Отзывы сайта: список и удаление. Данные лежат у бота, CRM — пульт.

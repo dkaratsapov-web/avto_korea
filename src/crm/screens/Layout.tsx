@@ -11,6 +11,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   BarChart3,
   Building2,
+  DatabaseBackup,
   KanbanSquare,
   ListTodo,
   LogOut,
@@ -36,6 +37,7 @@ const OWNER_NAV = [
   { to: "/crm/reviews", label: "Отзывы", icon: MessageSquareQuote, end: false },
   { to: "/crm/users", label: "Сотрудники", icon: Users2, end: false },
   { to: "/crm/settings", label: "Реквизиты", icon: Building2, end: false },
+  { to: "/crm/backup", label: "Копии", icon: DatabaseBackup, end: false },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
