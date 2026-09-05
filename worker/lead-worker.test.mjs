@@ -1973,3 +1973,52 @@ test("команды из подсказок открывают нужные э�
     "команды — не вопросы клиента",
   );
 });
+
+/*
+ * Кнопка мини-приложения. Как она называется у MAX — неизвестно, а ошибка в
+ * названии роняет не кнопку, а всё сообщение: человек не увидит меню вовсе.
+ * Поэтому формат подбирается и запоминается.
+ */
+test("формат кнопки мини-аппа подбирается и запоминается", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    const body = init?.body ? JSON.parse(init.body) : null;
+    sent.push({ url: String(url), body });
+    // Первое написание MAX не принимает, второе — принимает.
+    const btn = body?.attachments?.find((a) => a.type === "inline_keyboard")
+      ?.payload?.buttons?.[0]?.[0];
+    if (btn && btn.type === "open_app" && btn.web_app) {
+      return new Response(JSON.stringify({ code: "attachment.not.supported" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({});
+  const env = { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store };
+
+  await worker.fetch(
+    maxUpdate({ update_type: "bot_started", user: { user_id: 95 } }),
+    env,
+    undefined,
+  );
+
+  assert.equal(await store.get("max:appBtn"), 1, "рабочее написание должно запомниться");
+
+  // Второй человек — сразу рабочим написанием, без перебора.
+  const before = sent.length;
+  await worker.fetch(
+    maxUpdate({ update_type: "bot_started", user: { user_id: 96 } }),
+    env,
+    undefined,
+  );
+  assert.equal(sent.length - before, 1, "перебирать во второй раз незачем");
+
+  const btn = sent.at(-1).body.attachments.find((a) => a.type === "inline_keyboard")
+    .payload.buttons[0][0];
+  assert.equal(btn.type, "open_app");
+  assert.match(String(btn.url), /\/tma\?ms=max$/, "кнопка ведёт в мини-приложение");
+});
