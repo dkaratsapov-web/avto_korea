@@ -2016,3 +2016,39 @@ test("меню MAX не уводит человека в браузер", async 
   // незачем, а три запроса вместо одного человек ждал бы вместо приветствия.
   assert.equal(sent.filter((x) => x.url.includes("/messages")).length, 1);
 });
+
+test("каталог в MAX подсказывает, где открыть приложение — но только раз", async () => {
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    sent.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+    return new Response(JSON.stringify({ message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const store = makeStore({
+    catalog: Array.from({ length: 12 }, (_, i) => ({
+      id: "c" + i,
+      model: "Kia K5",
+      year: 2023,
+      priceMoscowRub: 2100000,
+    })),
+  });
+  const env = { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", MAX_BOT_TOKEN: "M", STORE: store };
+
+  for (const payload of ["cat:0", "cat:1"]) {
+    await worker.fetch(
+      maxUpdate({
+        update_type: "message_callback",
+        callback: { callback_id: "cb", user: { user_id: 98 }, payload },
+      }),
+      env,
+      undefined,
+    );
+  }
+
+  const texts = sent
+    .filter((x) => x.url.includes("botapi.max.ru/messages"))
+    .map((x) => String(x.body.text));
+  assert.match(texts[0], /значок ▦ слева от поля ввода/, "на первой странице — подсказка");
+  assert.ok(!/▦/.test(texts[1]), "на второй странице подсказка уже навязчивость");
+});
