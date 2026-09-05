@@ -107,83 +107,30 @@ function maxAnswer(env, callbackId, notification) {
 
 const SITE = "https://xn---69-5cdk0b2aocjmsg.xn--p1ai";
 
-function money(n) {
-  return Number(n || 0).toLocaleString("ru-RU").replace(/ /g, " ");
-}
-
-/** Цена, которую показываем везде — под ключ до Москвы. */
-function price(car) {
-  return car.priceMoscowRub || car.priceRub || 0;
-}
-
-/** Короткая строка для списка. */
-function carLine(car, i) {
-  const bits = [car.year, car.mileage, car.gearbox].filter(Boolean).join(" · ");
-  return `${i}. ${car.model}\n   ${money(price(car))} ₽ · ${bits}`;
-}
-
-/** Развёрнутая карточка одной машины. */
-function carCard(car) {
-  const rows = [
-    car.year ? `Год: ${car.year}` : "",
-    car.mileage ? `Пробег: ${car.mileage}` : "",
-    car.engine ? `Двигатель: ${car.engine}` : "",
-    car.gearbox ? `Коробка: ${car.gearbox}` : "",
-    car.drive ? `Привод: ${car.drive}` : "",
-    car.color ? `Цвет: ${car.color}` : "",
-    car.trim ? `Комплектация: ${car.trim}` : "",
-  ].filter(Boolean);
-
-  return (
-    `${car.model}\n\n` +
-    `${money(price(car))} ₽ — под ключ до Москвы\n\n` +
-    rows.join("\n") +
-    "\n\nВ цену входит выкуп, доставка, растаможка и оформление."
-  );
-}
-
 /* --------------------------------------------------------------- клавиатуры */
 
 /** Мини-приложение — тот же экран, что в Telegram. */
 const MINI_APP = `${SITE}/tma?ms=max`;
 
 /*
- * Кнопки, открывающей мини-приложение, в меню нет — и это осознанно.
+ * Кнопки, открывающей мини-приложение, в меню нет — и это не упущение.
  *
  * Перепробовано три способа: вложение «open_app» в двух написаниях (MAX
  * отверг оба), ссылка на наш сайт (открывает браузер поверх мессенджера) и
  * внутренняя ссылка вида max.ru/<бот>/app («ссылка устарела или не
  * работает»). Кнопка, уводящая человека из чата в браузер, хуже, чем её
- * отсутствие: он теряет и чат, и место в каталоге.
+ * отсутствие: он теряет и переписку, и место в каталоге.
  *
- * Поэтому в меню — список машин прямо в переписке, а про полный каталог с
- * фильтрами сказано словами: он открывается штатной кнопкой мессенджера
- * рядом с полем ввода, ту настроил владелец в кабинете бота.
- *
- * Когда выяснится, как MAX называет такую кнопку, здесь появится одна
- * строчка — остальное менять не придётся.
+ * Поэтому «Каталог авто» показывает, КУДА нажать — словами и картинкой.
+ * Когда выяснится, как MAX называет кнопку приложения, эта развилка
+ * схлопнется в одну строчку.
  */
 const MENU = [
-  [{ type: "callback", text: "🚗 Каталог авто", payload: "cat:0" }],
+  [{ type: "callback", text: "🚗 Каталог авто", payload: "app" }],
   [{ type: "callback", text: "📝 Подобрать авто", payload: "lead" }],
   [{ type: "callback", text: "⭐ Отзывы", payload: "rev" }],
   [{ type: "link", text: "Написать менеджеру", url: "https://t.me/diavto69" }],
 ];
-
-function catalogKeyboard(page, total, cars) {
-  const rows = cars.map((c, i) => [
-    { type: "callback", text: `${page * PAGE + i + 1}. ${c.model}`, payload: `car:${c.id}` },
-  ]);
-
-  const nav = [];
-  if (page > 0) nav.push({ type: "callback", text: "◀ Назад", payload: `cat:${page - 1}` });
-  if ((page + 1) * PAGE < total)
-    nav.push({ type: "callback", text: "Ещё ▶", payload: `cat:${page + 1}` });
-  if (nav.length) rows.push(nav);
-
-  rows.push([{ type: "callback", text: "◀ В меню", payload: "menu" }]);
-  return rows;
-}
 
 /* -------------------------------------------------------------- обработчики */
 
@@ -238,7 +185,7 @@ export async function handleMaxUpdate(env, update, deps) {
   // дописать что-то следом — берём только первое слово.
   const command = (text.match(/^\/([a-z_]+)/i) || [])[1]?.toLowerCase();
   if (command) {
-    if (command === "catalog") return catalogPage(env, userId, 0, kvGet);
+    if (command === "catalog") return appHint(env, userId);
     if (command === "reviews") return reviews(env, userId, kvGet);
     if (command === "lead") return route(env, userId, "lead", { kvGet, kvPut, onLead });
     // «/start» и всё незнакомое — меню: оно объясняет, что тут вообще есть.
@@ -250,7 +197,7 @@ export async function handleMaxUpdate(env, update, deps) {
     return;
   }
   if (/каталог|авто|машин/i.test(text) && text.length < 30) {
-    await catalogPage(env, userId, 0, kvGet);
+    await appHint(env, userId);
     return;
   }
 
@@ -302,11 +249,8 @@ async function route(env, userId, payload, { kvGet, kvPut, onLead }) {
         "Можно сразу с пожеланием: «+7 900 000-00-00, кроссовер до 3 млн».",
     );
   }
-  if (payload.startsWith("cat:")) {
-    return catalogPage(env, userId, Number(payload.slice(4)) || 0, kvGet);
-  }
-  if (payload.startsWith("car:")) {
-    return carDetails(env, userId, payload.slice(4), kvGet);
+  if (payload === "app" || payload.startsWith("cat:") || payload.startsWith("car:")) {
+    return appHint(env, userId);
   }
   if (payload.startsWith("want:")) {
     const id = payload.slice(5);
@@ -326,64 +270,36 @@ async function route(env, userId, payload, { kvGet, kvPut, onLead }) {
 const WELCOME =
   "Добрый день! Это ДиАвто69 — привозим автомобили из Кореи, Китая, Японии и ЕС под ключ.\n\n" +
   "В каталоге — машины в наличии и в пути, цена сразу с доставкой, растаможкой и оформлением до Москвы.\n\n" +
-  "Полный каталог с фильтрами и фото открывается кнопкой приложения слева от поля ввода. " +
-  "А списком можно посмотреть прямо здесь.\n\n" +
+  "Каталог открывается в приложении — нажмите «Каталог авто», покажу куда.\n\n" +
   "С чего начнём?";
 
 async function welcome(env, userId) {
   return maxSend(env, userId, WELCOME, { keyboard: MENU });
 }
 
-async function catalogPage(env, userId, page, kvGet) {
-  const cars = (await kvGet(env, "catalog", [])) || [];
-  if (!cars.length) {
-    return maxSend(
-      env,
-      userId,
-      "Каталог сейчас обновляется. Напишите, какая машина нужна и на какой бюджет — подберём вручную.",
-      { keyboard: MENU },
-    );
-  }
-
-  const from = Math.max(0, page) * PAGE;
-  const slice = cars.slice(from, from + PAGE);
-  const lines = slice.map((c, i) => carLine(c, from + i + 1)).join("\n\n");
-
-  /*
-   * Подсказка про приложение — только на первой странице.
-   *
-   * Кнопки, открывающей приложение прямо из сообщения, MAX не даёт, а
-   * человеку надо как-то узнать, что полный каталог с фильтрами вообще
-   * существует. Повторять же подсказку на каждом «Ещё» нельзя: на третьей
-   * странице она читается как навязчивость, а не как помощь.
-   */
-  const hint =
-    page === 0
-      ? "📱 Удобнее — в приложении: нажмите значок ▦ слева от поля ввода (внизу экрана).\n" +
-        "Там фильтры по стране и цене, поиск по модели и все фотографии.\n\n"
-      : "";
-
+/**
+ * Куда нажать, чтобы открылся каталог.
+ *
+ * Списком в переписке каталог больше не показываем — по решению владельца:
+ * в приложении те же машины с фильтрами, поиском и всеми фотографиями, а
+ * два разных каталога в одном боте только путают.
+ *
+ * Кнопки, открывающей приложение прямо из сообщения, MAX не даёт (проверено:
+ * «open_app» отвергается, ссылка на сайт открывает браузер, внутренняя
+ * ссылка на бота не работает). Поэтому единственный честный ответ —
+ * показать, куда нажать: словами и картинкой. Без картинки «кнопка слева
+ * от поля ввода» звучит понятно только тому, кто уже знает, где она.
+ */
+async function appHint(env, userId) {
   return maxSend(
     env,
     userId,
-    `${hint}Каталог — ${cars.length} авто в наличии и в пути.\nЦены под ключ до Москвы.\n\n${lines}\n\nОткрыть карточку — кнопкой ниже.`,
-    { keyboard: catalogKeyboard(page, cars.length, slice) },
+    "Каталог открывается в приложении — там все 200+ машин с фото, фильтрами " +
+      "по стране и цене и поиском по модели.\n\n" +
+      "Нажмите кнопку приложения слева от поля ввода — она показана на картинке. " +
+      "Дальше каталог откроется прямо здесь, не выходя из MAX.",
+    { image: `${SITE}/max-app-hint.png`, keyboard: MENU },
   );
-}
-
-async function carDetails(env, userId, id, kvGet) {
-  const cars = (await kvGet(env, "catalog", [])) || [];
-  const car = cars.find((c) => String(c.id) === String(id));
-  if (!car) return catalogPage(env, userId, 0, kvGet);
-
-  return maxSend(env, userId, carCard(car), {
-    image: siteMedia(car.images?.[0]),
-    keyboard: [
-      [{ type: "callback", text: "Хочу это авто", payload: `want:${car.id}` }],
-      [{ type: "link", text: "Открыть карточку", url: `${MINI_APP}&car=${encodeURIComponent(car.id)}` }],
-      [{ type: "callback", text: "◀ К каталогу", payload: "cat:0" }],
-    ],
-  });
 }
 
 async function reviews(env, userId, kvGet) {
