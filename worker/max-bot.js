@@ -163,9 +163,23 @@ const APP_BUTTON = [
   (text, url) => ({ type: "link", text, url }),
 ];
 
-function menuKeyboard(shape) {
+/**
+ * Внутренняя ссылка MAX на мини-приложение бота.
+ *
+ * Ссылка на наш сайт открывает браузер поверх мессенджера — так и вышло:
+ * оба написания «open_app» MAX отверг, осталась обычная ссылка. Но у
+ * мессенджеров приложение обычно открывается не адресом сайта, а их
+ * собственной ссылкой на бота — как «t.me/бот/app» у Telegram. Имя бота
+ * MAX сообщает сам (GET /me), поэтому ссылку собираем из него, а не
+ * просим вписать руками.
+ */
+function maxAppLink(username) {
+  return username ? `https://max.ru/${String(username).replace(/^@/, "")}/app` : MINI_APP;
+}
+
+function menuKeyboard(shape, appUrl = MINI_APP) {
   return [
-    [APP_BUTTON[shape]("🚗 Каталог авто", MINI_APP)],
+    [APP_BUTTON[shape]("🚗 Каталог авто", appUrl)],
     [{ type: "callback", text: "📝 Подобрать авто", payload: "lead" }],
     [{ type: "callback", text: "⭐ Отзывы", payload: "rev" }],
     [
@@ -348,6 +362,19 @@ async function welcome(env, userId, deps) {
   const { kvGet, kvPut } = deps || {};
   if (!kvGet) return maxSend(env, userId, WELCOME, { keyboard: MENU });
 
+  // Имя бота спрашиваем один раз: оно не меняется, а лишний запрос на
+  // каждое «привет» — лишняя секунда ожидания.
+  // null — ещё не спрашивали; пустая строка — спросили, имени у бота нет.
+  // Различать обязательно, иначе безымянный бот заставлял бы спрашивать
+  // заново на каждое приветствие.
+  let username = await kvGet(env, "max:username", null);
+  if (username === null) {
+    const me = await maxCall(env, "GET", "/me");
+    username = me.data?.username || me.data?.user?.username || "";
+    await kvPut(env, "max:username", username);
+  }
+  const appUrl = maxAppLink(username);
+
   const known = Number(await kvGet(env, "max:appBtn", -1));
   const order = known >= 0 && known < APP_BUTTON.length
     ? [known, ...APP_BUTTON.keys()].filter((v, i, a) => a.indexOf(v) === i)
@@ -355,7 +382,7 @@ async function welcome(env, userId, deps) {
 
   const refusals = [];
   for (const shape of order) {
-    const r = await maxSend(env, userId, WELCOME, { keyboard: menuKeyboard(shape) });
+    const r = await maxSend(env, userId, WELCOME, { keyboard: menuKeyboard(shape, appUrl) });
     if (r.ok) {
       if (known !== shape) await kvPut(env, "max:appBtn", shape);
       /*
@@ -524,6 +551,9 @@ export async function maxAppButtonReport(env, kvGet) {
   const refusals = (await kvGet(env, "max:appBtnErr", null)) || [];
   const names = ["open_app + web_app", "open_app + url", "обычная ссылка"];
 
+  const username = (await kvGet(env, "max:username", "")) || "";
+  const link = maxAppLink(username);
+
   if (shape < 0) return "ℹ️ Кнопка приложения ещё не проверялась — напишите боту в MAX /start";
   if (shape < 2) return `✅ Кнопка открывает мини-приложение (${names[shape]})`;
 
@@ -531,7 +561,10 @@ export async function maxAppButtonReport(env, kvGet) {
     .map((r) => `${names[r.shape]}: ${JSON.stringify(r.answer)}`)
     .join("\n");
   return (
-    "⚠️ MAX не принял кнопку мини-приложения — осталась обычная ссылка (откроется браузер).\n" +
-    (said ? "Ответ MAX:\n" + said : "")
+    `ℹ️ Кнопка ведёт по ссылке: ${link}\n` +
+    (username
+      ? "Это внутренняя ссылка MAX — она должна открывать приложение внутри мессенджера."
+      : "⚠️ Имя бота MAX не сообщил, поэтому ссылка ведёт на сайт и откроется браузером.") +
+    (said ? "\nMAX отверг кнопки приложения:\n" + said : "")
   );
 }
