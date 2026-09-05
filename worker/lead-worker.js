@@ -1495,6 +1495,16 @@ export default {
         ok: true,
         autoPublish: !!st.autoPublish,
         hasBotToken: !!env.TELEGRAM_BOT_TOKEN,
+        /*
+         * Виден ли воркеру токен MAX.
+         *
+         * Само значение наружу не отдаём — только «есть или нет». Этого
+         * достаточно, чтобы отличить «секрет не доехал до воркера» от «MAX
+         * не принял токен», а перепутать эти два случая проще всего:
+         * в панели Cloudflare переменную можно добавить и забыть нажать
+         * «Deploy», и снаружи это выглядит точно так же, как её отсутствие.
+         */
+        hasMaxToken: !!env.MAX_BOT_TOKEN,
         hasStore: !!env.STORE,
         catalogCount: Array.isArray(catalog) ? catalog.length : 0,
         autoCarsFromChannel: tgCars.length,
