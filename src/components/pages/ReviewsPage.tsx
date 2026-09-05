@@ -126,6 +126,10 @@ type Slide = { type: "video" | "image"; src: string };
  * Заголовок карточки — какое авто выдано. Тексты приходят из Telegram и
  * содержат служебные строки («Клиент: …», «Пришёл по ссылке», приглашение
  * написать менеджеру) — в витрине они лишние, нужна только модель.
+ *
+ * Пустая строка означает «подписи нет». Придумывать её за владельца нельзя:
+ * видео с выдачи присылают без подписи нарочно, и «Автомобиль выдан клиенту»
+ * под каждым роликом читалось бы как штамп, а не как отзыв.
  */
 function deliveredTitle(text?: string): string {
   const lines = (text || "")
@@ -150,7 +154,7 @@ function deliveredTitle(text?: string): string {
     const clean = first.replace(/\s+/g, " ").trim();
     return clean.length > 80 ? clean.slice(0, 77) + "…" : clean;
   }
-  return "Автомобиль выдан клиенту";
+  return "";
 }
 
 /** Все медиа отзыва одним списком: видео вперёд, затем фото. */
@@ -209,13 +213,19 @@ function ReviewCard({ review }: { review: ApiReview }) {
           <>
             {/* object-cover, а не contain: кадр заполняет карточку целиком,
                 без чёрных полей по краям — карточки в ленте выглядят
-                одинаковыми по плотности. */}
-            <img
-              src={isVideo ? poster : cur.src}
-              alt=""
-              loading="lazy"
-              className="h-full w-full bg-graphite object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-            />
+                одинаковыми по плотности.
+
+                Обложки может не быть вовсе: Telegram присылает кадр не к
+                каждому видео. Тогда на её месте остаётся тёмный фон карточки
+                с кнопкой воспроизведения — это лучше значка битой картинки. */}
+            {isVideo && !poster ? null : (
+              <img
+                src={isVideo ? poster : cur.src}
+                alt=""
+                loading="lazy"
+                className="h-full w-full bg-graphite object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              />
+            )}
             {/* Затемнение снизу — под подпись. Сверху лёгкое, под бейдж. */}
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(10,13,17,0.92)_0%,rgba(10,13,17,0.55)_28%,rgba(10,13,17,0)_55%,rgba(10,13,17,0.35)_100%)]" />
 
@@ -223,7 +233,7 @@ function ReviewCard({ review }: { review: ApiReview }) {
               <button
                 type="button"
                 onClick={() => setPlaying(true)}
-                aria-label={`Смотреть отзыв: ${title}`}
+                aria-label={title ? `Смотреть отзыв: ${title}` : "Смотреть видео-отзыв"}
                 className="absolute inset-0 flex items-center justify-center focus-visible:outline-none"
               >
                 <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/95 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.6)] transition-transform duration-200 group-hover:scale-110">
@@ -246,9 +256,11 @@ function ReviewCard({ review }: { review: ApiReview }) {
           </span>
         ) : null}
 
-        {/* Подпись поверх кадра. Пока видео не запущено — плеер её не
+        {/* Подпись поверх кадра — только если она есть. Видео с выдач
+            присылают без подписи, и выдуманный заголовок под каждым роликом
+            читался бы как штамп. Пока видео не запущено, плеер подпись не
             перекрывает, а после запуска она не нужна и убирается. */}
-        {!playing ? (
+        {!playing && title ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4">
             <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-white/60">
               Выдача
@@ -362,15 +374,16 @@ export function ReviewsPage() {
   useEffect(() => {
     fetchReviews()
       .then((rs) =>
-        // Показываем отзыв, только если есть ФОТО или осмысленный текст.
-        // Видео без превью и текста (часто битое/тяжёлое) не выводим.
+        /*
+         * В ленту идёт всё, у чего есть файл: видео или фото.
+         *
+         * Раньше здесь требовался ЛИБО снимок, либо осмысленный текст — и
+         * видео-отзыв без подписи не проходил ни по одному условию. Именно
+         * так пропадали ролики, присланные боту как есть: они лежали в
+         * хранилище, но до витрины не доходили.
+         */
         setRemote(
-          rs.filter(
-            (r) =>
-              r.media ||
-              r.images?.length ||
-              (r.text || "").trim().length > 2,
-          ),
+          rs.filter((r) => r.videos?.length || r.video || r.images?.length || r.media),
         ),
       )
       .catch(() => {});

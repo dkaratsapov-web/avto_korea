@@ -1102,11 +1102,25 @@ export default {
             const got = [];
             if (saved?.videos) got.push(`видео: ${saved.videos}`);
             if (saved?.images) got.push(`фото: ${saved.images}`);
+
+            /*
+             * Про тяжёлое видео говорим сразу и с цифрой.
+             *
+             * Ограничение Telegram обойти нечем, но молчать о нём нельзя:
+             * иначе владелец отправляет десять роликов, видит десять
+             * галочек — и пустую витрину.
+             */
+            const heavy = saved?.tooBigMb
+              ? `⚠️ Видео на ${saved.tooBigMb} МБ бот забрать не может: Telegram отдаёт ботам файлы до 20 МБ.\n` +
+                "Пришлите ролик покороче или сожмите его — иначе на сайте будет карточка с неработающим плеером."
+              : "";
+
             await api(env, "sendMessage", {
               chat_id: msg.chat.id,
               text: got.length
-                ? `✅ Отзыв опубликован (${got.join(", ")}).`
-                : "⚠️ Отзыв сохранён БЕЗ файлов — вложение бот прочитать не смог.\nПришлите видео обычным видеосообщением или файлом.",
+                ? `✅ Отзыв опубликован (${got.join(", ")}).` + (heavy ? "\n\n" + heavy : "")
+                : heavy ||
+                  "⚠️ Отзыв сохранён БЕЗ файлов — вложение бот прочитать не смог.\nПришлите видео обычным видеосообщением или файлом.",
             });
           }
           return new Response("ok");
@@ -2361,11 +2375,34 @@ function sameReviewText(a, b) {
 }
 
 // Пост из канала отзывов → карточка отзыва (текст + фото/видео) в KV reviews.
+/*
+ * Потолок, выше которого Bot API файл боту не отдаёт: 20 МБ.
+ *
+ * Ограничение чужое и обойти его нечем. Важно другое: видео с телефона легко
+ * весит впятеро больше, и до этой проверки такой отзыв спокойно сохранялся —
+ * а на сайте выходила карточка, у которой плеер отвечает «404». Снаружи это
+ * неотличимо от поломки сайта, и именно так отзывы «пропадали».
+ */
+const TG_FILE_LIMIT = 20 * 1024 * 1024;
+
+/** Размер видео в посте, если Telegram его сообщил. */
+function videoBytes(post) {
+  return Number(post?.video?.file_size || post?.document?.file_size || 0);
+}
+
 async function publishReviewFromPost(env, post, origin) {
   const text = (post.caption || post.text || "").trim();
   const fileId = bestFileId(post);
-  const videoId = videoFileId(post);
-  if (!text && !fileId && !videoId) return;
+  const rawVideoId = videoFileId(post);
+
+  // Слишком тяжёлое видео считаем отсутствующим: лучше не опубликовать
+  // отзыв вовсе, чем опубликовать карточку с мёртвым плеером.
+  const heavy = rawVideoId && videoBytes(post) > TG_FILE_LIMIT ? videoBytes(post) : 0;
+  const videoId = heavy ? null : rawVideoId;
+
+  if (!text && !fileId && !videoId) {
+    return heavy ? { videos: 0, images: 0, tooBigMb: Math.round(heavy / 1048576) } : undefined;
+  }
   const groupId = post.media_group_id || null;
   const srcId = postSrcId(post, groupId);
   const media = fileId ? photoUrl(origin, fileId) : "";
@@ -2447,6 +2484,7 @@ async function publishReviewFromPost(env, post, origin) {
   return {
     videos: (saved.videos || []).length,
     images: (saved.images || []).length,
+    tooBigMb: heavy ? Math.round(heavy / 1048576) : 0,
   };
 }
 
