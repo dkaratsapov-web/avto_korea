@@ -1665,7 +1665,9 @@ function deliveredTitle(text?: string): string {
     const clean = first.replace(/\s+/g, " ").trim();
     return clean.length > 70 ? clean.slice(0, 67) + "…" : clean;
   }
-  return "Автомобиль выдан клиенту";
+  // Пусто — значит подписи нет. Придумывать её за владельца нельзя: видео
+  // с выдач присылают без подписи нарочно.
+  return "";
 }
 
 /** Медиа отзыва одним списком: видео вперёд, затем фото. */
@@ -1682,7 +1684,10 @@ function ReviewItem({ review }: { review: Review }) {
   const slides = reviewSlides(review);
   const [idx, setIdx] = useState(0);
   const cur = slides[idx] ?? slides[0];
-  const poster = review.images?.[0] || review.media;
+  // Кадр из видео бот сохраняет отдельно от фотографий отзыва — он и есть
+  // обложка; фото берётся только если кадра нет.
+  const poster = review.poster || review.images?.[0] || review.media;
+  const title = deliveredTitle(review.text);
 
   return (
     <div className="overflow-hidden rounded-[16px] border border-line-dark bg-graphite-2">
@@ -1737,14 +1742,16 @@ function ReviewItem({ review }: { review: Review }) {
         </div>
       ) : null}
 
-      <div className="p-4">
-        <div className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#8C97A1]">
-          Выдача
+      {title ? (
+        <div className="p-4">
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#8C97A1]">
+            Выдача
+          </div>
+          <div className="mt-0.5 text-[15px] font-extrabold leading-tight text-white">
+            {title}
+          </div>
         </div>
-        <div className="mt-0.5 text-[15px] font-extrabold leading-tight text-white">
-          {deliveredTitle(review.text)}
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }

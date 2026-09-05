@@ -1352,3 +1352,58 @@ test("ключом CRM ничего, кроме отзывов, не сдела�
   }
   assert.deepEqual(await store.get("catalog"), [{ id: "car" }], "каталог не тронут");
 });
+
+/*
+ * Видео с телефона легко весит впятеро больше того, что Bot API отдаёт боту.
+ * До проверки такой отзыв сохранялся, а на сайте выходила карточка с мёртвым
+ * плеером — снаружи неотличимо от поломки сайта.
+ */
+test("тяжёлое видео не публикуется, а владельцу приходит цифра", async () => {
+  const store = makeStore({});
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 96,
+      message: {
+        message_id: 906,
+        chat: { id: 777, type: "private" },
+        from: { id: 777, first_name: "Хозяин" },
+        video: { file_id: "BIG", file_size: 47 * 1024 * 1024 },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.deepEqual(await store.get("reviews"), null, "карточка с мёртвым плеером заводиться не должна");
+  const reply = calls.filter((x) => x.method === "sendMessage").pop();
+  assert.match(String(reply?.body?.text), /47 МБ/, "владелец должен увидеть размер");
+});
+
+test("видео без подписи публикуется как есть", async () => {
+  const store = makeStore({});
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 97,
+      message: {
+        message_id: 907,
+        chat: { id: 777, type: "private" },
+        from: { id: 777, first_name: "Хозяин" },
+        video: { file_id: "OK", file_size: 8 * 1024 * 1024, thumbnail: { file_id: "THUMB" } },
+      },
+    },
+    { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+  );
+  await c.settle();
+
+  const reviews = await store.get("reviews");
+  assert.equal(reviews.length, 1, "отзыв должен появиться и без подписи");
+  assert.equal(reviews[0].text, "", "подпись не выдумываем");
+  assert.equal(reviews[0].videos.length, 1);
+  assert.ok(reviews[0].poster, "обложка из кадра видео должна сохраниться");
+});
