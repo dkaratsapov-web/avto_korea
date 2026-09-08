@@ -11,12 +11,12 @@
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Link2, Play, RefreshCw, Star, Trash2 } from "lucide-react";
+import { Link2, Pencil, Play, RefreshCw, Star, Trash2 } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../auth";
 import { formatMoment, plural } from "../lib/format";
 import type { SiteReview } from "../lib/types";
-import { Button, Card, Empty, Field, Input, Modal, Spinner, useToast } from "../ui";
+import { Button, Card, Empty, Field, Input, Modal, Spinner, Textarea, useToast } from "../ui";
 import { PageHead } from "./Layout";
 
 /** Все файлы отзыва одним списком: видео вперёд, затем фото. */
@@ -55,6 +55,14 @@ export function Reviews() {
   const [connected, setConnected] = useState(true);
   const [busy, setBusy] = useState(false);
   const [watch, setWatch] = useState<string | null>(null);
+  /*
+   * Отзыв, который сейчас правят.
+   *
+   * Бот сохраняет запись из тех полей, что пришли, — отправить одно поле
+   * нельзя, сотрутся остальные. Поэтому держим копию карточки целиком и
+   * отдаём её обратно как есть.
+   */
+  const [editing, setEditing] = useState<SiteReview | null>(null);
 
   const fail = useCallback(
     (e: unknown) => toast(e instanceof ApiError ? e.message : "Не удалось", "error"),
@@ -75,6 +83,26 @@ export function Reviews() {
   }, [fail]);
 
   useEffect(load, [load]);
+
+  const save = async () => {
+    if (!editing) return;
+    setBusy(true);
+    try {
+      const result = await api.saveReview(editing.id, {
+        name: editing.name || "",
+        text: editing.text || "",
+        car: editing.car || "",
+        rating: editing.rating || 5,
+      });
+      setReviews(result.reviews);
+      setEditing(null);
+      toast("Отзыв сохранён");
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const remove = async (r: SiteReview) => {
     if (!window.confirm(`Удалить отзыв «${title(r.text)}»? С сайта он исчезнет сразу.`)) return;
@@ -203,6 +231,16 @@ export function Reviews() {
                   </div>
                   {isOwner ? (
                     <Button
+                      size="sm"
+                      onClick={() => setEditing({ ...r })}
+                      title="Изменить текст отзыва"
+                      className="mr-2"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  ) : null}
+                  {isOwner ? (
+                    <Button
                       variant="danger"
                       size="sm"
                       onClick={() => remove(r)}
@@ -218,6 +256,48 @@ export function Reviews() {
           })}
         </div>
       )}
+
+      <Modal
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title="Текст отзыва"
+        wide
+      >
+        {editing ? (
+          <div className="space-y-3">
+            <Field label="Имя клиента">
+              <Input
+                value={editing.name || ""}
+                onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                placeholder="Например, Сергей"
+              />
+            </Field>
+            <Field label="Авто">
+              <Input
+                value={editing.car || ""}
+                onChange={(e) => setEditing({ ...editing, car: e.target.value })}
+                placeholder="Volkswagen Tayron"
+              />
+            </Field>
+            <Field
+              label="Текст отзыва"
+              hint="Показывается на карточке под видео. До 1000 знаков."
+            >
+              <Textarea
+                value={editing.text || ""}
+                onChange={(e) => setEditing({ ...editing, text: e.target.value })}
+                className="min-h-[220px]"
+              />
+            </Field>
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setEditing(null)}>Отмена</Button>
+              <Button variant="primary" onClick={save} loading={busy}>
+                Сохранить
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
 
       <Modal open={watch !== null} onClose={() => setWatch(null)} title="Видео-отзыв" wide>
         {watch ? (
