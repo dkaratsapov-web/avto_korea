@@ -751,3 +751,15 @@ export const articles: Article[] = [
 export function getArticle(slug: string): Article | undefined {
   return articles.find((a) => a.slug === slug);
 }
+
+/**
+ * Уменьшенная копия обложки для списка и блока «читайте также».
+ *
+ * Лежит рядом с оригиналом в /covers/thumbs — файлы делает
+ * scripts/make-cover-thumbs.py. В узкий слот 130×100 незачем тянуть
+ * исходник шириной 1800 px: восемь таких обложек — почти мегабайт
+ * трафика на страницу списка.
+ */
+export function coverThumb(cover: string): string {
+  return cover.replace("/covers/", "/covers/thumbs/");
+}

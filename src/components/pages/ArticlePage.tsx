@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ChevronRight, Clock, ArrowRight, ArrowLeft } from "lucide-react";
-import { getArticle, articles } from "@/data/articles";
+import { getArticle, articles, coverThumb } from "@/data/articles";
 import { LeadForm } from "@/components/LeadForm";
 
 function useMeta(title: string, description: string, keywords?: string[]) {
@@ -127,12 +127,16 @@ export function ArticlePage() {
         <div className="chrome-line absolute inset-x-0 bottom-0" />
       </section>
 
+      {/* Обложка небольшая и целиком. Во всю ширину она отодвигала первый абзац за
+          экран, а подрезать её по высоте нельзя: на обложке набрано название
+          статьи, и любой обрез рубит слова пополам. */}
       <div className="wrap -mt-1">
         <img
           src={article.cover}
           alt=""
-          className="mt-6 max-h-[50vh] w-full rounded-card border border-line object-cover"
-          style={{ aspectRatio: "16 / 9" }}
+          width={520}
+          height={293}
+          className="mt-6 w-full max-w-[520px] rounded-card border border-line"
           decoding="async"
         />
       </div>
@@ -162,12 +166,17 @@ export function ArticlePage() {
           if (b.t === "img")
             return (
               <figure key={i} className="my-8">
+                {/* Иллюстрации в статьях — инфографика с подписями. Ограничение
+                    по высоте с object-cover срезало у неё верх и низ на
+                    невысоких экранах, поэтому показываем целиком. */}
                 <img
                   src={b.src}
                   alt={b.alt}
                   loading="lazy"
                   decoding="async"
-                  className="max-h-[50vh] w-full rounded-card border border-line object-cover"
+                  width={1800}
+                  height={1050}
+                  className="w-full rounded-card border border-line"
                 />
                 {b.caption ? (
                   <figcaption className="mt-2.5 text-[13.5px] leading-snug text-ink-2">
@@ -217,17 +226,28 @@ export function ArticlePage() {
               <Link
                 key={a.slug}
                 to={`/articles/${a.slug}`}
-                className="group flex flex-col rounded-card border border-line bg-white p-6 transition-[box-shadow,border-color] duration-300 hover:border-[#d4d8de] hover:shadow-card"
+                className="group flex gap-4 rounded-card border border-line bg-white p-4 transition-[box-shadow,border-color] duration-300 hover:border-[#d4d8de] hover:shadow-card"
               >
-                <h3 className="mb-2 text-[18px] font-extrabold leading-snug text-ink">
-                  {a.title}
-                </h3>
-                <p className="mb-4 text-[14px] leading-relaxed text-ink-2">
-                  {a.description}
-                </p>
-                <span className="inline-flex items-center gap-2 text-[14px] font-bold text-bordeaux">
-                  Читать <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </span>
+                <img
+                  src={coverThumb(a.cover)}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  width={148}
+                  height={83}
+                  className="h-[62px] w-[110px] flex-none rounded-[10px] object-cover sm:h-[83px] sm:w-[148px]"
+                />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <h3 className="line-clamp-3 text-[15px] font-extrabold leading-snug text-ink sm:line-clamp-2 sm:text-[16px]">
+                    {a.title}
+                  </h3>
+                  <p className="mt-1.5 line-clamp-2 text-[13.5px] leading-relaxed text-ink-2 max-sm:hidden">
+                    {a.description}
+                  </p>
+                  <span className="mt-auto inline-flex items-center gap-1.5 pt-2.5 text-[13px] font-bold text-bordeaux">
+                    Читать <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                  </span>
+                </div>
               </Link>
             ))}
           </div>

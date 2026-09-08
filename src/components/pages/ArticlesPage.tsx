@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Clock, ArrowRight, BookOpen } from "lucide-react";
-import { articles } from "@/data/articles";
+import { articles, coverThumb } from "@/data/articles";
 
 function useMeta(title: string, description: string) {
   useEffect(() => {
@@ -47,34 +47,39 @@ export function ArticlesPage() {
         <div className="chrome-line absolute inset-x-0 bottom-0" />
       </section>
 
-      <div className="wrap mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {/* Карточки-строки: узкая миниатюра слева, текст справа. Большая
+          обложка 16:9 занимала пол-экрана на материал, и до второй статьи
+          нужно было доскроллить — при восьми статьях список важнее картинок. */}
+      <div className="wrap mt-10 grid gap-4 md:grid-cols-2">
         {articles.map((a) => (
           <Link
             key={a.slug}
             to={`/articles/${a.slug}`}
-            className="group flex h-full flex-col overflow-hidden rounded-card border border-line bg-white transition-[box-shadow,border-color,transform] duration-300 hover:-translate-y-1 hover:border-[#d4d8de] hover:shadow-card"
+            className="group flex gap-4 rounded-card border border-line bg-white p-4 transition-[box-shadow,border-color,transform] duration-300 hover:-translate-y-0.5 hover:border-[#d4d8de] hover:shadow-card"
           >
             <img
-              src={a.cover}
+              src={coverThumb(a.cover)}
               alt=""
               loading="lazy"
               decoding="async"
-              className="aspect-[16/9] w-full object-cover"
+              width={148}
+              height={83}
+              className="h-[62px] w-[110px] flex-none rounded-[10px] object-cover sm:h-[83px] sm:w-[148px]"
             />
-            <div className="flex flex-1 flex-col p-6">
-            <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold text-ink-2">
-              <Clock className="h-4 w-4 text-steel" /> {a.readMin} мин чтения
-            </div>
-            <h2 className="mb-2 text-[20px] font-extrabold leading-snug text-ink">
-              {a.title}
-            </h2>
-            <p className="mb-5 flex-1 text-[14px] leading-relaxed text-ink-2">
-              {a.description}
-            </p>
-            <span className="inline-flex items-center gap-2 text-[14px] font-bold text-bordeaux">
-              Читать статью
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </span>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <h2 className="line-clamp-3 text-[15px] font-extrabold leading-snug text-ink sm:line-clamp-2 sm:text-[16px]">
+                {a.title}
+              </h2>
+              <p className="mt-1.5 line-clamp-2 text-[13.5px] leading-relaxed text-ink-2 max-sm:hidden">
+                {a.description}
+              </p>
+              <div className="mt-auto flex items-center gap-2 pt-2.5 text-[12px] font-semibold text-ink-2">
+                <Clock className="h-3.5 w-3.5 text-steel" /> {a.readMin} мин
+                <span className="ml-auto inline-flex items-center gap-1.5 text-bordeaux">
+                  Читать
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+                </span>
+              </div>
             </div>
           </Link>
         ))}
