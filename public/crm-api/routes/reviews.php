@@ -163,6 +163,37 @@ function crm_route_reviews(string $method, array $path): void
         crm_json(['ok' => true, 'connected' => true, 'reviews' => $reviews]);
     }
 
+    // --- правка текста отзыва ---
+    if ($action !== '' && $action !== 'key' && $method === 'POST') {
+        crm_require_owner();
+        $key = crm_reviews_key();
+        if ($key === '') {
+            crm_fail(409, 'not_connected', 'Раздел не подключён к боту');
+        }
+
+        /*
+         * Отправляем весь набор полей, а не одно изменённое.
+         *
+         * Бот собирает запись заново из того, что пришло: отправишь только
+         * текст — сотрёшь имя и оценку. Поэтому интерфейс присылает карточку
+         * целиком, а мы её просто передаём.
+         */
+        $body = crm_body();
+        $data = crm_reviews_call($key, 'reviews.save', [
+            'id' => $action,
+            'name' => crm_str($body, 'name', 80),
+            'text' => crm_str($body, 'text', 1000),
+            'car' => crm_str($body, 'car', 120),
+            'rating' => max(1, min(5, (int) ($body['rating'] ?? 5))),
+        ]);
+        $reviews = $data['reviews'] ?? [];
+        crm_json([
+            'ok' => true,
+            'connected' => true,
+            'reviews' => crm_reviews_localize(is_array($reviews) ? $reviews : []),
+        ]);
+    }
+
     // --- удалить все ---
     if ($action === '' && $method === 'DELETE') {
         crm_require_owner();

@@ -278,6 +278,9 @@ export const api = {
 
   deleteReview: (id: string) => request<ReviewsReply>(`/reviews/${id}`, { method: "DELETE" }),
 
+  saveReview: (id: string, patch: { name: string; text: string; car: string; rating: number }) =>
+    request<ReviewsReply>(`/reviews/${id}`, { body: patch }),
+
   deleteAllReviews: () => request<ReviewsReply>("/reviews", { method: "DELETE" }),
 
   // --- резервные копии ---

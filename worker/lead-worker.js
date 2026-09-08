@@ -651,7 +651,7 @@ const NEED_CAP = {
  * админке бота однажды может обрасти новыми действиями, и они не должны
  * молча стать доступны стороннему серверу — их сюда придётся вписать руками.
  */
-const CRM_ACTIONS = ["reviews.list", "reviews.remove", "reviews.clear"];
+const CRM_ACTIONS = ["reviews.list", "reviews.save", "reviews.remove", "reviews.clear"];
 
 /**
  * Сравнение секретов за постоянное время.
