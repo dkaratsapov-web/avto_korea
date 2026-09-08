@@ -100,11 +100,27 @@ function crm_route_deals(string $method, array $path): void
     }
 
     if ($id !== '' && $action === '' && $method === 'DELETE') {
-        crm_require_owner();
-        if (crm_one('SELECT id FROM crm_deals WHERE id = ?', [$id]) === null) {
+        // Удалять может любой сотрудник: менеджеры сами заводят сделки и сами
+        // разбирают свои дубли, ждать владельца из-за этого незачем. Но след
+        // остаётся: остальным уходит уведомление, кто и что убрал, — иначе
+        // сделка исчезала бы бесшумно, и восстанавливать было бы не из чего,
+        // кроме ночной копии.
+        $user = crm_require_user();
+        $deal = crm_one('SELECT * FROM crm_deals WHERE id = ?', [$id]);
+        if ($deal === null) {
             crm_fail(404, 'not_found', 'Сделка не найдена');
         }
         crm_exec('DELETE FROM crm_deals WHERE id = ?', [$id]);
+
+        $car = trim((string) ($deal['car_brand'] ?? '') . ' ' . (string) ($deal['car_model'] ?? ''));
+        crm_notify_all(
+            'Удалена сделка №' . (int) $deal['number'],
+            (string) $user['name'] . ' удалил(а) сделку: '
+                . (string) $deal['client_name']
+                . ($car === '' ? '' : ', ' . $car),
+            (string) $user['id'],
+        );
+
         crm_json(['ok' => true]);
     }
 

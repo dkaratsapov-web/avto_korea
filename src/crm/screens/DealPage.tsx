@@ -31,7 +31,6 @@ import { STAGE_COLORS, STAGE_LABELS, STAGES, isStage, type Stage } from "../lib/
 import { money } from "../lib/money";
 import { formatDayShort, formatMoment, formatSize, isCallbackDue, today } from "../lib/format";
 import type { Deal, DealEvent, DealFile, FileKind, Task, User } from "../lib/types";
-import { useAuth } from "../auth";
 import { Badge, Button, Card, Empty, Field, Input, Modal, Select, Spinner, Textarea, useToast } from "../ui";
 
 const FILE_KIND_LABELS: Record<FileKind, string> = {
@@ -47,7 +46,6 @@ export function DealPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { isOwner } = useAuth();
 
   const [deal, setDeal] = useState<Deal | null>(null);
   const [events, setEvents] = useState<DealEvent[]>([]);
@@ -254,12 +252,10 @@ export function DealPage() {
             ) : null}
           </Card>
 
-          {isOwner ? (
-            <Button variant="danger" onClick={remove} className="w-full">
-              <Trash2 className="h-4 w-4" />
-              Удалить сделку
-            </Button>
-          ) : null}
+          <Button variant="danger" onClick={remove} className="w-full">
+            <Trash2 className="h-4 w-4" />
+            Удалить сделку
+          </Button>
         </aside>
       </div>
     </>
