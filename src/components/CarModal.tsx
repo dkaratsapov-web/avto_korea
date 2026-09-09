@@ -37,12 +37,19 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
   return (
     <Modal onClose={onClose} label={car.model} className="max-w-5xl">
       <div className="flex max-h-[92vh] flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-2">
-          {/* Галерея. На широком экране фото тянется на всю высоту правой
-              колонки: при фиксированной пропорции под ним оставалась полоса
-              пустого графита в пол-экрана. */}
-          <div className="relative flex flex-col bg-graphite p-4 sm:p-5">
-            <div className="relative aspect-[16/11] flex-1 overflow-hidden rounded-[16px] bg-black lg:aspect-auto lg:min-h-[320px]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 lg:items-start">
+          {/* Галерея.
+
+              Кадр показываем целиком (object-contain): фотографии с площадок
+              почти всегда горизонтальные, и растянутый на всю высоту колонки
+              object-cover срезал у машины бока.
+
+              Колонка не растягивается под соседнюю (items-start) и не имеет
+              своей подложки: раньше графитовая панель тянулась до низа окна,
+              и под превью зияло тёмное пустое поле. Теперь галерея просто
+              заканчивается там, где заканчивается контент. */}
+          <div className="relative flex flex-col p-4 sm:p-5">
+            <div className="relative aspect-[16/11] overflow-hidden rounded-[16px] bg-black">
               {cur?.type === "video" ? (
                 <video
                   key={cur.src}
@@ -58,7 +65,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
                 <img
                   src={cur?.src}
                   alt={`${car.model} — фото ${idx + 1}`}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
               )}
               <span className="pointer-events-none absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[13px] font-bold text-ink">
@@ -102,7 +109,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
                   type="button"
                   onClick={() => setIdx(i)}
                   aria-label={m.type === "video" ? "Видео" : `Фото ${i + 1}`}
-                  className={`relative aspect-[4/3] w-[64px] flex-none overflow-hidden rounded-[10px] border-2 transition-colors sm:w-[72px] ${
+                  className={`relative aspect-[4/3] w-[68px] flex-none overflow-hidden rounded-[10px] border-2 transition-colors sm:w-[78px] ${
                     i === idx
                       ? "border-bordeaux-bright"
                       : "border-transparent opacity-70 hover:opacity-100"

@@ -102,21 +102,21 @@ export function CarCard({ car }: { car: Car }) {
         ) : null}
       </div>
 
-      <div className="flex flex-1 flex-col p-3 sm:p-5">
+      <div className="flex flex-1 flex-col p-3 sm:px-4 sm:pb-4 sm:pt-3.5">
         <h3 className="font-display text-[15px] font-extrabold leading-tight tracking-[0.01em] text-ink sm:text-[21px]">
           {car.model}
         </h3>
-        <div className="mt-1 hidden text-[11.5px] font-semibold uppercase tracking-[0.04em] text-ink-2 sm:block sm:text-[13px]">
+        <div className="mt-0.5 hidden text-[11.5px] font-semibold uppercase tracking-[0.04em] text-ink-2 sm:block sm:text-[12.5px]">
           {car.year}
           {car.trim ? ` · ${car.trim}` : ""}
         </div>
         {car.addedAt ? (
-          <div className="mt-1 hidden text-[11px] font-medium text-ink-2/80 sm:block">
+          <div className="mt-0.5 hidden text-[11px] font-medium text-ink-2/80 sm:block">
             В каталоге с {new Date(car.addedAt).toLocaleDateString("ru-RU")}
           </div>
         ) : null}
 
-        <div className="mt-3 hidden grid-cols-1 gap-x-3 gap-y-2 border-t border-line pt-3 sm:mt-4 sm:grid sm:grid-cols-2 sm:gap-y-2.5 sm:pt-4">
+        <div className="mt-2.5 hidden grid-cols-1 gap-x-3 gap-y-2 border-t border-line pt-2.5 sm:mt-3 sm:grid sm:grid-cols-2 sm:gap-y-1.5 sm:pt-3">
           <Spec icon={<EngineIcon />} text={car.engine} />
           <Spec icon={<MileageIcon />} text={car.mileage} />
           {/* Коробка и привод — только там, где для них есть место. */}
@@ -143,9 +143,9 @@ export function CarCard({ car }: { car: Car }) {
          * помещается, кнопка уходит на свою строку целиком. Перенос — это
          * страховка от восьмизначных цен, а не основная раскладка.
          */}
-        <div className="mt-auto flex flex-col items-stretch gap-2.5 pt-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-3 sm:gap-y-2.5 sm:pt-5">
+        <div className="mt-auto flex flex-col items-stretch gap-2.5 pt-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-3 sm:gap-y-2 sm:pt-3.5">
           <div className="min-w-0 leading-none">
-            <div className="mb-1 text-[9.5px] font-bold uppercase tracking-[0.08em] text-ink-2 sm:mb-1.5 sm:text-[10.5px]">
+            <div className="mb-0.5 text-[9.5px] font-bold uppercase tracking-[0.08em] text-ink-2 sm:mb-1 sm:text-[10.5px]">
               {PRICE_LABEL}
             </div>
             <div className="whitespace-nowrap font-num text-[18px] font-extrabold text-bordeaux sm:text-[22px] 2xl:text-[26px]">
@@ -181,7 +181,7 @@ function Spec({
     <div
       className={`flex items-center gap-2 text-[11.5px] font-semibold text-[#2c333b] sm:gap-2.5 sm:text-[13px] ${className}`}
     >
-      <span className="flex h-6 w-6 flex-none items-center justify-center rounded-[8px] bg-paper text-steel sm:h-7 sm:w-7 sm:rounded-[9px] [&>svg]:h-[14px] [&>svg]:w-[14px] sm:[&>svg]:h-[16px] sm:[&>svg]:w-[16px]">
+      <span className="flex h-6 w-6 flex-none items-center justify-center rounded-[8px] bg-paper text-steel sm:h-[26px] sm:w-[26px] sm:rounded-[9px] [&>svg]:h-[14px] [&>svg]:w-[14px] sm:[&>svg]:h-[16px] sm:[&>svg]:w-[16px]">
         {icon}
       </span>
       <span className="truncate">{text}</span>

@@ -10,7 +10,6 @@ import {
 import { LeadForm } from "@/components/LeadForm";
 import { site } from "@/lib/site";
 import { HeroBackdrop } from "@/components/ui/HeroBackdrop";
-import { Modal } from "@/components/ui/Modal";
 import { fetchReviews, type Review as ApiReview } from "@/lib/api";
 
 function useMeta(title: string, description: string) {
@@ -94,7 +93,6 @@ function ReviewCard({ review }: { review: ApiReview }) {
   const slides = slidesOf(review);
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [full, setFull] = useState(false);
   const cur = slides[idx] ?? slides[0];
 
   /*
@@ -115,24 +113,6 @@ function ReviewCard({ review }: { review: ApiReview }) {
   // Поле «Авто» надёжнее разбора текста: его заполняет человек в CRM.
   const title = (review.car || "").trim() || deliveredTitle(review.text);
 
-  /*
-   * Текст отзыва без строки, которая уже стоит заголовком.
-   *
-   * Иначе первая фраза дублировалась бы дважды подряд — сверху крупно и тут
-   * же в кавычках, и карточка выглядела бы как ошибка вёрстки.
-   */
-  const story = (review.text || "")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => {
-      if (!l) return false;
-      // Строка «Выдача Volkswagen Tayron» — это и есть заголовок, просто
-      // со словом впереди. Сравнения «в лоб» тут мало.
-      const bare = l.replace(/^выдач[аи]\s*[:—-]?\s*/i, "").trim();
-      return l !== title && bare !== title;
-    })
-    .join(" ")
-    .trim();
 
   return (
     <article className="group relative flex w-full flex-col overflow-hidden rounded-[20px] bg-graphite shadow-[0_18px_40px_-22px_rgba(20,25,32,0.75)] transition-shadow hover:shadow-[0_22px_50px_-20px_rgba(20,25,32,0.85)] sm:w-[340px]">
@@ -203,7 +183,11 @@ function ReviewCard({ review }: { review: ApiReview }) {
             Подпись показываем, только если она есть: видео с выдач присылают
             без подписи, и выдуманный заголовок читался бы как штамп. Пока
             видео не запущено, плеер их не перекрывает; после запуска слой
-            уходит целиком. */}
+            уходит целиком.
+
+            Текста отзыва здесь нет намеренно: в ленту приходят подписи постов
+            («Выдача X, клиент Y, пришёл по ссылке»), и на карточке они читались
+            рекламной строкой поверх живого кадра. */}
         {!playing && (title || slides.length > 1) ? (
           <div className="absolute inset-x-0 bottom-0 flex flex-col gap-2.5 p-3.5">
             {title ? (
@@ -215,25 +199,6 @@ function ReviewCard({ review }: { review: ApiReview }) {
                   {title}
                 </div>
               </div>
-            ) : null}
-
-            {/* Сам отзыв — двумя строками поверх кадра, полный текст в окне.
-                Целиком он занял бы всю карточку и закрыл бы машину, ради
-                которой на карточку и смотрят; а прятать его совсем нельзя —
-                это и есть отзыв. */}
-            {story ? (
-              <button
-                type="button"
-                onClick={() => setFull(true)}
-                className="text-left"
-              >
-                <span className="line-clamp-2 text-[13px] leading-snug text-white/85">
-                  «{story}»
-                </span>
-                <span className="mt-1 inline-block text-[12px] font-bold text-white underline decoration-white/40 underline-offset-2">
-                  Читать целиком
-                </span>
-              </button>
             ) : null}
 
             {slides.length > 1 ? (
@@ -277,26 +242,6 @@ function ReviewCard({ review }: { review: ApiReview }) {
         ) : null}
       </div>
 
-      {full ? (
-        <Modal onClose={() => setFull(false)} label="Отзыв клиента" className="sm:max-w-lg">
-          <div className="max-h-[80vh] overflow-y-auto p-5 sm:p-6">
-            <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-chrome">
-              Отзыв клиента
-            </div>
-            {title ? (
-              <div className="mt-1 text-[18px] font-extrabold leading-tight text-white">
-                {title}
-              </div>
-            ) : null}
-            <p className="mt-3 whitespace-pre-line text-[14.5px] leading-relaxed text-[#C7CFD6]">
-              {story}
-            </p>
-            {review.name ? (
-              <div className="mt-4 text-[13px] font-bold text-white">{review.name}</div>
-            ) : null}
-          </div>
-        </Modal>
-      ) : null}
     </article>
   );
 }
