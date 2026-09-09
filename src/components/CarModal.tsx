@@ -38,9 +38,11 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
     <Modal onClose={onClose} label={car.model} className="max-w-5xl">
       <div className="flex max-h-[92vh] flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="grid grid-cols-1 lg:grid-cols-2">
-          {/* Галерея */}
-          <div className="relative bg-graphite p-4 sm:p-5">
-            <div className="relative aspect-[16/11] overflow-hidden rounded-[16px] bg-black">
+          {/* Галерея. На широком экране фото тянется на всю высоту правой
+              колонки: при фиксированной пропорции под ним оставалась полоса
+              пустого графита в пол-экрана. */}
+          <div className="relative flex flex-col bg-graphite p-4 sm:p-5">
+            <div className="relative aspect-[16/11] flex-1 overflow-hidden rounded-[16px] bg-black lg:aspect-auto lg:min-h-[320px]">
               {cur?.type === "video" ? (
                 <video
                   key={cur.src}
@@ -90,14 +92,17 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
               ) : null}
             </div>
 
-            <div className="mt-3 grid grid-cols-5 gap-2 sm:grid-cols-6">
+            {/* Превью — ряд фиксированной ширины, а не сетка на шесть колонок:
+                при четырёх фото сетка растягивала их через весь ряд, и между
+                ними зияли пустые ячейки. */}
+            <div className="mt-2.5 flex flex-none gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {media.map((m, i) => (
                 <button
                   key={`${m.type}-${i}`}
                   type="button"
                   onClick={() => setIdx(i)}
                   aria-label={m.type === "video" ? "Видео" : `Фото ${i + 1}`}
-                  className={`relative aspect-[4/3] w-full overflow-hidden rounded-[10px] border-2 transition-colors ${
+                  className={`relative aspect-[4/3] w-[64px] flex-none overflow-hidden rounded-[10px] border-2 transition-colors sm:w-[72px] ${
                     i === idx
                       ? "border-bordeaux-bright"
                       : "border-transparent opacity-70 hover:opacity-100"
@@ -120,12 +125,12 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
           </div>
 
           {/* Инфо */}
-          <div className="flex flex-col gap-4 p-5 text-white sm:p-7">
+          <div className="flex flex-col gap-3 p-5 text-white sm:p-6">
             <div>
               <div className="mb-1 text-[13px] font-semibold uppercase tracking-[0.12em] text-chrome">
                 {car.trim}
               </div>
-              <h3 className="text-[28px] font-extrabold uppercase leading-none text-white">
+              <h3 className="text-[26px] font-extrabold uppercase leading-none text-white">
                 {car.model}
               </h3>
               <div className="mt-1.5 text-[14px] font-semibold text-[#9AA4B2]">
@@ -139,7 +144,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
               ) : null}
             </div>
 
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-card border border-line-dark bg-white/[0.03] p-4">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 rounded-card border border-line-dark bg-white/[0.03] px-4 py-3">
               <Spec icon={<EngineIcon />} text={car.engine} />
               <Spec icon={<MileageIcon />} text={car.mileage} />
               <Spec icon={<GearboxIcon />} text={car.gearbox} />
@@ -147,12 +152,12 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
             </div>
 
             {car.description ? (
-              <p className="text-[14px] leading-relaxed text-[#C7CFD6]">
+              <p className="text-[13.5px] leading-[1.55] text-[#C7CFD6]">
                 {car.description}
               </p>
             ) : null}
 
-            <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
+            <ul className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
               {car.highlights.map((h) => (
                 <li
                   key={h}
@@ -183,19 +188,19 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
             </div>
 
             {/* Цена одна — до Москвы. Раньше их было две, рядом, и человек
-                первым делом спрашивал не «сколько», а «а мне какая». */}
-            <div className="mt-auto">
-              <div className="min-w-0 rounded-card border border-line-dark bg-white/[0.03] px-4 py-3">
-                <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-2">
-                  {PRICE_LABEL}
-                </div>
-                <div className="font-num text-[20px] font-bold text-bordeaux-bright sm:text-[24px]">
-                  {formatPrice(displayPrice(car))} ₽
-                </div>
-              </div>
+                первым делом спрашивал не «сколько», а «а мне какая».
+                Подложка теперь по ширине содержимого: на всю колонку она
+                тянулась полупустой панелью с провалом справа от суммы. */}
+            <div className="mt-auto flex w-fit max-w-full flex-wrap items-baseline gap-x-3 gap-y-0.5 rounded-card border border-line-dark bg-white/[0.03] px-4 py-2.5">
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#9AA4B2]">
+                {PRICE_LABEL}
+              </span>
+              <span className="font-num text-[21px] font-bold text-bordeaux-bright sm:text-[25px]">
+                {formatPrice(displayPrice(car))} ₽
+              </span>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2.5">
               <button
                 type="button"
                 onClick={() => toggleFav(car.id)}
@@ -227,8 +232,8 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
         </div>
 
         {/* Широкая горизонтальная форма снизу */}
-        <div className="border-t border-line-dark bg-graphite-2/50 p-5 sm:px-7 sm:py-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="border-t border-line-dark bg-graphite-2/50 p-4 sm:px-6 sm:py-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="text-[16px] font-bold text-white">
                 Запросить расчёт по этому авто

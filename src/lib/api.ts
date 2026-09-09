@@ -190,7 +190,15 @@ export async function fetchReviews(): Promise<Review[]> {
   try {
     const r = await fetch(`${API_BASE}/api/reviews`, { cache: "no-store" });
     const d = (await r.json()) as { ok: boolean; reviews: Review[] };
-    return Array.isArray(d.reviews) ? d.reviews : [];
+    const list = Array.isArray(d.reviews) ? d.reviews : [];
+    /*
+     * Витрина идёт в обратном порядке к хранилищу.
+     *
+     * Бот кладёт новую запись в начало списка, поэтому на сайте и в мини-аппе
+     * лента начиналась с последнего присланного ролика. Разворачиваем: первым
+     * идёт то, что в хранилище лежит последним.
+     */
+    return list.slice().reverse();
   } catch {
     return [];
   }
