@@ -115,7 +115,7 @@ function ReviewCard({ review }: { review: ApiReview }) {
 
 
   return (
-    <article className="group relative flex w-full flex-col overflow-hidden rounded-[20px] bg-graphite shadow-[0_18px_40px_-22px_rgba(20,25,32,0.75)] transition-shadow hover:shadow-[0_22px_50px_-20px_rgba(20,25,32,0.85)] sm:w-[340px]">
+    <article className="group relative flex w-full flex-col overflow-hidden rounded-[20px] bg-graphite shadow-[0_18px_40px_-22px_rgba(20,25,32,0.75)] transition-shadow hover:shadow-[0_22px_50px_-20px_rgba(20,25,32,0.85)]">
       <div className="relative aspect-[3/4] overflow-hidden">
         {isVideo && playing ? (
           <video
@@ -562,7 +562,7 @@ export function ReviewsPage() {
         // Скелет на месте будущих карточек: место занято сразу, поэтому
         // страница не прыгает, когда отзывы приезжают.
         <section className="wrap mt-6">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
@@ -605,7 +605,7 @@ export function ReviewsPage() {
             их не видно, а на телефоне горизонтальная прокрутка ещё и спорит
             с вертикальной. Отзывов теперь много — пусть все и будут на виду.
           */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {withMedia.map((r) => (
               <ReviewCard key={r.id} review={r} />
             ))}
