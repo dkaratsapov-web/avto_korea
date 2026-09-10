@@ -192,13 +192,23 @@ export async function fetchReviews(): Promise<Review[]> {
     const d = (await r.json()) as { ok: boolean; reviews: Review[] };
     const list = Array.isArray(d.reviews) ? d.reviews : [];
     /*
-     * Витрина идёт в обратном порядке к хранилищу.
+     * Новые отзывы идут первыми.
      *
-     * Бот кладёт новую запись в начало списка, поэтому на сайте и в мини-аппе
-     * лента начиналась с последнего присланного ролика. Разворачиваем: первым
-     * идёт то, что в хранилище лежит последним.
+     * Сортируем по метке времени публикации, а не по месту в хранилище:
+     * правка старого отзыва в CRM не должна поднимать его наверх, а порядок
+     * в KV зависит от того, каким путём запись туда попала.
+     *
+     * У записей, сделанных до появления метки, её нет — они уходят в конец,
+     * сохраняя между собой исходный порядок. Это и есть самые старые выдачи.
      */
-    return list.slice().reverse();
+    return list
+      .map((review, index) => ({ review, index }))
+      .sort((a, b) => {
+        const ta = Number(a.review.ts) || 0;
+        const tb = Number(b.review.ts) || 0;
+        return tb - ta || a.index - b.index;
+      })
+      .map((item) => item.review);
   } catch {
     return [];
   }
