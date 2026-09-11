@@ -1,5 +1,6 @@
 // Клиент к воркеру: общий каталог (публично) и админ-API (по подписи Telegram).
 import type { Car } from "@/data/cars";
+import { orderReviews } from "./reviews-order";
 
 // VITE_LEAD_ENDPOINT = https://diauto-bot.<acc>.workers.dev/lead
 // База API = тот же воркер без /lead.
@@ -191,24 +192,9 @@ export async function fetchReviews(): Promise<Review[]> {
     const r = await fetch(`${API_BASE}/api/reviews`, { cache: "no-store" });
     const d = (await r.json()) as { ok: boolean; reviews: Review[] };
     const list = Array.isArray(d.reviews) ? d.reviews : [];
-    /*
-     * Новые отзывы идут первыми.
-     *
-     * Сортируем по метке времени публикации, а не по месту в хранилище:
-     * правка старого отзыва в CRM не должна поднимать его наверх, а порядок
-     * в KV зависит от того, каким путём запись туда попала.
-     *
-     * У записей, сделанных до появления метки, её нет — они уходят в конец,
-     * сохраняя между собой исходный порядок. Это и есть самые старые выдачи.
-     */
-    return list
-      .map((review, index) => ({ review, index }))
-      .sort((a, b) => {
-        const ta = Number(a.review.ts) || 0;
-        const tb = Number(b.review.ts) || 0;
-        return tb - ta || a.index - b.index;
-      })
-      .map((item) => item.review);
+    // Правило порядка вынесено отдельно и покрыто тестами: на витрине его
+    // ошибку не видно, пока свежая выдача не окажется в самом низу страницы.
+    return orderReviews(list);
   } catch {
     return [];
   }
