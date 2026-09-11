@@ -69,13 +69,15 @@ export function Preloader({ onDone }: { onDone: () => void }) {
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setLeaving(true), 4200);
+    // Было 4200 + 700 — почти пять секунд до витрины. Глобус успевает
+    // сделать оборот и за это время.
+    const t = setTimeout(() => setLeaving(true), 1600);
     return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
     if (!leaving) return;
-    const t = setTimeout(onDone, 700);
+    const t = setTimeout(onDone, 450);
     return () => clearTimeout(t);
   }, [leaving, onDone]);
 
@@ -296,7 +298,7 @@ export function Preloader({ onDone }: { onDone: () => void }) {
 
   return (
     <div
-      className={`grain fixed inset-0 z-[100] flex flex-col items-center justify-center gap-7 overflow-hidden bg-graphite transition-opacity duration-700 ${
+      className={`grain fixed inset-0 z-[100] flex flex-col items-center justify-center gap-7 overflow-hidden bg-graphite transition-opacity duration-500 ${
         leaving ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
     >
