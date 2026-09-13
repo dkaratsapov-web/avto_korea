@@ -20,7 +20,7 @@ const ANY = "any";
 const STEPS: Step[] = [
   {
     key: "country",
-    q: "Из какой страны везём?",
+    q: "Из какой страны подобрать авто?",
     options: [
       { label: "Корея", value: "kr" },
       { label: "Китай", value: "cn" },

@@ -15,7 +15,7 @@ type Step = { key: string; q: string; options: string[] };
 const STEPS: Step[] = [
   {
     key: "country",
-    q: "Из какой страны везём?",
+    q: "Из какой страны подобрать авто?",
     options: ["Корея", "Китай", "Япония", "Любая — посоветуйте"],
   },
   {
