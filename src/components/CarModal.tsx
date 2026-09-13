@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Heart, Check, ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { Heart, Check, ChevronLeft, ChevronRight, Play, Scale } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { Modal } from "@/components/ui/Modal";
 import { LeadForm } from "@/components/LeadForm";
@@ -18,10 +18,11 @@ import { GOALS, reachGoal } from "@/lib/metrika";
 import { displayPrice, PRICE_LABEL } from "@/lib/price";
 
 export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
-  const { isFav, toggleFav } = useUI();
+  const { isFav, toggleFav, isCompare, toggleCompare } = useUI();
   const [idx, setIdx] = useState(0);
   const country = countries[car.country];
   const fav = isFav(car.id);
+  const cmp = isCompare(car.id);
 
   // Единый список медиа: видео (если есть) первым, затем фото.
   const media = [
@@ -225,18 +226,25 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
                 />
                 {fav ? "В избранном" : "В избранное"}
               </button>
-              <Button
-                href={site.telegramHref}
-                onClick={() =>
-                  reachGoal(GOALS.telegram, { place: "Карточка авто" })
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                variant="ghost"
-                className="flex-1"
+              {/* Рядом с избранным — сравнение: оба про выбор между машинами,
+                  и обе кнопки никуда не уводят с карточки. Телеграм стоял
+                  здесь же и уводил в мессенджер ровно в тот момент, когда
+                  человек ещё сравнивает варианты. */}
+              <button
+                type="button"
+                onClick={() => toggleCompare(car.id)}
+                aria-pressed={cmp}
+                className={`btn flex-1 ${
+                  cmp
+                    ? "border border-bordeaux-bright bg-bordeaux/15 text-white"
+                    : "border border-line-dark text-white hover:bg-white/5"
+                }`}
               >
-                <TelegramIcon className="h-[18px] w-[18px]" />В Telegram
-              </Button>
+                <Scale
+                  className={`h-[18px] w-[18px] ${cmp ? "text-bordeaux-bright" : ""}`}
+                />
+                {cmp ? "В сравнении" : "В сравнение"}
+              </button>
             </div>
           </div>
         </div>
@@ -251,6 +259,19 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
               <div className="text-[13px] text-[#9AA4B2]">
                 Оставьте имя и телефон — перезвоним в течение 15 минут.
               </div>
+              {/* Телеграм — здесь же, рядом с заявкой: это второй способ
+                  сделать то же самое, а не действие с карточкой. */}
+              <Button
+                href={site.telegramHref}
+                onClick={() => reachGoal(GOALS.telegram, { place: "Карточка авто" })}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="ghost"
+                className="mt-3 w-full sm:w-auto"
+              >
+                <TelegramIcon className="h-[18px] w-[18px]" />
+                Или написать в Telegram
+              </Button>
             </div>
             <LeadForm
               layout="compact"
