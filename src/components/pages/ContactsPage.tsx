@@ -81,7 +81,7 @@ export function ContactsPage() {
 
       <div className="wrap mt-10 grid gap-8 lg:grid-cols-[1fr_1.1fr]">
         {/* Контакты + инфо */}
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2">
             {contacts.map((c) => (
               <a
@@ -141,12 +141,16 @@ export function ContactsPage() {
             </div>
           </div>
 
-          {/* Карта проезда — Яндекс.Карты */}
-          <div className="overflow-hidden rounded-card border border-line bg-white">
+          {/* Карта проезда — Яндекс.Карты.
+
+              Тянется до низа колонки: справа стоит форма заявки, и когда карта
+              заканчивалась выше её, под ней оставалась пустая полоса во всю
+              ширину колонки. */}
+          <div className="min-h-[300px] overflow-hidden rounded-card border border-line bg-white lg:flex-1">
             <iframe
               src={site.mapEmbed}
               title="ДиАвто69 на карте — Тверь, ул. Коминтерна, 71"
-              className="h-[300px] w-full border-0"
+              className="h-[300px] w-full border-0 lg:h-full"
               loading="lazy"
               allowFullScreen
             />

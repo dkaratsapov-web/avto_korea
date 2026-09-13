@@ -127,7 +127,7 @@ export function Reviews() {
         <Reveal className="flex items-end justify-between gap-6">
           <SectionHeading
             eyebrow="Отзывы · Доставили"
-            title="Реальные кейсы клиентов"
+            title="Реальные отзывы клиентов"
             description="Авто, маршрут, срок и итоговая цена под ключ — без приукрашиваний."
           />
           <div className="hidden flex-none gap-2 sm:flex">

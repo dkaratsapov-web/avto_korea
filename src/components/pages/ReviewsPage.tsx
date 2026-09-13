@@ -461,7 +461,7 @@ function SourceTabs({
 export function ReviewsPage() {
   useMeta(
     "Отзывы клиентов ДиАвто69 — видео и фото выдач авто",
-    "Отзывы и кейсы клиентов ДиАвто69: какие авто привезли под ключ из Кореи, Китая, Японии и ЕС, сроки доставки и итоговые цены. Честно, без приукрашиваний.",
+    "Отзывы клиентов ДиАвто69: какие авто привезли под ключ из Кореи, Китая, Японии и ЕС, сроки доставки и итоговые цены. Честно, без приукрашиваний.",
   );
 
   // Реальные отзывы из Telegram (пересылка владельцем боту / канал отзывов).
@@ -617,7 +617,7 @@ export function ReviewsPage() {
         <div className="rounded-card border border-line bg-graphite p-6 text-white sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="lg:max-w-sm">
-              <h2 className="text-[24px] font-extrabold uppercase text-white">Станьте следующим кейсом</h2>
+              <h2 className="text-[24px] font-extrabold uppercase text-white">Станьте следующим клиентом</h2>
               <p className="mt-2 text-[14px] text-[#9AA4B2]">
                 Оставьте заявку — подберём авто под ваш бюджет и посчитаем честную
                 цену под ключ.
