@@ -127,21 +127,12 @@ export function ArticlePage() {
         <div className="chrome-line absolute inset-x-0 bottom-0" />
       </section>
 
-      {/* Обложка небольшая и целиком. Во всю ширину она отодвигала первый абзац за
-          экран, а подрезать её по высоте нельзя: на обложке набрано название
-          статьи, и любой обрез рубит слова пополам. */}
-      <div className="wrap -mt-1">
-        <img
-          src={article.cover}
-          alt=""
-          width={520}
-          height={293}
-          className="mt-6 w-full max-w-[520px] rounded-card border border-line"
-          decoding="async"
-        />
-      </div>
+      {/* Обложки внутри статьи нет намеренно: на ней набрано то же название,
+          что стоит заголовком строкой выше. Картинка-дубль ничего не добавляла
+          и только отодвигала первый абзац. В списке статей обложка осталась —
+          там она работает как метка материала. */}
 
-      <article className="wrap mt-10 max-w-3xl">
+      <article className="wrap mt-8 max-w-3xl">
         {article.body.map((b, i) => {
           if (b.t === "h2")
             return (
