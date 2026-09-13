@@ -2286,3 +2286,112 @@ test("«Написать менеджеру» в MAX ведёт в MAX, а не 
   assert.match(String(manager.url), /^https:\/\/max\.ru\/u\//, "ссылка должна быть на профиль в MAX");
   assert.ok(!/t\.me/.test(String(manager.url)), "телеграма в кнопке быть не должно");
 });
+
+/* ---------- Авто в канале публикуют статьёй, а не постом ---------- */
+
+/**
+ * Статья приносит машину не подписью к фотографии, а деревом блоков:
+ * заголовок с маркой, карусель снимков и таблица характеристик. Разбор такого
+ * поста ломается тихо: карточка в каталоге появляется, но без пробега, цены и
+ * половины фотографий — снаружи это выглядит как «бот стал хуже распознавать».
+ */
+function articlePost(chatId, msgId) {
+  return {
+    update_id: 77,
+    channel_post: {
+      message_id: msgId,
+      chat: { id: chatId, type: "channel", title: "Канал " + chatId },
+      // Подписи у статьи может не быть вовсе — весь текст в блоках.
+      rich_message: {
+        blocks: [
+          { type: "heading", text: "HYUNDAI" },
+          {
+            type: "carousel",
+            media: [
+              { photo: [{ file_id: "ph-small" }, { file_id: "ph-1" }] },
+              { photo: [{ file_id: "ph-2" }] },
+              { photo: [{ file_id: "ph-3" }] },
+            ],
+          },
+          {
+            type: "paragraph",
+            text: "Цена указана уже с Утильсбором, Растаможкой, Логистикой и прочими расходами!",
+          },
+          {
+            type: "table",
+            rows: [
+              { cells: [{ text: "Модель:" }, { text: "Elantra" }] },
+              { cells: [{ text: "Год выпуска:" }, { text: "2023/08" }] },
+              { cells: [{ text: "Пробег:" }, { text: "23.000 км" }] },
+              { cells: [{ text: "Двигатель:" }, { text: "1.5L" }] },
+              { cells: [{ text: "Мощность:" }, { text: "115л.с" }] },
+              { cells: [{ text: "Привод:" }, { text: "передний" }] },
+              { cells: [{ text: "Комплектация:" }, { text: "Premium" }] },
+            ],
+          },
+          {
+            type: "quote",
+            text: "До Москвы под ключ - всего за 1.930.000₽",
+          },
+        ],
+      },
+    },
+  };
+}
+
+test("статья из канала заводит карточку со всеми характеристиками", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-1002000000007", autoPublish: true },
+  });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(articlePost("-1002000000007", 11), { store, ctx: c.ctx });
+  await c.settle();
+
+  const cat = await catalogOf(store);
+  assert.equal(cat.length, 1, "статья обязана дойти до каталога");
+  const car = cat[0];
+  assert.match(car.model, /hyundai/i, "марка стоит заголовком статьи");
+  assert.match(car.model, /elantra/i, "модель лежит строкой таблицы");
+  assert.equal(car.year, 2023, "год берётся из таблицы");
+  assert.equal(car.mileageKm, 23000, "пробег «23.000 км» — это 23 000");
+  assert.equal(car.powerHp, 115, "мощность из таблицы");
+  assert.equal(car.engineCc, 1500, "объём «1.5L» — это 1500 см³");
+  assert.equal(car.drive, "Передний", "привод в таблице записан как «Привод: передний»");
+  assert.equal(car.trim, "Premium", "комплектация из таблицы");
+  assert.equal(car.priceRub, 1930000, "цена до Москвы из врезки");
+});
+
+test("карусель статьи попадает в карточку целиком", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-1002000000008", autoPublish: true },
+  });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(articlePost("-1002000000008", 12), { store, ctx: c.ctx });
+  await c.settle();
+
+  const [car] = await catalogOf(store);
+  assert.equal(car.images.length, 3, "в карточке должны быть все три снимка");
+  assert.ok(
+    car.images.every((u) => /ph-[123]/.test(u)),
+    "берём крупный размер каждого снимка, а не превью: " + car.images.join(" | "),
+  );
+});
+
+test("обычный пост с подписью разбирается как раньше", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-1002000000009", autoPublish: true },
+  });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(channelPost("-1002000000009", 13, CAR_POST), { store, ctx: c.ctx });
+  await c.settle();
+
+  const [car] = await catalogOf(store);
+  assert.equal(car.priceRub, 4200000, "цена из обычного поста");
+  assert.match(car.model, /palisade/i, "модель из первой строки подписи");
+});

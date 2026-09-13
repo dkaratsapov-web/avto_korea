@@ -28,10 +28,30 @@ export function ContactsPage() {
     "Свяжитесь с ДиАвто69: телефон, Telegram и MAX. Импорт авто из Кореи, Китая, Японии и ЕС под ключ. Тверь, 69 регион.",
   );
 
+  /*
+   * Телеграмы обоих — и Дмитрия, и Сергея.
+   *
+   * Раньше на странице был только один контакт, и всё логистическое
+   * направление шло через того же человека, что и подбор. Данные берём из
+   * команды на «О нас», чтобы ник не разъехался с карточкой сотрудника.
+   */
+  const sergey = site.team.find((m) => m.name === "Сергей");
+
   const contacts = [
     { icon: <Phone className="h-5 w-5" />, label: "Телефон", value: site.phone, href: site.phoneHref },
-    { icon: <TelegramIcon className="h-5 w-5" />, label: "Telegram", value: site.telegram, href: site.telegramHref, ext: true },
+    { icon: <TelegramIcon className="h-5 w-5" />, label: "Telegram · Дмитрий", value: site.telegram, href: site.telegramHref, ext: true },
     { icon: <MaxIcon className="h-5 w-5" />, label: "MAX", value: "Написать в MAX", href: site.maxHref, ext: true },
+    ...(sergey?.telegramHref
+      ? [
+          {
+            icon: <TelegramIcon className="h-5 w-5" />,
+            label: "Telegram · Сергей",
+            value: sergey.telegram ?? "Написать в Telegram",
+            href: sergey.telegramHref,
+            ext: true,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -82,7 +102,10 @@ export function ContactsPage() {
             ))}
           </div>
 
+          {/* Адрес и часы — в один ряд: часы занимали отдельную строку под
+              картами, и карточка тянулась вниз ради двух слов. */}
           <div className="rounded-card border border-line bg-white p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
             <div className="flex items-start gap-3">
               <MapPin className="mt-0.5 h-5 w-5 flex-none text-steel" />
               <div>
@@ -108,12 +131,13 @@ export function ContactsPage() {
                 </div>
               </div>
             </div>
-            <div className="mt-4 flex items-start gap-3">
+            <div className="flex flex-none items-start gap-3">
               <Clock className="mt-0.5 h-5 w-5 flex-none text-steel" />
               <div>
                 <div className="text-[12px] font-bold uppercase tracking-wide text-ink-2">Часы работы</div>
                 <div className="font-bold text-ink">Ежедневно 10:00–18:00</div>
               </div>
+            </div>
             </div>
           </div>
 

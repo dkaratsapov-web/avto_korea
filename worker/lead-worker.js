@@ -2107,7 +2107,7 @@ function hasLetters(s) {
 }
 // Метки-ярлыки строк характеристик — такие строки не могут быть моделью.
 const LABEL_RE =
-  /^(цена|стоимость|price|год|year|двигатель|мотор|объ[её]м|мощность|пробег|mileage|коробк|кпп|акпп|мкпп|трансмисс|привод|drive|цвет|color|кузов|топлив|компле|таможн|растаможк|под\s*ключ|итог|наличи|заказ|в\s*пути)/i;
+  /^(цена|стоимость|price|год|year|модел|двигатель|мотор|объ[её]м|мощность|пробег|mileage|коробк|кпп|акпп|мкпп|трансмисс|привод|drive|цвет|color|кузов|топлив|компле|таможн|растаможк|под\s*ключ|итог|наличи|заказ|в\s*пути)/i;
 // Строки-заголовки объявления — тоже не модель («НОВЫЙ АВТОМОБИЛЬ!!!!» и т.п.).
 const HEADER_RE =
   /^(нов(ый|ое|ая|инка)|прода|в\s*прода|распрода|поступил|в\s*наличии|в\s*продаже|в\s*пути|под\s*заказ|доступен|доступна|доступно|ожида|готов\s|прибыл|приедет|выкуплен|забронир|бронир|резерв|свободен|принима|заявк|срочно|торг|обмен|скидк|акци|выгодн|кредит|рассрочк|лизинг|успей|спешит|осталось|последний|эксклюзив|лучшая\s*цена|цена\s*дня|хит\b|автомобиль\b|авто\b|new\b|sale\b|продан)/i;
@@ -2174,10 +2174,32 @@ function parseCaption(text) {
       .replace(/\s*[—\-–,]?\s*(19|20)\d{2}\s*(г(од)?\.?|year)?\s*$/i, "")
       .replace(/[.,;:!]+$/, "")
       .trim();
+  let model = "";
+
+  /*
+   * Статья из канала: марка стоит заголовком, модель — строкой таблицы.
+   *
+   * «HYUNDAI» сверху и «Модель: Elantra» в таблице — это одна машина, и в
+   * каталог она должна попасть как «HYUNDAI Elantra». Если взять только
+   * заголовок, каталог заполнится десятком одинаковых «HYUNDAI»; если только
+   * строку таблицы — пропадёт марка, а по ней работают и фильтр, и определение
+   * страны вывоза.
+   */
+  const modelRow = bodyRaw.match(/(?:^|\n)\s*модел[ьи]\s*[:：—–-]+\s*([^\n]+)/i);
+  if (modelRow) {
+    const value = stripYear(cleanLine(modelRow[1]));
+    const head = candidates.find((l) => looksLikeModel(l)) || "";
+    const brandHead = stripYear(head);
+    const fitsBrand =
+      brandHead &&
+      brandHead.split(/\s+/).filter(Boolean).length <= 2 &&
+      !value.toLowerCase().includes(brandHead.toLowerCase());
+    model = fitsBrand ? `${brandHead} ${value}`.trim() : value;
+  }
+
   // Сначала ищем строку, похожую на название модели, и только потом берём
   // первую попавшуюся — иначе в модель попадали фразы вроде «Доступен к заказу».
-  let model = "";
-  for (const l of candidates) {
+  if (!model) for (const l of candidates) {
     if (!looksLikeModel(l)) continue;
     model = stripYear(l);
     if (model) break;
@@ -2262,10 +2284,20 @@ function parseCaption(text) {
     : /механик|мкпп|manual/i.test(bodyRaw) ? "МКПП"
     : /автомат|акпп|a\/t|at\b/i.test(bodyRaw) ? "АКПП" : "";
   const driveRaw = `${raw}\n${bodyRaw}`;
-  const drive = /полн(ый)?\s*привод|\bawd\b|\b4wd\b|4x4|4matic|quattro|xdrive|4motion|allrad|\bатт?esa\b/i.test(driveRaw)
+  /*
+   * Привод пишут двумя способами, и порядок слов в них обратный.
+   *
+   * В подписи к посту — «полный привод», в таблице статьи — «Привод: полный».
+   * Шаблон, который требовал слова «привод» ПОСЛЕ типа, на таблице не
+   * срабатывал, и машина уезжала в каталог без привода — то есть выпадала из
+   * фильтра по нему.
+   */
+  const driveLabel = driveRaw.match(/привод\s*[:：—–-]+\s*([^\n]+)/i);
+  const driveText = `${driveRaw}\n${driveLabel ? driveLabel[1] : ""}`;
+  const drive = /полн(ый)?\s*привод|привод\s*[:：—–-]+\s*полн|\bawd\b|\b4wd\b|4x4|4matic|quattro|xdrive|4motion|allrad|\bатт?esa\b/i.test(driveText)
     ? "Полный"
-    : /задн(ий)?\s*привод|\brwd\b/i.test(driveRaw) ? "Задний"
-    : /перед(ний)?\s*привод|\bfwd\b/i.test(driveRaw) ? "Передний" : "";
+    : /задн(ий)?\s*привод|привод\s*[:：—–-]+\s*задн|\brwd\b/i.test(driveText) ? "Задний"
+    : /перед(ний)?\s*привод|привод\s*[:：—–-]+\s*перед|\bfwd\b/i.test(driveText) ? "Передний" : "";
   const bodyTypeM = (bodyRaw.match(/седан|кроссовер|внедорожник|хэтчбек|хетчбек|универсал|купе|минивэн|пикап|лифтбек|кабриолет/i) || [""])[0];
   const fuelType = /гибрид|hybrid/i.test(bodyRaw) ? "Гибрид"
     : /электро|electric|ev\b/i.test(bodyRaw) ? "Электро"
@@ -2363,6 +2395,168 @@ function parseCaption(text) {
       (l) => hasLetters(l) && !HEADER_RE.test(l) && !/цена|стоимость|price/i.test(l),
     ),
   };
+}
+
+/* ---------- Посты-статьи из канала ---------- */
+
+/*
+ * Авто выкладывают в канал статьёй, а не обычным постом.
+ *
+ * У обычного поста всё содержимое лежало в двух полях: подпись (caption или
+ * text) и фотографии (photo). У статьи иначе: заголовок, карусель снимков и
+ * таблица характеристик приезжают отдельным деревом блоков. Подпись при этом
+ * может быть пустой или неполной — например, в ней не будет ни модели, ни
+ * пробега, потому что они стоят строками таблицы.
+ *
+ * Разбирать это дерево «по схеме» нельзя: набор блоков Telegram расширяет, и
+ * жёсткий разбор молча перестанет находить характеристики ровно в тот день,
+ * когда в статью добавят новый элемент. Поэтому обход терпимый: он собирает
+ * текст и файлы отовсюду, где они лежат, а незнакомые блоки просто проходит
+ * насквозь. Худшее, что может случиться, — лишняя строка в описании; это
+ * несравнимо дешевле, чем карточка без пробега и цены.
+ */
+
+/** Поля, в которых у блока может лежать собственный текст. */
+const RICH_TEXT_KEYS = ["text", "caption", "title", "subtitle", "value", "label"];
+/** Поля, внутри которых могут лежать вложенные блоки. */
+const RICH_CHILD_KEYS = [
+  "blocks",
+  "children",
+  "items",
+  "rows",
+  "cells",
+  "columns",
+  "content",
+  "body",
+  "elements",
+  "sections",
+  "media",
+  "list",
+];
+
+/**
+ * Построчный текст из дерева блоков.
+ *
+ * Строка таблицы обязана остаться парой: «Модель | Elantra» превращается в
+ * «Модель: Elantra» — именно в таком виде характеристику находит разборщик.
+ * Разорви эту пару на две строки — и «Elantra» станет отдельной строкой без
+ * ярлыка, то есть кандидатом в название модели, а «Модель» — мусором.
+ */
+function richLines(node, out = [], depth = 0) {
+  if (node == null || depth > 8) return out;
+  if (typeof node === "string") {
+    const s = node.trim();
+    if (s) out.push(s);
+    return out;
+  }
+  if (Array.isArray(node)) {
+    for (const item of node) richLines(item, out, depth + 1);
+    return out;
+  }
+  if (typeof node !== "object") return out;
+
+  if (Array.isArray(node.cells)) {
+    const parts = node.cells
+      .map((cell) => richLines(cell, [], depth + 1).join(" ").trim())
+      .filter(Boolean);
+    if (parts.length === 1) out.push(parts[0]);
+    else if (parts.length > 1) {
+      // Двоеточие в ячейке-ярлыке («Модель:») уже есть — второе сделало бы из
+      // строки «Модель:: Elantra», и ярлык перестал бы распознаваться.
+      const label = parts[0].replace(/\s*[:：]\s*$/, "");
+      out.push(`${label}: ${parts.slice(1).join(" ")}`);
+    }
+    return out;
+  }
+
+  for (const key of RICH_TEXT_KEYS) {
+    if (typeof node[key] === "string") {
+      const s = node[key].trim();
+      if (s) out.push(s);
+    }
+  }
+  for (const key of RICH_CHILD_KEYS) {
+    const kid = node[key];
+    if (kid && typeof kid === "object") richLines(kid, out, depth + 1);
+  }
+  return out;
+}
+
+/**
+ * Весь текст поста: подпись плюс содержимое статьи.
+ *
+ * Повторы убираем: заголовок статьи нередко дублируется и в подписи, а
+ * дважды повторённая строка сбивает разбор описания.
+ */
+function postText(post) {
+  const plain = String(post?.caption || post?.text || "").trim();
+  const rich = post?.rich_message ? richLines(post.rich_message) : [];
+  if (!rich.length) return plain;
+
+  const seen = new Set();
+  const out = [];
+  for (const line of [...plain.split("\n"), ...rich]) {
+    const s = String(line).trim();
+    if (!s) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out.join("\n");
+}
+
+/** Фото и видео из дерева блоков — карусель статьи лежит именно там. */
+function richFiles(node, out = { photos: [], videos: [] }, depth = 0) {
+  if (node == null || depth > 8 || typeof node !== "object") return out;
+  if (Array.isArray(node)) {
+    for (const item of node) richFiles(item, out, depth + 1);
+    return out;
+  }
+
+  const photo = bestFileId(node);
+  if (photo && !out.photos.includes(photo)) out.photos.push(photo);
+  const video = videoFileId(node);
+  if (video && !out.videos.includes(video)) out.videos.push(video);
+
+  for (const key of RICH_CHILD_KEYS) {
+    const kid = node[key];
+    if (kid && typeof kid === "object") richFiles(kid, out, depth + 1);
+  }
+  return out;
+}
+
+/**
+ * Все фотографии поста.
+ *
+ * У обычного поста она одна: альбом Telegram присылает отдельными
+ * сообщениями, и каждое добавляет свой снимок к той же карточке. У статьи
+ * вся карусель приходит одним обновлением — значит и забрать надо всю, иначе
+ * в каталоге у машины останется одно фото из десяти.
+ */
+function postPhotoIds(post) {
+  const ids = [];
+  const first = bestFileId(post);
+  if (first) ids.push(first);
+  if (post?.rich_message) {
+    for (const id of richFiles(post.rich_message).photos) {
+      if (!ids.includes(id)) ids.push(id);
+    }
+  }
+  return ids;
+}
+
+/** Все видео поста — так же, как и фотографии. */
+function postVideoIds(post) {
+  const ids = [];
+  const first = videoFileId(post);
+  if (first) ids.push(first);
+  if (post?.rich_message) {
+    for (const id of richFiles(post.rich_message).videos) {
+      if (!ids.includes(id)) ids.push(id);
+    }
+  }
+  return ids;
 }
 
 // Лучший file_id из сообщения: крупнейшее фото ИЛИ изображение-документ
@@ -2592,10 +2786,19 @@ function findCarBySrc(catalog, srcId, legacyId, caption) {
 }
 
 // Авто-публикация: пост канала → карточка в каталоге (upsert по стабильному id).
-async function publishFromPost(env, post, caption, fileId, groupId, origin, videoId) {
+async function publishFromPost(env, post, caption, fileIds, groupId, origin, videoId) {
   const srcId = postSrcId(post, groupId);
   const legacyId = legacySrcId(post, groupId);
-  const url = fileId ? photoUrl(origin, fileId) : null;
+  /*
+   * Снимков теперь может быть сразу много.
+   *
+   * Альбом Telegram присылает отдельными сообщениями — по одному фото в
+   * каждом, и карточка набирала их постепенно. Статья приходит целиком: вся
+   * карусель в одном обновлении. Поэтому здесь список, а не единственный
+   * файл, — иначе от статьи с десятью снимками в каталоге остался бы один.
+   */
+  const ids = Array.isArray(fileIds) ? fileIds : fileIds ? [fileIds] : [];
+  const urls = ids.map((id) => photoUrl(origin, id)).filter(Boolean);
   const vurl = videoId ? videoUrl(origin, videoId) : null;
   let catalog = (await kvGet(env, "catalog", [])) || [];
   if (!Array.isArray(catalog)) catalog = [];
@@ -2609,7 +2812,7 @@ async function publishFromPost(env, post, caption, fileId, groupId, origin, vide
     // об авто. Благодарности/новости/видеоотчёты в каталог не попадают.
     const parsed = parseCaption(caption);
     if (!isCarListing(parsed, caption)) return;
-    const fresh = carFromPost(parsed, srcId, url ? [url] : []);
+    const fresh = carFromPost(parsed, srcId, urls);
 
     /*
      * Прежде чем заводить карточку — проверяем, нет ли такой же.
@@ -2636,8 +2839,8 @@ async function publishFromPost(env, post, caption, fileId, groupId, origin, vide
     );
     if (twinIdx !== -1) {
       const twin = catalog[twinIdx];
-      if (url && Array.isArray(twin.images) && !twin.images.includes(url)) {
-        twin.images.push(url);
+      if (Array.isArray(twin.images)) {
+        for (const u of urls) if (!twin.images.includes(u)) twin.images.push(u);
       }
       if (vurl && !twin.video) twin.video = vurl;
       // Помним, какие посты слились в эту карточку: без этого правка второго
@@ -2652,7 +2855,8 @@ async function publishFromPost(env, post, caption, fileId, groupId, origin, vide
     car.addedAt = Date.now(); // дата добавления в каталог
     catalog.unshift(car); // новые авто — в начало списка
   } else {
-    if (url && !car.images.includes(url)) car.images.push(url);
+    if (!Array.isArray(car.images)) car.images = [];
+    for (const u of urls) if (!car.images.includes(u)) car.images.push(u);
     if (caption) {
       const imgs = car.images;
       const vid = car.video;
@@ -2723,9 +2927,11 @@ function videoBytes(post) {
 }
 
 async function publishReviewFromPost(env, post, origin) {
-  const text = (post.caption || post.text || "").trim();
-  const fileId = bestFileId(post);
-  const rawVideoId = videoFileId(post);
+  // Отзывы в канале тоже стали статьями: текст и карусель лежат блоками.
+  const text = postText(post);
+  const photoIds = postPhotoIds(post);
+  const fileId = photoIds[0] || null;
+  const rawVideoId = postVideoIds(post)[0] || null;
 
   // Слишком тяжёлое видео считаем отсутствующим: лучше не опубликовать
   // отзыв вовсе, чем опубликовать карточку с мёртвым плеером.
@@ -2737,7 +2943,8 @@ async function publishReviewFromPost(env, post, origin) {
   }
   const groupId = post.media_group_id || null;
   const srcId = postSrcId(post, groupId);
-  const media = fileId ? photoUrl(origin, fileId) : "";
+  const medias = photoIds.map((id) => photoUrl(origin, id)).filter(Boolean);
+  const media = medias[0] || "";
   const video = videoId ? videoUrl(origin, videoId) : "";
   // Обложка нужна только видео: у поста с фотографией её роль играет фото.
   const posterId = videoId ? posterFileId(post) : null;
@@ -2781,7 +2988,7 @@ async function publishReviewFromPost(env, post, origin) {
     if (text && !ex.text) ex.text = text;
     if (!Array.isArray(ex.images)) ex.images = ex.media ? [ex.media] : [];
     if (!Array.isArray(ex.videos)) ex.videos = ex.video ? [ex.video] : [];
-    if (media && !ex.images.includes(media)) ex.images.push(media);
+    for (const m of medias) if (!ex.images.includes(m)) ex.images.push(m);
     if (video && !ex.videos.includes(video)) ex.videos.push(video);
     // media/video оставляем для совместимости со старыми клиентами.
     ex.media = ex.media || media;
@@ -2798,7 +3005,7 @@ async function publishReviewFromPost(env, post, origin) {
       media,
       video,
       poster,
-      images: media ? [media] : [],
+      images: medias,
       videos: video ? [video] : [],
       chatId: String(post.chat?.id ?? ""),
       ts: Date.now(),
@@ -2822,9 +3029,11 @@ async function publishReviewFromPost(env, post, origin) {
 
 // Пост из канала новостей → карточка новости (заголовок + текст + фото/видео).
 async function publishNewsFromPost(env, post, origin) {
-  const raw = (post.caption || post.text || "").trim();
-  const fileId = bestFileId(post);
-  const videoId = videoFileId(post);
+  // Новости из канала тоже приходят статьями.
+  const raw = postText(post);
+  const photoIds = postPhotoIds(post);
+  const fileId = photoIds[0] || null;
+  const videoId = postVideoIds(post)[0] || null;
   if (!raw && !fileId && !videoId) return;
   const groupId = post.media_group_id || null;
   const srcId = postSrcId(post, groupId);
@@ -2863,15 +3072,16 @@ async function publishNewsFromPost(env, post, origin) {
 
 async function handleChannelPost(env, post, opts = {}) {
   if (!env.STORE) return;
-  const caption = (post.caption || post.text || "").trim();
-  const fileId = bestFileId(post);
-  const videoId = videoFileId(post);
+  // Пост-статья: текст и карусель лежат блоками, а не в caption/photo.
+  const caption = postText(post);
+  const fileIds = postPhotoIds(post);
+  const videoId = postVideoIds(post)[0] || null;
   const groupId = post.media_group_id || null;
-  if (!fileId && !videoId && !caption) return;
+  if (!fileIds.length && !videoId && !caption) return;
 
   // Полностью автоматический режим — сразу в каталог.
   if (opts.auto) {
-    await publishFromPost(env, post, caption, fileId, groupId, opts.origin, videoId);
+    await publishFromPost(env, post, caption, fileIds, groupId, opts.origin, videoId);
     return;
   }
 
@@ -2880,7 +3090,7 @@ async function handleChannelPost(env, post, opts = {}) {
   if (groupId) {
     const ex = drafts.find((d) => d.groupId === groupId);
     if (ex) {
-      if (fileId && !ex.fileIds.includes(fileId)) ex.fileIds.push(fileId);
+      for (const id of fileIds) if (!ex.fileIds.includes(id)) ex.fileIds.push(id);
       if (caption && !ex.caption) {
         ex.caption = caption;
         ex.parsed = parseCaption(caption);
@@ -2893,7 +3103,7 @@ async function handleChannelPost(env, post, opts = {}) {
     id: "d" + Date.now() + Math.random().toString(36).slice(2, 6),
     groupId,
     caption,
-    fileIds: fileId ? [fileId] : [],
+    fileIds,
     parsed: parseCaption(caption),
     ts: Date.now(),
   });

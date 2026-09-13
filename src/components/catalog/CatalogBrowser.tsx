@@ -339,11 +339,6 @@ export function CatalogBrowser() {
             </button>
           </div>
 
-          {tab === "premium" ? (
-            <p className="text-[13px] font-semibold text-ink-2">
-              Mercedes-Benz, BMW, Audi, Lexus, Hyundai, VW и Zeekr от {fmt(PREMIUM_MIN_PRICE)} ₽ под ключ
-            </p>
-          ) : null}
         </div>
       </div>
 
