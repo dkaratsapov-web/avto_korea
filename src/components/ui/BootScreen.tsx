@@ -1,3 +1,5 @@
+import { willShowIntro } from "@/lib/intro";
+
 /**
  * Экран загрузки — тот же самый, что стоит в разметке страницы.
  *
@@ -19,6 +21,14 @@
  * JavaScript. При правке одной правьте и вторую.
  */
 export function BootScreen() {
+  /*
+   * Если дальше будет заставка с глобусом, здесь остаётся только фон.
+   *
+   * Логотип с полосой на её месте читался как отдельный, первый по счёту
+   * прелоадер: человек видел два подряд — сначала надпись, потом планету.
+   */
+  if (willShowIntro()) return <div className="boot" role="status" aria-hidden />;
+
   return (
     <div className="boot" role="status" aria-live="polite">
       <div className="boot-mark">

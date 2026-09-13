@@ -69,15 +69,15 @@ export function Preloader({ onDone }: { onDone: () => void }) {
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    // Было 4200 + 700 — почти пять секунд до витрины. Глобус успевает
-    // сделать оборот и за это время.
-    const t = setTimeout(() => setLeaving(true), 1600);
+    // Три секунды на заставку и полсекунды на растворение — ровно столько
+    // просил владелец. Было почти пять.
+    const t = setTimeout(() => setLeaving(true), 3000);
     return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
     if (!leaving) return;
-    const t = setTimeout(onDone, 450);
+    const t = setTimeout(onDone, 500);
     return () => clearTimeout(t);
   }, [leaving, onDone]);
 

@@ -11,6 +11,7 @@ import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { CursorGlow } from "@/components/ui/CursorGlow";
 import { ModalHost } from "@/components/ModalHost";
 import { LeadCatcher } from "@/components/LeadCatcher";
+import { willShowIntro } from "@/lib/intro";
 
 const Preloader = lazy(() =>
   import("@/components/Preloader").then((m) => ({ default: m.Preloader })),
@@ -18,12 +19,9 @@ const Preloader = lazy(() =>
 
 /** Маркетинговая обёртка сайта: прелоадер, шапка, футер, декор, модалки. */
 export function SiteLayout() {
-  const [intro, setIntro] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const isMobile = window.innerWidth < 768;
-    return !reduce && !isMobile;
-  });
+  // Условие одно на весь сайт (см. src/lib/intro.ts): по нему же заставка из
+  // разметки решает, показывать ли логотип или остаться пустым фоном.
+  const [intro, setIntro] = useState(willShowIntro);
 
   useEffect(() => {
     if (!intro) return;
