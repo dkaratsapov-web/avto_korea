@@ -2395,3 +2395,39 @@ test("обычный пост с подписью разбирается как 
   assert.equal(car.priceRub, 4200000, "цена из обычного поста");
   assert.match(car.model, /palisade/i, "модель из первой строки подписи");
 });
+
+test("/пост показывает владельцу устройство последнего поста канала", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-1002000000010", autoPublish: true },
+  });
+  const owner = { ADMIN_IDS: "501" };
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(articlePost("-1002000000010", 21), { store, env: owner, ctx: c.ctx });
+  await c.settle();
+
+  await run(
+    {
+      update_id: 78,
+      message: {
+        message_id: 9,
+        chat: { id: 501, type: "private" },
+        from: { id: 501, first_name: "Владелец" },
+        text: "/пост",
+      },
+    },
+    { store, env: owner, ctx: c.ctx },
+  );
+  await c.settle();
+
+  const answer = calls
+    .filter((x) => x.method === "sendMessage")
+    .map((x) => String(x.body.text || ""))
+    .find((t) => /Последний пост канала/.test(t));
+
+  assert.ok(answer, "владелец должен получить ответ на /пост");
+  assert.match(answer, /Фото: 3/, "в ответе видно, сколько снимков удалось достать");
+  assert.match(answer, /rich_message/, "и какими полями пришёл пост");
+  assert.ok(!/Elantra/.test(answer), "содержимое поста показывать незачем");
+});

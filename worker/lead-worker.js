@@ -948,6 +948,23 @@ export default {
         }
 
         /*
+         * Запоминаем устройство последнего поста — по команде /пост.
+         *
+         * Это единственный способ узнать, в каком виде Telegram присылает
+         * новый формат публикаций: доступа к каналу у разработчика нет, а
+         * ошибка разбора выглядит снаружи просто как неполная карточка.
+         */
+        await kvPut(env, "lastPostShape", {
+          at: Date.now(),
+          chat: cid,
+          title: post.chat?.title || "",
+          photos: postPhotoIds(post).length,
+          videos: postVideoIds(post).length,
+          textLines: postText(post).split("\n").length,
+          shape: shapeOf(post),
+        });
+
+        /*
          * Куда девать пост — решаем по каналу, из которого он пришёл.
          *
          * Порядок проверок важен: каналы назначаются вручную, и человек
@@ -1297,6 +1314,37 @@ export default {
             "`\n\nОткройте CRM → «Отзывы» и вставьте его в поле подключения. " +
             "Ключ даёт право только смотреть и удалять отзывы.\n\n" +
             "Заменить ключ: /crm новый",
+          parse_mode: "Markdown",
+        });
+        return new Response("ok");
+      }
+
+      /*
+       * /пост — в каком виде пришёл последний пост канала.
+       *
+       * Нужна ровно тогда, когда карточка собралась неполной: сразу видно,
+       * сколько фотографий и строк текста удалось достать и какими полями
+       * Telegram прислал публикацию. Содержимого поста команда не показывает.
+       */
+      if (msg && typeof msg.text === "string" && /^\/(пост|post)(@\w+)?/i.test(msg.text.trim())) {
+        const perm = await permsOf(env, msg.from?.id);
+        if (!perm?.owner) return new Response("ok");
+        const last = await kvGet(env, "lastPostShape", null);
+        if (!last) {
+          await api(env, "sendMessage", {
+            chat_id: msg.chat.id,
+            text: "Постов из каналов после включения этой проверки ещё не было.",
+          });
+          return new Response("ok");
+        }
+        const when = new Date(last.at).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" });
+        const body = JSON.stringify(last.shape, null, 1).slice(0, 3200);
+        await api(env, "sendMessage", {
+          chat_id: msg.chat.id,
+          text:
+            `Последний пост канала ${last.title || last.chat} — ${when}\n` +
+            `Фото: ${last.photos} · видео: ${last.videos} · строк текста: ${last.textLines}\n\n` +
+            "```\n" + body + "\n```",
           parse_mode: "Markdown",
         });
         return new Response("ok");
@@ -2490,7 +2538,8 @@ function richLines(node, out = [], depth = 0) {
  */
 function postText(post) {
   const plain = String(post?.caption || post?.text || "").trim();
-  const rich = post?.rich_message ? richLines(post.rich_message) : [];
+  const rich = [];
+  for (const root of richRoots(post)) richLines(root, rich);
   if (!rich.length) return plain;
 
   const seen = new Set();
@@ -2506,10 +2555,53 @@ function postText(post) {
   return out.join("\n");
 }
 
-/** Фото и видео из дерева блоков — карусель статьи лежит именно там. */
+/** Похож ли массив на набор размеров одной фотографии (PhotoSize[]). */
+function isPhotoSizes(v) {
+  return (
+    Array.isArray(v) &&
+    v.length > 0 &&
+    v.every((x) => x && typeof x === "object" && x.file_id && Number(x.width) > 0)
+  );
+}
+
+/*
+ * Поля, в которые за файлами лезть не надо.
+ *
+ * thumbnail/thumb — уменьшенная копия: возьмёшь её как самостоятельный снимок,
+ * и в карточке появится мыльный дубль. Остальное — служебные части сообщения,
+ * где встречаются чужие вложения (пересланный пост, ответ, разметка кнопок).
+ */
+const MEDIA_SKIP_KEYS = new Set([
+  "thumbnail",
+  "thumb",
+  "entities",
+  "caption_entities",
+  "reply_markup",
+  "reply_to_message",
+  "external_reply",
+  "forward_origin",
+  "link_preview_options",
+  "chat",
+  "sender_chat",
+  "from",
+]);
+
+/**
+ * Фото и видео из дерева блоков — карусель статьи лежит именно там.
+ *
+ * Обходим ВСЕ поля, а не список знакомых: как именно Telegram назовёт узел с
+ * каруселью, заранее неизвестно, а цена ошибки — карточка с одним снимком
+ * вместо десяти. Опознаём не по имени поля, а по содержимому: массив размеров
+ * одной фотографии узнаётся по file_id и ширине у каждого элемента.
+ */
 function richFiles(node, out = { photos: [], videos: [] }, depth = 0) {
-  if (node == null || depth > 8 || typeof node !== "object") return out;
+  if (node == null || depth > 10 || typeof node !== "object") return out;
   if (Array.isArray(node)) {
+    if (isPhotoSizes(node)) {
+      const best = node[node.length - 1].file_id;
+      if (!out.photos.includes(best)) out.photos.push(best);
+      return out;
+    }
     for (const item of node) richFiles(item, out, depth + 1);
     return out;
   }
@@ -2519,11 +2611,24 @@ function richFiles(node, out = { photos: [], videos: [] }, depth = 0) {
   const video = videoFileId(node);
   if (video && !out.videos.includes(video)) out.videos.push(video);
 
-  for (const key of RICH_CHILD_KEYS) {
-    const kid = node[key];
-    if (kid && typeof kid === "object") richFiles(kid, out, depth + 1);
+  for (const [key, kid] of Object.entries(node)) {
+    if (MEDIA_SKIP_KEYS.has(key) || !kid || typeof kid !== "object") continue;
+    richFiles(kid, out, depth + 1);
   }
   return out;
+}
+
+/**
+ * Дерево статьи может приехать не только полем rich_message.
+ *
+ * Имя поля у Telegram менялось и ещё поменяется, а узнать об этом мы можем
+ * только по тому, что каталог перестал наполняться. Поэтому смотрим в
+ * несколько мест сразу: лишняя проверка ничего не стоит.
+ */
+function richRoots(post) {
+  return [post?.rich_message, post?.article, post?.blocks, post?.content].filter(
+    (v) => v && typeof v === "object",
+  );
 }
 
 /**
@@ -2538,12 +2643,36 @@ function postPhotoIds(post) {
   const ids = [];
   const first = bestFileId(post);
   if (first) ids.push(first);
-  if (post?.rich_message) {
-    for (const id of richFiles(post.rich_message).photos) {
+  for (const root of richRoots(post)) {
+    for (const id of richFiles(root).photos) {
       if (!ids.includes(id)) ids.push(id);
     }
   }
   return ids;
+}
+
+/**
+ * Слепок устройства поста: какие поля пришли, без их содержимого.
+ *
+ * Формат постов в канале меняется — сегодня подпись к фото, завтра статья с
+ * таблицей. Понять, что именно приехало, по сайту нельзя: видно лишь, что
+ * карточка собралась неполной. Слепок отвечает на этот вопрос за секунду и не
+ * хранит ни текста, ни файлов — только имена полей и типы значений.
+ */
+function shapeOf(node, depth = 0) {
+  if (node === null || node === undefined) return null;
+  if (Array.isArray(node)) {
+    if (!node.length) return [];
+    // Элементы массива однотипны — одного примера достаточно.
+    return [`×${node.length}`, shapeOf(node[0], depth + 1)];
+  }
+  if (typeof node === "object") {
+    if (depth > 5) return "{…}";
+    const out = {};
+    for (const [k, v] of Object.entries(node)) out[k] = shapeOf(v, depth + 1);
+    return out;
+  }
+  return typeof node;
 }
 
 /** Все видео поста — так же, как и фотографии. */
@@ -2551,8 +2680,8 @@ function postVideoIds(post) {
   const ids = [];
   const first = videoFileId(post);
   if (first) ids.push(first);
-  if (post?.rich_message) {
-    for (const id of richFiles(post.rich_message).videos) {
+  for (const root of richRoots(post)) {
+    for (const id of richFiles(root).videos) {
       if (!ids.includes(id)) ids.push(id);
     }
   }
@@ -2885,7 +3014,13 @@ async function publishFromPost(env, post, caption, fileIds, groupId, origin, vid
   if (isNewCar && env.TELEGRAM_CHAT_ID) {
     await api(env, "sendMessage", {
       chat_id: env.TELEGRAM_CHAT_ID,
-      text: `✅ Авто из канала опубликовано в каталог: ${car.model}${car.priceRub ? ` · ${car.priceRub.toLocaleString("ru-RU")} ₽` : ""}`,
+      text:
+        `✅ Авто из канала опубликовано в каталог: ${car.model}` +
+        (car.priceRub ? ` · ${car.priceRub.toLocaleString("ru-RU")} ₽` : "") +
+        // Число снимков в уведомлении — самая дешёвая проверка разбора: если
+        // в статье их десять, а тут единица, это видно сразу, а не через
+        // неделю по жалобе «в карточке одно фото».
+        `\nФото: ${car.images?.length || 0}`,
     });
   }
 }

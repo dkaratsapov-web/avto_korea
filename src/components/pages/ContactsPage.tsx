@@ -105,7 +105,7 @@ export function ContactsPage() {
           {/* Адрес и часы — в один ряд: часы занимали отдельную строку под
               картами, и карточка тянулась вниз ради двух слов. */}
           <div className="rounded-card border border-line bg-white p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:gap-x-10 sm:gap-y-4">
             <div className="flex items-start gap-3">
               <MapPin className="mt-0.5 h-5 w-5 flex-none text-steel" />
               <div>

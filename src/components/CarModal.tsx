@@ -35,9 +35,12 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
   const next = () => setIdx((i) => (i + 1) % count);
 
   return (
-    <Modal onClose={onClose} label={car.model} className="max-w-5xl">
+    <Modal onClose={onClose} label={car.model} className="max-w-6xl">
       <div className="flex max-h-[92vh] flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-2 lg:items-start">
+        {/* Фотографии — главное в карточке: колонка с галереей заметно шире
+            текстовой. При равных половинах снимок получался не крупнее, чем
+            в сетке каталога, и открывать карточку было незачем. */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] lg:items-start">
           {/* Галерея.
 
               Кадр показываем целиком (object-contain): фотографии с площадок
