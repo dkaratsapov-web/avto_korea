@@ -815,6 +815,7 @@ import {
   maxAppButtonReport,
   maxWrite,
   maxChatLink,
+  maxPostToChat,
 } from "./max-bot.js";
 
 export default {
@@ -1314,6 +1315,53 @@ export default {
             "`\n\nОткройте CRM → «Отзывы» и вставьте его в поле подключения. " +
             "Ключ даёт право только смотреть и удалять отзывы.\n\n" +
             "Заменить ключ: /crm новый",
+          parse_mode: "Markdown",
+        });
+        return new Response("ok");
+      }
+
+      /*
+       * /канал — привязать канал MAX и проверить публикацию.
+       *
+       * Идентификатор канала в MAX нигде не показывают: его знает только сам
+       * мессенджер. Бот запоминает чат, в который его добавили админом, и по
+       * этой команде показывает id, вписывает его в настройки и сразу шлёт
+       * туда пробную карточку — иначе «не работает» выяснится через неделю,
+       * на живой публикации.
+       */
+      if (msg && typeof msg.text === "string" && /^\/(канал|maxchannel)(@\w+)?/i.test(msg.text.trim())) {
+        const perm = await permsOf(env, msg.from?.id);
+        if (!perm?.owner) return new Response("ok");
+
+        const said = (msg.text.match(/(-?\d{3,})/) || [])[1] || "";
+        const seen = (await kvGet(env, "max:lastChat", null)) || null;
+        const channel = said || seen?.id || "";
+
+        if (!channel) {
+          await api(env, "sendMessage", {
+            chat_id: msg.chat.id,
+            text:
+              "Канал MAX пока не привязан.\n\n" +
+              "1. Добавьте бота ДиАвто69 администратором в канал MAX.\n" +
+              "2. Пришлите сюда /канал — id подставится сам.\n\n" +
+              "Если id известен, можно указать прямо: /канал -1234567890",
+          });
+          return new Response("ok");
+        }
+
+        const st = await getSettings(env);
+        await kvPut(env, "settings", { ...st, maxChannelId: String(channel) });
+
+        const probe = await maxPostToChat(
+          env,
+          channel,
+          "Проверка связи: сюда будут приходить новые авто из каталога.",
+        );
+        await api(env, "sendMessage", {
+          chat_id: msg.chat.id,
+          text: probe.ok
+            ? `✅ Канал MAX привязан: \`${channel}\`\nПробное сообщение отправлено — проверьте канал.`
+            : `⚠️ Канал сохранён (\`${channel}\`), но опубликовать не вышло.\nОтвет MAX: ${String(probe.error || JSON.stringify(probe.data || {})).slice(0, 300)}\n\nЧаще всего это значит, что бот не администратор канала.`,
           parse_mode: "Markdown",
         });
         return new Response("ok");
@@ -3090,6 +3138,9 @@ async function publishFromPost(env, post, caption, fileIds, groupId, origin, vid
    */
   car.chatId = String(post.chat?.id ?? "");
   await kvPut(env, "catalog", catalog);
+  // Возвращаем карточку и признак новизны: дублировать в MAX имеет смысл
+  // только новые машины, правка поста туда уже не поедет.
+  const result = { car, isNew: isNewCar };
   if (isNewCar && env.TELEGRAM_CHAT_ID) {
     await api(env, "sendMessage", {
       chat_id: env.TELEGRAM_CHAT_ID,
@@ -3102,6 +3153,7 @@ async function publishFromPost(env, post, caption, fileIds, groupId, origin, vid
         `\nФото: ${car.images?.length || 0}`,
     });
   }
+  return result;
 }
 
 /**
@@ -3284,6 +3336,66 @@ async function publishNewsFromPost(env, post, origin) {
   await kvPut(env, "news", news.slice(0, 60));
 }
 
+/**
+ * Текст карточки для канала MAX.
+ *
+ * Пост Telegram целиком туда не годится: в MAX нет ни таблиц, ни врезок, а
+ * подпись поста написана под другую ленту — с призывами, ссылками и
+ * оформлением. Собираем короткую карточку из уже разобранных полей: то же
+ * самое видит покупатель на сайте.
+ */
+function maxCardText(car) {
+  const specs = [
+    car.year ? `${car.year} г.` : "",
+    car.mileageKm ? `${car.mileageKm.toLocaleString("ru-RU")} км` : "новый, 0 км",
+    car.powerHp ? `${car.powerHp} л.с.` : "",
+    car.gearbox,
+    car.drive ? `${car.drive.toLowerCase()} привод` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return [
+    `🚗 ${car.model}`,
+    specs,
+    car.priceRub ? `Под ключ до Москвы — ${car.priceRub.toLocaleString("ru-RU")} ₽` : "",
+    "",
+    `Каталог: ${SITE_CATALOG_URL}`,
+  ]
+    .filter((line) => line !== undefined && line !== null)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
+ * Продублировать карточку в канал MAX.
+ *
+ * Повторную публикацию отсекаем по идентификатору поста: правка поста в
+ * Telegram прилетает тем же путём, что и новая публикация, и без этой отметки
+ * канал MAX собирал бы по карточке на каждую запятую.
+ */
+async function mirrorToMax(env, car, srcId, images) {
+  const st = await getSettings(env);
+  const channel = String(st.maxChannelId || "").trim();
+  if (!channel || !env.MAX_BOT_TOKEN || !car) return;
+
+  const mark = `max:posted:${srcId}`;
+  if (await kvGet(env, mark, null)) return;
+
+  const r = await maxPostToChat(env, channel, maxCardText(car), images);
+  await kvPut(env, mark, { at: Date.now(), ok: !!r.ok });
+
+  if (!r.ok && env.TELEGRAM_CHAT_ID) {
+    await api(env, "sendMessage", {
+      chat_id: env.TELEGRAM_CHAT_ID,
+      text:
+        "⚠️ Не удалось опубликовать авто в канал MAX.\n" +
+        `Ответ MAX: ${String(r.error || JSON.stringify(r.data || {})).slice(0, 300)}`,
+    });
+  }
+}
+
 async function handleChannelPost(env, post, opts = {}) {
   if (!env.STORE) return;
   // Пост-статья: текст и карусель лежат блоками, а не в caption/photo.
@@ -3295,7 +3407,10 @@ async function handleChannelPost(env, post, opts = {}) {
 
   // Полностью автоматический режим — сразу в каталог.
   if (opts.auto) {
-    await publishFromPost(env, post, caption, fileIds, groupId, opts.origin, videoId);
+    const done = await publishFromPost(env, post, caption, fileIds, groupId, opts.origin, videoId);
+    if (done?.isNew) {
+      await mirrorToMax(env, done.car, postSrcId(post, groupId), done.car.images || []);
+    }
     return;
   }
 
@@ -3375,6 +3490,8 @@ async function handleAdmin(env, action, payload, perm, user, origin) {
         "reviewsChatId",
         "newsChatId",
         "leadChatId",
+        // Канал MAX, куда дублируются карточки из телеграм-канала.
+        "maxChannelId",
       ];
       const next = { ...cur };
       for (const k of allowed)

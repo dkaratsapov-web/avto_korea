@@ -2545,3 +2545,91 @@ test("баннер с преимуществами не попадает в га
     "полоса с преимуществами — оформление поста, а не фото машины",
   );
 });
+
+/* ---------- Дубль каталога в канал MAX ---------- */
+
+/** Перехват и Telegram, и MAX: у них разные хосты, но общий fetch. */
+function stubBoth() {
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    const body = init?.body ? JSON.parse(init.body) : {};
+    calls.push({ url: String(url), body });
+    return new Response(JSON.stringify({ ok: true, result: {}, message: {} }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  return calls;
+}
+
+test("новое авто из канала Telegram уезжает карточкой в канал MAX", async () => {
+  const store = makeStore({
+    settings: {
+      catalogChatId: "-1002000000020",
+      autoPublish: true,
+      maxChannelId: "77001",
+    },
+  });
+  const calls = stubBoth();
+  const c = makeCtx();
+
+  await run(articlePost("-1002000000020", 61), {
+    store,
+    env: { MAX_BOT_TOKEN: "M" },
+    ctx: c.ctx,
+  });
+  await c.settle();
+
+  const toMax = calls.find((x) => x.url.includes("botapi.max.ru/messages?chat_id=77001"));
+  assert.ok(toMax, "карточка должна уйти в канал MAX");
+  assert.match(toMax.body.text, /HYUNDAI/i, "в карточке — марка и модель");
+  assert.match(toMax.body.text, /1[\s\u00a0]930[\s\u00a0]000/, "и цена под ключ");
+  assert.ok(
+    toMax.body.attachments?.some((a) => a.type === "image"),
+    "и фотографии",
+  );
+});
+
+test("правка того же поста не плодит вторую карточку в MAX", async () => {
+  const store = makeStore({
+    settings: {
+      catalogChatId: "-1002000000021",
+      autoPublish: true,
+      maxChannelId: "77002",
+    },
+  });
+  const calls = stubBoth();
+  const c = makeCtx();
+  const env = { MAX_BOT_TOKEN: "M" };
+
+  await run(articlePost("-1002000000021", 71), { store, env, ctx: c.ctx });
+  await c.settle();
+
+  const edited = articlePost("-1002000000021", 71);
+  edited.edited_channel_post = edited.channel_post;
+  delete edited.channel_post;
+  await run(edited, { store, env, ctx: c.ctx });
+  await c.settle();
+
+  const posts = calls.filter((x) => x.url.includes("botapi.max.ru/messages?chat_id=77002"));
+  assert.equal(posts.length, 1, "публикация должна быть одна, было: " + posts.length);
+});
+
+test("без привязанного канала MAX ничего не отправляется", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-1002000000022", autoPublish: true },
+  });
+  const calls = stubBoth();
+  const c = makeCtx();
+
+  await run(articlePost("-1002000000022", 81), {
+    store,
+    env: { MAX_BOT_TOKEN: "M" },
+    ctx: c.ctx,
+  });
+  await c.settle();
+
+  assert.ok(
+    !calls.some((x) => x.url.includes("botapi.max.ru/messages")),
+    "пока канал не указан, в MAX не пишем",
+  );
+});

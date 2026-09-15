@@ -115,6 +115,28 @@ export async function maxChatLink(env, chatId, username) {
 }
 
 /**
+ * Опубликовать карточку в канал MAX.
+ *
+ * Отличие от сообщения человеку — единственное: адресат задаётся как чат, а не
+ * как пользователь. Фотографии уходят ссылками на наш сайт, как и везде: сами
+ * файлы лежат в Telegram, и перекачивать их ради каждой публикации незачем.
+ *
+ * Возвращаем ответ MAX как есть — вызывающему важно отличить «опубликовано»
+ * от «бот не админ канала», а не получить голое false.
+ */
+export async function maxPostToChat(env, chatId, text, images = []) {
+  const attachments = images
+    .filter(Boolean)
+    .slice(0, 10)
+    .map((url) => ({ type: "image", payload: { url } }));
+
+  return maxCall(env, "POST", `/messages?chat_id=${encodeURIComponent(chatId)}`, {
+    text: String(text || "").slice(0, 4000),
+    ...(attachments.length ? { attachments } : {}),
+  });
+}
+
+/**
  * Написать человеку в MAX из другого места — например, ответом менеджера,
  * пришедшим в Telegram. Отдельная обёртка, чтобы воркеру не нужно было
  * знать про устройство запросов к MAX.
@@ -258,6 +280,20 @@ export async function handleMaxUpdate(env, update, deps) {
 
   // Бот только что добавлен/запущен — здороваемся.
   if (type === "bot_started" || type === "bot_added") {
+    /*
+     * Добавили в канал или группу — здороваться там незачем, там нет
+     * собеседника. Зато нужен идентификатор чата: без него автопубликация
+     * не знает, куда писать, а узнать его в MAX больше неоткуда.
+     */
+    const chatId = msg?.recipient?.chat_id ?? update?.chat_id ?? update?.chatId ?? null;
+    const chatType = String(
+      msg?.recipient?.chat_type ?? update?.chat_type ?? update?.chatType ?? "",
+    ).toLowerCase();
+    if (chatId && chatType && chatType !== "dialog") {
+      await kvPut(env, "max:lastChat", { id: String(chatId), type: chatType, at: Date.now() });
+      if (deps.onChatSeen) await deps.onChatSeen(env, { id: String(chatId), type: chatType });
+      return;
+    }
     await welcome(env, userId);
     return;
   }
