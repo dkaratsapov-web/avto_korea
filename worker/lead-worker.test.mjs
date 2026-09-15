@@ -2431,3 +2431,90 @@ test("/пост показывает владельцу устройство п�
   assert.match(answer, /rich_message/, "и какими полями пришёл пост");
   assert.ok(!/Elantra/.test(answer), "содержимое поста показывать незачем");
 });
+
+/**
+ * Таблица характеристик может прийти и без парных ячеек: ярлык отдельной
+ * строкой, значение — следующей. Так в каталог уехали карточки без года,
+ * пробега и двигателя, с названием «До Москвы под ключ - всего».
+ */
+function articlePostFlatTable(chatId, msgId) {
+  return {
+    update_id: 79,
+    channel_post: {
+      message_id: msgId,
+      chat: { id: chatId, type: "channel", title: "Канал " + chatId },
+      rich_message: {
+        // Ни одного знакомого имени поля: ни blocks, ни rows, ни cells.
+        story: {
+          parts: [
+            { kind: "h1", text: "CHERY" },
+            { kind: "grid", lines: [
+              { text: "Модель:" },
+              { text: "Tiggo 7 Pro" },
+              { text: "Год выпуска:" },
+              { text: "2024/05" },
+              { text: "Пробег:" },
+              { text: "18.400 км" },
+              { text: "Двигатель:" },
+              { text: "1.6L" },
+              { text: "Мощность:" },
+              { text: "147л.с" },
+              { text: "Привод:" },
+              { text: "передний" },
+            ] },
+            { kind: "quote", text: "До Москвы под ключ - всего за 2.190.000₽" },
+          ],
+        },
+      },
+    },
+  };
+}
+
+test("таблица из отдельных строк тоже разбирается", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-1002000000011", autoPublish: true },
+  });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(articlePostFlatTable("-1002000000011", 31), { store, ctx: c.ctx });
+  await c.settle();
+
+  const [car] = await catalogOf(store);
+  assert.ok(car, "карточка должна появиться");
+  assert.match(car.model, /chery/i, "марка из заголовка");
+  assert.match(car.model, /tiggo/i, "модель из таблицы");
+  assert.equal(car.year, 2024, "год из таблицы");
+  assert.equal(car.mileageKm, 18400, "пробег из таблицы");
+  assert.equal(car.powerHp, 147, "мощность из таблицы");
+  assert.equal(car.drive, "Передний", "привод из таблицы");
+  assert.equal(car.priceRub, 2190000, "цена из врезки");
+});
+
+test("строка с ценой не может стать названием авто", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-1002000000012", autoPublish: true },
+  });
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  await run(
+    {
+      update_id: 80,
+      channel_post: {
+        message_id: 41,
+        chat: { id: "-1002000000012", type: "channel", title: "Канал" },
+        text: "До Москвы под ключ - всего за 1.930.000₽\nЦена указана уже с Утильсбором!",
+      },
+    },
+    { store, ctx: c.ctx },
+  );
+  await c.settle();
+
+  assert.equal((await catalogOf(store)).length, 0, "карточка-пустышка не нужна");
+  const warn = calls
+    .filter((x) => x.method === "sendMessage")
+    .map((x) => String(x.body.text || ""))
+    .find((t) => /не попал в каталог/.test(t));
+  assert.ok(warn, "владельца надо предупредить, а не промолчать");
+});
