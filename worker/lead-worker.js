@@ -2589,6 +2589,25 @@ function joinLabels(lines) {
   return out;
 }
 
+/*
+ * Баннер-полоса из статьи — не фотография машины.
+ *
+ * В публикацию вставляют картинку с преимуществами: широкая полоса во всю
+ * ширину поста. Для бота это такой же снимок, как и остальные, и он приезжал
+ * в галерею карточки шестым фото — между салоном и двигателем.
+ *
+ * Отличаем по пропорциям: снимок автомобиля с площадки — это 4:3 или 16:9,
+ * то есть не шире двух к одному. Всё, что заметно вытянуто в строку (или,
+ * наоборот, в столб), — оформление, а не машина.
+ */
+function looksLikeBanner(size) {
+  const w = Number(size?.width) || 0;
+  const h = Number(size?.height) || 0;
+  if (!w || !h) return false;
+  const ratio = w / h;
+  return ratio >= 2.2 || ratio <= 0.42;
+}
+
 /** Похож ли массив на набор размеров одной фотографии (PhotoSize[]). */
 function isPhotoSizes(v) {
   return (
@@ -2632,8 +2651,10 @@ function richFiles(node, out = { photos: [], videos: [] }, depth = 0) {
   if (node == null || depth > 10 || typeof node !== "object") return out;
   if (Array.isArray(node)) {
     if (isPhotoSizes(node)) {
-      const best = node[node.length - 1].file_id;
-      if (!out.photos.includes(best)) out.photos.push(best);
+      const largest = node[node.length - 1];
+      if (!looksLikeBanner(largest) && !out.photos.includes(largest.file_id)) {
+        out.photos.push(largest.file_id);
+      }
       return out;
     }
     for (const item of node) richFiles(item, out, depth + 1);
@@ -2725,8 +2746,10 @@ function postVideoIds(post) {
 // Лучший file_id из сообщения: крупнейшее фото ИЛИ изображение-документ
 // (фото, отправленное «файлом» — без сжатия, в полном качестве).
 function bestFileId(m) {
-  if (Array.isArray(m?.photo) && m.photo.length)
-    return m.photo[m.photo.length - 1].file_id;
+  if (Array.isArray(m?.photo) && m.photo.length) {
+    const largest = m.photo[m.photo.length - 1];
+    return looksLikeBanner(largest) ? null : largest.file_id;
+  }
   if (m?.document && /^image\//i.test(m.document.mime_type || ""))
     return m.document.file_id;
   return null;

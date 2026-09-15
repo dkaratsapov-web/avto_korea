@@ -2518,3 +2518,30 @@ test("строка с ценой не может стать названием �
     .find((t) => /не попал в каталог/.test(t));
   assert.ok(warn, "владельца надо предупредить, а не промолчать");
 });
+
+test("баннер с преимуществами не попадает в галерею авто", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-1002000000013", autoPublish: true },
+  });
+  stubTelegram();
+  const c = makeCtx();
+
+  const post = articlePost("-1002000000013", 51);
+  // Карусель статьи: три снимка машины и широкая полоса с УТП в конце.
+  post.channel_post.rich_message.blocks[1].media = [
+    { photo: [{ file_id: "car-1", width: 1280, height: 960 }] },
+    { photo: [{ file_id: "car-2", width: 1600, height: 900 }] },
+    { photo: [{ file_id: "car-3", width: 1024, height: 768 }] },
+    { photo: [{ file_id: "utp-banner", width: 1600, height: 450 }] },
+  ];
+
+  await run(post, { store, ctx: c.ctx });
+  await c.settle();
+
+  const [car] = await catalogOf(store);
+  assert.equal(car.images.length, 3, "снимков машины должно остаться три");
+  assert.ok(
+    !car.images.some((u) => /utp-banner/.test(u)),
+    "полоса с преимуществами — оформление поста, а не фото машины",
+  );
+});
