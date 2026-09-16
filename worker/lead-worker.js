@@ -2299,7 +2299,8 @@ function parseCaption(text) {
    */
   const modelRow = bodyRaw.match(/(?:^|\n)\s*модел[ьи]\s*[:：—–-]+\s*([^\n]+)/i);
   if (modelRow) {
-    const value = stripYear(cleanLine(modelRow[1]));
+    // «Модель: GOLF:» — двоеточие пришло из соседней ячейки таблицы.
+    const value = stripYear(cleanLine(modelRow[1]).replace(/\s*[:：]\s*$/, ""));
     const head = candidates.find((l) => looksLikeModel(l)) || "";
     const brandHead = stripYear(head);
     const fitsBrand =
@@ -2364,6 +2365,19 @@ function parseCaption(text) {
   let powerHp = 0;
   const volM = bodyRaw.match(/(\d(?:[.,]\d)?)\s*[лl](?![а-яa-z.])/i);
   if (volM) engineCc = Math.round(Number(volM[1].replace(",", ".")) * 1000);
+  /*
+   * «Двигатель: 1.4Т» — объём без буквы «л».
+   *
+   * В таблице пишут по-своему: «1.4Т», «2.0T», «1.5». Единицы там нет, зато
+   * есть ярлык, и после него число меньше десяти может означать только литры.
+   */
+  if (!engineCc) {
+    const volLabeled = bodyRaw.match(/(?:двигатель|мотор|объ[её]м)\s*[:：]\s*(\d(?:[.,]\d)?)(?!\d)/i);
+    if (volLabeled) {
+      const litres = Number(volLabeled[1].replace(",", "."));
+      if (litres > 0 && litres < 10) engineCc = Math.round(litres * 1000);
+    }
+  }
   const ccM = bodyRaw.match(/(\d{3,4})\s*(?:куб|см³|cc)/i);
   if (!engineCc && ccM) engineCc = Number(ccM[1]);
   const hpM = bodyRaw.match(/(\d{2,4})\s*(?:л\.?\s*с\.?|hp|л\.с)/i);
@@ -2609,7 +2623,28 @@ function postText(post) {
     seen.add(key);
     out.push(s);
   }
-  return joinLabels(out).join("\n");
+  return joinLabels(out.flatMap(splitSpecLine)).join("\n");
+}
+
+/**
+ * Ярлыки характеристик, по которым режется слипшаяся строка таблицы.
+ *
+ * Telegram отдаёт таблицу статьи одной строкой: «Модель: GOLF: Год выпуска:
+ * 2022/03 Пробег: 29.000KM …». Для разборщика это одна характеристика с
+ * бесконечным значением — он ищет число в строке со словом «пробег» и находит
+ * там же год, мощность и цену. Режем строку перед каждым ярлыком, и таблица
+ * снова становится таблицей.
+ */
+const SPEC_SPLIT_RE =
+  /(?=(?:модель|год\s*выпуска|пробег|двигатель|мощность|привод|коробка|кпп|трансмиссия|комплектация|кузов|цвет|топливо|руль|состояние|объ[её]м)\s*[:：])/gi;
+
+function splitSpecLine(line) {
+  const parts = String(line)
+    .split(SPEC_SPLIT_RE)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  // Одна часть — значит ярлыков в строке не было и резать нечего.
+  return parts.length > 1 ? parts : [line];
 }
 
 /**
@@ -2623,11 +2658,17 @@ function postText(post) {
  */
 function joinLabels(lines) {
   const isLabel = (l) => /^[A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё\s().]{1,28}[:：]$/.test(l);
+  // «Цена до Москвы с утильсбором и ЭПТС.» и следом «2.160.000₽!» — цена
+  // города, разорванная надвое. Порознь это строка без числа и число без
+  // города, вместе — «до Москвы 2 160 000».
+  const isPriceIntro = (l) => /цена|стоимост|под\s*ключ|до\s+(москв|твер)/i.test(l) && !/\d/.test(l);
+  const isAmount = (l) => /^[^\dA-Za-zА-Яа-яЁё]*[\d][\d\s.,]*\s*(₽|руб|р\.?)?[!.…]*$/i.test(l);
+
   const out = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const next = lines[i + 1];
-    if (isLabel(line) && next && !isLabel(next)) {
+    if (next && ((isLabel(line) && !isLabel(next)) || (isPriceIntro(line) && isAmount(next)))) {
       out.push(`${line} ${next}`.replace(/\s+/g, " "));
       i += 1;
       continue;

@@ -2633,3 +2633,63 @@ test("без привязанного канала MAX ничего не отп�
     "пока канал не указан, в MAX не пишем",
   );
 });
+
+/**
+ * Настоящая статья из канала (Golf, 16 сентября).
+ *
+ * Telegram отдал её блоками с текстом, и вся таблица характеристик приехала
+ * ОДНОЙ строкой: «Модель: GOLF: Год выпуска: 2022/03 Пробег: 29.000KM …».
+ * Цена оказалась разорвана надвое: строка про город отдельно, сумма отдельно.
+ * Разбор на этом ломался целиком — карточка в каталог не попадала.
+ */
+function golfArticle(chatId, msgId) {
+  return {
+    update_id: 90,
+    channel_post: {
+      message_id: msgId,
+      chat: { id: chatId, type: "channel", title: "Канал" },
+      sender_chat: { id: chatId, type: "channel", title: "Канал" },
+      rich_message: {
+        blocks: [
+          { type: "text", text: "VW", size: 1 },
+          {
+            type: "text",
+            size: 2,
+            text:
+              "Модель: GOLF: Год выпуска: 2022/03 Пробег: 29.000KM " +
+              "Двигатель: 1.4Т Мощность: 150л.с Привод: передний Комплектация: R-Line",
+          },
+          { type: "text", text: "Цена до Москвы с утильсбором и ЭПТС.", size: 1 },
+          { type: "text", text: "2.160.000₽!", size: 1 },
+          { type: "photo", photo: [{ file_id: "g-1", width: 1280, height: 960 }] },
+          { type: "photo", photo: [{ file_id: "g-2", width: 1280, height: 960 }] },
+        ],
+      },
+    },
+  };
+}
+
+test("статья с таблицей в одну строку разбирается полностью", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-1002000000030", autoPublish: true },
+  });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(golfArticle("-1002000000030", 101), { store, ctx: c.ctx });
+  await c.settle();
+
+  const [car] = await catalogOf(store);
+  assert.ok(car, "карточка должна появиться");
+  assert.match(car.model, /vw/i, "марка — из заголовка статьи");
+  assert.match(car.model, /golf/i, "модель — из таблицы");
+  assert.ok(!/:/.test(car.model), "двоеточие из ячейки в название не тянем: " + car.model);
+  assert.equal(car.year, 2022, "год выпуска");
+  assert.equal(car.mileageKm, 29000, "пробег 29.000KM");
+  assert.equal(car.engineCc, 1400, "объём «1.4Т» — это 1400 см³");
+  assert.equal(car.powerHp, 150, "мощность");
+  assert.equal(car.drive, "Передний", "привод");
+  assert.equal(car.trim, "R-Line", "комплектация");
+  assert.equal(car.priceRub, 2160000, "цена, разорванная на две строки");
+  assert.equal(car.images.length, 2, "оба снимка");
+});
