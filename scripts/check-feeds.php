@@ -258,9 +258,20 @@ foreach ($mqRows as $r) {
         !array_filter($r['images'], fn($i) => !str_starts_with($i, 'http')),
         implode(' ', $r['images']),
     );
+    /*
+     * Ссылку в описании Marquiz показывает голым текстом, по которому нельзя
+     * кликнуть, а число цены спорит с той ценой, что он печатает сам и умеет
+     * зачеркнуть под скидку. Обе вещи уже однажды попали в карточку.
+     */
+    check('в описании Marquiz появилась ссылка', !str_contains($r['description'], 'http'), $r['name']);
     check(
-        'в описании Marquiz нет ссылки на карточку',
-        str_contains($r['description'], '/catalog?car='),
+        'в описании Marquiz появилось число цены',
+        !preg_match('/\d[\d\s\x{00a0}]{5,}\s*₽/u', $r['description']),
+        $r['description'],
+    );
+    check(
+        'в описании Marquiz потерялось «под ключ»',
+        str_contains($r['description'], 'под ключ'),
         $r['name'],
     );
     // Перевод строки внутри поля рвёт наивный разбор CSV на стороне площадки.
