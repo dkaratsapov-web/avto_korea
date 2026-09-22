@@ -1,0 +1,90 @@
+# Выгрузка каталога в файл для импорта в квиз Marquiz.
+#
+# Зачем отдельной задачей, если сайт и так отдаёт /feed/marquiz.csv. Разбор и
+# сборку файла делает разработчик, а из его среды закрыты и домен сайта, и
+# домен воркера: взять оттуда живой каталог он не может. У Actions интернет
+# открыт — поэтому файл собирается здесь и кладётся в ветку catalog-export,
+# откуда его видно.
+#
+# Собирает тот же код, что работает на сайте (public/feed/marquiz-build.php),
+# поэтому файл отсюда и файл по ссылке совпадают до строчки.
+#
+# Запускается по понедельникам и вручную: Actions → «Каталог для Marquiz» → Run.
+
+name: Каталог для Marquiz
+
+on:
+  schedule:
+    # 06:30 UTC = 09:30 МСК, понедельник — после выгрузки рекламы.
+    - cron: "30 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: curl, mbstring
+
+      - name: Собрать CSV из живого каталога
+        run: |
+          mkdir -p catalog-export
+          php -r '
+            require "public/feed/marquiz-build.php";
+            $catalog = loadCatalog();
+            if (!$catalog) { fwrite(STDERR, "Каталог не пришёл\n"); exit(1); }
+            $csv = feedMarquizCsv($catalog);
+            file_put_contents("catalog-export/marquiz-каталог.csv", $csv);
+            printf("машин в каталоге: %d, в файле: %d\n", count($catalog), count(marquizRows($catalog)));
+          '
+
+      # Excel надёжнее CSV: Marquiz не приходится угадывать разделитель,
+      # а цена приходит числом, а не строкой.
+      - name: Сделать XLSX
+        run: |
+          pip install --quiet openpyxl
+          python3 - <<'PY'
+          import csv, io, openpyxl
+          from openpyxl.styles import Alignment, Font
+
+          raw = open("catalog-export/marquiz-каталог.csv", encoding="utf-8-sig").read()
+          rows = list(csv.reader(io.StringIO(raw), delimiter=";"))
+
+          wb = openpyxl.Workbook()
+          ws = wb.active
+          ws.title = "Автомобили"
+          for r in rows:
+              ws.append(r)
+          for c in ws[1]:
+              c.font = Font(bold=True)
+          for row in ws.iter_rows(min_row=2):
+              row[3].value = int(row[3].value)
+              for c in row:
+                  c.alignment = Alignment(vertical="top")
+          for col, width in zip("ABCDEF", (34, 20, 70, 12, 40, 20)):
+              ws.column_dimensions[col].width = width
+          ws.freeze_panes = "A2"
+          wb.save("catalog-export/marquiz-каталог.xlsx")
+          print("строк:", ws.max_row - 1)
+          PY
+
+      # Своя ветка, а не reports: выгрузка рекламы перезаписывает ту целиком,
+      # и файлы затирали бы друг друга через раз.
+      - name: Сложить в ветку catalog-export
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B catalog-export
+          git add -f catalog-export
+          git commit -m "Каталог для Marquiz $(date +%F)" || {
+            echo "Изменений нет — публиковать нечего"
+            exit 0
+          }
+          git push -f origin catalog-export
