@@ -21,3 +21,6 @@ pnpm-debug.log*
 
 # misc
 *.tsbuildinfo
+
+# Выгрузки рекламы живут в отдельной ветке reports
+reports/
