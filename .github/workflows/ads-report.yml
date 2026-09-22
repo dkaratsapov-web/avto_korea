@@ -48,7 +48,10 @@ jobs:
           YANDEX_TOKEN: ${{ secrets.YANDEX_TOKEN }}
           METRIKA_TOKEN: ${{ secrets.METRIKA_TOKEN }}
           DIRECT_TOKEN: ${{ secrets.DIRECT_TOKEN }}
-          DIRECT_LOGIN: ${{ vars.DIRECT_LOGIN }}
+          # Логин читаем и из переменных, и из секретов: он не тайна, но
+          # добавляют его обычно туда, куда попадётся глаз первым, а разница
+          # между вкладками стоит целого прогона впустую.
+          DIRECT_LOGIN: ${{ vars.DIRECT_LOGIN || secrets.DIRECT_LOGIN }}
           DAYS: ${{ github.event.inputs.days || '90' }}
         run: node scripts/ads-report.mjs
 
