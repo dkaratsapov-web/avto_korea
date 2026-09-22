@@ -7,9 +7,11 @@
 #
 # Настроить один раз (GitHub → Settings → Secrets and variables → Actions):
 #   Secrets:
-#     METRIKA_TOKEN — OAuth-токен Яндекс.Метрики (право «Чтение статистики»)
-#     DIRECT_TOKEN  — OAuth-токен Яндекс.Директа (необязательно: доступ к API
-#                     Директа выдаётся по заявке; без него берём всё из Метрики)
+#     YANDEX_TOKEN  — один OAuth-токен на оба сервиса. В приложении Яндекса
+#                     доступы складываются: metrika:read + direct:api дают
+#                     токен, который открывает и Метрику, и Директ.
+#     (или раздельно, если кабинеты у разных людей:)
+#     METRIKA_TOKEN, DIRECT_TOKEN
 #   Variables (необязательно):
 #     DIRECT_LOGIN  — логин рекламодателя, если кабинетом управляет агентство
 #
@@ -43,6 +45,7 @@ jobs:
 
       - name: Собрать отчёты
         env:
+          YANDEX_TOKEN: ${{ secrets.YANDEX_TOKEN }}
           METRIKA_TOKEN: ${{ secrets.METRIKA_TOKEN }}
           DIRECT_TOKEN: ${{ secrets.DIRECT_TOKEN }}
           DIRECT_LOGIN: ${{ vars.DIRECT_LOGIN }}

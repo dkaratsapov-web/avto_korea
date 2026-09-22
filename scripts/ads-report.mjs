@@ -8,7 +8,8 @@
  * открыт интернет, токены лежат в секретах репозитория и никуда не уезжают, а
  * результат попадает в reports/ — туда, где его видно и можно разбирать.
  *
- * Запуск: METRIKA_TOKEN=... [DIRECT_TOKEN=...] node scripts/ads-report.mjs
+ * Запуск: YANDEX_TOKEN=... node scripts/ads-report.mjs
+ * (или раздельно: METRIKA_TOKEN=... DIRECT_TOKEN=...)
  * Параметры: DAYS (по умолчанию 90), COUNTER_ID (по умолчанию наш счётчик).
  *
  * Ошибки не глотаем и не падаем на первой: каждый отчёт сохраняется отдельно,
@@ -19,8 +20,17 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const METRIKA_TOKEN = process.env.METRIKA_TOKEN || "";
-const DIRECT_TOKEN = process.env.DIRECT_TOKEN || "";
+/*
+ * Токен может быть один на оба сервиса.
+ *
+ * В приложении Яндекса доступы складываются: одно приложение с правами
+ * metrika:read и direct:api выдаёт один токен, который открывает и Метрику, и
+ * Директ. Раздельные METRIKA_TOKEN и DIRECT_TOKEN остаются на случай, когда
+ * кабинеты принадлежат разным людям.
+ */
+const YANDEX_TOKEN = process.env.YANDEX_TOKEN || "";
+const METRIKA_TOKEN = process.env.METRIKA_TOKEN || YANDEX_TOKEN;
+const DIRECT_TOKEN = process.env.DIRECT_TOKEN || YANDEX_TOKEN;
 const COUNTER_ID = process.env.COUNTER_ID || "111166439";
 const DAYS = Number(process.env.DAYS || 90);
 
