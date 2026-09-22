@@ -2693,3 +2693,63 @@ test("статья с таблицей в одну строку разбирае
   assert.equal(car.priceRub, 2160000, "цена, разорванная на две строки");
   assert.equal(car.images.length, 2, "оба снимка");
 });
+
+/* ---------- Метки рекламы доезжают от объявления до заявки ---------- */
+
+test("заявка с сайта сохраняет кампанию и показывает её в чате", async () => {
+  const store = makeStore({});
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  const req = new Request("https://w.dev/lead", {
+    method: "POST",
+    body: JSON.stringify({
+      name: "Иван",
+      phone: "+79001112233",
+      source: "Страница «Контакты»",
+      ad: {
+        first: {
+          source: "yandex",
+          medium: "cpc",
+          campaign: "korea-msk",
+          term: "авто из кореи под ключ",
+          yclid: "1234567890",
+          landing: "/go",
+        },
+      },
+    }),
+  });
+  await worker.fetch(req, { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", STORE: store }, c.ctx);
+  await c.settle();
+
+  const [lead] = await store.get("leads");
+  assert.equal(lead.ad.campaign, "korea-msk", "кампания должна дойти до хранилища");
+  assert.equal(lead.ad.yclid, "1234567890", "и идентификатор клика — по нему сходится выгрузка Директа");
+
+  const text = calls
+    .filter((x) => x.method === "sendMessage")
+    .map((x) => String(x.body.text || ""))
+    .find((t) => /Новая заявка/.test(t));
+  assert.match(text, /yandex \/ cpc \/ korea-msk/, "менеджер видит кампанию в чате");
+});
+
+test("заявка без меток выглядит как раньше", async () => {
+  const store = makeStore({});
+  const calls = stubTelegram();
+  const c = makeCtx();
+
+  const req = new Request("https://w.dev/lead", {
+    method: "POST",
+    body: JSON.stringify({ name: "Пётр", phone: "+79001112244", source: "Каталог" }),
+  });
+  await worker.fetch(req, { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", STORE: store }, c.ctx);
+  await c.settle();
+
+  const [lead] = await store.get("leads");
+  assert.equal(lead.ad, null, "выдумывать кампанию нельзя");
+  const text = calls
+    .filter((x) => x.method === "sendMessage")
+    .map((x) => String(x.body.text || ""))
+    .find((t) => /Новая заявка/.test(t));
+  assert.ok(!/Реклама/.test(text), "пустая графа сбивает с толку — её быть не должно");
+});

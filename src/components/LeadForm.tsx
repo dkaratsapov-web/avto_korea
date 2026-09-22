@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { showToast } from "@/lib/toast";
 import { countries, site } from "@/lib/site";
 import { GOALS, reachGoal } from "@/lib/metrika";
+import { attributionForLead } from "@/lib/attribution";
 import { maskPhoneInput } from "@/lib/phone";
 
 type Layout = "compact" | "full";
@@ -114,7 +115,13 @@ export function LeadForm({
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, photo: photo || undefined, source }),
+        body: JSON.stringify({
+          ...data,
+          photo: photo || undefined,
+          source,
+          // Метки рекламы: по ним в CRM видно, какая кампания привела заявку.
+          ad: attributionForLead(),
+        }),
       });
       if (!res.ok) throw new Error("bad response");
       form.reset();

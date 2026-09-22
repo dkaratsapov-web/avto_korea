@@ -163,6 +163,36 @@ async function bindMenuButton(env, settings) {
   return r.json().catch(() => ({}));
 }
 
+/**
+ * Свести метки рекламы к одной строке и паре полей.
+ *
+ * В заявке храним не всё, что прислал браузер, а только то, по чему потом
+ * считают: кампанию, площадку и идентификатор клика Яндекса — по нему
+ * заявка сходится с выгрузкой из Директа. Мусор из адресной строки в
+ * хранилище не тянем.
+ */
+function adSummary(ad) {
+  const pick = ad?.first || ad?.last || null;
+  if (!pick || typeof pick !== "object") return null;
+
+  const str = (v, max = 120) => (typeof v === "string" ? v.slice(0, max) : "");
+  const label = [str(pick.source), str(pick.medium), str(pick.campaign)]
+    .filter(Boolean)
+    .join(" / ");
+  if (!label && !pick.yclid) return null;
+
+  return {
+    label: label || "Яндекс.Директ (клик без меток)",
+    campaign: str(pick.campaign),
+    source: str(pick.source),
+    medium: str(pick.medium),
+    content: str(pick.content),
+    term: str(pick.term),
+    yclid: str(pick.yclid, 64),
+    landing: str(pick.landing),
+  };
+}
+
 function leadText(d) {
   const lines = [
     "🚗 Новая заявка — ДиАвто69",
@@ -183,6 +213,10 @@ function leadText(d) {
   const fromBot =
     !!d.tgUserId || /мини-?апп|mini\s*app|бот|bot/i.test(String(d.source || ""));
   lines.push("", `📍 Источник: ${fromBot ? "Бот" : "Сайт"}`);
+  // Кампанию показываем, только когда она есть: у заявки из бота или с
+  // прямого захода этой строки быть не должно — пустая графа сбивает с толку.
+  const ad = adSummary(d.ad);
+  if (ad) lines.push(`📣 Реклама: ${ad.label}`);
   return lines.join("\n");
 }
 
@@ -2174,6 +2208,14 @@ async function storeLead(env, d) {
       username: d.username || "",
       car: d.car || "",
       source: d.source || "сайт",
+      /*
+       * Метки рекламы — отдельно от «источника».
+       *
+       * Источник отвечает на вопрос «с какой страницы», метки — «по какому
+       * объявлению». Без вторых нельзя ни отключить пустую кампанию, ни
+       * усилить работающую: в списке заявок все выглядят одинаково.
+       */
+      ad: adSummary(d.ad),
       ts: Date.now(),
     });
     // дневной счётчик заявок (для графика)

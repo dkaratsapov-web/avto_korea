@@ -4,7 +4,12 @@ import { BrowserRouter } from "react-router-dom";
 import { App } from "@/App";
 import { UIProvider } from "@/lib/ui";
 import { CarsProvider } from "@/lib/carsStore";
+import { captureAttribution } from "@/lib/attribution";
 import "@/index.css";
+
+// Рекламные метки снимаем до отрисовки: адрес с utm-метками живёт ровно до
+// первого перехода внутри сайта, дальше их взять уже негде.
+captureAttribution();
 
 // Самовосстановление при устаревшем деплое: если динамический чанк страницы
 // не подгрузился (старая вкладка + новый деплой удалил старые чанки),
