@@ -14,6 +14,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../public/feed/2gis-build.php';
+require_once __DIR__ . '/../public/feed/marquiz-build.php';
 
 $failures = [];
 
@@ -43,6 +44,7 @@ $catalog = [
         'engineCc' => 1498,
         'powerHp' => 115,
         'color' => 'Серый',
+        'addedAt' => 1756000000000,
         'priceRub' => 1830000,
         'priceTverRub' => 1810000,
         'priceMoscowRub' => 1800000,
@@ -57,6 +59,8 @@ $catalog = [
         'country' => 'kr',
         'mileage' => '23 000 км',
         'mileageKm' => 23000,
+        // Добавлена позже соседки — в подборке Marquiz должна идти первой.
+        'addedAt' => 1757000000000,
         'gearbox' => 'АКПП',
         'drive' => 'Полный',
         'priceRub' => 4200000,
@@ -213,6 +217,67 @@ check('в CSV нет BOM — Excel покажет кракозябры', str_sta
 $lines = array_values(array_filter(explode("\n", trim(substr($csv, 3)))));
 check('в CSV не те строки', count($lines) === 3, 'строк: ' . count($lines));
 check('в CSV не тот разделитель', substr_count($lines[0], ';') >= 7, $lines[0]);
+
+// --- Marquiz ---
+
+/*
+ * Файл для квиза проверяем строже, чем остальные фиды: его загружают руками
+ * и результат видят сразу, но ошибку формата Marquiz показывает одной строкой
+ * «не удалось импортировать», без подробностей.
+ */
+$mq = feedMarquizCsv($catalog);
+check('в файле Marquiz нет BOM — Excel покажет кракозябры', str_starts_with($mq, "\xEF\xBB\xBF"));
+
+$mqLines = array_values(array_filter(explode("\n", trim(substr($mq, 3)))));
+check(
+    'в файле Marquiz не те строки',
+    count($mqLines) === count(marquizRows($catalog)) + 1,
+    'строк: ' . count($mqLines),
+);
+
+// Заголовки должны совпасть с полями Marquiz дословно, иначе колонки
+// придётся сопоставлять руками при каждой загрузке.
+check(
+    'заголовки колонок Marquiz изменились',
+    str_getcsv(rtrim($mqLines[0], "\r"), ';', '"', '') === [
+        'Название', 'Внутреннее название', 'Описание', 'Цена', 'Изображения', 'Видео',
+    ],
+    $mqLines[0],
+);
+
+$mqRows = marquizRows($catalog);
+check('в подборку Marquiz попала машина без фото или цены', count($mqRows) === 2, 'строк: ' . count($mqRows));
+
+foreach ($mqRows as $r) {
+    check('в названии для Marquiz осталась мусорная комплектация', !str_contains($r['name'], 'блокировк'), $r['name']);
+    check('у товара Marquiz нет внутреннего названия', $r['slug'] !== '', $r['name']);
+    check('у товара Marquiz нет цены', $r['price'] > 0, $r['name']);
+    check('у товара Marquiz нет фотографий', count($r['images']) > 0, $r['name']);
+    check(
+        'фотографии Marquiz не абсолютными ссылками',
+        !array_filter($r['images'], fn($i) => !str_starts_with($i, 'http')),
+        implode(' ', $r['images']),
+    );
+    check(
+        'в описании Marquiz нет ссылки на карточку',
+        str_contains($r['description'], '/catalog?car='),
+        $r['name'],
+    );
+    // Перевод строки внутри поля рвёт наивный разбор CSV на стороне площадки.
+    check('в описании Marquiz перевод строки', !str_contains($r['description'], "\n"), $r['name']);
+    check(
+        'в описании Marquiz остались контакты',
+        !preg_match('/@[a-z0-9_]{3,}|\+7\s*\(/iu', $r['description']),
+        $r['description'],
+    );
+}
+
+// Порядок — от новых к старым: при обрезке до лимита должны уходить старые.
+check(
+    'подборка Marquiz не отсортирована по дате добавления',
+    $mqRows[0]['slug'] === 'tg-2875062656-18',
+    $mqRows[0]['slug'],
+);
 
 // --- Фид Яндекса: все ли вызовы разрешимы ---
 
