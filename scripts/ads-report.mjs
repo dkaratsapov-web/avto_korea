@@ -102,16 +102,66 @@ async function goals() {
   return (d.goals || []).map((g) => ({ id: g.id, name: g.name, type: g.type }));
 }
 
+/**
+ * Спросить отчёт, перебирая варианты названий полей.
+ *
+ * Справочник Метрики недоступен из среды разработки, а имена измерений в
+ * разных пространствах имён не совпадают: то, что в отчётах по визитам зовётся
+ * lastDirectClickOrderName, в отчётах по расходам называется иначе. Перебор
+ * дешевле угадывания: первый вариант, который сервер принял, и есть верный, а
+ * если не принял ни один — в файле останутся все ответы сразу.
+ */
+async function tryReport(name, variants, common) {
+  const errors = [];
+  for (const variant of variants) {
+    try {
+      const params = { ...common, ...variant };
+      for (const k of Object.keys(params)) if (params[k] === undefined) delete params[k];
+      const data = await metrika("/stat/v1/data", params);
+      await save(name, {
+        запрос: { dimensions: variant.dimensions, metrics: variant.metrics },
+        totals: data.totals,
+        rows: toRows(data),
+      });
+      return true;
+    } catch (e) {
+      errors.push({ вариант: variant.dimensions, ошибка: String(e.message || e).slice(0, 300) });
+    }
+  }
+  await save(name.replace(".json", ".error.json"), { отчёт: name, попытки: errors });
+  console.log(`  ✖ ${name}: не принят ни один вариант полей`);
+  return false;
+}
+
 async function metrikaReports() {
   const list = await goals();
   await save("goals.json", list);
 
-  // Заявки считаем по цели отправки формы; если её нет — по любой цели.
-  const leadGoal =
-    list.find((g) => /lead_submit|заявк/i.test(`${g.name} ${g.id}`)) || list[0] || null;
-  const goalMetrics = leadGoal
-    ? [`ym:s:goal${leadGoal.id}reaches`, `ym:s:goal${leadGoal.id}conversionRate`]
-    : ["ym:s:sumGoalReachesAny"];
+  /*
+   * Считаем сразу по нескольким целям, а не по одной.
+   *
+   * Почти половина рекламы ведёт не на форму, а в бота и канал: для таких
+   * кампаний «заявка с сайта» всегда ноль, и по одной этой цели они выглядят
+   * одинаково мёртвыми — и те, что действительно мёртвые, и те, что приводят
+   * подписчиков. Берём цели по смыслу: заявка, переход в мессенджер, старт
+   * бота, открытая карточка, звонок.
+   */
+  const wanted = [
+    /заявка|lead|отправка формы/i,
+    /переход в лс|мессенджер/i,
+    /бота|бот\b|подписка\/старт/i,
+    /карточк/i,
+    /телефон/i,
+  ];
+  const picked = [];
+  for (const re of wanted) {
+    const g = list.find((x) => re.test(x.name) && !picked.some((p) => p.id === x.id));
+    if (g) picked.push(g);
+  }
+  await save("goals-used.json", picked);
+
+  const goalMetrics = picked.map((g) => `ym:s:goal${g.id}reaches`);
+  if (!goalMetrics.length) goalMetrics.push("ym:s:sumGoalReachesAny");
 
   const common = {
     ids: COUNTER_ID,
@@ -186,14 +236,14 @@ async function metrikaReports() {
       },
     },
     {
-      // Расходы Директа лежат в своём пространстве имён (ym:ad:) — там клики
-      // и деньги, которых в обычных отчётах нет.
-      name: "direct-costs.json",
+      // Динамика по неделям: без неё не видно, когда именно всё просело.
+      name: "weekly.json",
       params: {
-        dimensions: "ym:ad:lastDirectClickOrderName",
-        metrics: "ym:ad:clicks,ym:ad:RUBAdCost,ym:ad:visits,ym:ad:goal",
-        sort: "-ym:ad:RUBAdCost",
-        direct_client_logins: process.env.DIRECT_LOGIN || undefined,
+        dimensions: "ym:s:lastDirectClickOrderName",
+        metrics: ["ym:s:visits", ...goalMetrics].join(","),
+        group: "week",
+        sort: "-ym:s:visits",
+        limit: 50,
       },
     },
   ];
@@ -213,6 +263,22 @@ async function metrikaReports() {
       console.log(`  ✖ ${r.name}: ${String(e.message || e).slice(0, 200)}`);
     }
   }
+
+  /*
+   * Деньги. Клики и расход лежат в отдельном пространстве имён (ym:ad:), и
+   * имена измерений там свои — перебираем известные написания.
+   */
+  await tryReport(
+    "direct-costs.json",
+    [
+      { dimensions: "ym:ad:lastDirectClickOrder", metrics: "ym:ad:clicks,ym:ad:RUBAdCost,ym:ad:visits" },
+      { dimensions: "ym:ad:lastDirectOrder", metrics: "ym:ad:clicks,ym:ad:RUBAdCost,ym:ad:visits" },
+      { dimensions: "ym:ad:directOrder", metrics: "ym:ad:clicks,ym:ad:RUBAdCost,ym:ad:visits" },
+      { dimensions: "ym:ad:lastsignDirectOrder", metrics: "ym:ad:clicks,ym:ad:RUBAdCost,ym:ad:visits" },
+      { dimensions: "ym:ad:lastDirectClickOrderName", metrics: "ym:ad:clicks,ym:ad:RUBAdCost" },
+    ].map((v) => ({ ...v, sort: "-ym:ad:RUBAdCost", direct_client_logins: process.env.DIRECT_LOGIN || undefined })),
+    { ids: COUNTER_ID, date1: DATE1, date2: DATE2, accuracy: "full", limit: 200 },
+  );
 }
 
 /* -------------------------------------------------------------- Директ */
