@@ -44,10 +44,11 @@
   # Marquiz: подборка авто в результатах квиза. Товары он принимает файлом,
   # поэтому отдаём таблицей — её скачивают и загружают в квиз.
   RewriteRule ^feed/marquiz\.csv$ /feed/marquiz.php [L]
+  RewriteRule ^feed/marquiz-segments\.csv$ /feed/marquiz.php?mode=segments [L]
 
   # Сборщики фидов — не страницы: открывать их напрямую незачем, а вот попасть
   # в поиск они могут, и тогда в выдаче окажется простыня XML вместо сайта.
-  RewriteRule ^feed/(catalog-source|2gis-build|marquiz-build)\.php$ - [F]
+  RewriteRule ^feed/(catalog-source|2gis-build|marquiz-build|marquiz-segments-build)\.php$ - [F]
 
   # Оценка и отзывы компании в 2ГИС. Виджета, который вставляется рамкой,
   # у 2ГИС нет — карточку рисуем сами, а данные для неё сервер забирает

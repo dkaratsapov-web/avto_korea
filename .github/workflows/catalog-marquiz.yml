@@ -1,4 +1,9 @@
-# Выгрузка каталога в файл для импорта в квиз Marquiz.
+# Выгрузка каталога в файлы для импорта в квиз Marquiz.
+#
+# Файлов два: все машины по одной и четыре подборки по цене. Подборки нужны
+# потому, что импорт грузит карточки, но не правила показа — их задают в
+# Marquiz руками, у каждого результата отдельно. На трёхстах машинах это не
+# настраивается, на четырёх подборках — один раз.
 #
 # Зачем отдельной задачей, если сайт и так отдаёт /feed/marquiz.csv. Разбор и
 # сборку файла делает разработчик, а из его среды закрыты и домен сайта, и
@@ -37,12 +42,14 @@ jobs:
         run: |
           mkdir -p catalog-export
           php -r '
-            require "public/feed/marquiz-build.php";
+            require "public/feed/marquiz-segments-build.php";
             $catalog = loadCatalog();
             if (!$catalog) { fwrite(STDERR, "Каталог не пришёл\n"); exit(1); }
-            $csv = feedMarquizCsv($catalog);
-            file_put_contents("catalog-export/marquiz-каталог.csv", $csv);
-            printf("машин в каталоге: %d, в файле: %d\n", count($catalog), count(marquizRows($catalog)));
+            file_put_contents("catalog-export/marquiz-каталог.csv", feedMarquizCsv($catalog));
+            file_put_contents("catalog-export/marquiz-подборки.csv", feedMarquizSegmentsCsv($catalog));
+            file_put_contents("catalog-export/подборки-как-настроить.md", segmentsReadme($catalog));
+            printf("машин в каталоге: %d, в файле: %d, подборок: %d\n",
+              count($catalog), count(marquizRows($catalog)), count(segmentRows($catalog)));
           '
 
       # Excel надёжнее CSV: Marquiz не приходится угадывать разделитель,
@@ -54,25 +61,26 @@ jobs:
           import csv, io, openpyxl
           from openpyxl.styles import Alignment, Font
 
-          raw = open("catalog-export/marquiz-каталог.csv", encoding="utf-8-sig").read()
-          rows = list(csv.reader(io.StringIO(raw), delimiter=";"))
+          for name, sheet in (("marquiz-каталог", "Автомобили"), ("marquiz-подборки", "Подборки")):
+              raw = open(f"catalog-export/{name}.csv", encoding="utf-8-sig").read()
+              rows = list(csv.reader(io.StringIO(raw), delimiter=";"))
 
-          wb = openpyxl.Workbook()
-          ws = wb.active
-          ws.title = "Автомобили"
-          for r in rows:
-              ws.append(r)
-          for c in ws[1]:
-              c.font = Font(bold=True)
-          for row in ws.iter_rows(min_row=2):
-              row[3].value = int(row[3].value)
-              for c in row:
-                  c.alignment = Alignment(vertical="top")
-          for col, width in zip("ABCDEF", (34, 20, 70, 12, 40, 20)):
-              ws.column_dimensions[col].width = width
-          ws.freeze_panes = "A2"
-          wb.save("catalog-export/marquiz-каталог.xlsx")
-          print("строк:", ws.max_row - 1)
+              wb = openpyxl.Workbook()
+              ws = wb.active
+              ws.title = sheet
+              for r in rows:
+                  ws.append(r)
+              for c in ws[1]:
+                  c.font = Font(bold=True)
+              for row in ws.iter_rows(min_row=2):
+                  row[3].value = int(row[3].value)
+                  for c in row:
+                      c.alignment = Alignment(vertical="top")
+              for col, width in zip("ABCDEF", (34, 20, 70, 12, 40, 20)):
+                  ws.column_dimensions[col].width = width
+              ws.freeze_panes = "A2"
+              wb.save(f"catalog-export/{name}.xlsx")
+              print(name, "— строк:", ws.max_row - 1)
           PY
 
       # Своя ветка, а не reports: выгрузка рекламы перезаписывает ту целиком,

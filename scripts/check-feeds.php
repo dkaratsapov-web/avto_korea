@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../public/feed/2gis-build.php';
 require_once __DIR__ . '/../public/feed/marquiz-build.php';
+require_once __DIR__ . '/../public/feed/marquiz-segments-build.php';
 
 $failures = [];
 
@@ -288,6 +289,69 @@ check(
     'подборка Marquiz не отсортирована по дате добавления',
     $mqRows[0]['slug'] === 'tg-2875062656-18',
     $mqRows[0]['slug'],
+);
+
+// --- Подборки по цене для Marquiz ---
+
+/*
+ * Подборки существуют потому, что правила показа задаются в Marquiz руками,
+ * и настроить их можно только на нескольких результатах. Значит цена ошибки
+ * здесь выше обычной: разойдись границы с вариантами ответа в квизе — и
+ * человек увидит подборку, собранную не по его ответу.
+ */
+$segments = segmentRows($catalog);
+check('подборок по цене не то количество', count($segments) === 2, 'подборок: ' . count($segments));
+
+$byId = [];
+foreach ($segments as $s) {
+    $byId[$s['slug']] = $s;
+}
+check('нет подборки 1,5–2,5 млн', isset($byId['price-1500-2500']));
+check('нет подборки от 3,5 млн', isset($byId['price-3500']));
+check(
+    'пустая вилка попала в подборки',
+    !isset($byId['price-0-1500']) && !isset($byId['price-2500-3500']),
+    implode(', ', array_keys($byId)),
+);
+
+foreach ($segments as $s) {
+    check('в подборке нет машин', $s['count'] > 0, $s['name']);
+    check('у подборки нет фотографий', count($s['images']) > 0, $s['name']);
+    check('у подборки нет цены', $s['price'] > 0, $s['name']);
+    check('в описании подборки ссылка', !str_contains($s['description'], 'http'), $s['name']);
+    check(
+        'в описании подборки число цены',
+        !preg_match('/\d[\d\s\x{00a0}]{5,}\s*₽/u', $s['description']),
+        $s['description'],
+    );
+    check(
+        'ссылка подборки ведёт не в каталог',
+        str_starts_with($s['url'], SITE_URL . '/catalog'),
+        $s['url'],
+    );
+}
+
+// Цена подборки — нижняя граница того, что в ней лежит: с неё начинается выбор.
+check(
+    'цена подборки не минимальная',
+    $byId['price-1500-2500']['price'] === 1800000,
+    (string) $byId['price-1500-2500']['price'],
+);
+// Число в названии должно склоняться: «1 автомобиль», а не «1 автомобилей».
+check('число в названии подборки не склоняется', str_contains($byId['price-3500']['name'], '1 автомобиль'), $byId['price-3500']['name']);
+foreach ([1 => 'автомобиль', 2 => 'автомобиля', 5 => 'автомобилей', 11 => 'автомобилей', 22 => 'автомобиля', 101 => 'автомобиль'] as $n => $word) {
+    check('склонение «автомобиль» сломано', carsWord($n) === $n . ' ' . $word, carsWord($n));
+}
+
+$segCsv = feedMarquizSegmentsCsv($catalog);
+$segLines = array_values(array_filter(explode("\n", trim(substr($segCsv, 3)))));
+check('в файле подборок не те строки', count($segLines) === count($segments) + 1, 'строк: ' . count($segLines));
+check(
+    'заголовки файла подборок разошлись с файлом машин',
+    str_getcsv(rtrim($segLines[0], "\r"), ';', '"', '') === [
+        'Название', 'Внутреннее название', 'Описание', 'Цена', 'Изображения', 'Видео',
+    ],
+    $segLines[0],
 );
 
 // --- Фид Яндекса: все ли вызовы разрешимы ---
