@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Выгрузка рекламной статистики: Яндекс.Метрика и (если есть доступ) Директ.
+ * Выгрузка статистики сайта и рекламы: Яндекс.Метрика и (если есть доступ) Директ.
  *
  * Зачем это здесь, а не на сайте. Разбор кампаний делает разработчик, а у него
  * нет доступа ни к рекламному кабинету, ни к боевому серверу — сеть закрыта.
@@ -31,6 +31,7 @@ import path from "node:path";
 const YANDEX_TOKEN = process.env.YANDEX_TOKEN || "";
 const METRIKA_TOKEN = process.env.METRIKA_TOKEN || YANDEX_TOKEN;
 const DIRECT_TOKEN = process.env.DIRECT_TOKEN || YANDEX_TOKEN;
+const DIRECT_LOGIN = (process.env.DIRECT_LOGIN || "").trim();
 const COUNTER_ID = process.env.COUNTER_ID || "111166439";
 const DAYS = Number(process.env.DAYS || 90);
 
@@ -57,7 +58,10 @@ const METRIKA = "https://api-metrika.yandex.net";
 
 async function metrika(pathname, params = {}) {
   const url = new URL(pathname, METRIKA);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === "") continue;
+    url.searchParams.set(k, String(v));
+  }
 
   const r = await fetch(url, {
     headers: { Authorization: `OAuth ${METRIKA_TOKEN}` },
@@ -77,10 +81,12 @@ async function metrika(pathname, params = {}) {
   return data;
 }
 
+const shortName = (s) => s.replace(/^ym:[a-z]+:/, "");
+
 /** Плоская таблица из ответа Метрики — её удобно читать и глазами, и кодом. */
 function toRows(report) {
-  const dims = (report.query?.dimensions || []).map((d) => d.replace(/^ym:[a-z]+:/, ""));
-  const mets = (report.query?.metrics || []).map((m) => m.replace(/^ym:[a-z]+:/, ""));
+  const dims = (report.query?.dimensions || []).map(shortName);
+  const mets = (report.query?.metrics || []).map(shortName);
   return (report.data || []).map((row) => {
     const out = {};
     row.dimensions.forEach((d, i) => {
@@ -91,6 +97,33 @@ function toRows(report) {
     });
     return out;
   });
+}
+
+/**
+ * Динамика по дням и неделям приходит с другой ручки.
+ *
+ * У /stat/v1/data метрики — числа за весь период, и параметр group там просто
+ * игнорируется: отчёт «по неделям» молча получался копией обычного. Ряды по
+ * времени отдаёт /stat/v1/data/bytime, и там в каждой строке метрика — массив
+ * значений по интервалам, которые перечислены в time_intervals.
+ */
+function toSeries(report) {
+  const dims = (report.query?.dimensions || []).map(shortName);
+  const mets = (report.query?.metrics || []).map(shortName);
+  const intervals = (report.time_intervals || []).map((pair) => pair[0]);
+  return {
+    интервалы: intervals,
+    ряды: (report.data || []).map((row) => {
+      const out = {};
+      row.dimensions.forEach((d, i) => {
+        out[dims[i] || `dim${i}`] = d.name ?? d.id ?? "";
+      });
+      row.metrics.forEach((values, i) => {
+        out[mets[i] || `metric${i}`] = values;
+      });
+      return out;
+    }),
+  };
 }
 
 /**
@@ -115,9 +148,7 @@ async function tryReport(name, variants, common) {
   const errors = [];
   for (const variant of variants) {
     try {
-      const params = { ...common, ...variant };
-      for (const k of Object.keys(params)) if (params[k] === undefined) delete params[k];
-      const data = await metrika("/stat/v1/data", params);
+      const data = await metrika("/stat/v1/data", { ...common, ...variant });
       await save(name, {
         запрос: { dimensions: variant.dimensions, metrics: variant.metrics },
         totals: data.totals,
@@ -133,73 +164,186 @@ async function tryReport(name, variants, common) {
   return false;
 }
 
+/* --------------------------------------------------------------- цели */
+
+/**
+ * Какие цели считаем.
+ *
+ * Считать по одной цели «заявка с сайта» нельзя по двум причинам. Первая:
+ * половина рекламы ведёт не на форму, а в бота и канал — для таких кампаний
+ * заявок на сайте не будет никогда. Вторая: сама цель «Заявка с сайта» —
+ * типа url, то есть срабатывает на переход по адресу; на сайте-одностраничнике
+ * адрес после отправки формы не меняется, и ноль в этой цели может означать
+ * не «нет заявок», а «цель не настроена». Поэтому рядом всегда берём
+ * автоцели Метрики (отправка формы, контактные данные) и цели CRM: если
+ * заявки есть, они проявятся хотя бы в одной из них.
+ */
+const GOAL_WANTED = [
+  { key: "заявка", re: /^заявка с сайта/i },
+  { key: "форма", re: /автоцель.*отправка формы/i },
+  { key: "контакты", re: /автоцель.*отправил контактные/i },
+  { key: "мессенджер", re: /автоцель.*переход в мессенджер/i },
+  { key: "телефон", re: /^js - клик по номеру/i },
+  { key: "лс-тг", re: /переход в лс - тг/i },
+  { key: "канал-тг", re: /переход в канал - тг/i },
+  { key: "бот-клик", re: /переход в бота тг/i },
+  { key: "бот-старт", re: /подписка\/старт/i },
+  { key: "карточка", re: /открыта карточка/i },
+  { key: "crm-заказ", re: /crm: заказ создан/i },
+  { key: "crm-оплата", re: /crm: заказ оплачен/i },
+];
+
+/** Короткий набор — для срезов в два измерения, где важнее строки, чем цели. */
+const GOAL_CORE = ["заявка", "форма", "мессенджер", "канал-тг", "бот-клик", "карточка"];
+
+function pickGoals(list) {
+  const picked = [];
+  for (const w of GOAL_WANTED) {
+    const g = list.find((x) => w.re.test(x.name) && !picked.some((p) => p.id === x.id));
+    if (g) picked.push({ ...g, key: w.key });
+  }
+  return picked;
+}
+
+/* ------------------------------------------------------------- отчёты */
+
 async function metrikaReports() {
   const list = await goals();
   await save("goals.json", list);
 
-  /*
-   * Считаем сразу по нескольким целям, а не по одной.
-   *
-   * Почти половина рекламы ведёт не на форму, а в бота и канал: для таких
-   * кампаний «заявка с сайта» всегда ноль, и по одной этой цели они выглядят
-   * одинаково мёртвыми — и те, что действительно мёртвые, и те, что приводят
-   * подписчиков. Берём цели по смыслу: заявка, переход в мессенджер, старт
-   * бота, открытая карточка, звонок.
-   */
-  const wanted = [
-    /^заявка с сайта/i,
-    /переход в лс - тг/i,
-    // Главная цель для половины рекламы: она ведёт не на форму, а в канал.
-    /переход в канал - тг/i,
-    /переход в бота тг/i,
-    /подписка\/старт/i,
-    /карточк/i,
-    /клик по номеру/i,
-  ];
-  const picked = [];
-  for (const re of wanted) {
-    const g = list.find((x) => re.test(x.name) && !picked.some((p) => p.id === x.id));
-    if (g) picked.push(g);
-  }
+  const picked = pickGoals(list);
   await save("goals-used.json", picked);
 
-  const goalMetrics = picked.map((g) => `ym:s:goal${g.id}reaches`);
-  if (!goalMetrics.length) goalMetrics.push("ym:s:sumGoalReachesAny");
-
-  const common = {
-    ids: COUNTER_ID,
-    date1: DATE1,
-    date2: DATE2,
-    accuracy: "full",
-    limit: 500,
+  const metricOf = (key) => {
+    const g = picked.find((p) => p.key === key);
+    return g ? `ym:s:goal${g.id}reaches` : null;
   };
+  const all = picked.map((g) => `ym:s:goal${g.id}reaches`);
+  const core = GOAL_CORE.map(metricOf).filter(Boolean);
+  // Ключ к чтению файлов: какая метрика какой цели соответствует.
+  await save(
+    "goals-legend.json",
+    picked.map((g) => ({ метрика: `goal${g.id}reaches`, цель: g.name, ключ: g.key, тип: g.type })),
+  );
+
+  const BASE = ["ym:s:visits", "ym:s:users", "ym:s:bounceRate", "ym:s:pageDepth", "ym:s:avgVisitDurationSeconds"];
+  const common = { ids: COUNTER_ID, date1: DATE1, date2: DATE2, accuracy: "full", limit: 500 };
 
   /*
-   * Срезы выбраны под один вопрос: куда уходят деньги и что приносит заявки.
-   * Кампания отвечает «что отключить», фраза — «что минусовать», площадка —
-   * «где сливается РСЯ», устройство и регион — «кому мы вообще показываемся».
+   * Срезы выбраны под четыре вопроса, а не под один.
+   *
+   * Куда уходят деньги (кампания, площадка, фраза), кто приходит (устройство,
+   * регион, новый или вернувшийся), куда он попадает (посадочная, связка
+   * «кампания × посадочная») и что делает дальше (страницы, выходы, цели).
+   * Без связки «кампания × посадочная» разбор упирается в потолок: видно, что
+   * кампания плоха, но не видно, кампания плоха или страница под ней.
    */
   const reports = [
+    /* --- весь трафик, не только реклама --------------------------------- */
+    {
+      name: "traffic-sources.json",
+      params: {
+        dimensions: "ym:s:lastTrafficSource,ym:s:lastSourceEngineName",
+        metrics: [...BASE, ...all].join(","),
+        sort: "-ym:s:visits",
+        limit: 200,
+      },
+    },
+    {
+      name: "all-landings.json",
+      params: {
+        dimensions: "ym:s:startURL",
+        metrics: [...BASE, ...all].join(","),
+        sort: "-ym:s:visits",
+        limit: 200,
+      },
+    },
+    {
+      name: "exit-pages.json",
+      params: {
+        dimensions: "ym:s:endURL",
+        metrics: ["ym:s:visits", "ym:s:bounceRate", ...core].join(","),
+        sort: "-ym:s:visits",
+        limit: 100,
+      },
+    },
+    {
+      name: "pages.json",
+      params: {
+        dimensions: "ym:pv:URL",
+        metrics: "ym:pv:pageviews,ym:pv:users",
+        sort: "-ym:pv:pageviews",
+        limit: 150,
+      },
+    },
+    {
+      name: "new-vs-returning.json",
+      params: {
+        dimensions: "ym:s:isNewUser",
+        metrics: [...BASE, ...all].join(","),
+      },
+    },
+    {
+      name: "devices.json",
+      params: {
+        dimensions: "ym:s:deviceCategory,ym:s:mobilePhone",
+        metrics: [...BASE, ...core].join(","),
+        sort: "-ym:s:visits",
+        limit: 60,
+      },
+    },
+    {
+      name: "regions.json",
+      params: {
+        dimensions: "ym:s:regionCity",
+        metrics: [...BASE, ...core].join(","),
+        sort: "-ym:s:visits",
+        limit: 120,
+      },
+    },
+    {
+      name: "utm.json",
+      params: {
+        dimensions: "ym:s:UTMSource,ym:s:UTMCampaign",
+        metrics: ["ym:s:visits", "ym:s:bounceRate", ...core].join(","),
+        sort: "-ym:s:visits",
+        limit: 150,
+      },
+    },
+
+    /* --- реклама ---------------------------------------------------------- */
     {
       name: "campaigns.json",
       params: {
         dimensions: "ym:s:lastDirectClickOrderName",
-        metrics: [
-          "ym:s:visits",
-          "ym:s:users",
-          "ym:s:bounceRate",
-          "ym:s:pageDepth",
-          "ym:s:avgVisitDurationSeconds",
-          ...goalMetrics,
-        ].join(","),
+        metrics: [...BASE, ...all].join(","),
         sort: "-ym:s:visits",
       },
     },
     {
-      name: "search-phrases.json",
+      // Главная связка разбора: кампания × страница, куда она ведёт.
+      name: "campaign-landing.json",
       params: {
-        dimensions: "ym:s:lastDirectClickOrderName,ym:s:lastDirectSearchPhrase",
-        metrics: ["ym:s:visits", "ym:s:bounceRate", ...goalMetrics].join(","),
+        dimensions: "ym:s:lastDirectClickOrderName,ym:s:startURL",
+        metrics: [...BASE, ...core].join(","),
+        sort: "-ym:s:visits",
+        limit: 300,
+      },
+    },
+    {
+      name: "campaign-device.json",
+      params: {
+        dimensions: "ym:s:lastDirectClickOrderName,ym:s:deviceCategory",
+        metrics: [...BASE, ...core].join(","),
+        sort: "-ym:s:visits",
+        limit: 100,
+      },
+    },
+    {
+      name: "campaign-region.json",
+      params: {
+        dimensions: "ym:s:lastDirectClickOrderName,ym:s:regionCity",
+        metrics: ["ym:s:visits", "ym:s:bounceRate", ...core].join(","),
         sort: "-ym:s:visits",
         limit: 300,
       },
@@ -207,55 +351,26 @@ async function metrikaReports() {
     {
       name: "platforms.json",
       params: {
-        dimensions: "ym:s:lastDirectPlatform",
-        metrics: ["ym:s:visits", "ym:s:bounceRate", ...goalMetrics].join(","),
+        dimensions: "ym:s:lastDirectPlatform,ym:s:lastDirectClickOrderName",
+        metrics: [...BASE, ...core].join(","),
         sort: "-ym:s:visits",
-        limit: 200,
+        limit: 400,
       },
     },
     {
-      name: "devices.json",
+      name: "search-phrases.json",
       params: {
-        dimensions: "ym:s:deviceCategory",
-        metrics: ["ym:s:visits", "ym:s:bounceRate", ...goalMetrics].join(","),
-      },
-    },
-    {
-      name: "regions.json",
-      params: {
-        dimensions: "ym:s:regionCity",
-        metrics: ["ym:s:visits", "ym:s:bounceRate", ...goalMetrics].join(","),
+        dimensions: "ym:s:lastDirectClickOrderName,ym:s:lastDirectSearchPhrase",
+        metrics: ["ym:s:visits", "ym:s:bounceRate", ...core].join(","),
         sort: "-ym:s:visits",
-        limit: 100,
-      },
-    },
-    {
-      name: "landing-pages.json",
-      params: {
-        dimensions: "ym:s:startURL",
-        metrics: ["ym:s:visits", "ym:s:bounceRate", ...goalMetrics].join(","),
-        sort: "-ym:s:visits",
-        limit: 100,
-      },
-    },
-    {
-      // Динамика по неделям: без неё не видно, когда именно всё просело.
-      name: "weekly.json",
-      params: {
-        dimensions: "ym:s:lastDirectClickOrderName",
-        metrics: ["ym:s:visits", ...goalMetrics].join(","),
-        group: "week",
-        sort: "-ym:s:visits",
-        limit: 50,
+        limit: 400,
       },
     },
   ];
 
   for (const r of reports) {
     try {
-      const params = { ...common, ...r.params };
-      for (const k of Object.keys(params)) if (params[k] === undefined) delete params[k];
-      const data = await metrika("/stat/v1/data", params);
+      const data = await metrika("/stat/v1/data", { ...common, ...r.params });
       await save(r.name, { query: data.query, totals: data.totals, rows: toRows(data) });
     } catch (e) {
       await save(r.name.replace(".json", ".error.json"), {
@@ -267,19 +382,102 @@ async function metrikaReports() {
     }
   }
 
+  /* --- динамика --------------------------------------------------------- */
+
+  const series = [
+    {
+      name: "daily-total.json",
+      params: {
+        metrics: [...BASE, ...all].join(","),
+        group: "day",
+      },
+    },
+    {
+      name: "weekly-campaigns.json",
+      params: {
+        dimensions: "ym:s:lastDirectClickOrderName",
+        metrics: ["ym:s:visits", ...core].join(","),
+        group: "week",
+        sort: "-ym:s:visits",
+        limit: 20,
+      },
+    },
+  ];
+
+  for (const s of series) {
+    try {
+      const data = await metrika("/stat/v1/data/bytime", { ...common, ...s.params });
+      await save(s.name, { query: data.query, totals: data.totals, ...toSeries(data) });
+    } catch (e) {
+      await save(s.name.replace(".json", ".error.json"), {
+        отчёт: s.name,
+        ошибка: String(e.message || e),
+        ответ: e.payload || null,
+      });
+      console.log(`  ✖ ${s.name}: ${String(e.message || e).slice(0, 200)}`);
+    }
+  }
+
+  /* --- поля с неизвестным написанием ------------------------------------ */
+
+  // Объявления и ключи: без них нельзя сказать, что именно минусовать.
+  await tryReport(
+    "direct-banners.json",
+    [
+      { dimensions: "ym:s:lastDirectBannerGroup,ym:s:lastDirectPhraseOrCond" },
+      { dimensions: "ym:s:lastDirectBanner,ym:s:lastDirectPhraseOrCond" },
+      { dimensions: "ym:s:lastDirectPhraseOrCond" },
+      { dimensions: "ym:s:lastDirectConditionType" },
+    ].map((v) => ({
+      ...v,
+      metrics: ["ym:s:visits", "ym:s:bounceRate", ...core].join(","),
+      sort: "-ym:s:visits",
+      limit: 300,
+    })),
+    common,
+  );
+
+  // Тип площадки (сайт или мобильное приложение) — разные рычаги отключения.
+  await tryReport(
+    "platform-type.json",
+    [
+      { dimensions: "ym:s:lastDirectPlatformType,ym:s:lastDirectClickOrderName" },
+      { dimensions: "ym:s:lastDirectPlatformType" },
+    ].map((v) => ({
+      ...v,
+      metrics: ["ym:s:visits", "ym:s:bounceRate", ...core].join(","),
+      sort: "-ym:s:visits",
+      limit: 100,
+    })),
+    common,
+  );
+
+  // Как долго люди смотрят: средняя длительность прячет распределение.
+  await tryReport(
+    "engagement.json",
+    [
+      { dimensions: "ym:s:visitDurationInterval" },
+      { dimensions: "ym:s:pageViewsInterval" },
+    ].map((v) => ({
+      ...v,
+      metrics: ["ym:s:visits", "ym:s:bounceRate", ...core].join(","),
+      limit: 50,
+    })),
+    common,
+  );
+
   /*
    * Деньги. Клики и расход лежат в отдельном пространстве имён (ym:ad:), и
-   * имена измерений там свои — перебираем известные написания.
+   * доступ к нему Метрика открывает только вместе с логином рекламодателя:
+   * без параметра direct_client_logins ответ — 403 direct_client_logins.
    */
   await tryReport(
     "direct-costs.json",
     [
-      { dimensions: "ym:ad:lastDirectClickOrder", metrics: "ym:ad:clicks,ym:ad:RUBAdCost,ym:ad:visits" },
       { dimensions: "ym:ad:lastDirectOrder", metrics: "ym:ad:clicks,ym:ad:RUBAdCost,ym:ad:visits" },
       { dimensions: "ym:ad:directOrder", metrics: "ym:ad:clicks,ym:ad:RUBAdCost,ym:ad:visits" },
       { dimensions: "ym:ad:lastsignDirectOrder", metrics: "ym:ad:clicks,ym:ad:RUBAdCost,ym:ad:visits" },
-      { dimensions: "ym:ad:lastDirectClickOrderName", metrics: "ym:ad:clicks,ym:ad:RUBAdCost" },
-    ].map((v) => ({ ...v, sort: "-ym:ad:RUBAdCost", direct_client_logins: process.env.DIRECT_LOGIN || undefined })),
+    ].map((v) => ({ ...v, sort: "-ym:ad:RUBAdCost", direct_client_logins: DIRECT_LOGIN })),
     { ids: COUNTER_ID, date1: DATE1, date2: DATE2, accuracy: "full", limit: 200 },
   );
 }
@@ -312,7 +510,7 @@ async function directReport(name, fieldNames, reportType) {
         "Content-Type": "application/json; charset=utf-8",
         processingMode: "auto",
         returnMoneyInMicros: "false",
-        ...(process.env.DIRECT_LOGIN ? { "Client-Login": process.env.DIRECT_LOGIN } : {}),
+        ...(DIRECT_LOGIN ? { "Client-Login": DIRECT_LOGIN } : {}),
       },
       body: JSON.stringify(body),
     });
@@ -367,6 +565,21 @@ async function main() {
   await mkdir(OUT, { recursive: true });
   console.log(`Период: ${DATE1} — ${DATE2}, счётчик ${COUNTER_ID}`);
 
+  /*
+   * Что из настроек доехало. Значения секретов не печатаем и не сохраняем —
+   * только факт наличия и длину: этого хватает, чтобы отличить «переменную не
+   * добавили» от «добавили, но доступа всё равно нет», и ровно этот вопрос
+   * встаёт каждый раз, когда приходит 403.
+   */
+  await save("env-check.json", {
+    YANDEX_TOKEN: YANDEX_TOKEN ? `есть, ${YANDEX_TOKEN.length} симв.` : "нет",
+    METRIKA_TOKEN: METRIKA_TOKEN ? `есть, ${METRIKA_TOKEN.length} симв.` : "нет",
+    DIRECT_TOKEN: DIRECT_TOKEN ? `есть, ${DIRECT_TOKEN.length} симв.` : "нет",
+    DIRECT_LOGIN: DIRECT_LOGIN ? `есть, ${DIRECT_LOGIN.length} симв.` : "нет",
+    COUNTER_ID,
+    DAYS,
+  });
+
   if (METRIKA_TOKEN) {
     console.log("Метрика:");
     await metrikaReports();
@@ -387,6 +600,8 @@ async function main() {
       `# Выгрузка рекламы за ${DATE1} — ${DATE2}`,
       "",
       `Счётчик Метрики: ${COUNTER_ID}. Собрано: ${new Date().toISOString()}.`,
+      "",
+      "Соответствие метрик `goalNNNreaches` целям — в `goals-legend.json`.",
       "",
       "| файл | размер |",
       "| --- | --- |",
