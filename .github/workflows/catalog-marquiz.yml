@@ -47,9 +47,15 @@ jobs:
             if (!$catalog) { fwrite(STDERR, "Каталог не пришёл\n"); exit(1); }
             file_put_contents("catalog-export/marquiz-каталог.csv", feedMarquizCsv($catalog));
             file_put_contents("catalog-export/marquiz-подборки.csv", feedMarquizSegmentsCsv($catalog));
-            file_put_contents("catalog-export/подборки-как-настроить.md", segmentsReadme($catalog));
-            printf("машин в каталоге: %d, в файле: %d, подборок: %d\n",
-              count($catalog), count(marquizRows($catalog)), count(segmentRows($catalog)));
+            file_put_contents("catalog-export/как-настроить.md", segmentsReadme($catalog));
+            // По файлу на сегмент: импорт грузит результаты в тот сегмент,
+            // который открыт на экране, и один общий файл лёг бы весь в первый.
+            foreach (PRICE_SEGMENTS as $seg) {
+              $name = segmentFileName($seg);
+              file_put_contents("catalog-export/{$name}.csv", feedMarquizSegmentCarsCsv($catalog, $seg["slug"]));
+              printf("  %s — %d машин\n", $name, count(marquizRowsInSegment($catalog, $seg["slug"])));
+            }
+            printf("машин в каталоге: %d, в файле: %d\n", count($catalog), count(marquizRows($catalog)));
           '
 
       # Excel надёжнее CSV: Marquiz не приходится угадывать разделитель,
@@ -61,7 +67,11 @@ jobs:
           import csv, io, openpyxl
           from openpyxl.styles import Alignment, Font
 
-          for name, sheet in (("marquiz-каталог", "Автомобили"), ("marquiz-подборки", "Подборки")):
+          import glob, os
+
+          names = [(os.path.splitext(os.path.basename(f))[0], "Автомобили")
+                   for f in sorted(glob.glob("catalog-export/*.csv"))]
+          for name, sheet in names:
               raw = open(f"catalog-export/{name}.csv", encoding="utf-8-sig").read()
               rows = list(csv.reader(io.StringIO(raw), delimiter=";"))
 

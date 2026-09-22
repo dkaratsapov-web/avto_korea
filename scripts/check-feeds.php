@@ -384,6 +384,32 @@ foreach ([1 => 'автомобиль', 2 => 'автомобиля', 5 => 'авт
     check('склонение «автомобиль» сломано', carsWord($n) === $n . ' ' . $word, carsWord($n));
 }
 
+/*
+ * Раскладка машин по сегментам. Сегмент в Marquiz — это и есть правило показа,
+ * и машина, попавшая в два сегмента сразу, покажется людям с разными ответами;
+ * не попавшая ни в один — не покажется никому.
+ */
+$bySegment = [];
+foreach (PRICE_SEGMENTS as $seg) {
+    foreach (marquizRowsInSegment($catalog, $seg['slug']) as $row) {
+        $bySegment[$row['slug']][] = $seg['slug'];
+    }
+}
+foreach ($bySegment as $carId => $segs) {
+    check('машина попала в несколько сегментов', count($segs) === 1, $carId . ': ' . implode(', ', $segs));
+}
+check(
+    'машины потерялись при раскладке по сегментам',
+    count($bySegment) === count(marquizRows($catalog)),
+    count($bySegment) . ' из ' . count(marquizRows($catalog)),
+);
+check('несуществующий сегмент вернул машины', marquizRowsInSegment($catalog, 'нет-такого') === []);
+check(
+    'в файле сегмента не те машины',
+    count(marquizRowsInSegment($catalog, 'price-0-2000')) === 1,
+    (string) count(marquizRowsInSegment($catalog, 'price-0-2000')),
+);
+
 $segCsv = feedMarquizSegmentsCsv($catalog);
 $segLines = array_values(array_filter(explode("\n", trim(substr($segCsv, 3)))));
 check('в файле подборок не те строки', count($segLines) === count($segments) + 1, 'строк: ' . count($segLines));
