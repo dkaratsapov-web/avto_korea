@@ -149,7 +149,7 @@ function marquizRows(array $catalog): array
             (array) ($c['images'] ?? []),
             fn($i) => is_string($i) && $i !== '',
         ));
-        if ($price <= 0 || empty($c['id']) || empty($c['model']) || !$images) {
+        if (!feedCarOk($c) || !$images) {
             continue;
         }
 

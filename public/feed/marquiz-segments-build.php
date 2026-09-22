@@ -162,7 +162,7 @@ function segmentRows(array $catalog): array
             (array) ($c['images'] ?? []),
             fn($i) => is_string($i) && $i !== '',
         ));
-        if (feedPrice($c) <= 0 || empty($c['id']) || empty($c['model']) || !$images) {
+        if (!feedCarOk($c) || !$images) {
             continue;
         }
         $c['images'] = $images;

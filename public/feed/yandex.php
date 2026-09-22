@@ -67,7 +67,7 @@ $brands = [];
 
 foreach ($catalog as $c) {
     $price = feedPrice($c);
-    if ($price <= 0 || empty($c['id']) || empty($c['model'])) {
+    if (!feedCarOk($c, false)) {
         continue;
     }
 
