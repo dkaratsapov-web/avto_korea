@@ -22,7 +22,10 @@ on:
     inputs:
       review:
         description: "Отзыв в JSON: id, text, images (и необязательные name, rating, ts)"
-        required: true
+        required: false
+      remove:
+        description: "Удалить карточки: идентификаторы через запятую"
+        required: false
 
 jobs:
   publish:
@@ -34,9 +37,12 @@ jobs:
         with:
           node-version: 22
 
+      # Без обоих полей задача просто печатает список: идентификаторы отзывов
+      # человеку негде посмотреть, а удалять надо по ним.
       - name: Положить отзыв в хранилище
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           REVIEW_JSON: ${{ inputs.review }}
+          REVIEW_REMOVE: ${{ inputs.remove }}
         run: node scripts/review-add.mjs

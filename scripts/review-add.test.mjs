@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { buildReview, mergeReview } from "./review-add.mjs";
+import { buildReview, mergeReview, removeReviews } from "./review-add.mjs";
 
 /*
  * Проверяем ровно то, что нельзя увидеть глазами до публикации: запись
@@ -56,4 +56,13 @@ test("список не растёт бесконечно", () => {
 test("пустое хранилище — не повод падать", () => {
   assert.deepEqual(mergeReview(null, { id: "a" }).map((r) => r.id), ["a"]);
   assert.deepEqual(mergeReview(undefined, { id: "a" }).map((r) => r.id), ["a"]);
+});
+
+test("удаление убирает только названные карточки", () => {
+  const list = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  assert.deepEqual(removeReviews(list, ["b"]).map((r) => r.id), ["a", "c"]);
+  // Идентификаторы приходят строкой из поля ввода — с пробелами и запятыми.
+  assert.deepEqual(removeReviews(list, [" c ", "a"]).map((r) => r.id), ["b"]);
+  assert.deepEqual(removeReviews(list, ["нет-такого"]).map((r) => r.id), ["a", "b", "c"]);
+  assert.deepEqual(removeReviews(null, ["a"]), []);
 });

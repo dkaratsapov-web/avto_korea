@@ -15,6 +15,9 @@
  * Запуск (обычно из .github/workflows/review-add.yml):
  *   CF_API_TOKEN=… CF_ACCOUNT_ID=… REVIEW_JSON='{"id":…}' node scripts/review-add.mjs
  *
+ * Без REVIEW_JSON печатает список — по нему выбирают, что убрать.
+ * С REVIEW_REMOVE='id1,id2' удаляет названные карточки.
+ *
  * Ничего не перезаписывает вслепую: если отзыв с таким id уже есть, запись
  * обновляется, а не задваивается, — ровно как это делает бот.
  */
@@ -99,13 +102,56 @@ export function buildReview(input) {
   };
 }
 
-async function main() {
-  const raw = process.env.REVIEW_JSON;
-  if (!raw) throw new Error("Не задан REVIEW_JSON");
-  const review = buildReview(JSON.parse(raw));
+/** Убрать карточки по идентификаторам. */
+export function removeReviews(list, ids) {
+  const drop = new Set(ids.map((s) => String(s).trim()).filter(Boolean));
+  return (Array.isArray(list) ? list : []).filter((r) => !drop.has(String(r?.id)));
+}
 
+/**
+ * Что лежит сверху ленты — строкой на карточку.
+ *
+ * Идентификаторы отзывов человеку негде посмотреть: в CRM их не показывают,
+ * а удалять надо по ним. Поэтому печатаем список перед любой правкой — заодно
+ * видно, не задвоилась ли карточка.
+ */
+function printTop(list, n = 8) {
+  console.log(`Всего отзывов: ${list.length}. Сверху:`);
+  for (const r of list.slice(0, n)) {
+    const first = String(r?.text || "").split("\n")[0].slice(0, 48) || "(без текста)";
+    const ph = (r?.images || []).length;
+    const vd = (r?.videos || []).length;
+    console.log(`  ${r?.id}  фото:${ph} видео:${vd}  ${first}`);
+  }
+}
+
+async function main() {
   const current = JSON.parse((await cf(`/values/${KEY}`).catch(() => "[]")) || "[]");
   const before = Array.isArray(current) ? current.length : 0;
+
+  const removeIds = (process.env.REVIEW_REMOVE || "").split(",").filter((s) => s.trim());
+  const raw = process.env.REVIEW_JSON;
+
+  // Без задания — просто показываем список: по нему и выбирают, что убрать.
+  if (!raw && !removeIds.length) {
+    printTop(current, 12);
+    return;
+  }
+
+  if (removeIds.length) {
+    printTop(current);
+    const next = removeReviews(current, removeIds);
+    const gone = before - next.length;
+    if (!gone) throw new Error(`Не нашлось ни одного из: ${removeIds.join(", ")}`);
+    const form = new FormData();
+    form.append("value", new Blob([JSON.stringify(next)], { type: "application/json" }));
+    form.append("metadata", "{}");
+    await cf(`/values/${KEY}`, { method: "PUT", body: form });
+    console.log(`Удалено ${gone}: было ${before}, стало ${next.length}`);
+    return;
+  }
+
+  const review = buildReview(JSON.parse(raw));
   const next = mergeReview(current, review);
 
   /*
