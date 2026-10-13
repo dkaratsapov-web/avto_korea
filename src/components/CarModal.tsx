@@ -13,6 +13,7 @@ import {
 } from "@/components/icons/SpecIcons";
 import { type Car, formatPrice } from "@/data/cars";
 import { countries, site } from "@/lib/site";
+import { splitTrimCountry } from "@/lib/carText";
 import { useUI } from "@/lib/ui";
 import { GOALS, reachGoal } from "@/lib/metrika";
 import { displayPrice, PRICE_LABEL } from "@/lib/price";
@@ -20,7 +21,11 @@ import { displayPrice, PRICE_LABEL } from "@/lib/price";
 export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
   const { isFav, toggleFav, isCompare, toggleCompare } = useUI();
   const [idx, setIdx] = useState(0);
-  const country = countries[car.country];
+  // Комплектация без хвоста «страна …»; страна оттуда правит флаг для авто,
+  // которым бот не распознал страну (ОАЭ попадали под Японию).
+  const { trim: carTrim, country: trimCountry } = splitTrimCountry(car.trim);
+  const countryCode = trimCountry ?? car.country;
+  const country = countries[countryCode];
   const fav = isFav(car.id);
   const cmp = isCompare(car.id);
 
@@ -73,7 +78,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
                 />
               )}
               <span className="pointer-events-none absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[13px] font-bold text-ink">
-                <Flag code={car.country} className="h-3.5 w-5" />
+                <Flag code={countryCode} className="h-3.5 w-5" />
                 {country.label}
               </span>
               {car.isNew ? (
@@ -139,7 +144,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
           <div className="flex flex-col gap-3 p-5 text-white sm:p-6">
             <div>
               <div className="mb-1 text-[13px] font-semibold uppercase tracking-[0.12em] text-chrome">
-                {car.trim}
+                {carTrim}
               </div>
               <h3 className="text-[26px] font-extrabold uppercase leading-none text-white">
                 {car.model}
@@ -147,12 +152,6 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
               <div className="mt-1.5 text-[14px] font-semibold text-[#9AA4B2]">
                 {car.year} год · {car.mileage}
               </div>
-              {car.addedAt ? (
-                <div className="mt-1 text-[12.5px] text-[#8C97A1]">
-                  В каталоге с{" "}
-                  {new Date(car.addedAt).toLocaleDateString("ru-RU")}
-                </div>
-              ) : null}
             </div>
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 rounded-card border border-line-dark bg-white/[0.03] px-4 py-3">
@@ -277,7 +276,7 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
               layout="compact"
               tone="dark"
               withCar={false}
-              carValue={`${car.model} ${car.year}${car.trim ? ` · ${car.trim}` : ""}`}
+              carValue={`${car.model} ${car.year}${carTrim ? ` · ${carTrim}` : ""}`}
               source={`Каталог — ${car.model}`}
               submitLabel="Запросить"
               onSent={onClose}

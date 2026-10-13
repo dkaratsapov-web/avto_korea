@@ -792,6 +792,7 @@ const DELIVERY: Record<CountryCode, number> = {
   cn: 90000,
   jp: 130000,
   eu: 160000,
+  ae: 140000,
 };
 const DOCS = 60000; // СБКТС / ЭПТС / брокер
 const SERVICE = 80000; // услуги компании

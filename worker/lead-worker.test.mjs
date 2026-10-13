@@ -2470,6 +2470,57 @@ function articlePostFlatTable(chatId, msgId) {
   };
 }
 
+function uaePost(chatId, msgId) {
+  return {
+    update_id: 88,
+    channel_post: {
+      message_id: msgId,
+      chat: { id: chatId, type: "channel", title: "Канал " + chatId },
+      rich_message: {
+        blocks: [
+          { type: "heading", text: "MITSUBISHI" },
+          {
+            type: "carousel",
+            media: [{ photo: [{ file_id: "ph-1" }] }, { photo: [{ file_id: "ph-2" }] }],
+          },
+          {
+            type: "table",
+            rows: [
+              { cells: [{ text: "Модель:" }, { text: "Eclipse Cross" }] },
+              { cells: [{ text: "Год выпуска:" }, { text: "2026" }] },
+              { cells: [{ text: "Привод:" }, { text: "полный" }] },
+              // Комплектация и страна одной строкой — так их шлют с арабских рынков.
+              { cells: [{ text: "Комплектация:" }, { text: "High Line" }] },
+              { cells: [{ text: "Страна:" }, { text: "ОАЭ" }] },
+            ],
+          },
+          { type: "quote", text: "До Москвы под ключ - всего за 2.900.000₽" },
+        ],
+      },
+    },
+  };
+}
+
+test("авто из ОАЭ: страна ae, а не Япония по марке", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-1002000000030", autoPublish: true },
+  });
+  stubTelegram();
+  const c = makeCtx();
+
+  await run(uaePost("-1002000000030", 41), { store, ctx: c.ctx });
+  await c.settle();
+
+  const [car] = await catalogOf(store);
+  assert.ok(car, "карточка должна появиться");
+  assert.match(car.model, /mitsubishi/i);
+  // Mitsubishi — японская марка; без распознавания ОАЭ улетело бы в jp.
+  assert.equal(car.country, "ae", "страна берётся из текста, а не по марке");
+  // «Страна» не должна просочиться в комплектацию.
+  assert.equal(car.trim, "High Line", "комплектация без хвоста про страну");
+  assert.ok(!/страна|оаэ/i.test(car.trim), "в комплектации нет слова «страна»");
+});
+
 test("таблица из отдельных строк тоже разбирается", async () => {
   const store = makeStore({
     settings: { catalogChatId: "-1002000000011", autoPublish: true },

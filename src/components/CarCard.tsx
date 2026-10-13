@@ -10,6 +10,7 @@ import { Flag } from "@/components/icons/Flag";
 import { CarSilhouette } from "@/components/icons/CarSilhouette";
 import { type Car, formatPrice } from "@/data/cars";
 import { countries } from "@/lib/site";
+import { splitTrimCountry } from "@/lib/carText";
 import { useUI } from "@/lib/ui";
 import { displayPrice, PRICE_LABEL } from "@/lib/price";
 
@@ -38,7 +39,12 @@ function CarImage({ car }: { car: Car }) {
 }
 
 export function CarCard({ car }: { car: Car }) {
-  const country = countries[car.country];
+  // Комплектация и страна: из подписи убираем хвост «страна …», а если бот
+  // зашил в неё страну, которую не распознал как код (ОАЭ попадали под Японию
+  // по марке) — берём код отсюда и правим флажок на лету.
+  const { trim: carTrim, country: trimCountry } = splitTrimCountry(car.trim);
+  const countryCode = trimCountry ?? car.country;
+  const country = countries[countryCode];
   const { isFav, toggleFav, openCar, isCompare, toggleCompare } = useUI();
   const fav = isFav(car.id);
   const cmp = isCompare(car.id);
@@ -56,7 +62,7 @@ export function CarCard({ car }: { car: Car }) {
         <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-black/10" />
 
         <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1.5 rounded-full border border-white/60 bg-white/85 px-2 py-1 text-[12.5px] font-bold text-ink shadow-[0_4px_14px_rgba(0,0,0,0.25)] backdrop-blur sm:left-3 sm:top-3 sm:px-2.5 sm:py-[5px]">
-          <Flag code={car.country} className="h-3.5 w-5" />
+          <Flag code={countryCode} className="h-3.5 w-5" />
           <span className="hidden sm:inline">{country.label}</span>
         </span>
 
@@ -108,13 +114,8 @@ export function CarCard({ car }: { car: Car }) {
         </h3>
         <div className="mt-0.5 hidden text-[11.5px] font-semibold uppercase tracking-[0.04em] text-ink-2 sm:block sm:text-[12.5px]">
           {car.year}
-          {car.trim ? ` · ${car.trim}` : ""}
+          {carTrim ? ` · ${carTrim}` : ""}
         </div>
-        {car.addedAt ? (
-          <div className="mt-0.5 hidden text-[11px] font-medium text-ink-2/80 sm:block">
-            В каталоге с {new Date(car.addedAt).toLocaleDateString("ru-RU")}
-          </div>
-        ) : null}
 
         <div className="mt-2.5 hidden grid-cols-1 gap-x-3 gap-y-2 border-t border-line pt-2.5 sm:mt-3 sm:grid sm:grid-cols-2 sm:gap-y-1.5 sm:pt-3">
           <Spec icon={<EngineIcon />} text={car.engine} />

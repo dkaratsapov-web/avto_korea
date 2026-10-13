@@ -134,7 +134,7 @@ export const nav = [
   { href: "/contacts", label: "Контакты" },
 ] as const;
 
-export type CountryCode = "kr" | "cn" | "jp" | "eu";
+export type CountryCode = "kr" | "cn" | "jp" | "eu" | "ae";
 
 export const countries: Record<
   CountryCode,
@@ -144,4 +144,5 @@ export const countries: Record<
   cn: { label: "Китай", flag: "🇨🇳" },
   jp: { label: "Япония", flag: "🇯🇵" },
   eu: { label: "ЕС", flag: "🇪🇺" },
+  ae: { label: "ОАЭ", flag: "🇦🇪" },
 };
