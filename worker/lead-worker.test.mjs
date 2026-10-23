@@ -144,6 +144,30 @@ test("стена подписки: без подписки приветстви�
   assert.equal(users["555"].openedAt, undefined, "и отметку открытия тоже");
 });
 
+test("стена теперь закрывает и органику: обычный /start без метки тоже упирается", async () => {
+  const store = makeStore({
+    settings: { gateEnabled: true, gateChannelId: "-100777" },
+  });
+  stubTelegram();
+  globalThis.fetch = async (url, init) => {
+    const method = String(url).split("/").pop();
+    // «left» — не подписан.
+    const result = method === "getChatMember" ? { status: "left" } : {};
+    return new Response(JSON.stringify({ ok: true, result }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  const c = makeCtx();
+  // Без рекламной метки — это вариант «b». Раньше его бот пускал мимо стены.
+  await run(startUpdate("/start"), { store, ctx: c.ctx });
+  await c.settle();
+
+  const users = await store.get("users");
+  assert.equal(users["555"].openedAt, undefined, "органику без подписки тоже не пускаем");
+  assert.equal(users["555"].subAt, undefined, "и отметку подписки не ставим");
+});
+
 test("подписанный проходит стену: обе отметки сохраняются одной записью", async () => {
   const store = makeStore({
     settings: { gateEnabled: true, gateChannelId: "-100777" },

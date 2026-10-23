@@ -598,12 +598,16 @@ async function sendGate(env, chatId, settings) {
 /**
  * Нужна ли этому человеку стена подписки.
  *
- * Гейт работает только когда он включён, канал настроен и человек пришёл по
- * варианту «a». Если канал не настроен — пускаем без стены: недонастроенный
- * гейт не должен закрывать бота вообще для всех.
+ * Стена работает, когда она включена рубильником и настроен канал. Раньше она
+ * касалась только рекламного трафика (вариант «a» А/Б-теста) — теперь закрывает
+ * бота для всех, кто не подписан: органику, переходы из канала, рекламу. Метки
+ * вариантов при этом всё равно пишутся, статистика А/Б никуда не делась.
+ *
+ * Если канал не настроен — пускаем без стены: недонастроенный гейт не должен
+ * закрывать бота вообще для всех.
  */
-function gateApplies(settings, variant) {
-  return Boolean(settings.gateEnabled && settings.gateChannelId && variant === "a");
+function gateApplies(settings) {
+  return Boolean(settings.gateEnabled && settings.gateChannelId);
 }
 
 /* ---------- Auth: проверка Telegram initData ---------- */
@@ -1578,10 +1582,8 @@ export default {
         const { variant, src } = parseStartPayload(msg.text);
         if (!me.v) me.v = variant;
         if (!me.src && src) me.src = src;
-        // Вариант берём сохранённый: человек мог вернуться уже без метки.
-        const myVariant = me.v || variant;
 
-        if (gateApplies(settings, myVariant)) {
+        if (gateApplies(settings)) {
           const member = await isChannelMember(env, settings.gateChannelId, msg.from.id);
           // Стену показываем только при твёрдом «не подписан». Если проверка
           // не удалась (null), пускаем: см. isChannelMember.
