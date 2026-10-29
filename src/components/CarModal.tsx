@@ -29,14 +29,21 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
   const fav = isFav(car.id);
   const cmp = isCompare(car.id);
 
+  // images и highlights приводим к массиву до любого обращения. В KV остались
+  // карточки, сохранённые прежней версией бота, где этих полей нет вовсе.
+  // Без защиты `.map` по undefined роняет не модалку, а весь сайт в белый
+  // экран (ошибку некому поймать), и выглядит это как «карточка сломалась».
+  const images = Array.isArray(car.images) ? car.images : [];
+  const highlights = Array.isArray(car.highlights) ? car.highlights : [];
+
   // Единый список медиа: видео (если есть) первым, затем фото.
   const media = [
     ...(car.video ? [{ type: "video" as const, src: car.video }] : []),
-    ...car.images.map((src) => ({ type: "image" as const, src })),
+    ...images.map((src) => ({ type: "image" as const, src })),
   ];
   const count = media.length || 1;
   const cur = media[idx] ?? media[0];
-  const poster = car.images[0];
+  const poster = images[0];
   const prev = () => setIdx((i) => (i - 1 + count) % count);
   const next = () => setIdx((i) => (i + 1) % count);
 
@@ -167,17 +174,19 @@ export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
               </p>
             ) : null}
 
-            <ul className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
-              {car.highlights.map((h) => (
-                <li
-                  key={h}
-                  className="flex items-start gap-2 text-[13px] text-[#C7CFD6]"
-                >
-                  <Check className="mt-0.5 h-3.5 w-3.5 flex-none text-success" />
-                  {h}
-                </li>
-              ))}
-            </ul>
+            {highlights.length ? (
+              <ul className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+                {highlights.map((h) => (
+                  <li
+                    key={h}
+                    className="flex items-start gap-2 text-[13px] text-[#C7CFD6]"
+                  >
+                    <Check className="mt-0.5 h-3.5 w-3.5 flex-none text-success" />
+                    {h}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
 
             <div className="flex flex-wrap gap-2">
               {[

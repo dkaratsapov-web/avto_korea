@@ -14,13 +14,27 @@ const KEY = "diauto:cars";
 
 /**
  * Приводим каталог к виду, пригодному для показа, откуда бы он ни пришёл —
- * из KV, из пререндера или из localStorage. Сейчас чистим только комплектацию:
- * в старых записях там лежат целые фразы из поста.
+ * из KV, из пререндера или из localStorage.
+ *
+ * Чистим комплектацию (в старых записях там целые фразы из поста) и —
+ * важнее — гарантируем, что images и highlights это массивы. В KV остались
+ * карточки, сохранённые прежней версией бота, где этих полей нет вовсе. Любой
+ * экран делает по ним `.map`/`[0]`; обращение к undefined роняет не карточку,
+ * а весь сайт в белый экран — ловить ошибку на витрине некому. Чинится одной
+ * точкой здесь: через этот нормализатор проходит весь каталог сайта.
  */
-function normalize(list: Car[]): Car[] {
-  return list.map((c) =>
-    c.trim === cleanTrim(c.trim) ? c : { ...c, trim: cleanTrim(c.trim) },
-  );
+export function normalize(list: Car[]): Car[] {
+  return (Array.isArray(list) ? list : []).map((c) => {
+    const trim = cleanTrim(c.trim);
+    const images = Array.isArray(c.images) ? c.images : [];
+    const highlights = Array.isArray(c.highlights) ? c.highlights : [];
+    // Клонируем только когда что-то реально поменялось: иначе каждый прогон
+    // создавал бы новые объекты и зря дёргал перерисовку витрины.
+    if (c.trim === trim && c.images === images && c.highlights === highlights) {
+      return c;
+    }
+    return { ...c, trim, images, highlights };
+  });
 }
 
 /** Каталог, переданный пререндером в разметку страницы. */
