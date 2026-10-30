@@ -528,9 +528,11 @@ export async function maxBind(env, origin) {
     url: `${origin}/max`,
     update_types: ["message_created", "message_callback", "bot_started", "bot_added"],
   });
-  // PATCH меняет только переданные поля: имя, описание и картинка бота,
-  // выставленные в MAX руками, остаются как были.
-  const commands = await maxCall(env, "PATCH", "/me", { commands: COMMANDS });
+  // Команды живут на отдельном эндпоинте /me/commands. С июльского (2026)
+  // обновления MAX перестал принимать их через PATCH /me — тот теперь отвечает
+  // «Path /me is not recognized». Имя, описание и аватар через API больше не
+  // меняются вовсе (их задают в кабинете бота MAX), поэтому шлём только команды.
+  const commands = await maxCall(env, "PATCH", "/me/commands", { commands: COMMANDS });
   return { me, hook, commands };
 }
 

@@ -1956,8 +1956,10 @@ test("подключение MAX выставляет команды в подс
   );
   await c.settle();
 
-  const patch = calls.find((x) => x.url.endsWith("botapi.max.ru/me") && x.method === "PATCH");
-  assert.ok(patch, "команды должны выставляться отдельным запросом");
+  // Команды MAX принимает на отдельном эндпоинте /me/commands: PATCH /me с
+  // июля 2026 отвечает «Path /me is not recognized».
+  const patch = calls.find((x) => x.url.endsWith("botapi.max.ru/me/commands") && x.method === "PATCH");
+  assert.ok(patch, "команды должны выставляться запросом PATCH /me/commands");
   assert.deepEqual(
     patch.body.commands.map((x) => x.name),
     ["start", "catalog", "lead", "reviews"],
