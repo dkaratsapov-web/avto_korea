@@ -11,6 +11,7 @@ import { useUI } from "@/lib/ui";
 import { site } from "@/lib/site";
 import { showToast } from "@/lib/toast";
 import { loadTelegram, haptic, type TG } from "@/lib/telegram";
+import { loadMax, maxStartParam, type MaxApp } from "@/lib/maxapp";
 import { adminCall, pingUser, logView, type AdminMe } from "@/lib/api";
 import { TmaAdmin } from "@/components/pages/TmaAdmin";
 import {
@@ -67,13 +68,26 @@ type View =
 function sourceName(): string {
   if (typeof window === "undefined") return "Telegram Mini App";
   const ms = new URLSearchParams(window.location.search).get("ms");
-  return ms === "max" ? "MAX Mini App" : "Telegram Mini App";
+  if (ms !== "max") return "Telegram Mini App";
+  // В MAX к источнику добавляем метку запуска из рекламного диплинка
+  // (max.ru/<bot>?startapp=…), если она есть, — чтобы заявки из разных
+  // кампаний в MAX различались так же, как в Telegram через ?start=.
+  const sp = maxStartParam();
+  return sp ? `MAX Mini App · ${sp}` : "MAX Mini App";
 }
 
 export function TmaApp() {
   const { cars } = useCars();
   const { favorites, isFav, toggleFav } = useUI();
   const tgRef = useRef<TG | null>(null);
+  const maxRef = useRef<MaxApp | null>(null);
+  // Открыт ли мини-апп из MAX. Признак — метка ?ms=max в адресе: её ставит
+  // ссылка мини-приложения, прописанная в настройках бота MAX. У MAX свой
+  // движок, телеграмовские нативные кнопки там не работают, поэтому в MAX
+  // ведём себя как веб-версия (кнопки внутри экрана) и зовём SDK самого MAX.
+  const isMax =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("ms") === "max";
   const [ready, setReady] = useState(false);
   const [view, setViewRaw] = useState<View>(() => {
     if (typeof window === "undefined") return { name: "home" };
@@ -122,10 +136,15 @@ export function TmaApp() {
   useEffect(() => {
     document.body.style.background = "#11151A";
     let mounted = true;
-    loadTelegram().then((tg) => {
+    loadTelegram().then(async (tg) => {
       if (!mounted) return;
       tgRef.current = tg;
-      if (tg) {
+      if (isMax) {
+        // MAX: подключаем его SDK (для openLink и метки запуска startapp).
+        // Телеграмовские ready/expand/нативные кнопки здесь не зовём — в MAX
+        // их нет, работаем кнопками внутри экранов, как в веб-версии.
+        maxRef.current = await loadMax();
+      } else if (tg) {
         tg.ready();
         tg.expand();
         try {
@@ -147,7 +166,7 @@ export function TmaApp() {
           });
         }
       }
-      setReady(true);
+      if (mounted) setReady(true);
     });
     return () => {
       mounted = false;
@@ -155,7 +174,9 @@ export function TmaApp() {
     };
   }, []);
 
-  const inTg = ready && !!tgRef.current;
+  // В MAX — не Telegram: там нет нативных кнопок и телеграм-разделов (например
+  // «Оповещения» завязаны на подпись Telegram). Поэтому ведём себя как веб.
+  const inTg = ready && !!tgRef.current && !isMax;
 
   // Возвращаем прокрутку экрана: у нового — начало, у знакомого — то место,
   // где человек остановился. useLayoutEffect, чтобы не мелькнуло промежуточное
@@ -215,7 +236,8 @@ export function TmaApp() {
         if (r.ok) {
           haptic(tg, "medium");
           showToast("Заявка отправлена — перезвоним в течение 15 минут");
-          if (tg?.close) setTimeout(() => tg.close(), 900);
+          // В Telegram окно закрываем; в MAX закрытия нет — возвращаем к списку.
+          if (tg?.close && !isMax) setTimeout(() => tg.close(), 900);
           else setView({ name: "list" });
           return;
         }
@@ -238,7 +260,8 @@ export function TmaApp() {
 
     // 3) фолбэк — открыть чат с менеджером
     showToast("Заявка готова — открываем чат с менеджером");
-    if (tg?.openTelegramLink) tg.openTelegramLink(site.telegramHref);
+    if (tg?.openTelegramLink && !isMax) tg.openTelegramLink(site.telegramHref);
+    else if (maxRef.current?.openLink) maxRef.current.openLink(site.telegramHref);
     else window.open(site.telegramHref, "_blank");
   }
 
@@ -249,7 +272,8 @@ export function TmaApp() {
   });
   useEffect(() => {
     const tg = tgRef.current;
-    if (!tg) return;
+    // В MAX нативных кнопок нет — там всё управляется кнопками внутри экранов.
+    if (isMax || !tg) return;
 
     // В админке — своя навигация, нативные кнопки не нужны.
     if (adminOpen) {
