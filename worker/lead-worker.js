@@ -544,6 +544,14 @@ async function patchUser(env, userId, patch) {
  */
 const SITE_CATALOG_URL = "https://xn---69-5cdk0b2aocjmsg.xn--p1ai/catalog";
 
+/**
+ * Тот же каталог, но человекочитаемо — для ТЕКСТА постов (например в канал
+ * MAX), где адрес показывается как есть и мессенджер сам делает его ссылкой.
+ * В отличие от кнопки (SITE_CATALOG_URL), здесь кириллица уместна: её читает
+ * человек, а переход открывает системный браузер, а не встроенный.
+ */
+const SITE_CATALOG_HUMAN = "https://автоимпорт-69.рф/catalog";
+
 /** Клавиатура основного меню бота (каталог, подбор, менеджер, карты). */
 function menuKeyboard(env, settings) {
   // Адрес уже проверен: непригодный превращается в пустую строку, и кнопка
@@ -2934,7 +2942,7 @@ function photoUrl(origin, fileId) {
 // Описание НЕ повторяет характеристики: год, пробег, двигатель, коробка,
 // привод, комплектация, цвет, топливо и преимущества уже выводятся отдельными
 // блоками карточки. Здесь — только условия сделки.
-const COUNTRY_FROM = { kr: "Кореи", cn: "Китая", jp: "Японии", eu: "Европы" };
+const COUNTRY_FROM = { kr: "Кореи", cn: "Китая", jp: "Японии", eu: "Европы", ae: "ОАЭ" };
 
 function genDescriptionSrv(c) {
   const from = COUNTRY_FROM[c.country] ? ` из ${COUNTRY_FROM[c.country]}` : "";
@@ -3467,17 +3475,19 @@ function maxCardText(car) {
     .filter(Boolean)
     .join(" · ");
 
-  return [
-    `🚗 ${car.model}`,
-    specs,
-    car.priceRub ? `Под ключ до Москвы — ${car.priceRub.toLocaleString("ru-RU")} ₽` : "",
-    "",
-    `Каталог: ${SITE_CATALOG_URL}`,
-  ]
-    .filter((line) => line !== undefined && line !== null)
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  // Описание — то же, что на карточке сайта: «Привезём из … под ключ …».
+  // Готовое кладёт бот при публикации; если его нет, собираем на месте.
+  const about = (car.description || genDescriptionSrv(car) || "").trim();
+
+  const lines = [`🚗 ${car.model}`];
+  if (specs) lines.push(specs);
+  if (car.priceRub) {
+    lines.push(`Под ключ до Москвы — ${car.priceRub.toLocaleString("ru-RU")} ₽`);
+  }
+  if (about) lines.push("", about);
+  lines.push("", `Каталог: ${SITE_CATALOG_HUMAN}`);
+
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /**
