@@ -520,6 +520,7 @@ export function TmaApp() {
               if (!car) return null;
               return (
                 <CarView
+                  key={car.id}
                   car={car}
                   fav={isFav(car.id)}
                   inCompare={compareIds.includes(car.id)}
@@ -541,6 +542,11 @@ export function TmaApp() {
                   onLead={() =>
                     setView({ name: "lead", carId: car.id, from: view })
                   }
+                  onOpen={(id) => {
+                    haptic(tgRef.current);
+                    logView(id);
+                    setView({ name: "car", id });
+                  }}
                   showInAppCta={!inTg}
                 />
               );

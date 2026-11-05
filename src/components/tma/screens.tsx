@@ -20,6 +20,9 @@ import {
   Play,
   Lock,
   ArrowUpRight,
+  ArrowUp,
+  Camera,
+  ArrowDownUp,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { brandOf } from "@/lib/brand";
@@ -121,7 +124,7 @@ export function ListView({
     (yearFrom != null || yearTo != null ? 1 : 0) +
     (powerFrom != null || powerTo != null ? 1 : 0);
 
-  const list = cars.filter((c) => {
+  const filtered = cars.filter((c) => {
     const price = displayPrice(c);
     const hp = c.powerHp ?? 0;
     if (filter !== "all" && c.country !== filter) return false;
@@ -142,6 +145,27 @@ export function ListView({
     if (powerTo != null && hp > powerTo) return false;
     return true;
   });
+
+  // Сортировка. По умолчанию — свежие поступления сверху: за ними и
+  // возвращаются в каталог.
+  const [sort, setSort] = useState<SortKey>("fresh");
+  const list = useMemo(() => sortCars(filtered, sort), [filtered, sort]);
+
+  // Сколько машин в каждой стране — цифра прямо на вкладке.
+  const countryCount = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const c of cars) m[c.country] = (m[c.country] || 0) + 1;
+    return m;
+  }, [cars]);
+
+  // Кнопка «наверх» — когда каталог пролистан на несколько экранов.
+  const [farDown, setFarDown] = useState(false);
+  useEffect(() => {
+    const on = () => setFarDown(window.scrollY > 1400);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
 
   function resetFilters() {
     setBrands([]);
@@ -185,9 +209,20 @@ export function ListView({
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Поиск по модели…"
-              className="field-dark pl-10"
+              placeholder="Марка или модель"
+              enterKeyHint="search"
+              className="field-dark pl-10 pr-10"
             />
+            {q ? (
+              <button
+                type="button"
+                aria-label="Очистить поиск"
+                onClick={() => setQ("")}
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
           </label>
           <button
             onClick={() => setOpen((v) => !v)}
@@ -220,6 +255,11 @@ export function ListView({
             >
               {t.value !== "all" ? <Flag code={t.value} className="h-3 w-4" /> : null}
               {t.label}
+              <span
+                className={`font-num text-[11px] font-bold ${filter === t.value ? "text-white/70" : "text-[#7C8792]"}`}
+              >
+                {t.value === "all" ? cars.length : countryCount[t.value] || 0}
+              </span>
             </button>
           ))}
         </div>
@@ -339,8 +379,43 @@ export function ListView({
         </div>
       ) : null}
 
-      <div className="mb-2 text-[13px] font-semibold text-[#9AA4B2]">
-        Найдено: <span className="font-num text-white">{list.length}</span>
+      {/* Строка результатов: сколько нашлось, сброс фильтров и сортировка.
+          Сортировка — системный список: на телефоне открывается родное
+          колесо выбора, привычное и крупное. */}
+      <div className="mb-2.5 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-[#9AA4B2]">
+          <span>
+            Найдено: <span className="font-num text-white">{list.length}</span>
+          </span>
+          {activeCount ? (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[11.5px] font-bold text-[#E0574C]"
+            >
+              <X className="h-3 w-3" /> Сбросить
+            </button>
+          ) : null}
+        </div>
+        <label className="relative flex flex-none items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-2.5 pr-3 text-[12px] font-bold text-chrome">
+          <ArrowDownUp className="h-3.5 w-3.5" />
+          {SORTS.find((x) => x.key === sort)?.short}
+          <select
+            value={sort}
+            onChange={(e) => {
+              setSort(e.target.value as SortKey);
+              window.scrollTo({ top: 0, behavior: "instant" });
+            }}
+            aria-label="Сортировка"
+            className="absolute inset-0 cursor-pointer opacity-0"
+          >
+            {SORTS.map((x) => (
+              <option key={x.key} value={x.key}>
+                {x.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {/* Две колонки, как в каталоге на телефоне: за экран видно вчетверо
@@ -357,13 +432,73 @@ export function ListView({
         ))}
       </div>
       {list.length === 0 ? (
-        <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
-          Ничего не найдено
-        </p>
+        <div className="rounded-[18px] border border-white/10 bg-white/[0.03] px-5 py-8 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06] text-chrome">
+            <Search className="h-5 w-5" />
+          </div>
+          <div className="text-[15px] font-extrabold">Ничего не нашлось</div>
+          <p className="mt-1 text-[13px] text-[#9AA4B2]">
+            Попробуйте убрать часть фильтров — или оставьте заявку, найдём под заказ.
+          </p>
+          {activeCount || q || filter !== "all" ? (
+            <button
+              type="button"
+              onClick={() => {
+                resetFilters();
+                setQ("");
+                setFilter("all");
+              }}
+              className="mt-4 rounded-full bg-bordeaux px-4 py-2 text-[13px] font-bold text-white"
+            >
+              Показать все авто
+            </button>
+          ) : null}
+        </div>
       ) : null}
+
+      {/* «Наверх» — к поиску и фильтрам, когда каталог пролистан далеко. */}
+      <button
+        type="button"
+        aria-label="Наверх"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        className={`fixed bottom-5 right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-graphite-2/90 text-white shadow-[0_10px_30px_rgba(0,0,0,.5)] backdrop-blur transition-[opacity,transform] duration-200 ${
+          farDown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
+        }`}
+      >
+        <ArrowUp className="h-5 w-5" />
+      </button>
     </>
   );
 }
+
+/* ---------- Сортировка каталога ---------- */
+type SortKey = "fresh" | "cheap" | "expensive" | "year" | "power";
+const SORTS: { key: SortKey; label: string; short: string }[] = [
+  { key: "fresh", label: "Сначала новые поступления", short: "Свежие" },
+  { key: "cheap", label: "Сначала дешевле", short: "Дешевле" },
+  { key: "expensive", label: "Сначала дороже", short: "Дороже" },
+  { key: "year", label: "Сначала новее по году", short: "Год" },
+  { key: "power", label: "Сначала мощнее", short: "Мощность" },
+];
+function sortCars(list: Car[], key: SortKey): Car[] {
+  if (key === "fresh") {
+    // Порядок каталога уже «свежие сверху»; addedAt — уточнение, если есть.
+    return list.some((c) => c.addedAt)
+      ? [...list].sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0))
+      : list;
+  }
+  const by: Record<Exclude<SortKey, "fresh">, (c: Car) => number> = {
+    cheap: (c) => displayPrice(c),
+    expensive: (c) => -displayPrice(c),
+    year: (c) => -c.year,
+    power: (c) => -(c.powerHp ?? 0),
+  };
+  const f = by[key];
+  return [...list].sort((a, b) => f(a) - f(b));
+}
+
+/** Цена на тёмном фоне: фирменный бордо слишком тёмный, читается плохо. */
+const PRICE_TXT = "text-[#E0574C]";
 
 /* ---------- Карточка авто в списке ---------- */
 
@@ -392,7 +527,7 @@ function CarTile({
   return (
     <article
       onClick={() => onOpen(car.id)}
-      className="flex cursor-pointer flex-col overflow-hidden rounded-[16px] border border-line-dark bg-graphite-2 transition-transform active:scale-[0.98]"
+      className="flex cursor-pointer flex-col overflow-hidden rounded-[16px] border border-white/[0.08] bg-graphite-2 shadow-[0_10px_24px_-16px_rgba(0,0,0,.8)] transition-transform duration-150 active:scale-[0.98]"
     >
       {/*
        * Окно под фото задано пропорцией и жёстко обрезает содержимое.
@@ -440,6 +575,13 @@ function CarTile({
             Видео
           </span>
         ) : null}
+        {/* Сколько фото — понятно ещё до открытия, есть ли что смотреть. */}
+        {car.images.length > 1 ? (
+          <span className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-full bg-black/55 px-1.5 py-0.5 font-num text-[10px] font-bold text-white backdrop-blur">
+            <Camera className="h-2.5 w-2.5" />
+            {car.images.length}
+          </span>
+        ) : null}
       </div>
 
       <div className="flex flex-1 flex-col p-2.5">
@@ -457,6 +599,7 @@ function CarTile({
         <div className="mt-0.5 text-[11px] leading-tight text-[#9AA4B2]">
           {car.year}
           {car.powerHp ? ` · ${car.powerHp} л.с.` : ""}
+          {car.fuelType && car.fuelType !== "Бензин" ? ` · ${car.fuelType}` : ""}
         </div>
 
         {/* mt-auto прижимает цену к низу: у соседних карточек названия разной
@@ -465,7 +608,7 @@ function CarTile({
           <div className="text-[9px] font-bold uppercase tracking-[0.07em] text-[#8A939C]">
             {PRICE_LABEL}
           </div>
-          <div className="mt-0.5 whitespace-nowrap font-num text-[15px] font-extrabold leading-none text-bordeaux-bright">
+          <div className={`mt-0.5 whitespace-nowrap font-num text-[15px] font-extrabold leading-none ${PRICE_TXT}`}>
             {formatPrice(displayPrice(car))}
             <small className="ml-0.5 text-[11px] font-semibold text-[#9AA4B2]">₽</small>
           </div>
@@ -491,16 +634,25 @@ function SwipeGallery({
   onIndex,
   onTap,
   full = false,
+  seek,
 }: {
   images: string[];
   start?: number;
   onIndex?: (i: number) => void;
   onTap?: () => void;
   full?: boolean;
+  /** Перейти к кадру снаружи (миниатюры). n — счётчик, чтобы повторный тап срабатывал. */
+  seek?: { i: number; n: number };
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [i, setI] = useState(start);
   const n = images.length;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !seek) return;
+    el.scrollTo({ left: seek.i * el.clientWidth, behavior: "smooth" });
+  }, [seek?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Встаём на стартовый кадр до первой отрисовки — без видимой прокрутки.
   useLayoutEffect(() => {
@@ -696,6 +848,7 @@ export function CarView({
   onToggleFav,
   onBack,
   onLead,
+  onOpen,
   showInAppCta,
 }: {
   car: Car;
@@ -705,9 +858,22 @@ export function CarView({
   onToggleFav: () => void;
   onBack: () => void;
   onLead: () => void;
+  onOpen?: (id: string) => void;
   showInAppCta: boolean;
 }) {
+  const { cars } = useCars();
+  const similar = useMemo(() => similarCars(car, cars), [car, cars]);
+  const [seek, setSeek] = useState<{ i: number; n: number } | undefined>();
+  const thumbs = useRef<HTMLDivElement>(null);
   const [idx, setIdx] = useState(0);
+  // Активная миниатюра всегда в поле зрения ленты.
+  useEffect(() => {
+    // Крутим только саму ленту: scrollIntoView мог бы сдвинуть и страницу.
+    const strip = thumbs.current;
+    const el = strip?.children[idx] as HTMLElement | undefined;
+    if (strip && el)
+      strip.scrollTo({ left: el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2, behavior: "smooth" });
+  }, [idx]);
   const [lb, setLb] = useState(false);
   // После полноэкранного просмотра карточка встаёт на то фото, где его закрыли:
   // ленту пересоздаём со стартом на этом кадре.
@@ -734,6 +900,7 @@ export function CarView({
           start={idx}
           onIndex={setIdx}
           onTap={() => setLb(true)}
+          seek={seek}
         />
         <span className="pointer-events-none absolute right-2 top-2 flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
           <Maximize2 className="h-3 w-3" /> на весь экран
@@ -744,6 +911,30 @@ export function CarView({
           </span>
         ) : null}
       </div>
+
+      {/* Миниатюры: к нужному ракурсу — одним тапом, без перелистывания
+          всех фото подряд. */}
+      {car.images.length > 1 ? (
+        <div
+          ref={thumbs}
+          className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {car.images.map((src, k) => (
+            <button
+              key={k}
+              type="button"
+              aria-label={`Фото ${k + 1}`}
+              onClick={() => setSeek((v) => ({ i: k, n: (v?.n ?? 0) + 1 }))}
+              className={`h-[46px] w-[64px] flex-none overflow-hidden rounded-[9px] border-2 transition-[border-color,opacity] duration-200 ${
+                k === idx ? "border-[#E0574C] opacity-100" : "border-transparent opacity-55"
+              }`}
+            >
+              {/* eslint-disable-next-line */}
+              <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {car.video ? (
         <video
@@ -765,27 +956,17 @@ export function CarView({
       <h2 className="mt-1 text-[24px] font-extrabold uppercase leading-none">
         {car.model}
       </h2>
-      <div className="mt-1 text-[13px] text-[#9AA4B2]">
-        {car.year} · {car.engine} · {car.gearbox} · {car.drive}
-      </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {[
-          car.isNew ? "Новый" : "С пробегом",
-          car.bodyType || "",
-          car.fuelType || "",
-          car.steering ? `${car.steering} руль` : "",
-        ]
-          .filter(Boolean)
-          .map((chip) => (
-            <span
-              key={chip}
-              className="rounded-full border border-line-dark bg-white/[0.04] px-2.5 py-1 text-[12px] font-semibold text-[#C7CFD6]"
-            >
-              {chip}
-            </span>
-          ))}
-      </div>
+      {/* Характеристики — сеткой «название — значение»: сравнивать глазом
+          проще, чем вычитывать строку через точки. Пустые поля не выводим. */}
+      <dl className="mt-3 grid grid-cols-3 overflow-hidden rounded-[14px] border border-white/[0.07] bg-white/[0.07] [gap:1px]">
+        {specRows(car).map(([k, v]) => (
+          <div key={k} className="min-w-0 bg-graphite-2 px-2.5 py-2">
+            <dt className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-[#7C8792]">{k}</dt>
+            <dd className="mt-0.5 truncate text-[13px] font-semibold text-white">{v}</dd>
+          </div>
+        ))}
+      </dl>
 
       {/* Цена одна — до Москвы. Две рядом заставляли человека сначала
           разбираться, какая из них его, вместо того чтобы смотреть машину. */}
@@ -837,8 +1018,81 @@ export function CarView({
           Оставить заявку
         </button>
       ) : null}
+
+      {/* Похожие — чтобы не возвращаться в каталог ради сравнения с
+          соседними вариантами. Та же марка или кузов, близкая цена. */}
+      {similar.length && onOpen ? (
+        <section className="mt-7">
+          <h3 className="mb-2.5 text-[15px] font-extrabold uppercase tracking-[0.02em]">
+            Похожие авто
+          </h3>
+          <div className="-mx-4 flex snap-x scroll-px-4 gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {similar.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onOpen(c.id)}
+                className="w-[44%] flex-none snap-start overflow-hidden rounded-[14px] border border-white/[0.08] bg-graphite-2 text-left transition-transform duration-150 active:scale-[0.98]"
+              >
+                <div className="aspect-[16/10] bg-black">
+                  {/* eslint-disable-next-line */}
+                  <img src={c.images[0]} alt="" loading="lazy" className="h-full w-full object-cover" />
+                </div>
+                <div className="p-2">
+                  <div className="truncate text-[12.5px] font-extrabold">{c.model}</div>
+                  <div className="text-[11px] text-[#9AA4B2]">
+                    {c.year}
+                    {c.powerHp ? ` · ${c.powerHp} л.с.` : ""}
+                  </div>
+                  <div className={`mt-1 font-num text-[14px] font-extrabold ${PRICE_TXT}`}>
+                    {formatPrice(displayPrice(c))} ₽
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </>
   );
+}
+
+/** Строки характеристик для карточки: только заполненные поля. */
+function specRows(car: Car): [string, string][] {
+  const rows: [string, string | undefined | false][] = [
+    ["Год", String(car.year)],
+    ["Состояние", car.isNew ? "Новый" : car.mileage || "С пробегом"],
+    // «1.5 л · 115 л.с.» → «1.5 л»: мощность и так стоит отдельной строкой.
+    ["Двигатель", car.powerHp ? car.engine.replace(/\s*[·,]?\s*\d+\s*л\.?\s*с\.?/i, "").trim() || car.engine : car.engine],
+    ["Мощность", car.powerHp ? `${car.powerHp} л.с.` : undefined],
+    ["Коробка", car.gearbox],
+    ["Привод", car.drive],
+    ["Топливо", car.fuelType],
+    ["Кузов", car.bodyType],
+    ["Цвет", car.color],
+    ["Руль", car.steering],
+  ];
+  return rows.filter((r): r is [string, string] => Boolean(r[1] && String(r[1]).trim()));
+}
+
+/**
+ * Похожие авто: та же марка или тот же кузов, ближе по цене — выше.
+ * Не больше шести, сама машина не входит.
+ */
+function similarCars(car: Car, all: Car[]): Car[] {
+  const brand = brandOf(car.model);
+  const price = displayPrice(car) || 1;
+  return all
+    .filter((c) => c.id !== car.id && Array.isArray(c.images) && c.images[0])
+    .map((c) => {
+      let score = Math.abs(displayPrice(c) - price) / price;
+      if (brandOf(c.model) === brand) score -= 0.6;
+      if (car.bodyType && c.bodyType === car.bodyType) score -= 0.4;
+      return { c, score };
+    })
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 6)
+    .map((x) => x.c);
 }
 
 export function LeadView({
@@ -2341,7 +2595,7 @@ function Price({
         под ключ {label}
       </div>
       <div
-        className={`font-num text-[18px] font-bold ${accent ? "text-bordeaux-bright" : "text-white"}`}
+        className={`font-num text-[22px] font-extrabold leading-tight ${accent ? PRICE_TXT : "text-white"}`}
       >
         {formatPrice(value)} ₽
       </div>
