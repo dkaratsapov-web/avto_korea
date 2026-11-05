@@ -1,0 +1,29 @@
+# Статистика публичных Telegram-каналов для подбора площадок Telegram Ads:
+# подписчики, медианный охват поста, частота постов, жив ли канал.
+#
+# Данные берутся с публичного превью t.me/s/<канал> — из среды разработчика оно
+# закрыто, у Actions интернет открыт. Результат — в логе шага (таблица + JSON).
+#
+# Запуск: Actions → «Статистика TG-каналов» → Run workflow → список через запятую.
+
+name: Статистика TG-каналов
+
+on:
+  workflow_dispatch:
+    inputs:
+      channels:
+        description: "Каналы через запятую (без t.me/, можно с @)"
+        required: true
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Собрать статистику
+        env:
+          CHANNELS: ${{ inputs.channels }}
+        run: node scripts/tg-channel-stats.mjs
