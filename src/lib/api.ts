@@ -285,12 +285,33 @@ export async function fetchSharedCatalog(): Promise<Car[] | null> {
   }
 }
 
+/**
+ * Куда уходят вызовы админки бота.
+ *
+ * Обычно — прямо боту, с подписью мини-аппа. Та же админка открывается и в
+ * CRM (раздел «Бот»): там подписи Telegram нет, и вызовы идут через сервер
+ * CRM полным ключом. Интерфейс один и тот же, данные одни и те же — поэтому
+ * обе админки всегда синхронны.
+ */
+type AdminTransport = (action: string, payload?: unknown) => Promise<unknown>;
+let adminTransport: AdminTransport | null = null;
+export function setAdminTransport(t: AdminTransport | null) {
+  adminTransport = t;
+}
+
 /** Вызов админ-API с подписью initData мини-аппа. */
 export async function adminCall<T = unknown>(
   initData: string,
   action: string,
   payload?: unknown,
 ): Promise<{ ok: boolean; error?: string } & T> {
+  if (adminTransport) {
+    try {
+      return (await adminTransport(action, payload)) as { ok: boolean; error?: string } & T;
+    } catch (e) {
+      return { ok: false, error: (e as Error)?.message || "network" } as never;
+    }
+  }
   if (!hasBackend) return { ok: false, error: "no_backend" } as never;
   try {
     const r = await fetch(`${API_BASE}/api/admin`, {

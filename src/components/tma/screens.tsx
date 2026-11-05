@@ -23,7 +23,6 @@ import {
   ArrowUp,
   Camera,
   ArrowDownUp,
-  MessageCircle,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { brandOf } from "@/lib/brand";
@@ -404,7 +403,7 @@ export function ListView({
             </button>
           ) : null}
         </div>
-        <label className="relative flex flex-none items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-2.5 pr-3 text-[12px] font-bold text-chrome">
+        <label className="relative flex flex-none items-center gap-1.5 overflow-hidden rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-2.5 pr-3 text-[12px] font-bold text-chrome">
           <ArrowDownUp className="h-3.5 w-3.5" />
           {SORTS.find((x) => x.key === sort)?.short}
           <select
@@ -414,7 +413,10 @@ export function ListView({
               window.scrollTo({ top: 0, behavior: "instant" });
             }}
             aria-label="Сортировка"
-            className="absolute inset-0 cursor-pointer opacity-0"
+            // Ширина и высота — строго кнопки. Без них iPhone растягивает
+            // невидимый список до самого длинного пункта, он вылезал за
+            // правый край, и весь экран начинал ездить вбок.
+            className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
           >
             {SORTS.map((x) => (
               <option key={x.key} value={x.key}>
@@ -1748,11 +1750,10 @@ export function HomeView({
           <button
             type="button"
             onClick={onManager}
-            aria-label="Написать менеджеру"
-            className="relative flex h-[52px] w-[52px] flex-none items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white transition-transform duration-150 active:scale-95"
+            aria-label="Написать менеджеру в Telegram"
+            className="h-[52px] w-[52px] flex-none rounded-full shadow-[0_10px_24px_-8px_rgba(34,158,217,.7)] transition-transform duration-150 active:scale-95"
           >
-            <MessageCircle className="h-[22px] w-[22px]" />
-            <span className="absolute right-0 top-0 h-3.5 w-3.5 rounded-full border-2 border-graphite bg-success" />
+            <TelegramIcon className="h-[52px] w-[52px]" />
           </button>
         ) : null}
       </div>

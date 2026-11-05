@@ -1341,6 +1341,38 @@ export default {
        * иначе владелец, нажавший её из любопытства, тихо отключил бы CRM.
        * Для замены — «/crm новый».
        */
+      /*
+       * /crm_admin — полный ключ: вся админка бота в CRM (раздел «Бот»).
+       *
+       * Не путать с /crm: тот даёт только отзывы. Этот — каталог, заявки,
+       * настройки, рассылку и админов, поэтому выдаётся отдельной командой и
+       * только владельцу. Повтор показывает тот же ключ, замена — «новый».
+       */
+      if (msg && typeof msg.text === "string" && /^\/crm_?admin(@\w+)?/i.test(msg.text.trim())) {
+        const perm = await permsOf(env, msg.from?.id);
+        if (!perm?.owner) return new Response("ok");
+        const rotate = /(нов|new|сброс|reset)/i.test(msg.text);
+        let key = String((await kvGet(env, "crmAdminKey", "")) || "");
+        if (!key || rotate) {
+          key = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+          await kvPut(env, "crmAdminKey", key);
+        }
+        await api(env, "sendMessage", {
+          chat_id: msg.chat.id,
+          text:
+            "🔐 Полный ключ CRM — вся админка бота" +
+            (rotate ? " (новый — старый больше не работает)" : "") +
+            ":\n\n`" +
+            key +
+            "`\n\nОткройте CRM → «Бот» и вставьте его в поле подключения. " +
+            "Ключ даёт те же права, что у владельца в админке мини-аппа: каталог, " +
+            "заявки, настройки, рассылку, админов. Никому его не пересылайте.\n\n" +
+            "Заменить ключ: /crm_admin новый",
+          parse_mode: "Markdown",
+        });
+        return new Response("ok");
+      }
+
       if (msg && typeof msg.text === "string" && /^\/crm(@\w+)?\b/.test(msg.text.trim())) {
         const perm = await permsOf(env, msg.from?.id);
         if (!perm?.owner) return new Response("ok");
@@ -2116,7 +2148,37 @@ export default {
      */
     if (url.pathname === "/api/crm" && request.method === "POST") {
       const key = String(await kvGet(env, "crmKey", "") || "");
+      const fullKey = String(await kvGet(env, "crmAdminKey", "") || "");
       const given = request.headers.get("X-Crm-Key") || "";
+
+      /*
+       * Полный ключ — админка бота целиком внутри CRM (раздел «Бот»).
+       *
+       * Отдельный от ключа отзывов: тот остаётся узким, как и задумывался, а
+       * полный владелец выдаёт сознательно, командой /crm_admin. CRM ходит с
+       * ним от имени владельца — те же действия и те же данные, что в
+       * мини-аппе, поэтому обе админки всегда показывают одно и то же.
+       */
+      if (fullKey && given && timingSafeEqual(given, fullKey)) {
+        let body;
+        try {
+          body = await request.json();
+        } catch {
+          return json({ ok: false, error: "bad_json" }, 400);
+        }
+        const { action, payload } = body || {};
+        if (action !== "me" && !(action in NEED_CAP))
+          return json({ ok: false, error: "unknown_action" }, 400);
+        return handleAdmin(
+          env,
+          action,
+          payload,
+          { owner: true, caps: new Set(CAPS) },
+          { id: 0, first_name: "CRM" },
+          url.origin,
+        );
+      }
+
       // Ключа нет — соединять не с чем; так и говорим, чтобы CRM показала
       // владельцу инструкцию, а не «неверный ключ».
       if (!key) return json({ ok: false, error: "not_paired" }, 401);

@@ -5,7 +5,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { ArrowLeft, Heart, ShieldCheck, Scale, MessageCircle } from "lucide-react";
+import { ArrowLeft, Heart, ShieldCheck, Scale } from "lucide-react";
+import { TelegramIcon } from "@/components/icons/TelegramIcon";
 import { useCars } from "@/lib/carsStore";
 import { useUI } from "@/lib/ui";
 import { site } from "@/lib/site";
@@ -331,7 +332,7 @@ export function TmaApp() {
 
   if (adminOpen && admin) {
     return (
-      <div className="min-h-screen bg-graphite text-white">
+      <div className="min-h-screen overflow-x-clip bg-graphite text-white">
         <div className="mx-auto max-w-md px-4 pb-28 pt-4">
           <TmaAdmin
             tg={tgRef.current}
@@ -347,7 +348,10 @@ export function TmaApp() {
 
   return (
     <>
-      <div className="min-h-screen bg-graphite text-white">
+      {/* overflow-x: clip — страховка: что бы ни оказалось шире экрана, экран
+          не ездит вбок. Именно clip, а не hidden: hidden ломает прилипающую
+          шапку поиска. */}
+      <div className="min-h-screen overflow-x-clip bg-graphite text-white">
       <div className={`mx-auto max-w-md px-4 ${view.name === "home" ? "pb-5" : "pb-28"}`}>
         {/* Шапка — тёмная в стиле бота; лого как на сайте */}
         <div className="sticky top-0 z-40 -mx-4 mb-4 flex items-center justify-between gap-2 border-b border-line-dark/70 bg-graphite/95 px-4 py-2.5 backdrop-blur">
@@ -597,11 +601,10 @@ export function TmaApp() {
         <button
           type="button"
           onClick={openManager}
-          aria-label="Написать менеджеру"
-          className="fixed bottom-[max(16px,env(safe-area-inset-bottom))] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-[#B3231A] to-bordeaux text-white shadow-[0_12px_28px_-8px_rgba(156,26,18,.85),0_0_0_1px_rgba(255,255,255,.12)_inset] transition-transform duration-150 active:scale-95"
+          aria-label="Написать менеджеру в Telegram"
+          className="fixed bottom-[max(16px,env(safe-area-inset-bottom))] right-4 z-50 h-14 w-14 rounded-full shadow-[0_12px_28px_-6px_rgba(34,158,217,.7)] transition-transform duration-150 active:scale-95"
         >
-          <MessageCircle className="h-6 w-6" />
-          <span className="absolute right-0.5 top-0.5 h-3.5 w-3.5 rounded-full border-2 border-graphite bg-success" />
+          <TelegramIcon className="h-14 w-14" />
         </button>
       ) : null}
       </div>

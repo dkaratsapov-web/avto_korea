@@ -18,6 +18,7 @@ import {
   MessageSquareQuote,
   Menu,
   Monitor,
+  Bot,
   Moon,
   Sun,
   Users2,
@@ -34,6 +35,7 @@ const NAV = [
 ];
 
 const OWNER_NAV = [
+  { to: "/crm/bot", label: "Бот", icon: Bot, end: false },
   { to: "/crm/reviews", label: "Отзывы", icon: MessageSquareQuote, end: false },
   { to: "/crm/users", label: "Сотрудники", icon: Users2, end: false },
   { to: "/crm/settings", label: "Реквизиты", icon: Building2, end: false },

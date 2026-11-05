@@ -2850,3 +2850,34 @@ test("заявку можно удалить из админки — ровно 
   assert.equal(miss.leads.length, 2);
 });
 
+
+test("полный ключ CRM открывает всю админку, узкий — по-прежнему только отзывы", async () => {
+  const store = makeStore({
+    crmKey: "narrow",
+    crmAdminKey: "full",
+    catalog: [{ id: "a", model: "Kia K3" }],
+    leads: [{ name: "Ива", phone: "+7 900", ts: 5 }],
+  });
+
+  const cat = await (await crmCall(store, "full", "catalog.get")).json();
+  assert.equal(cat.ok, true);
+  assert.equal(cat.catalog[0].model, "Kia K3");
+
+  const me = await (await crmCall(store, "full", "me")).json();
+  assert.equal(me.owner, true, "в CRM владелец видит все разделы");
+
+  const del = await (await crmCall(store, "full", "leads.remove", { ts: 5, phone: "+7 900" })).json();
+  assert.equal(del.removed, true);
+
+  // Узкий ключ каталога не видит.
+  const narrow = await crmCall(store, "narrow", "catalog.get");
+  assert.equal(narrow.status, 400);
+
+  // Полным ключом — только действия админки.
+  const odd = await crmCall(store, "full", "drop.everything");
+  assert.equal(odd.status, 400);
+
+  // Чужой ключ не проходит ни туда, ни туда.
+  const bad = await crmCall(store, "guess", "catalog.get");
+  assert.equal(bad.status, 401);
+});

@@ -283,6 +283,28 @@ export const api = {
 
   deleteAllReviews: () => request<ReviewsReply>("/reviews", { method: "DELETE" }),
 
+  // Раздел «Бот»: админка бота целиком, через сервер CRM.
+  botStatus: () => request<{ connected: boolean }>("/bot"),
+  connectBot: (key: string) => request<{ connected: boolean }>("/bot/key", { body: { key } }),
+  /**
+   * Действие админки бота. Ответ бота возвращается как есть — даже отказ
+   * (ok: false) админка разбирает сама, поэтому request() здесь не годится:
+   * он превратил бы любой отказ в исключение.
+   */
+  botCall: async (action: string, payload?: unknown): Promise<unknown> => {
+    const r = await fetch(BASE + "/bot/call", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, payload }),
+    });
+    const data = (await r.json().catch(() => null)) as { ok?: boolean; message?: string; error?: string } | null;
+    if (!data) return { ok: false, error: `Сервер ответил неожиданно (${r.status})` };
+    // Отказ самой CRM (нет связи с ботом, неверный ключ) — с человеческим текстом.
+    if (data.ok === false && data.message) return { ok: false, error: data.message };
+    return data;
+  },
+
   // --- резервные копии ---
   backups: () => request<BackupsReply>("/backup"),
 

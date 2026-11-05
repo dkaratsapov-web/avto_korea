@@ -100,6 +100,12 @@ try {
             crm_route_reviews($method, array_slice($path, 1));
             break;
 
+        // Админка бота целиком: те же действия и данные, что в мини-аппе.
+        case 'bot':
+            require __DIR__ . '/routes/bot.php';
+            crm_route_bot($method, array_slice($path, 1));
+            break;
+
         case 'dashboard':
             require __DIR__ . '/routes/dashboard.php';
             crm_route_dashboard($method, array_slice($path, 1));
