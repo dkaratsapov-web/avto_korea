@@ -82,9 +82,16 @@ async function buildSheets(cars) {
     country: car.country,
   }));
 
-  // Качаем обложки параллельно пачками: 270 штук по одной — это минуты.
+  // Расширение важно: по нему ImageMagick выбирает декодер (с .bin он падал
+  // «no decode delegate for BIN»). Берём его из content-type.
+  const EXT = {
+    "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png",
+    "image/webp": "webp", "image/gif": "gif",
+  };
+
+  // Качаем обложки параллельно пачками: сотни штук по одной — это минуты.
   const CHUNK = 12;
-  const got = new Array(cars.length).fill(false);
+  const raw = new Array(cars.length).fill(null); // путь к скачанному файлу или null
   for (let i = 0; i < cars.length; i += CHUNK) {
     await Promise.all(
       cars.slice(i, i + CHUNK).map(async (car, j) => {
@@ -94,8 +101,10 @@ async function buildSheets(cars) {
           if (!src) return;
           const r = await fetch(src);
           if (!r.ok) return;
-          await writeFile(`${OUT_DIR}/.img-${pos}.bin`, Buffer.from(await r.arrayBuffer()));
-          got[pos] = true;
+          const ct = (r.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+          const f = `${OUT_DIR}/.img-${pos}.${EXT[ct] || "jpg"}`;
+          await writeFile(f, Buffer.from(await r.arrayBuffer()));
+          raw[pos] = f;
         } catch {
           /* падение одной картинки не должно валить весь лист */
         }
@@ -103,12 +112,24 @@ async function buildSheets(cars) {
     );
   }
 
-  // Плитки строго по порядку; для несскачанных — заглушка, чтобы номера не съехали.
+  // Нормализуем каждую в одинаковое jpg-превью (и формат, и размер). Битый или
+  // неподдерживаемый файл изолируем заглушкой, чтобы он не ронял весь лист и
+  // чтобы номера плиток не съехали.
   const tiles = [];
   for (let pos = 0; pos < cars.length; pos++) {
     const label = tileLabel(pos, cars[pos]);
-    if (got[pos]) {
-      tiles.push({ file: `${OUT_DIR}/.img-${pos}.bin`, label });
+    const th = `${OUT_DIR}/.th-${pos}.jpg`;
+    let ok = false;
+    if (raw[pos]) {
+      try {
+        await run("convert", [raw[pos], "-resize", `${THUMB}^`, "-gravity", "center", "-extent", THUMB, th]);
+        ok = true;
+      } catch {
+        /* неподдерживаемый формат → заглушка */
+      }
+    }
+    if (ok) {
+      tiles.push({ file: th, label });
     } else {
       const ph = `${OUT_DIR}/.ph-${pos}.png`;
       await run("convert", ["-size", THUMB, "xc:#330000", ph]);
@@ -139,7 +160,7 @@ async function buildSheets(cars) {
   }
 
   await writeFile(`${OUT_DIR}/index.json`, JSON.stringify(index, null, 1));
-  await run("bash", ["-lc", `rm -f ${OUT_DIR}/.img-* ${OUT_DIR}/.ph-*`]).catch(() => {});
+  await run("bash", ["-lc", `rm -f ${OUT_DIR}/.img-* ${OUT_DIR}/.th-* ${OUT_DIR}/.ph-*`]).catch(() => {});
   return { cars: cars.length, sheets: sheets.length };
 }
 
