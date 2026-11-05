@@ -77,9 +77,28 @@ const BRANDS: Record<string, string[]> = {
   Zeekr: [],
 };
 
+/**
+ * Русские буквы, неотличимые на глаз от латинских. Посты набирают на русской
+ * раскладке, и «НYUNDAI» с русской «Н» для программы — другая марка: в фильтре
+ * каталога Hyundai стоял тремя пунктами.
+ */
+const HOMOGLYPHS: Record<string, string> = {
+  а: "a", в: "b", е: "e", ё: "e", к: "k", м: "m", н: "h", о: "o", р: "p",
+  с: "c", т: "t", у: "y", х: "x", і: "i",
+};
+
+/** Латиница вместо русских двойников — только в словах, где есть латиница. */
+function delatinize(word: string): string {
+  if (!/[a-z]/i.test(word)) return word;
+  return word.replace(/[авеёкмнорстухі]/gi, (ch) => {
+    const lat = HOMOGLYPHS[ch.toLowerCase()];
+    return ch === ch.toLowerCase() ? lat : lat.toUpperCase();
+  });
+}
+
 /** Сравнимый вид: без регистра, пробелов, дефисов и точек. */
 function key(value: string): string {
-  return value.toLowerCase().replace(/[^a-zа-яё0-9]/gi, "");
+  return delatinize(value).toLowerCase().replace(/[^a-zа-яё0-9]/gi, "");
 }
 
 /**
@@ -106,6 +125,9 @@ export function brandOf(model: string): string {
     }
   }
 
-  // Незнакомая марка: возвращаем первое слово как есть.
-  return raw.split(/\s+/)[0];
+  // Незнакомая марка: первое слово, но в одном написании — иначе «ZEEKR» и
+  // «Zeekr» стали бы двумя пунктами фильтра. Короткие (BYD, GMC) — заглавными.
+  const word = delatinize(raw.split(/\s+/)[0]);
+  if (word.length <= 3) return word.toUpperCase();
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 }

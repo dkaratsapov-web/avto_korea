@@ -83,3 +83,15 @@ test("список марок схлопывается без повторов",
   const марки = Array.from(new Set(из_каталога.map(brandOf))).sort();
   assert.deepEqual(марки, ["Audi", "Hyundai", "Jetta", "Kia", "Mercedes-Benz", "VW"]);
 });
+
+test("русские буквы-двойники в латинском названии не плодят марки", () => {
+  // «НYUNDAI»: русская Н; «HYUNDАI»: русская А.
+  assert.equal(brandOf("НYUNDAI Sonata"), "Hyundai");
+  assert.equal(brandOf("HYUNDАI Elantra"), "Hyundai");
+  assert.equal(brandOf("НYUNDАI Tucson"), "Hyundai");
+});
+
+test("незнакомая марка — в одном написании", () => {
+  assert.equal(brandOf("FOOCAR X1"), brandOf("Foocar X2"));
+  assert.equal(brandOf("byd Han"), "BYD");
+});

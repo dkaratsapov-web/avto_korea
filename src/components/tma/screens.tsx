@@ -98,8 +98,10 @@ export function ListView({
       bodies: Array.from(new Set(cars.map((c) => c.bodyType).filter(Boolean) as string[])).sort(),
       fuels: Array.from(new Set(cars.map((c) => c.fuelType).filter(Boolean) as string[])).sort(),
       colors: Array.from(new Set(cars.map((c) => c.color).filter(Boolean) as string[])).sort(),
-      drives: Array.from(new Set(cars.map((c) => c.drive))),
-      gear: Array.from(new Set(cars.map((c) => c.gearbox))),
+      // Пустые и пробельные значения в фильтр не попадают — иначе появлялась
+      // пустая кнопка без подписи.
+      drives: Array.from(new Set(cars.map((c) => normDrive(c.drive)).filter(Boolean))),
+      gear: Array.from(new Set(cars.map((c) => (c.gearbox || "").trim()).filter(Boolean))),
       min: prices.length ? Math.min(...prices) : 0,
       max: prices.length ? Math.max(...prices) : 0,
       yearMin: cars.length ? Math.min(...cars.map((c) => c.year)) : 2010,
@@ -133,8 +135,8 @@ export function ListView({
     if (bodies.length && !(c.bodyType && bodies.includes(c.bodyType))) return false;
     if (fuels.length && !(c.fuelType && fuels.includes(c.fuelType))) return false;
     if (colors.length && !(c.color && colors.includes(c.color))) return false;
-    if (drives.length && !drives.includes(c.drive)) return false;
-    if (gear.length && !gear.includes(c.gearbox)) return false;
+    if (drives.length && !drives.includes(normDrive(c.drive))) return false;
+    if (gear.length && !gear.includes((c.gearbox || "").trim())) return false;
     if (condition === "new" && !c.isNew) return false;
     if (condition === "used" && c.isNew) return false;
     if (priceFrom != null && price < priceFrom) return false;
@@ -157,6 +159,10 @@ export function ListView({
     for (const c of cars) m[c.country] = (m[c.country] || 0) + 1;
     return m;
   }, [cars]);
+
+  // Вкладки стран не помещаются в ширину — с компьютера их листает колесо мыши.
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useWheelX(tabsRef);
 
   // Кнопка «наверх» — когда каталог пролистан на несколько экранов.
   const [farDown, setFarDown] = useState(false);
@@ -242,7 +248,7 @@ export function ListView({
           </button>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div ref={tabsRef} className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {countryTabs.map((t) => (
             <button
               key={t.value}
@@ -469,6 +475,42 @@ export function ListView({
       </button>
     </>
   );
+}
+
+/**
+ * Привод в одном написании: в постах встречаются «Задни», «задний», «Полный
+ * привод» — в фильтре это были разные кнопки.
+ */
+function normDrive(v: string | undefined): string {
+  const d = (v || "").trim().toLowerCase();
+  if (!d) return "";
+  if (d.startsWith("задн")) return "Задний";
+  if (d.startsWith("передн")) return "Передний";
+  if (d.startsWith("полн") || d.includes("4wd") || d.includes("awd")) return "Полный";
+  return (v || "").trim();
+}
+
+/**
+ * Горизонтальную ленту на компьютере листает обычное колесо мыши: без этого
+ * её можно было прокрутить только тачпадом, а мышью — никак.
+ */
+function useWheelX(ref: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const on = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const max = el.scrollWidth - el.clientWidth;
+      if (max <= 0) return;
+      const next = el.scrollLeft + e.deltaY;
+      // На краю ленты отдаём колесо странице — иначе её не прокрутить.
+      if ((next <= 0 && el.scrollLeft <= 0) || (next >= max && el.scrollLeft >= max)) return;
+      e.preventDefault();
+      el.scrollLeft = Math.max(0, Math.min(max, next));
+    };
+    el.addEventListener("wheel", on, { passive: false });
+    return () => el.removeEventListener("wheel", on);
+  }, [ref]);
 }
 
 /* ---------- Сортировка каталога ---------- */
@@ -863,8 +905,11 @@ export function CarView({
 }) {
   const { cars } = useCars();
   const similar = useMemo(() => similarCars(car, cars), [car, cars]);
+  const simRef = useRef<HTMLDivElement>(null);
+  useWheelX(simRef);
   const [seek, setSeek] = useState<{ i: number; n: number } | undefined>();
   const thumbs = useRef<HTMLDivElement>(null);
+  useWheelX(thumbs);
   const [idx, setIdx] = useState(0);
   // Активная миниатюра всегда в поле зрения ленты.
   useEffect(() => {
@@ -960,8 +1005,17 @@ export function CarView({
       {/* Характеристики — сеткой «название — значение»: сравнивать глазом
           проще, чем вычитывать строку через точки. Пустые поля не выводим. */}
       <dl className="mt-3 grid grid-cols-3 overflow-hidden rounded-[14px] border border-white/[0.07] bg-white/[0.07] [gap:1px]">
-        {specRows(car).map(([k, v]) => (
-          <div key={k} className="min-w-0 bg-graphite-2 px-2.5 py-2">
+        {specRows(car).map(([k, v], i, all) => (
+          // Последняя ячейка растягивается на остаток ряда — без пустых
+          // клеток, когда характеристик не кратно трём.
+          <div
+            key={k}
+            className={`min-w-0 bg-graphite-2 px-2.5 py-2 ${
+              i === all.length - 1
+                ? ["", "col-span-3", "col-span-2"][all.length % 3] || ""
+                : ""
+            }`}
+          >
             <dt className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-[#7C8792]">{k}</dt>
             <dd className="mt-0.5 truncate text-[13px] font-semibold text-white">{v}</dd>
           </div>
@@ -970,8 +1024,39 @@ export function CarView({
 
       {/* Цена одна — до Москвы. Две рядом заставляли человека сначала
           разбираться, какая из них его, вместо того чтобы смотреть машину. */}
-      <div className="mt-4">
-        <Price label={PRICE_LABEL_SHORT} value={displayPrice(car)} accent />
+      {/* Цена и действия одной строкой: справа в блоке цены было пусто,
+          а «В избранное» и «Сравнить» стояли отдельным рядом ниже. */}
+      <div className="mt-3 flex items-center gap-2 rounded-[14px] border border-white/[0.07] bg-graphite-2 py-2.5 pl-3 pr-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#8C97A1]">
+            под ключ {PRICE_LABEL_SHORT}
+          </div>
+          <div className={`whitespace-nowrap font-num text-[22px] font-extrabold leading-tight ${PRICE_TXT}`}>
+            {formatPrice(displayPrice(car))} ₽
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onToggleFav}
+          aria-pressed={fav}
+          className={`flex w-[62px] flex-none flex-col items-center gap-0.5 rounded-[12px] py-1.5 text-[10.5px] font-bold transition-colors ${
+            fav ? "bg-bordeaux/20 text-white" : "text-chrome active:bg-white/[0.06]"
+          }`}
+        >
+          <Heart className={`h-5 w-5 ${fav ? "fill-[#E0574C] text-[#E0574C]" : ""}`} />
+          {fav ? "В избр." : "В избранное"}
+        </button>
+        <button
+          type="button"
+          onClick={onToggleCompare}
+          aria-pressed={inCompare}
+          className={`flex w-[62px] flex-none flex-col items-center gap-0.5 rounded-[12px] py-1.5 text-[10.5px] font-bold transition-colors ${
+            inCompare ? "bg-bordeaux/20 text-white" : "text-chrome active:bg-white/[0.06]"
+          }`}
+        >
+          <Scale className={`h-5 w-5 ${inCompare ? "text-[#E0574C]" : ""}`} />
+          {inCompare ? "В сравн." : "Сравнить"}
+        </button>
       </div>
 
       {car.description ? (
@@ -989,32 +1074,8 @@ export function CarView({
         ))}
       </ul>
 
-      <div className="mt-5 flex gap-3">
-        <button
-          onClick={onToggleFav}
-          className={`btn flex-1 ${
-            fav
-              ? "border border-bordeaux-bright bg-bordeaux/15 text-white"
-              : "border border-line-dark text-white"
-          }`}
-        >
-          <Heart className={`h-[18px] w-[18px] ${fav ? "fill-bordeaux-bright text-bordeaux-bright" : ""}`} />
-          {fav ? "В избранном" : "В избранное"}
-        </button>
-        <button
-          onClick={onToggleCompare}
-          className={`btn flex-1 ${
-            inCompare
-              ? "border border-bordeaux-bright bg-bordeaux/15 text-white"
-              : "border border-line-dark text-white"
-          }`}
-        >
-          <Scale className="h-[18px] w-[18px]" />
-          {inCompare ? "В сравнении" : "Сравнить"}
-        </button>
-      </div>
       {showInAppCta ? (
-        <button onClick={onLead} className="btn btn-primary mt-3 w-full">
+        <button onClick={onLead} className="btn btn-primary mt-5 w-full">
           Оставить заявку
         </button>
       ) : null}
@@ -1023,10 +1084,29 @@ export function CarView({
           соседними вариантами. Та же марка или кузов, близкая цена. */}
       {similar.length && onOpen ? (
         <section className="mt-7">
-          <h3 className="mb-2.5 text-[15px] font-extrabold uppercase tracking-[0.02em]">
-            Похожие авто
-          </h3>
-          <div className="-mx-4 flex snap-x scroll-px-4 gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Стрелки — для компьютера: мышью ленту не свайпнуть. */}
+          <div className="mb-2.5 flex items-center justify-between">
+            <h3 className="text-[15px] font-extrabold uppercase tracking-[0.02em]">Похожие авто</h3>
+            {similar.length > 2 ? (
+              <div className="flex gap-1.5">
+                {[-1, 1].map((dir) => (
+                  <button
+                    key={dir}
+                    type="button"
+                    aria-label={dir < 0 ? "Назад" : "Дальше"}
+                    onClick={() => {
+                      const el = simRef.current;
+                      if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: "smooth" });
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white transition-colors active:bg-white/[0.12]"
+                  >
+                    {dir < 0 ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <div ref={simRef} className="-mx-4 flex snap-x scroll-px-4 gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {similar.map((c) => (
               <button
                 key={c.id}
@@ -2580,25 +2660,3 @@ function Header2({ title, onBack }: { title: string; onBack: () => void }) {
   );
 }
 
-function Price({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number;
-  accent?: boolean;
-}) {
-  return (
-    <div className="rounded-[14px] border border-line-dark bg-graphite-2 px-3 py-2.5">
-      <div className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#8C97A1]">
-        под ключ {label}
-      </div>
-      <div
-        className={`font-num text-[22px] font-extrabold leading-tight ${accent ? PRICE_TXT : "text-white"}`}
-      >
-        {formatPrice(value)} ₽
-      </div>
-    </div>
-  );
-}
