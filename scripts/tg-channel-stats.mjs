@@ -73,6 +73,9 @@ export function extractChannelNames(html) {
     if (!NOT_NAMES.has(m[1].toLowerCase())) out.add(m[1]);
   }
   for (const m of html.matchAll(/\/(?:channel|chat)\/@([A-Za-z][A-Za-z0-9_]{4,31})/g)) out.add(m[1]);
+  // Карточки Telemetr: telemetr.me/content/<имя>
+  for (const m of html.matchAll(/telemetr\.me\/content\/([A-Za-z][A-Za-z0-9_]{4,31})/g)) out.add(m[1]);
+  for (const m of html.matchAll(/href="\/content\/([A-Za-z][A-Za-z0-9_]{4,31})/g)) out.add(m[1]);
   return [...out];
 }
 

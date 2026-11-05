@@ -11,6 +11,11 @@ test("extractChannelNames: ссылки t.me и карточки TGStat, без 
   assert.deepEqual(extractChannelNames(html).sort(), ["Live_tver", "toptver_news", "tver_chp"]);
 });
 
+test("extractChannelNames: карточки Telemetr", () => {
+  const html = '<a href="/content/ost_tver">a</a> <a href="https://telemetr.me/content/tversky">b</a>';
+  assert.deepEqual(extractChannelNames(html).sort(), ["ost_tver", "tversky"]);
+});
+
 test("parseCount понимает K/M и запятую", () => {
   assert.equal(parseCount("842"), 842);
   assert.equal(parseCount("1.2K"), 1200);
