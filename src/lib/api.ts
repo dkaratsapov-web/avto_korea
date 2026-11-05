@@ -163,6 +163,27 @@ export type Stats = {
   lastLeadTs?: number | null;
   daily?: { date: string; count: number }[];
   favs?: Record<string, number>;
+  /** Метки рекламы бота (/start a-<метка>): люди, подписки, заявки, клики. */
+  ads?: {
+    tag: string;
+    users: number;
+    users7d: number;
+    subscribed: number;
+    leads: number;
+    leads7d: number;
+    manager: number;
+  }[];
+  /** UTM-метки сайта: заявки по кампаниям. */
+  utm?: { label: string; leads: number; leads7d: number; lastTs: number }[];
+  /** Клики «Написать менеджеру». */
+  managerClicks?: {
+    total: number;
+    today: number;
+    d7: number;
+    daily: { date: string; count: number }[];
+    screens: Record<string, number>;
+    noTag: number;
+  };
 };
 
 export type Rates = {
@@ -241,6 +262,21 @@ export function logView(id: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id }),
+  }).catch(() => {});
+}
+
+/**
+ * Засчитать клик по кнопке мини-аппа (например, «Написать менеджеру»).
+ * keepalive — запрос должен уйти, даже если сразу после клика Telegram
+ * откроет чат и мини-апп уйдёт в фон.
+ */
+export function logClick(kind: "manager", screen: string, initData?: string) {
+  if (!hasBackend) return;
+  fetch(`${API_BASE}/api/click`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind, screen, initData: initData || undefined }),
+    keepalive: true,
   }).catch(() => {});
 }
 

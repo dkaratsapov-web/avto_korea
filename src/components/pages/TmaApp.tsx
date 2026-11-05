@@ -13,7 +13,7 @@ import { site } from "@/lib/site";
 import { showToast } from "@/lib/toast";
 import { loadTelegram, haptic, type TG } from "@/lib/telegram";
 import { loadMax, maxStartParam, type MaxApp } from "@/lib/maxapp";
-import { adminCall, pingUser, logView, type AdminMe } from "@/lib/api";
+import { adminCall, pingUser, logView, logClick, type AdminMe } from "@/lib/api";
 import { TmaAdmin } from "@/components/pages/TmaAdmin";
 import {
   HomeView,
@@ -276,6 +276,7 @@ export function TmaApp() {
    */
   function openManager() {
     haptic(tgRef.current, "light");
+    logClick("manager", viewRef.current.name, initDataRef.current);
     const tg = tgRef.current;
     if (isMax) {
       const mx = maxRef.current;
@@ -354,7 +355,7 @@ export function TmaApp() {
       <div className="min-h-screen overflow-x-clip bg-graphite text-white">
       <div className={`mx-auto max-w-md px-4 ${view.name === "home" ? "pb-5" : "pb-28"}`}>
         {/* Шапка — тёмная в стиле бота; лого как на сайте */}
-        <div className="sticky top-0 z-40 -mx-4 mb-4 flex items-center justify-between gap-2 border-b border-line-dark/70 bg-graphite/95 px-4 py-2.5 backdrop-blur">
+        <div className="sticky top-0 z-40 -mx-4 mb-4 flex h-[53px] items-center justify-between gap-2 border-b border-line-dark/70 bg-graphite/95 px-4 backdrop-blur">
           {/*
             Кнопка «назад» в шапке — для тех, кто открыл мини-апп не из
             Telegram. В Telegram назад ведёт родная кнопка мессенджера, и
@@ -367,7 +368,7 @@ export function TmaApp() {
               type="button"
               onClick={back}
               aria-label="Назад"
-              className="-ml-1 mr-1 flex h-10 w-10 flex-none items-center justify-center rounded-full border border-line-dark bg-white/[0.04] text-chrome"
+              className="-ml-1 mr-1 flex h-9 w-9 flex-none items-center justify-center rounded-full border border-line-dark bg-white/[0.04] text-chrome"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
@@ -401,7 +402,7 @@ export function TmaApp() {
                 setAdminOpen(true);
               }}
               aria-label="Админка"
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-bordeaux-bright/60 bg-bordeaux/15 text-bordeaux-bright"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-bordeaux-bright/60 bg-bordeaux/15 text-bordeaux-bright"
             >
               <ShieldCheck className="h-5 w-5" />
             </button>
@@ -413,7 +414,7 @@ export function TmaApp() {
               setView({ name: "compare" });
             }}
             aria-label="Сравнение"
-            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line-dark bg-white/[0.04] text-chrome"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-line-dark bg-white/[0.04] text-chrome"
           >
             <Scale className="h-5 w-5" />
             {compareIds.length > 0 ? (
@@ -428,7 +429,7 @@ export function TmaApp() {
               haptic(tgRef.current);
               setView({ name: "favorites" });
             }}
-            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-line-dark bg-white/[0.04] text-chrome"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-line-dark bg-white/[0.04] text-chrome"
           >
             <Heart className="h-5 w-5" />
             {favorites.length > 0 ? (

@@ -719,6 +719,8 @@ function StatsTab({ initData }: { initData: string }) {
         ))}
       </div>
 
+      <AdsBlock stats={stats} />
+
       {/* Конверсии */}
       <div className="grid grid-cols-2 gap-2.5">
         <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
@@ -1765,6 +1767,135 @@ function BotTab({
         </button>
       ) : null}
     </div>
+  );
+}
+
+/* ---------- Реклама: метки бота, UTM сайта, кнопка менеджера ---------- */
+
+const SCREEN_NAMES: Record<string, string> = {
+  home: "Главная",
+  list: "Каталог",
+  car: "Карточка авто",
+  favorites: "Избранное",
+  compare: "Сравнение",
+  calc: "Калькулятор",
+  quiz: "Квиз",
+  subscribe: "Оповещения",
+  reviews: "Отзывы",
+  faq: "Вопросы",
+};
+
+/**
+ * Отдача рекламы — сразу под общими цифрами: пока идёт Telegram Ads, это
+ * главный вопрос — какая метка приводит людей и заявки.
+ *
+ * Строка метки: пришло в бота (за 7 дней) → подписались → заявок → нажали
+ * «Написать менеджеру». Переход в личку — тоже обращение, просто без формы.
+ */
+function AdsBlock({ stats }: { stats: Stats }) {
+  const ads = stats.ads || [];
+  const utm = stats.utm || [];
+  const mc = stats.managerClicks;
+  const head = "mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]";
+  const th = "px-2 py-1.5 text-right text-[10px] font-bold uppercase tracking-wide text-[#8C97A1]";
+  const td = "px-2 py-2 text-right font-num text-[13px]";
+  const mcMax = Math.max(1, ...(mc?.daily || []).map((d) => d.count));
+  const screens = Object.entries(mc?.screens || {}).sort((a, b) => b[1] - a[1]);
+
+  return (
+    <>
+      {mc ? (
+        <div>
+          <div className={head}>Кнопка «Написать менеджеру»</div>
+          <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {([["Всего", mc.total], ["Сегодня", mc.today], ["7 дней", mc.d7]] as const).map(([l, v]) => (
+                <div key={l}>
+                  <div className="font-num text-[22px] font-extrabold text-[#2AABEE]">{v}</div>
+                  <div className="text-[11px] text-[#9AA4B2]">{l}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex h-14 items-end gap-1">
+              {mc.daily.map((d) => (
+                <div
+                  key={d.date}
+                  title={`${d.date}: ${d.count}`}
+                  className="flex-1 rounded-t bg-[#2AABEE]/80"
+                  style={{ height: `${Math.max(4, (d.count / mcMax) * 100)}%` }}
+                />
+              ))}
+            </div>
+            {screens.length ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {screens.map(([k, v]) => (
+                  <span key={k} className="rounded-full border border-line-dark px-2 py-0.5 text-[11.5px] text-[#C7CFD6]">
+                    {SCREEN_NAMES[k] || k}: <span className="font-num text-white">{v}</span>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div>
+        <div className={head}>Метки рекламы бота (/start)</div>
+        {ads.length ? (
+          <div className="overflow-x-auto rounded-[16px] border border-line-dark bg-graphite-2">
+            <table className="w-full min-w-[340px] border-collapse">
+              <thead>
+                <tr className="border-b border-line-dark">
+                  <th className={`${th} text-left`}>Метка</th>
+                  <th className={th}>Пришли</th>
+                  <th className={th}>7 дн</th>
+                  <th className={th}>Подп.</th>
+                  <th className={th}>Заявки</th>
+                  <th className={th}>Менедж.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ads.map((r) => (
+                  <tr key={r.tag} className="border-b border-line-dark/50 last:border-0">
+                    <td className="max-w-[120px] truncate px-2 py-2 text-left text-[12.5px] text-white">{r.tag}</td>
+                    <td className={td}>{r.users}</td>
+                    <td className={`${td} text-[#9AA4B2]`}>{r.users7d}</td>
+                    <td className={td}>{r.subscribed}</td>
+                    <td className={`${td} font-extrabold text-[#E0574C]`}>{r.leads}</td>
+                    <td className={`${td} text-[#2AABEE]`}>{r.manager}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5 text-[12.5px] text-[#9AA4B2]">
+            Пока никто не пришёл по ссылке с меткой. Ссылка для рекламы:
+            t.me/DI_AVTO_69_BOT?start=a-<i>метка</i>
+          </p>
+        )}
+      </div>
+
+      {utm.length ? (
+        <div>
+          <div className={head}>UTM-метки сайта — заявки</div>
+          <div className="space-y-2">
+            {utm.map((r) => (
+              <div
+                key={r.label}
+                className="flex items-center justify-between gap-3 rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5"
+              >
+                <span className="min-w-0 truncate text-[12.5px]">{r.label}</span>
+                <span className="flex-none font-num text-[13px]">
+                  <span className="font-extrabold text-[#E0574C]">{r.leads}</span>
+                  <span className="text-[#8C97A1]"> · 7 дн {r.leads7d}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 

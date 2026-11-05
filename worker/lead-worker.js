@@ -193,6 +193,74 @@ function adSummary(ad) {
   };
 }
 
+/* ---------- Отчёты для «Статистики» админки ---------- */
+
+/**
+ * Метки рекламы бота: сколько людей пришло по каждой (/start a-<метка>),
+ * сколько из них подписались, оставили заявку, нажали «написать менеджеру».
+ * Метка фиксируется у человека при первом /start — см. patchUser.
+ */
+function adsReport(users, leads, stats, now) {
+  const DAY = 86400000;
+  const rows = {};
+  const row = (tag) =>
+    (rows[tag] = rows[tag] || { tag, users: 0, users7d: 0, subscribed: 0, leads: 0, leads7d: 0, manager: 0 });
+  for (const u of Object.values(users || {})) {
+    if (!u?.src) continue;
+    const r = row(u.src);
+    r.users++;
+    if (now - (u.ts || 0) < 7 * DAY) r.users7d++;
+    if (u.subAt) r.subscribed++;
+  }
+  for (const l of leads || []) {
+    if (!l?.adSrc) continue;
+    const r = row(l.adSrc);
+    r.leads++;
+    if (now - (l.ts || 0) < 7 * DAY) r.leads7d++;
+  }
+  for (const [tag, n] of Object.entries(stats?.clicks?.manager?.bySrc || {})) {
+    if (tag === "—") continue;
+    row(tag).manager += n;
+  }
+  return Object.values(rows).sort((a, b) => b.users - a.users || b.leads - a.leads);
+}
+
+/** UTM-метки сайта: сколько заявок принесла каждая кампания. */
+function utmReport(leads, now) {
+  const DAY = 86400000;
+  const rows = {};
+  for (const l of leads || []) {
+    const label = l?.ad?.label;
+    if (!label) continue;
+    const r = (rows[label] = rows[label] || { label, leads: 0, leads7d: 0, lastTs: 0 });
+    r.leads++;
+    if (now - (l.ts || 0) < 7 * DAY) r.leads7d++;
+    r.lastTs = Math.max(r.lastTs, l.ts || 0);
+  }
+  return Object.values(rows).sort((a, b) => b.leads - a.leads);
+}
+
+/** Клики по кнопке: всего, сегодня, 7 дней, по дням (14), по экранам. */
+function clickReport(c, now) {
+  const DAY = 86400000;
+  const daily = [];
+  let d7 = 0;
+  for (let i = 13; i >= 0; i--) {
+    const key = new Date(now - i * DAY).toISOString().slice(0, 10);
+    const n = (c?.daily || {})[key] || 0;
+    if (i < 7) d7 += n;
+    daily.push({ date: key, count: n });
+  }
+  return {
+    total: c?.total || 0,
+    today: daily[daily.length - 1].count,
+    d7,
+    daily,
+    screens: c?.screens || {},
+    noTag: (c?.bySrc || {})["—"] || 0,
+  };
+}
+
 function leadText(d) {
   const lines = [
     "🚗 Новая заявка — ДиАвто69",
@@ -662,6 +730,9 @@ async function verifyInitData(initData, botToken) {
 
 // Тумблеры прав. Владелец (env ADMIN_IDS) имеет все права.
 // "admins" — право добавлять/удалять админов и менять их права.
+/** Какие кнопки мини-аппа считаем (POST /api/click). */
+const CLICK_KINDS = ["manager"];
+
 const CAPS = ["catalog", "leads", "reviews", "subs", "stats", "bot", "broadcast", "admins"];
 
 // Какое право нужно для действия. null = любому админу; "owner" = только владелец.
@@ -1241,6 +1312,7 @@ export default {
         } catch {
           /* ignore */
         }
+        if (!d.tgUserId && msg.from?.id) d.tgUserId = msg.from.id;
         await storeLead(env, d);
         await api(env, "sendMessage", {
           chat_id: env.TELEGRAM_CHAT_ID,
@@ -1647,6 +1719,51 @@ export default {
         later(ctx, kvPut(env, "users", users));
       }
       return new Response("ok");
+    }
+
+    /*
+     * Клик по кнопке мини-аппа (сейчас — «Написать менеджеру»).
+     *
+     * Переход в личку менеджера — такая же заявка, только без формы: человек
+     * пишет сам. Без счётчика реклама выглядела бы хуже, чем есть: в заявках
+     * этих людей нет. Считаем всего, по дням, по экрану и по метке рекламы
+     * человека. Подпись Telegram проверяем, чтобы метку брать у настоящего
+     * пользователя; без подписи (браузер, MAX) клик всё равно засчитывается.
+     */
+    if (url.pathname === "/api/click" && request.method === "POST") {
+      let b;
+      try {
+        b = await request.json();
+      } catch {
+        return json({ ok: false, error: "bad_json" }, 400);
+      }
+      const kind = String(b?.kind || "");
+      if (!CLICK_KINDS.includes(kind)) return json({ ok: false, error: "bad_kind" }, 400);
+      const screen = String(b?.screen || "").replace(/[^a-z_]/gi, "").slice(0, 20) || "other";
+      let src = "";
+      if (b?.initData) {
+        const auth = await verifyInitData(b.initData, env.TELEGRAM_BOT_TOKEN);
+        if (auth?.user?.id) {
+          const users = (await kvGet(env, "users", {})) || {};
+          src = String(users[String(auth.user.id)]?.src || "");
+        }
+      }
+      if (env.STORE) {
+        const stats = (await kvGet(env, "stats", {})) || {};
+        stats.clicks = stats.clicks || {};
+        const c = (stats.clicks[kind] = stats.clicks[kind] || { total: 0, daily: {}, screens: {}, bySrc: {} });
+        const day = new Date().toISOString().slice(0, 10);
+        c.total = (c.total || 0) + 1;
+        c.daily[day] = (c.daily[day] || 0) + 1;
+        c.screens[screen] = (c.screens[screen] || 0) + 1;
+        const tag = src || "—";
+        c.bySrc[tag] = (c.bySrc[tag] || 0) + 1;
+        // Дневной счётчик — только за последние 60 дней, иначе ключ растёт вечно.
+        const cut = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
+        for (const k of Object.keys(c.daily)) if (k < cut) delete c.daily[k];
+        await kvPut(env, "stats", stats);
+      }
+      return json({ ok: true });
     }
 
     // --- Приём заявок с сайта/мини-аппа ---
@@ -2271,10 +2388,20 @@ async function linkReply(env, messageId, maxUserId) {
 async function storeLead(env, d) {
   if (!env.STORE) return;
   try {
-    const [leads, stats] = await Promise.all([
+    const uid = String(d.tgUserId || "").replace(/\D/g, "");
+    const [leads, stats, users] = await Promise.all([
       kvGet(env, "leads", []),
       kvGet(env, "stats", {}),
+      uid ? kvGet(env, "users", {}) : Promise.resolve({}),
     ]);
+    /*
+     * Метка рекламы бота (/start a-tg_clubs) — к заявке.
+     *
+     * Человек с объявления Telegram Ads приходит в бота по ссылке с меткой,
+     * а заявку оставляет позже, в мини-аппе. Без этой связки в статистике
+     * было бы видно, сколько людей привела кампания, но не сколько заявок.
+     */
+    const adSrc = uid ? String(users?.[uid]?.src || "") : "";
     leads.unshift({
       name: d.name || "",
       phone: d.phone || "",
@@ -2289,6 +2416,8 @@ async function storeLead(env, d) {
        * усилить работающую: в списке заявок все выглядят одинаково.
        */
       ad: adSummary(d.ad),
+      ...(adSrc ? { adSrc } : {}),
+      ...(uid ? { tgUserId: uid } : {}),
       ts: Date.now(),
     });
     // дневной счётчик заявок (для графика)
@@ -3826,6 +3955,9 @@ async function handleAdmin(env, action, payload, perm, user, origin) {
           ).length,
           bySource,
           lastLeadTs: leads[0]?.ts || null,
+          ads: adsReport(users, leads, stats, now),
+          utm: utmReport(leads, now),
+          managerClicks: clickReport(stats.clicks?.manager, now),
         },
       });
     }

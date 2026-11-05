@@ -2881,3 +2881,40 @@ test("полный ключ CRM открывает всю админку, узк
   const bad = await crmCall(store, "guess", "catalog.get");
   assert.equal(bad.status, 401);
 });
+
+test("клик «Написать менеджеру» считается, а в статистике видно метку рекламы человека", async () => {
+  const initData = await signedInitData("T", 4242);
+  const store = makeStore({
+    users: {
+      4242: { name: "Ива", ts: Date.now(), src: "tg_clubs", subAt: Date.now() },
+      5555: { name: "Без метки", ts: Date.now() },
+    },
+    leads: [],
+  });
+  const env = { TELEGRAM_BOT_TOKEN: "T", STORE: store, ADMIN_IDS: "777" };
+  const click = (body) =>
+    worker.fetch(new Request("https://w.dev/api/click", { method: "POST", body: JSON.stringify(body) }), env);
+
+  assert.equal((await click({ kind: "manager", screen: "car", initData })).status, 200);
+  assert.equal((await click({ kind: "manager", screen: "home" })).status, 200);
+  assert.equal((await click({ kind: "drop", screen: "home" })).status, 400, "чужие кнопки не считаем");
+
+  // Заявка из мини-аппа от того же человека получает его метку.
+  await worker.fetch(
+    new Request("https://w.dev/lead", {
+      method: "POST",
+      body: JSON.stringify({ name: "Ива", phone: "+7 915 200 79 27", source: "Telegram Mini App", tgUserId: 4242 }),
+    }),
+    { ...env, TELEGRAM_CHAT_ID: "-100999" },
+  );
+
+  const st = (await (await admin("stats.get", null, store)).json()).stats;
+  assert.equal(st.managerClicks.total, 2);
+  assert.equal(st.managerClicks.screens.car, 1);
+  assert.equal(st.managerClicks.noTag, 1);
+  const clubs = st.ads.find((r) => r.tag === "tg_clubs");
+  assert.deepEqual(
+    { users: clubs.users, subscribed: clubs.subscribed, leads: clubs.leads, manager: clubs.manager },
+    { users: 1, subscribed: 1, leads: 1, manager: 1 },
+  );
+});

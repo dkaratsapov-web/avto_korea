@@ -208,8 +208,9 @@ export function ListView({
   return (
     <>
       {/* Поиск + табы — фиксируются под шапкой */}
-      <div className="sticky top-[64px] z-30 -mx-4 mb-3 border-b border-line-dark/60 bg-graphite px-4 pb-2.5 pt-2">
-        <div className="mb-2.5 flex gap-2">
+      {/* Компактно: прилипшая шапка поиска съедала треть экрана телефона. */}
+      <div className="sticky top-[53px] z-30 -mx-4 mb-3 border-b border-line-dark/60 bg-graphite px-4 pb-2 pt-1.5">
+        <div className="mb-2 flex gap-2">
           <label className="relative block flex-1">
             <Search className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#8C97A1]" />
             <input
@@ -217,7 +218,7 @@ export function ListView({
               onChange={(e) => setQ(e.target.value)}
               placeholder="Марка или модель"
               enterKeyHint="search"
-              className="field-dark pl-10 pr-10"
+              className="field-dark !h-10 pl-10 pr-10 !text-[14.5px]"
             />
             {q ? (
               <button
@@ -232,7 +233,7 @@ export function ListView({
           </label>
           <button
             onClick={() => setOpen((v) => !v)}
-            className={`relative flex h-[46px] w-[46px] flex-none items-center justify-center rounded-[12px] border ${
+            className={`relative flex h-10 w-10 flex-none items-center justify-center rounded-[11px] border ${
               open || activeCount
                 ? "border-bordeaux-bright bg-bordeaux/15 text-bordeaux-bright"
                 : "border-line-dark text-chrome"
@@ -253,7 +254,7 @@ export function ListView({
             <button
               key={t.value}
               onClick={() => setFilter(t.value)}
-              className={`flex flex-none items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold ${
+              className={`flex flex-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold ${
                 filter === t.value
                   ? "border-bordeaux-bright bg-bordeaux text-white"
                   : "border-line-dark text-chrome"
@@ -1007,22 +1008,24 @@ export function CarView({
 
       {/* Характеристики — сеткой «название — значение»: сравнивать глазом
           проще, чем вычитывать строку через точки. Пустые поля не выводим. */}
-      <dl className="mt-3 grid grid-cols-3 overflow-hidden rounded-[14px] border border-white/[0.07] bg-white/[0.07] [gap:1px]">
-        {specRows(car).map(([k, v], i, all) => (
-          // Последняя ячейка растягивается на остаток ряда — без пустых
-          // клеток, когда характеристик не кратно трём.
-          <div
-            key={k}
-            className={`min-w-0 bg-graphite-2 px-2.5 py-2 ${
-              i === all.length - 1
-                ? ["", "col-span-3", "col-span-2"][all.length % 3] || ""
-                : ""
-            }`}
-          >
-            <dt className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-[#7C8792]">{k}</dt>
-            <dd className="mt-0.5 truncate text-[13px] font-semibold text-white">{v}</dd>
-          </div>
-        ))}
+      <dl className="mt-3 flex flex-wrap overflow-hidden rounded-[14px] border border-white/[0.07] bg-white/[0.07] [gap:1px]">
+        {specRows(car).map(([k, v], i, all) => {
+          // Неполный последний ряд: ячейки делят ширину поровну и стоят по
+          // центру — без пустых клеток и без «съехавшей» влево одной строки.
+          const tail = all.length % 3;
+          const inTail = tail > 0 && i >= all.length - tail;
+          return (
+            <div
+              key={k}
+              className={`min-w-0 flex-1 bg-graphite-2 px-2.5 py-2 ${
+                inTail ? "basis-[30%] text-center" : "basis-[30%]"
+              }`}
+            >
+              <dt className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-[#7C8792]">{k}</dt>
+              <dd className="mt-0.5 truncate text-[13px] font-semibold text-white">{v}</dd>
+            </div>
+          );
+        })}
       </dl>
 
       {/* Цена одна — до Москвы. Две рядом заставляли человека сначала

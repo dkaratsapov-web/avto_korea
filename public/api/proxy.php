@@ -80,7 +80,7 @@ $p = (string) ($_GET['p'] ?? '');
 // POST-запросы (мини-апп, статистика, подписки) просто пробрасываем дальше:
 // кэшировать их нельзя, но идти напрямую в заблокированный домен браузер
 // тоже не должен.
-const POST_ALLOWED = ['admin', 'ping', 'view', 'fav', 'subscribe'];
+const POST_ALLOWED = ['admin', 'ping', 'view', 'fav', 'subscribe', 'click'];
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if (!in_array($p, POST_ALLOWED, true) || !function_exists('curl_init')) {
         http_response_code(404);

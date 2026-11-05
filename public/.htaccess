@@ -30,7 +30,7 @@
   # --- Данные и медиа бота отдаём со своего домена ---
   # Домен воркера (*.workers.dev) блокируется в России, поэтому браузер
   # обращается к сайту, а сервер сам ходит за данными к воркеру.
-  RewriteRule ^api/(catalog|reviews|news|faq|rates|diag|admin|ping|view|fav|subscribe)$ /api/proxy.php?p=$1 [L,QSA]
+  RewriteRule ^api/(catalog|reviews|news|faq|rates|diag|admin|ping|view|fav|subscribe|click)$ /api/proxy.php?p=$1 [L,QSA]
   # Товарный фид для Яндекса собирается на лету из каталога.
   # Отдельный адрес для Яндекс.Бизнеса: он берёт одну картинку и режет описание
   # после 250 символов, поэтому фид под него собирается иначе.
