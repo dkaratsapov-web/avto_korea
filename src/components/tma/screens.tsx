@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Heart,
   Search,
@@ -158,6 +158,17 @@ export function ListView({
     setPowerTo(null);
   }
 
+  // Пока открыта шторка фильтров, каталог под ней не прокручивается.
+  useEffect(() => {
+    if (!open) return;
+    const root = document.documentElement;
+    const prev = root.style.overflow;
+    root.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = prev;
+    };
+  }, [open]);
+
   const pill = (active: boolean) =>
     `flex flex-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold ${
       active ? "border-bordeaux-bright bg-bordeaux text-white" : "border-line-dark text-chrome"
@@ -213,19 +224,35 @@ export function ListView({
         </div>
       </div>
 
+      {/* Фильтры — шторка снизу поверх каталога. Раньше блок раскрывался над
+          списком: если человек уже долистал вниз, фильтры открывались где-то
+          за верхним краем экрана и казалось, что кнопка не работает. Шторку
+          видно с любого места, а «Показать» возвращает к началу результатов. */}
       {open ? (
-        <div className="mb-4 space-y-3 rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[14px] font-extrabold uppercase">Фильтры</span>
-            {activeCount ? (
+        <div className="fixed inset-0 z-[95] flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
+          <div className="relative flex max-h-[88vh] flex-col rounded-t-[20px] border-t border-line-dark bg-graphite-2 animate-fade-up">
+          <div className="flex items-center justify-between border-b border-line-dark/60 px-4 py-3">
+            <span className="text-[15px] font-extrabold uppercase">Фильтры</span>
+            <div className="flex items-center gap-3">
+              {activeCount ? (
+                <button
+                  onClick={resetFilters}
+                  className="flex items-center gap-1 text-[12.5px] font-bold text-bordeaux-bright"
+                >
+                  <X className="h-3.5 w-3.5" /> Сбросить
+                </button>
+              ) : null}
               <button
-                onClick={resetFilters}
-                className="flex items-center gap-1 text-[12.5px] font-bold text-bordeaux-bright"
+                onClick={() => setOpen(false)}
+                aria-label="Закрыть фильтры"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white"
               >
-                <X className="h-3.5 w-3.5" /> Сбросить
+                <X className="h-5 w-5" />
               </button>
-            ) : null}
+            </div>
           </div>
+          <div className="space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
 
           <FilterRow label="Состояние">
             {([["all", "Любое"], ["new", "Новые"], ["used", "С пробегом"]] as const).map(([v, l]) => (
@@ -295,6 +322,19 @@ export function ListView({
             <MiniRange label="Мощность" min={facets.powerMin} max={facets.powerMax} step={5}
               from={powerFrom} to={powerTo} onFrom={setPowerFrom} onTo={setPowerTo} fmt={(n) => `${n} л.с.`} />
           ) : null}
+          </div>
+          <div className="border-t border-line-dark/60 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+            <button
+              onClick={() => {
+                setOpen(false);
+                window.scrollTo({ top: 0, behavior: "instant" });
+              }}
+              className="h-12 w-full rounded-[14px] bg-bordeaux text-[15px] font-extrabold text-white"
+            >
+              {list.length ? `Показать ${list.length} авто` : "Ничего не найдено"}
+            </button>
+          </div>
+          </div>
         </div>
       ) : null}
 
@@ -434,20 +474,136 @@ function CarTile({
   );
 }
 
+/* ---------- Листаемая лента фото ---------- */
+/**
+ * Фото листаются пальцем: лента — горизонтальный скролл со «щелчком»
+ * (scroll-snap), поэтому кадр едет за пальцем и сам встаёт на место, как в
+ * галерее телефона. Раньше фото менялось только стрелками, а в полноэкранном
+ * режиме — рывком после отпускания пальца, без движения.
+ *
+ * Номер текущего фото считаем по прокрутке; стрелки просто докручивают ленту
+ * на ширину кадра (с последнего — обратно на первый).
+ */
+function SwipeGallery({
+  images,
+  start = 0,
+  onIndex,
+  onTap,
+  full = false,
+}: {
+  images: string[];
+  start?: number;
+  onIndex?: (i: number) => void;
+  onTap?: () => void;
+  full?: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [i, setI] = useState(start);
+  const n = images.length;
+
+  // Встаём на стартовый кадр до первой отрисовки — без видимой прокрутки.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el && start) el.scrollLeft = start * el.clientWidth;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onScroll = () => {
+    const el = ref.current;
+    if (!el || !el.clientWidth) return;
+    const k = Math.min(n - 1, Math.max(0, Math.round(el.scrollLeft / el.clientWidth)));
+    if (k !== i) {
+      setI(k);
+      onIndex?.(k);
+    }
+  };
+
+  const go = (k: number) => {
+    const el = ref.current;
+    if (!el) return;
+    const t = ((k % n) + n) % n;
+    el.scrollTo({ left: t * el.clientWidth, behavior: "smooth" });
+  };
+
+  const arrow = full
+    ? "h-11 w-11 bg-white/10"
+    : "h-9 w-9 bg-graphite/80";
+
+  return (
+    <div className="relative h-full w-full">
+      <div
+        ref={ref}
+        onScroll={onScroll}
+        className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {images.map((src, k) => (
+          <div
+            key={k}
+            className={`flex h-full w-full flex-none snap-center snap-always items-center justify-center ${full ? "px-2" : ""}`}
+          >
+            {/* eslint-disable-next-line */}
+            <img
+              src={src}
+              alt=""
+              draggable={false}
+              loading={Math.abs(k - start) <= 1 ? "eager" : "lazy"}
+              onClick={onTap}
+              className={
+                full
+                  ? "max-h-full max-w-full select-none object-contain"
+                  : "h-full w-full cursor-pointer select-none object-cover"
+              }
+            />
+          </div>
+        ))}
+      </div>
+      {n > 1 ? (
+        <>
+          <button
+            type="button"
+            aria-label="Предыдущее фото"
+            onClick={(e) => {
+              e.stopPropagation();
+              go(i - 1);
+            }}
+            className={`absolute left-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-full text-white ${arrow}`}
+          >
+            <ChevronLeft className={full ? "h-6 w-6" : "h-5 w-5"} />
+          </button>
+          <button
+            type="button"
+            aria-label="Следующее фото"
+            onClick={(e) => {
+              e.stopPropagation();
+              go(i + 1);
+            }}
+            className={`absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-full text-white ${arrow}`}
+          >
+            <ChevronRight className={full ? "h-6 w-6" : "h-5 w-5"} />
+          </button>
+          {full ? null : (
+            <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-graphite/80 px-2 py-0.5 font-num text-[12px]">
+              {i + 1}/{n}
+            </div>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 /* ---------- Полноэкранный просмотр фото ---------- */
 function Lightbox({
   images,
   start = 0,
+  onIndex,
   onClose,
 }: {
   images: string[];
   start?: number;
+  onIndex?: (i: number) => void;
   onClose: () => void;
 }) {
   const [i, setI] = useState(start);
-  const startX = useRef(0);
-  const prev = () => setI((x) => (x - 1 + images.length) % images.length);
-  const next = () => setI((x) => (x + 1) % images.length);
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-black/95" onClick={onClose}>
       <div className="flex items-center justify-between p-3">
@@ -461,34 +617,16 @@ function Lightbox({
           <X className="h-5 w-5" />
         </button>
       </div>
-      <div
-        className="relative flex flex-1 items-center justify-center px-2 pb-4"
-        onClick={(e) => e.stopPropagation()}
-        onTouchStart={(e) => (startX.current = e.touches[0].clientX)}
-        onTouchEnd={(e) => {
-          const dx = e.changedTouches[0].clientX - startX.current;
-          if (dx > 40) prev();
-          else if (dx < -40) next();
-        }}
-      >
-        {/* eslint-disable-next-line */}
-        <img src={images[i]} alt="" className="max-h-full max-w-full object-contain" />
-        {images.length > 1 ? (
-          <>
-            <button
-              onClick={prev}
-              className="absolute left-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white"
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </button>
-            <button
-              onClick={next}
-              className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white"
-            >
-              <ChevronRight className="h-6 w-6" />
-            </button>
-          </>
-        ) : null}
+      <div className="relative min-h-0 flex-1 pb-4" onClick={(e) => e.stopPropagation()}>
+        <SwipeGallery
+          images={images}
+          start={start}
+          onIndex={(k) => {
+            setI(k);
+            onIndex?.(k);
+          }}
+          full
+        />
       </div>
     </div>
   );
@@ -570,48 +708,37 @@ export function CarView({
 }) {
   const [idx, setIdx] = useState(0);
   const [lb, setLb] = useState(false);
-  const prev = () =>
-    setIdx((i) => (i - 1 + car.images.length) % car.images.length);
-  const next = () => setIdx((i) => (i + 1) % car.images.length);
+  // После полноэкранного просмотра карточка встаёт на то фото, где его закрыли:
+  // ленту пересоздаём со стартом на этом кадре.
+  const [lbGen, setLbGen] = useState(0);
 
   return (
     <>
       {lb ? (
-        <Lightbox images={car.images} start={idx} onClose={() => setLb(false)} />
+        <Lightbox
+          images={car.images}
+          start={idx}
+          onIndex={setIdx}
+          onClose={() => {
+            setLb(false);
+            setLbGen((g) => g + 1);
+          }}
+        />
       ) : null}
       <Header2 title={car.model} onBack={onBack} />
       <div className="relative aspect-[16/11] overflow-hidden rounded-[16px] bg-black">
-        {/* eslint-disable-next-line */}
-        <img
-          src={car.images[idx]}
-          alt=""
-          onClick={() => setLb(true)}
-          className="h-full w-full cursor-pointer object-cover"
+        <SwipeGallery
+          key={`${car.id}:${lbGen}`}
+          images={car.images}
+          start={idx}
+          onIndex={setIdx}
+          onTap={() => setLb(true)}
         />
         <span className="pointer-events-none absolute right-2 top-2 flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
           <Maximize2 className="h-3 w-3" /> на весь экран
         </span>
-        {car.images.length > 1 ? (
-          <>
-            <button
-              onClick={prev}
-              className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-graphite/80 text-white"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              onClick={next}
-              className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-graphite/80 text-white"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-graphite/80 px-2 py-0.5 font-num text-[12px]">
-              {idx + 1}/{car.images.length}
-            </div>
-          </>
-        ) : null}
         {car.isNew ? (
-          <span className="absolute right-3 top-3 rounded-full bg-bordeaux px-3 py-1 text-[11px] font-extrabold uppercase text-white">
+          <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-bordeaux px-3 py-1 text-[11px] font-extrabold uppercase text-white">
             Новинка
           </span>
         ) : null}
