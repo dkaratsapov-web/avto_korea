@@ -31,6 +31,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Поставить ImageMagick (convert/montage)
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+
       - name: Запуск аудита
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

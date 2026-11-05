@@ -74,42 +74,46 @@ async function buildSheets(cars) {
   await rm(OUT_DIR, { recursive: true, force: true });
   await mkdir(OUT_DIR, { recursive: true });
 
-  const index = [];
-  const tiles = []; // { file, label }
-  let pos = 0;
+  const index = cars.map((car, pos) => ({
+    pos,
+    id: car.id,
+    model: car.model,
+    price: car.priceMoscowRub || car.priceRub || 0,
+    country: car.country,
+  }));
 
-  for (const car of cars) {
-    const label = tileLabel(pos, car);
-    const file = `${OUT_DIR}/.img-${pos}.bin`;
-    index.push({
-      pos,
-      id: car.id,
-      model: car.model,
-      price: car.priceMoscowRub || car.priceRub || 0,
-      country: car.country,
-    });
-    let ok = false;
-    try {
-      const src = absImg((car.images || [])[0]);
-      if (src) {
-        const r = await fetch(src);
-        if (r.ok) {
-          await writeFile(file, Buffer.from(await r.arrayBuffer()));
-          ok = true;
+  // Качаем обложки параллельно пачками: 270 штук по одной — это минуты.
+  const CHUNK = 12;
+  const got = new Array(cars.length).fill(false);
+  for (let i = 0; i < cars.length; i += CHUNK) {
+    await Promise.all(
+      cars.slice(i, i + CHUNK).map(async (car, j) => {
+        const pos = i + j;
+        try {
+          const src = absImg((car.images || [])[0]);
+          if (!src) return;
+          const r = await fetch(src);
+          if (!r.ok) return;
+          await writeFile(`${OUT_DIR}/.img-${pos}.bin`, Buffer.from(await r.arrayBuffer()));
+          got[pos] = true;
+        } catch {
+          /* падение одной картинки не должно валить весь лист */
         }
-      }
-    } catch {
-      /* падение одной картинки не должно валить весь лист */
-    }
-    if (!ok) {
-      // заглушка, чтобы нумерация плиток не съезжала
-      const ph = `${OUT_DIR}/.img-${pos}.png`;
-      await run("convert", ["-size", THUMB.replace("x", "x"), "xc:#330000", ph]);
-      tiles.push({ file: ph, label: label + " (нет фото)" });
+      }),
+    );
+  }
+
+  // Плитки строго по порядку; для несскачанных — заглушка, чтобы номера не съехали.
+  const tiles = [];
+  for (let pos = 0; pos < cars.length; pos++) {
+    const label = tileLabel(pos, cars[pos]);
+    if (got[pos]) {
+      tiles.push({ file: `${OUT_DIR}/.img-${pos}.bin`, label });
     } else {
-      tiles.push({ file, label });
+      const ph = `${OUT_DIR}/.ph-${pos}.png`;
+      await run("convert", ["-size", THUMB, "xc:#330000", ph]);
+      tiles.push({ file: ph, label: label + " (нет фото)" });
     }
-    pos++;
   }
 
   const sheets = [];
@@ -135,7 +139,7 @@ async function buildSheets(cars) {
   }
 
   await writeFile(`${OUT_DIR}/index.json`, JSON.stringify(index, null, 1));
-  await run("bash", ["-lc", `rm -f ${OUT_DIR}/.img-*`]).catch(() => {});
+  await run("bash", ["-lc", `rm -f ${OUT_DIR}/.img-* ${OUT_DIR}/.ph-*`]).catch(() => {});
   return { cars: cars.length, sheets: sheets.length };
 }
 
