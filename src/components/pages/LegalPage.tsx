@@ -10,7 +10,7 @@ function useMeta(title: string, description: string) {
     const tag = document.querySelector('meta[name="description"]');
     const prevDesc = tag?.getAttribute("content") ?? "";
     if (tag) tag.setAttribute("content", description);
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, behavior: "instant" });
     return () => {
       document.title = prev;
       if (tag) tag.setAttribute("content", prevDesc);

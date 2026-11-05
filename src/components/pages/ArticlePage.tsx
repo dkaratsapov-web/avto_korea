@@ -75,7 +75,7 @@ export function ArticlePage() {
   );
 
   useEffect(() => {
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }, [slug]);
 
   if (!article) {

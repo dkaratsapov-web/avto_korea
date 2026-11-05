@@ -84,7 +84,7 @@ const CrmApp = lazy(() =>
 function ScrollManager() {
   const { pathname } = useLocation();
   useEffect(() => {
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }, [pathname]);
   return null;
 }

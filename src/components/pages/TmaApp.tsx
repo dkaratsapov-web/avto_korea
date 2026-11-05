@@ -181,14 +181,17 @@ export function TmaApp() {
   // Возвращаем прокрутку экрана: у нового — начало, у знакомого — то место,
   // где человек остановился. useLayoutEffect, чтобы не мелькнуло промежуточное
   // положение: разметка уже готова, но кадр ещё не отрисован.
+  // behavior: "instant", а не "auto": "auto" берёт поведение из CSS, а там
+  // html { scroll-behavior: smooth } — экран плавно уезжал вверх при открытии
+  // карточки и обратно вниз при возврате в каталог («дёргается туда-сюда»).
   useLayoutEffect(() => {
     viewRef.current = view;
     const key = viewKey(view);
-    window.scrollTo({ top: scrollMemo.current[key] ?? 0, behavior: "auto" });
+    window.scrollTo({ top: scrollMemo.current[key] ?? 0, behavior: "instant" });
   }, [view]);
 
   useLayoutEffect(() => {
-    if (adminOpen) window.scrollTo({ top: 0, behavior: "auto" });
+    if (adminOpen) window.scrollTo({ top: 0, behavior: "instant" });
   }, [adminOpen]);
 
   function back() {
