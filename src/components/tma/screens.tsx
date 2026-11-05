@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Play,
   Lock,
+  ArrowUpRight,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { brandOf } from "@/lib/brand";
@@ -1197,102 +1198,192 @@ export function HomeView({
     { name: "reviews", label: "Отзывы", sub: "Мнения клиентов", icon: Star },
     { name: "faq", label: "Вопросы", sub: "Частые вопросы", icon: HelpCircle },
   ];
+  /*
+   * Витрина каталога: за кнопкой «Каталог» по очереди сменяются фото
+   * настоящих машин из каталога. Кнопка перестаёт быть просто красной
+   * плашкой — человек сразу видит, что внутри, и это самое «дорогое» место
+   * экрана. Новинки — первыми.
+   */
+  const { cars } = useCars();
+  const showcase = useMemo(
+    () =>
+      [...cars]
+        .filter((c) => Array.isArray(c.images) && c.images[0])
+        .sort((x, y) => Number(!!y.isNew) - Number(!!x.isNew))
+        .slice(0, 6),
+    [cars],
+  );
+  const [slide, setSlide] = useState(0);
+  // Уходящий кадр продолжает свой «наезд», пока гаснет, — иначе он
+  // отпрыгивал к исходному масштабу прямо во время смены.
+  const [prevSlide, setPrevSlide] = useState(-1);
+  useEffect(() => {
+    if (showcase.length < 2) return;
+    // Тем, кто отключил анимацию в системе, витрину не крутим: первое фото.
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const t = window.setInterval(() => {
+      setSlide((k) => {
+        setPrevSlide(k);
+        return (k + 1) % showcase.length;
+      });
+    }, 4500);
+    return () => window.clearInterval(t);
+  }, [showcase.length]);
+  const current = showcase[slide % Math.max(1, showcase.length)];
+
+  // Появление по очереди: каждый блок выезжает чуть позже предыдущего.
+  // Один раз при входе, сверху вниз по важности. Короткий путь (10 px) и
+  // мягкое торможение — контент «проявляется», а не прилетает.
+  const rise = (i: number) => ({
+    style: { animationDelay: `${60 + i * 60}ms` },
+  });
+
   return (
     /*
      * Первый экран помещается в окно целиком, без прокрутки: все кнопки
-     * должны быть видны сразу. Раньше половина списка уходила под нижний
-     * край, и до «Отзывов» с «Вопросами» просто не долистывали.
-     *
-     * Высота считается от окна минус шапка мини-аппа, а свободный остаток
-     * забирает отступ перед кнопкой заявки — поэтому на высоком экране
-     * ничего не растягивается, а на низком не появляется прокрутка.
-     * dvh, а не vh: в Telegram адресная строка меняет высоту окна.
+     * должны быть видны сразу. Высота — от окна минус шапка мини-аппа,
+     * свободный остаток забирает отступ перед кнопкой заявки. dvh, а не vh:
+     * в Telegram адресная строка меняет высоту окна.
      */
-    <div className="flex min-h-[calc(100dvh-98px)] flex-col">
-      <div className="mb-2.5 px-0.5">
-        <div className="mb-2 flex items-center gap-2.5">
-          <span className="h-[2px] w-7 rounded-full bg-bordeaux-bright" />
-          <span className="text-[10.5px] font-extrabold uppercase tracking-[0.22em] text-bordeaux-bright">
+    <div className="relative isolate flex min-h-[calc(100dvh-98px)] flex-col">
+      {/* Фон: два неподвижных мягких пятна света — глубина без движения.
+          Радиальные градиенты, а не blur-фильтр: на телефоне ничего не стоят. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -right-24 -top-28 h-[340px] w-[340px] rounded-full bg-[radial-gradient(circle,rgba(156,26,18,.34),transparent_65%)]" />
+        <div className="absolute -left-32 top-[38%] h-[300px] w-[300px] rounded-full bg-[radial-gradient(circle,rgba(92,109,118,.18),transparent_65%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_60%,rgba(0,0,0,.35))]" />
+      </div>
+
+      <div {...rise(0)} className="animate-rise">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="h-[2px] w-6 rounded-full bg-gradient-to-r from-bordeaux-bright to-transparent" />
+          <span className="text-[10.5px] font-extrabold uppercase tracking-[0.24em] text-chrome">
             Импорт авто под ключ
           </span>
         </div>
-        <h1 className="font-display text-[23px] font-extrabold uppercase leading-[1.04] text-shine">
-          Авто из Кореи, Китая,
+        <h1 className="font-display text-[24px] font-extrabold uppercase leading-[1.02] tracking-[0.01em]">
+          <span className="text-white">Авто из Кореи,</span>
           <br />
-          Японии и ЕС
+          <span className="text-shine">Китая, Японии и ЕС</span>
         </h1>
-        <div className="mt-2.5 flex items-center gap-2">
-          <Flag code="kr" className="h-3.5 w-5" />
-          <Flag code="cn" className="h-3.5 w-5" />
-          <Flag code="jp" className="h-3.5 w-5" />
-          <Flag code="eu" className="h-3.5 w-5" />
-          <span className="ml-1 text-[12.5px] text-[#9AA4B2]">
-            Честный расчёт с растаможкой
+        <div className="mt-2.5 flex items-center gap-1.5">
+          {(["kr", "cn", "jp", "eu"] as const).map((c) => (
+            <span
+              key={c}
+              className="flex h-6 w-8 items-center justify-center rounded-[7px] border border-white/10 bg-white/[0.04]"
+            >
+              <Flag code={c} className="h-3 w-[18px] rounded-[2px]" />
+            </span>
+          ))}
+          <span className="ml-1.5 text-[12px] leading-tight text-[#9AA4B2]">
+            Честный расчёт
+            <br />с растаможкой
           </span>
         </div>
       </div>
 
-      {/*
-       * Каталог — первая и единственная яркая кнопка экрана.
-       *
-       * За ним сюда и приходят: посмотреть, что есть в наличии. Остальное —
-       * квиз и разделы — приглушено намеренно: когда всё выделено, не выделено
-       * ничто, и человек тратит секунду на выбор там, где выбора быть не должно.
-       * Содержимое по центру, чтобы кнопка читалась как главная цель экрана,
-       * а не как первый пункт списка.
-       */}
+      {/* Каталог — главная и единственная яркая цель экрана. */}
       <button
         onClick={() => go("list")}
-        className="mb-2.5 flex w-full flex-col items-center gap-1.5 rounded-[18px] bg-gradient-to-b from-bordeaux-bright to-bordeaux px-4 py-3 text-center shadow-[0_12px_28px_-14px_rgba(177,31,22,0.9)] transition-transform active:scale-[0.99]"
+        {...rise(1)}
+        className="animate-rise group relative mt-3 mb-2.5 block h-[clamp(112px,22dvh,178px)] w-full overflow-hidden rounded-[22px] border border-white/10 bg-bordeaux text-left shadow-[0_22px_44px_-22px_rgba(156,26,18,.95)] transition-transform active:scale-[0.985]"
       >
-        {/* Иконка в строку с заголовком, а не над ним: кнопка остаётся
-            центрированной, но не съедает высоту, которой на маленьком
-            экране не хватает остальным. */}
-        <span className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
-            <CarIcon className="h-5 w-5 text-white" />
+        {showcase.map((c, k) => (
+          // eslint-disable-next-line
+          <img
+            key={c.id}
+            src={c.images[0]}
+            alt=""
+            aria-hidden
+            loading={k < 2 ? "eager" : "lazy"}
+            decoding="async"
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ease-out ${
+              k === slide
+                ? "opacity-100 animate-ken-burns"
+                : k === prevSlide
+                  ? "opacity-0 animate-ken-burns"
+                  : "opacity-0"
+            }`}
+          />
+        ))}
+        {/* Затемнение: снизу почти чёрное — под текст, у края — фирменный бордо. */}
+        <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,21,26,.15)_0%,rgba(17,21,26,.35)_45%,rgba(17,21,26,.92)_100%)]" />
+        <span className="absolute inset-0 bg-[linear-gradient(90deg,rgba(122,20,16,.55)_0%,transparent_55%)]" />
+        <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+
+        {current ? (
+          <span
+            key={current.id}
+            className="absolute left-3 top-3 max-w-[70%] animate-rise truncate rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[11px] font-bold text-white/90 backdrop-blur"
+          >
+            {current.model}
           </span>
-          <span className="text-[19px] font-extrabold leading-none text-white">
-            Каталог
+        ) : null}
+
+        <span className="absolute inset-x-4 bottom-3.5 flex items-end justify-between gap-3">
+          <span className="min-w-0">
+            <span className="flex items-center gap-2">
+              <CarIcon className="h-[18px] w-[18px] text-white/80" />
+              <span className="font-display text-[24px] font-extrabold uppercase leading-none text-white">
+                Каталог
+              </span>
+            </span>
+            <span className="mt-1.5 block text-[12.5px] leading-none text-white/75">
+              {cars.length ? `${cars.length} авто · все под заказ` : "Все авто под заказ"}
+            </span>
+          </span>
+          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-white text-bordeaux shadow-[0_6px_18px_rgba(0,0,0,.35)] transition-transform duration-150 group-active:scale-95">
+            <ArrowUpRight className="h-5 w-5" />
           </span>
         </span>
-        <span className="block text-[12.5px] leading-none text-white/75">
-          Все авто под заказ
-        </span>
+
+        {showcase.length > 1 ? (
+          <span className="absolute right-3 top-3.5 flex gap-1">
+            {showcase.map((c, k) => (
+              <span
+                key={c.id}
+                className={`h-1 rounded-full transition-all duration-500 ${k === slide ? "w-4 bg-white" : "w-1 bg-white/40"}`}
+              />
+            ))}
+          </span>
+        ) : null}
       </button>
 
-      {/* Квиз — вторым и приглушённым: это запасной путь для тех, кто
-          не хочет листать каталог сам. */}
+      {/* Квиз — вторым и приглушённым: запасной путь для тех, кто не хочет
+          листать каталог сам. Стекло вместо сплошной плашки. */}
       <button
         onClick={() => go("quiz")}
-        className="mb-2.5 flex w-full items-center gap-3 rounded-[18px] border border-line-dark bg-graphite-2 p-3 text-left transition-transform active:scale-[0.99]"
+        {...rise(2)}
+        className="animate-rise mb-2.5 flex w-full items-center gap-3 rounded-[18px] border border-white/10 bg-white/[0.035] p-3 text-left transition-[transform,background-color] duration-150 active:scale-[0.99] active:bg-white/[0.06]"
       >
-        <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-graphite text-[#8A939C]">
+        <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full border border-bordeaux-bright/40 bg-bordeaux/20 text-[#E0574C]">
           <ClipboardList className="h-5 w-5" />
         </span>
-        <span className="min-w-0">
-          <span className="block text-[15px] font-extrabold">
-            Ответьте на 5 вопросов
-          </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-extrabold">Ответьте на 5 вопросов</span>
           <span className="block text-[12.5px] text-[#9AA4B2]">
             Подберём авто и расчёт под ваш бюджет
           </span>
         </span>
+        <ChevronRight className="h-5 w-5 flex-none text-[#7C8792]" />
       </button>
 
-      <div className="grid grid-cols-3 gap-2.5">
-        {items.map((it) => (
+      {/* Колонок столько, сколько разделов: вне Telegram «Оповещений» нет,
+          и в ряду из трёх оставалась дыра. */}
+      <div className={`grid gap-2.5 ${items.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+        {items.map((it, k) => (
           <button
             key={it.name}
             onClick={() => go(it.name)}
-            className="flex flex-col items-center gap-1.5 rounded-[16px] border border-line-dark bg-graphite-2 px-2 py-2.5 text-center transition-transform active:scale-[0.98]"
+            {...rise(3 + k)}
+            className="animate-rise flex flex-col items-center gap-1.5 rounded-[16px] border border-white/10 bg-white/[0.035] px-2 py-2.5 text-center transition-[transform,background-color] duration-150 active:scale-[0.97] active:bg-white/[0.06]"
           >
-            {/* Иконки второстепенных разделов — серые, а не фирменные красные:
-                красный на этом экране принадлежит каталогу. */}
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-graphite text-[#8A939C]">
+            {/* Иконки разделов — хром, а не красный: красный на этом экране
+                принадлежит каталогу. */}
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-gradient-to-b from-white/[0.09] to-white/[0.02] text-chrome">
               <it.icon className="h-[18px] w-[18px]" />
             </span>
-            <span className="text-[13px] font-extrabold leading-tight text-[#C7CFD6]">
+            <span className="text-[13px] font-extrabold leading-tight text-[#D5DCE2]">
               {it.label}
             </span>
             <span className="text-[10.5px] leading-tight text-[#7C8792]">{it.sub}</span>
@@ -1300,15 +1391,18 @@ export function HomeView({
         ))}
       </div>
 
-      {/* mt-auto прижимает заявку к низу: на высоком экране кнопка остаётся
-          там, где её ищут, а не висит посередине с пустотой под собой. */}
-      {/* Боковые отступы уже базовых, а иконка не сжимается: на экране 360 px
-          длинная подпись съедала иконку до нулевой ширины и вылезала
-          за кнопку. */}
+      {/* mt-auto прижимает заявку к низу. Блик пробегает по кнопке раз в
+          несколько секунд — заметно, но не мигает баннером. Иконка не
+          сжимается: на экране 360 px длинная подпись съедала её. */}
       <button
         onClick={onLead}
-        className="btn btn-primary mt-auto w-full !px-3 !text-[14px]"
+        {...rise(6)}
+        className="animate-rise btn btn-primary mt-auto w-full !px-3 !text-[14px]"
       >
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/4 -skew-x-12 animate-cta-sheen bg-gradient-to-r from-transparent via-white/30 to-transparent"
+        />
         <Send className="h-[17px] w-[17px] flex-none" /> Подобрать авто под мой
         бюджет
       </button>

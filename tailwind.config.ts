@@ -105,6 +105,23 @@ const config: Config = {
           "0%,65%,100%": { transform: "translateX(0)" },
           "35%": { transform: "translateX(700%)" },
         },
+        // Появление блоков главного экрана мини-аппа: короткий путь и мягкое
+        // торможение (ease-out-expo), без «прилёта».
+        rise: {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        // Блик по кнопке заявки: пробег ~0.9 с, потом долгая пауза — внимание
+        // без ощущения мигающего баннера.
+        "cta-sheen": {
+          "0%": { transform: "translateX(0)" },
+          "15%,100%": { transform: "translateX(600%)" },
+        },
+        // Медленный «наезд камеры» на фото витрины мини-аппа.
+        "ken-burns": {
+          "0%": { transform: "scale(1.02) translate(0, 0)" },
+          "100%": { transform: "scale(1.12) translate(-2%, -1%)" },
+        },
       },
       animation: {
         "fade-up": "fade-up .5s ease both",
@@ -117,6 +134,9 @@ const config: Config = {
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
         "spin-slow": "spin-slow 22s linear infinite",
         "join-shine": "join-shine 3.6s ease-in-out infinite",
+        "ken-burns": "ken-burns 6s ease-out both",
+        rise: "rise .55s cubic-bezier(.16,1,.3,1) both",
+        "cta-sheen": "cta-sheen 6s cubic-bezier(.4,0,.2,1) 1.4s infinite",
       },
     },
   },
