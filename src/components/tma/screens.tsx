@@ -23,6 +23,7 @@ import {
   ArrowUp,
   Camera,
   ArrowDownUp,
+  MessageCircle,
 } from "lucide-react";
 import { Flag } from "@/components/icons/Flag";
 import { brandOf } from "@/lib/brand";
@@ -467,7 +468,7 @@ export function ListView({
         type="button"
         aria-label="Наверх"
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className={`fixed bottom-5 right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-graphite-2/90 text-white shadow-[0_10px_30px_rgba(0,0,0,.5)] backdrop-blur transition-[opacity,transform] duration-200 ${
+        className={`fixed bottom-[88px] right-[22px] z-40 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-graphite-2/90 text-white shadow-[0_10px_30px_rgba(0,0,0,.5)] backdrop-blur transition-[opacity,transform] duration-200 ${
           farDown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
         }`}
       >
@@ -1498,12 +1499,15 @@ type HomeTarget =
 export function HomeView({
   go,
   onLead,
+  onManager,
   inTg = true,
 }: {
   // Счётчики избранного и сравнения сюда больше не приходят: эти разделы
   // живут в шапке мини-аппа, там же и их счётчики.
   go: (name: HomeTarget) => void;
   onLead: () => void;
+  /** Личка менеджера — круглая кнопка в ряд с заявкой. */
+  onManager?: () => void;
   /** Открыт ли мини-апп из Telegram. В MAX часть разделов не работает. */
   inTg?: boolean;
 }) {
@@ -1728,10 +1732,10 @@ export function HomeView({
       {/* mt-auto прижимает заявку к низу. Блик пробегает по кнопке раз в
           несколько секунд — заметно, но не мигает баннером. Иконка не
           сжимается: на экране 360 px длинная подпись съедала её. */}
+      <div {...rise(6)} className="animate-rise mt-auto flex gap-2.5">
       <button
         onClick={onLead}
-        {...rise(6)}
-        className="animate-rise btn btn-primary mt-auto w-full !px-3 !text-[14px]"
+        className="btn btn-primary min-w-0 flex-1 !px-3 !text-[14px]"
       >
         <span
           aria-hidden
@@ -1740,6 +1744,18 @@ export function HomeView({
         <Send className="h-[17px] w-[17px] flex-none" /> Подобрать авто под мой
         бюджет
       </button>
+        {onManager ? (
+          <button
+            type="button"
+            onClick={onManager}
+            aria-label="Написать менеджеру"
+            className="relative flex h-[52px] w-[52px] flex-none items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white transition-transform duration-150 active:scale-95"
+          >
+            <MessageCircle className="h-[22px] w-[22px]" />
+            <span className="absolute right-0 top-0 h-3.5 w-3.5 rounded-full border-2 border-graphite bg-success" />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

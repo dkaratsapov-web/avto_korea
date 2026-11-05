@@ -1777,6 +1777,27 @@ function LeadsTab({ initData }: { initData: string }) {
       else setLeads([]);
     });
   }, [initData]);
+  // Какую заявку сейчас подтверждают к удалению. Удаление в два касания:
+  // список длинный, и один промах пальцем не должен стирать живую заявку.
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const keyOf = (l: Lead) => `${l.ts}:${l.phone}`;
+
+  async function remove(l: Lead) {
+    const k = keyOf(l);
+    setBusy(k);
+    const r = await adminCall<{ leads: Lead[]; removed: boolean }>(initData, "leads.remove", {
+      ts: l.ts,
+      phone: l.phone,
+    });
+    setBusy(null);
+    setConfirm(null);
+    if (r.ok) {
+      setLeads(r.leads);
+      showToast(r.removed ? "Заявка удалена" : "Заявка уже удалена", "success");
+    } else showToast(r.error || "Не удалось удалить", "error");
+  }
+
   if (!leads) return <Spinner />;
   if (leads.length === 0)
     return (
@@ -1788,18 +1809,48 @@ function LeadsTab({ initData }: { initData: string }) {
     <div className="space-y-2.5">
       {leads.map((l, i) => (
         <div
-          key={i}
+          key={`${keyOf(l)}:${i}`}
           className="rounded-[16px] border border-line-dark bg-graphite-2 p-3"
         >
-          <div className="flex items-center justify-between">
-            <span className="font-bold">{l.name || "—"}</span>
-            <span className="text-[11px] text-[#8C97A1]">
-              {new Date(l.ts).toLocaleString("ru-RU", {
-                day: "2-digit",
-                month: "2-digit",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+          <div className="flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate font-bold">{l.name || "—"}</span>
+            <span className="flex flex-none items-center gap-1.5">
+              <span className="text-[11px] text-[#8C97A1]">
+                {new Date(l.ts).toLocaleString("ru-RU", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+              {confirm === keyOf(l) ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={busy === keyOf(l)}
+                    onClick={() => remove(l)}
+                    className="rounded-full bg-bordeaux px-2.5 py-1 text-[11.5px] font-bold text-white disabled:opacity-60"
+                  >
+                    {busy === keyOf(l) ? "…" : "Удалить"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirm(null)}
+                    className="rounded-full border border-line-dark px-2.5 py-1 text-[11.5px] font-bold text-chrome"
+                  >
+                    Нет
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  aria-label="Удалить заявку"
+                  onClick={() => setConfirm(keyOf(l))}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-[#8C97A1] hover:text-white active:bg-white/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </span>
           </div>
           <a

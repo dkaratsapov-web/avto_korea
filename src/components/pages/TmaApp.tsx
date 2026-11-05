@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { ArrowLeft, Heart, ShieldCheck, Scale } from "lucide-react";
+import { ArrowLeft, Heart, ShieldCheck, Scale, MessageCircle } from "lucide-react";
 import { useCars } from "@/lib/carsStore";
 import { useUI } from "@/lib/ui";
 import { site } from "@/lib/site";
@@ -268,6 +268,25 @@ export function TmaApp() {
     else window.open(site.telegramHref, "_blank");
   }
 
+  /**
+   * Личка менеджера. В Telegram — через openTelegramLink: чат открывается
+   * внутри мессенджера, мини-апп не закрывается. В MAX — профиль менеджера
+   * в MAX (там у человека может не быть Telegram), в браузере — новая вкладка.
+   */
+  function openManager() {
+    haptic(tgRef.current, "light");
+    const tg = tgRef.current;
+    if (isMax) {
+      const mx = maxRef.current;
+      if (mx?.openMaxLink) mx.openMaxLink(site.maxHref);
+      else if (mx?.openLink) mx.openLink(site.maxHref);
+      else window.open(site.maxHref, "_blank");
+      return;
+    }
+    if (tg?.openTelegramLink) tg.openTelegramLink(site.telegramHref);
+    else window.open(site.telegramHref, "_blank");
+  }
+
   // конфигурация нативных кнопок под текущий экран
   const leadFormRef = useRef<{ name: string; phone: string; carId?: string }>({
     name: "",
@@ -427,6 +446,7 @@ export function TmaApp() {
             onLead={() =>
               setView({ name: "lead", from: { name: "home" }, carId: undefined })
             }
+            onManager={openManager}
           />
         ) : null}
 
@@ -565,6 +585,25 @@ export function TmaApp() {
           />
         ) : null}
       </div>
+
+      {/*
+        Связь с менеджером — всегда под рукой, на любом экране, кроме формы
+        заявки (там своя кнопка отправки, и вторая цель рядом только мешает).
+        На главной она стоит в ряд с «Подобрать авто» — в том же углу, но без
+        наезда на кнопку.
+        Правый нижний угол — зона большого пальца.
+      */}
+      {view.name !== "lead" && view.name !== "home" ? (
+        <button
+          type="button"
+          onClick={openManager}
+          aria-label="Написать менеджеру"
+          className="fixed bottom-[max(16px,env(safe-area-inset-bottom))] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-[#B3231A] to-bordeaux text-white shadow-[0_12px_28px_-8px_rgba(156,26,18,.85),0_0_0_1px_rgba(255,255,255,.12)_inset] transition-transform duration-150 active:scale-95"
+        >
+          <MessageCircle className="h-6 w-6" />
+          <span className="absolute right-0.5 top-0.5 h-3.5 w-3.5 rounded-full border-2 border-graphite bg-success" />
+        </button>
+      ) : null}
       </div>
     </>
   );

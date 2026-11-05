@@ -2830,3 +2830,23 @@ test("заявка без меток выглядит как раньше", asyn
     .find((t) => /Новая заявка/.test(t));
   assert.ok(!/Реклама/.test(text), "пустая графа сбивает с толку — её быть не должно");
 });
+
+test("заявку можно удалить из админки — ровно одну, по времени и телефону", async () => {
+  const store = makeStore({
+    leads: [
+      { name: "Спам", phone: "+7 (900) 000-00-00", ts: 2000, source: "сайт" },
+      { name: "Валентина", phone: "+7 (915) 200-79-27", ts: 1000, source: "квиз" },
+      { name: "Валентина", phone: "+7 (915) 200-79-27", ts: 999, source: "мини-апп" },
+    ],
+  });
+  const res = await (await admin("leads.remove", { ts: 2000, phone: "+7 (900) 000-00-00" }, store)).json();
+  assert.equal(res.ok, true);
+  assert.equal(res.removed, true);
+  assert.deepEqual(res.leads.map((l) => l.ts), [1000, 999]);
+
+  // Не та пара «время + телефон» — ничего не удаляем.
+  const miss = await (await admin("leads.remove", { ts: 1000, phone: "+7 (900) 000-00-00" }, store)).json();
+  assert.equal(miss.removed, false);
+  assert.equal(miss.leads.length, 2);
+});
+

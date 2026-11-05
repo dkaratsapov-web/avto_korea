@@ -677,6 +677,7 @@ const NEED_CAP = {
   "faq.get": "bot",
   "faq.save": "bot",
   "leads.list": "leads",
+  "leads.remove": "leads",
   "subs.list": "subs",
   "reviews.list": "reviews",
   "reviews.save": "reviews",
@@ -3628,6 +3629,25 @@ async function handleAdmin(env, action, payload, perm, user, origin) {
 
     case "leads.list":
       return json({ ok: true, leads: (await kvGet(env, "leads", [])) || [] });
+
+    /*
+     * Удалить заявку из списка в админке (тест, спам, дубль).
+     *
+     * Своего id у заявки нет — узнаём её по времени и телефону. Убираем ровно
+     * одну: две одинаковые заявки в одну миллисекунду — уже не повод снести
+     * обе. Дневной счётчик статистики не трогаем: он считает поступившие.
+     */
+    case "leads.remove": {
+      const ts = Number(payload?.ts);
+      const phone = String(payload?.phone ?? "");
+      const leads = (await kvGet(env, "leads", [])) || [];
+      const i = leads.findIndex((l) => l.ts === ts && String(l.phone ?? "") === phone);
+      if (i >= 0) {
+        leads.splice(i, 1);
+        await kvPut(env, "leads", leads);
+      }
+      return json({ ok: true, removed: i >= 0, leads });
+    }
 
     case "subs.list":
       return json({ ok: true, subs: (await kvGet(env, "subs", [])) || [] });
