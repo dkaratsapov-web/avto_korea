@@ -13,7 +13,10 @@ on:
     inputs:
       channels:
         description: "Каналы через запятую (без t.me/, можно с @)"
-        required: true
+        required: false
+      discover_urls:
+        description: "Страницы каталогов через пробел — каналы с них тоже проверить (необязательно)"
+        required: false
 
 jobs:
   stats:
@@ -26,4 +29,5 @@ jobs:
       - name: Собрать статистику
         env:
           CHANNELS: ${{ inputs.channels }}
+          DISCOVER_URLS: ${{ inputs.discover_urls }}
         run: node scripts/tg-channel-stats.mjs

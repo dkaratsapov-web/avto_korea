@@ -1,7 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { parseCount, median, parsePreview } from "./tg-channel-stats.mjs";
+import { parseCount, median, parsePreview, extractChannelNames } from "./tg-channel-stats.mjs";
+
+test("extractChannelNames: ссылки t.me и карточки TGStat, без служебных путей", () => {
+  const html =
+    '<a href="https://t.me/tver_chp">x</a> <a href="https://t.me/s/Live_tver">y</a>' +
+    '<a href="https://t.me/joinchat/AbCdEf">z</a> <a href="https://t.me/+AbCd">p</a>' +
+    '<a href="/channel/@toptver_news">q</a> <a href="https://t.me/tver_chp">dup</a>';
+  assert.deepEqual(extractChannelNames(html).sort(), ["Live_tver", "toptver_news", "tver_chp"]);
+});
 
 test("parseCount понимает K/M и запятую", () => {
   assert.equal(parseCount("842"), 842);

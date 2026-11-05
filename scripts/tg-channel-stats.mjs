@@ -60,9 +60,38 @@ export function parsePreview(html, now = Date.now()) {
   };
 }
 
+/** Служебные пути t.me, которые не являются именами каналов. */
+const NOT_NAMES = new Set(["s", "joinchat", "share", "addstickers", "proxy", "socks", "iv", "c", "contact", "addlist", "boost", "login", "privacy"]);
+
+/**
+ * Имена каналов со страницы каталога: ссылки t.me/<имя> и карточки TGStat
+ * (/channel/@<имя>). Чистая функция — на неё есть тест.
+ */
+export function extractChannelNames(html) {
+  const out = new Set();
+  for (const m of html.matchAll(/(?:t\.me|telegram\.me)\/(?:s\/)?([A-Za-z][A-Za-z0-9_]{4,31})/g)) {
+    if (!NOT_NAMES.has(m[1].toLowerCase())) out.add(m[1]);
+  }
+  for (const m of html.matchAll(/\/(?:channel|chat)\/@([A-Za-z][A-Za-z0-9_]{4,31})/g)) out.add(m[1]);
+  return [...out];
+}
+
 async function main() {
   const list = (process.env.CHANNELS || "").split(",").map((s) => s.trim().replace(/^@/, "")).filter(Boolean);
-  if (!list.length) throw new Error("CHANNELS пуст");
+
+  // Режим поиска: читаем страницы каталогов и добавляем найденные там каналы.
+  const discover = (process.env.DISCOVER_URLS || "").split(/[\s,]+/).filter(Boolean);
+  for (const url of discover) {
+    try {
+      const r = await fetch(url, { headers: { "User-Agent": UA, "Accept-Language": "ru,en" } });
+      const found = extractChannelNames(await r.text());
+      console.log(`Каталог ${url}: HTTP ${r.status}, найдено ${found.length}`);
+      for (const n of found) if (!list.some((x) => x.toLowerCase() === n.toLowerCase())) list.push(n);
+    } catch (e) {
+      console.log(`Каталог ${url}: не открылся — ${e.message || e}`);
+    }
+  }
+  if (!list.length) throw new Error("CHANNELS пуст и в каталогах ничего не нашлось");
   const rows = [];
   for (const u of list) {
     try {
