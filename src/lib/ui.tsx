@@ -86,40 +86,31 @@ export function UIProvider({ children }: { children: ReactNode }) {
   /**
    * Блокируем скролл страницы, пока открыта модалка.
    *
-   * Одного overflow: hidden мало: страница перестаёт быть прокручиваемой и
-   * позиция теряется — после закрытия карточки человека выбрасывало почти в
-   * начало каталога. Поэтому фиксируем body с отрицательным top, а при
-   * закрытии возвращаем прокрутку ровно туда, где она была.
+   * Только overflow: hidden на <html> — позицию прокрутки при этом НЕ трогаем.
+   *
+   * Раньше body фиксировали (position: fixed + top: -y) и при закрытии
+   * возвращали прокрутку scrollTo. У этого три побочных эффекта, и все были
+   * видны как «страница ездит туда-сюда»:
+   *  1. window.scrollY на время модалки становился 0. Сетка каталога анимирует
+   *     раскладку (framer-motion, layout) и считает позиции с учётом прокрутки —
+   *     для неё все карточки «прыгали» на тысячи пикселей, и она проигрывала
+   *     анимацию перелёта и на открытии, и на закрытии.
+   *  2. scrollTo на закрытии шёл с html { scroll-behavior: smooth } — возврат
+   *     на место анимировался, страница видимо проезжала сверху вниз.
+   *  3. Пропадала полоса прокрутки, и на Windows вся страница сдвигалась вбок.
+   *
+   * Теперь прокрутка остаётся ровно где была (возвращать нечего), а место под
+   * полосу прокрутки держит html { scrollbar-gutter: stable } в index.css.
+   * Прокрутку внутри самой модалки не пускаем наружу — overscroll-contain у
+   * её подложки (Modal.tsx).
    */
   useEffect(() => {
     if (!modal) return;
-    const y = window.scrollY;
-    const { body } = document;
-    const prev = {
-      position: body.style.position,
-      top: body.style.top,
-      width: body.style.width,
-      overflow: body.style.overflow,
-    };
-    body.style.position = "fixed";
-    body.style.top = `-${y}px`;
-    body.style.width = "100%";
-    body.style.overflow = "hidden";
-
+    const root = document.documentElement;
+    const prev = root.style.overflow;
+    root.style.overflow = "hidden";
     return () => {
-      body.style.position = prev.position;
-      body.style.top = prev.top;
-      body.style.width = prev.width;
-      body.style.overflow = prev.overflow;
-      // Возврат прокрутки — СИНХРОННО, в этом же тике. Через requestAnimationFrame
-      // браузер успевал нарисовать один кадр со страницей в позиции 0 (прыжок
-      // наверх) и лишь следующим кадром возвращал вниз — выглядело как дёрганье.
-      // Чтение offsetHeight форсит пересчёт раскладки: пока body был зафиксирован,
-      // страница «схлопывалась», и без форса scrollTo упёрся бы в устаревшую
-      // высоту. Теперь высота уже актуальна, и прокрутка встаёт ровно на место
-      // до первой отрисовки — без промежуточного кадра.
-      void body.offsetHeight;
-      window.scrollTo(0, y);
+      root.style.overflow = prev;
     };
   }, [modal]);
 

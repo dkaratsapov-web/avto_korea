@@ -32,6 +32,10 @@
     scroll-behavior: smooth;
     /* sticky-хедер — чтобы якоря не уезжали под шапку */
     scroll-padding-top: 96px;
+    /* Место под полосу прокрутки резервируем всегда: когда открыта модалка,
+       прокрутка страницы выключается (overflow: hidden), полоса пропадает —
+       и без резерва вся страница на Windows сдвигалась вбок на её ширину. */
+    scrollbar-gutter: stable;
   }
   body {
     @apply bg-paper font-body text-ink antialiased;
