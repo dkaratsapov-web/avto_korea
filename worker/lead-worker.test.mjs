@@ -2954,6 +2954,9 @@ function emgrandPost(chatId, msgId) {
               { text: "Портфолио: ", link: { text: "перейти по ссылке", url: "https://t.me/diavto_69/12" } },
               { text: "Сайт: автоимпорт-69.рф" },
               { text: "Бот: @DI_AVTO_69_BOT" },
+              { text: "Связаться: @Dmitriicarexpor" },
+              { text: "Ссылка на новые автомобили из Китая:" },
+              { text: "https://t.me/DiAutoDeteiling/493" },
             ],
           },
         ],
@@ -2962,7 +2965,7 @@ function emgrandPost(chatId, msgId) {
   };
 }
 
-test("пост в MAX — как в Telegram: ярлыки жирным, цена цитатой, контакты со ссылками", async () => {
+test("пост в MAX — как в Telegram: ярлыки жирным, цена цитатой, без ссылок на Telegram", async () => {
   const store = makeStore({
     settings: { catalogChatId: "-1002000000030", autoPublish: true, maxChannelId: "77003" },
   });
@@ -2979,8 +2982,11 @@ test("пост в MAX — как в Telegram: ярлыки жирным, цен�
   assert.match(html, /<b>Комплектация:<\/b> Flagship Edition/);
   assert.match(html, /<blockquote>[^<]*Цена до Москвы[^<]*<b>1[\s ]520[\s ]000 ₽<\/b><\/blockquote>/);
   assert.match(html, /<b>Свяжитесь с нами/);
-  assert.match(html, /<a href="https:\/\/t\.me\/diavto_69\/12">перейти по ссылке<\/a>/);
-  assert.match(html, /<a href="https:\/\/t\.me\/DI_AVTO_69_BOT">@DI_AVTO_69_BOT<\/a>/);
   assert.match(html, /<a href="[^"]+">автоимпорт-69\.рф<\/a>/);
+  // Telegram в MAX не переносим: ни ссылок t.me, ни @ников, ни подписей к ним.
+  assert.ok(!/t\.me|telegram\.me/i.test(html), "ссылок на Telegram быть не должно");
+  assert.ok(!/@[A-Za-z]/.test(html), "@ников Telegram быть не должно");
+  assert.ok(!/Портфолио|новые автомобили из Китая/.test(html), "строки со ссылками на Telegram убраны");
+  assert.match(html, /Связаться: <a href="https:\/\/max\.ru\/u\/[^"]+">написать менеджеру в MAX<\/a>/);
   assert.ok(!/\n{3,}/.test(html), "без пустых провалов между блоками");
 });

@@ -138,6 +138,23 @@ export async function maxPostToChat(env, chatId, text, images = [], { format } =
   });
 }
 
+/** Личка менеджера в MAX — для постов в канал вместо ника из Telegram. */
+export const MAX_MANAGER_LINK =
+  "https://max.ru/u/f9LHodD0cOK99itT-N_bHuA1p3GsBqirk2M9jbFjvwmFCq-XGojB1Qb32ic";
+
+/**
+ * Ссылка на нашего бота в MAX.
+ *
+ * Имя бота в MAX нигде у нас не записано и может смениться при пересоздании
+ * бота, поэтому спрашиваем у самого MAX (GET /me). Нет ответа — пустая
+ * строка, и строка «Бот» в посте просто не выводится.
+ */
+export async function maxBotLink(env) {
+  const r = await maxCall(env, "GET", "/me");
+  const name = String(r?.data?.username || "").replace(/^@/, "");
+  return name ? `https://max.ru/${name}` : "";
+}
+
 /**
  * Написать человеку в MAX из другого места — например, ответом менеджера,
  * пришедшим в Telegram. Отдельная обёртка, чтобы воркеру не нужно было

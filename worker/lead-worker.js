@@ -934,6 +934,8 @@ import {
   maxWrite,
   maxChatLink,
   maxPostToChat,
+  maxBotLink,
+  MAX_MANAGER_LINK,
 } from "./max-bot.js";
 
 export default {
@@ -3701,7 +3703,6 @@ function maxLineHtml(line, links) {
   const parts = [
     ...(known.length ? [`(${known.join("|")})`] : []),
     "(https?:\\/\\/[^\\s<>\"]+)",
-    "(@[A-Za-z][A-Za-z0-9_]{3,31})",
     "(автоимпорт-69\\.рф)",
   ];
   const re = new RegExp(parts.join("|"), "giu");
@@ -3715,9 +3716,7 @@ function maxLineHtml(line, links) {
       ? mapped[1]
       : /^https?:/i.test(t)
         ? t
-        : t.startsWith("@")
-          ? `https://t.me/${t.slice(1)}`
-          : SITE_CATALOG_URL.replace(/\/catalog$/, "");
+        : SITE_CATALOG_URL.replace(/\/catalog$/, "");
     out += `<a href="${htmlEsc(href)}">${htmlEsc(t)}</a>`;
     last = m.index + t.length;
   }
@@ -3734,11 +3733,19 @@ function maxLineHtml(line, links) {
  * как в оригинале, со ссылками. Если в посте ничего, кроме фото, — прежняя
  * сводка из карточки.
  */
-function maxPostHtml(car, text, links = []) {
-  const lines = String(text || "")
+function maxPostHtml(car, text, links = [], { botLink = "" } = {}) {
+  const raw = String(text || "")
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
+  // «Ссылка на новые автомобили:» и адрес следующей строкой — одна мысль:
+  // склеиваем, чтобы подпись не осталась без ссылки, если ссылку уберём.
+  const lines = [];
+  for (const l of raw) {
+    const prev = lines[lines.length - 1];
+    if (prev && /[:：]$/.test(prev) && /^https?:\/\/\S+$/i.test(l)) lines[lines.length - 1] = `${prev} ${l}`;
+    else lines.push(l);
+  }
   // «GEELY Emgrand Emgrand»: заголовок статьи и строка «Модель» склеиваются
   // разборщиком — подряд идущий повтор слова убираем.
   const model = String(car?.model || "")
@@ -3791,14 +3798,46 @@ function maxPostHtml(car, text, links = []) {
   }
   if (priceHtml) out.push("", `<blockquote>${priceHtml}</blockquote>`);
 
-  if (rest.length) {
+  /*
+   * Telegram в MAX не переносим.
+   *
+   * Ссылки t.me и @ники Telegram в MAX ведут не туда: человек выпадает в
+   * другой мессенджер, где у него может не быть аккаунта. «Связаться» ведёт в
+   * личку менеджера в MAX, «Бот» — на нашего бота в MAX, а прочие строки со
+   * ссылками на Telegram (портфолио, подборки в канале) не выводим.
+   */
+  const tgUrl = (u) => /^https?:\/\/(t\.me|telegram\.me|telegram\.dog)\//i.test(u);
+  const isTg = (l) =>
+    /(?:^|[\s(])@[A-Za-z][A-Za-z0-9_]{3,31}\b|(?:t\.me|telegram\.me)\//i.test(l) ||
+    links.some(([t, u]) => tgUrl(u) && l.toLowerCase().includes(t.toLowerCase()));
+  const label = (l) => {
+    const m = /^([^:：]{1,30})[:：]/.exec(l);
+    return m ? m[1] : "";
+  };
+  const shown = [];
+  for (const l of rest) {
+    if (!isTg(l)) {
+      shown.push(l);
+      continue;
+    }
+    const lb = label(l);
+    if (/связ|менеджер|написать/i.test(lb)) shown.push({ html: `${htmlEsc(lb)}: <a href="${MAX_MANAGER_LINK}">написать менеджеру в MAX</a>` });
+    else if (/бот/i.test(lb) && botLink) shown.push({ html: `${htmlEsc(lb)}: <a href="${htmlEsc(botLink)}">чат-бот в MAX</a>` });
+  }
+
+  if (shown.length) {
     out.push("");
-    for (const l of rest) {
-      const html = maxLineHtml(l, links);
+    for (const item of shown) {
+      if (typeof item === "object") {
+        out.push(item.html);
+        continue;
+      }
+      const l = item;
+      const html = maxLineHtml(l, links.filter(([, u]) => !tgUrl(u)));
       // Призыв из поста — жирным, как в Telegram.
       out.push(/^свяжитесь|^пишите|^звоните/i.test(l) ? `<b>${html}</b>` : html);
     }
-  } else {
+  } else if (!rest.length) {
     const about = (car?.description || genDescriptionSrv(car) || "").trim();
     if (about) out.push("", htmlEsc(about));
     out.push("", `Каталог: <a href="${SITE_CATALOG_URL}">${htmlEsc(SITE_CATALOG_HUMAN)}</a>`);
@@ -3822,10 +3861,11 @@ async function mirrorToMax(env, car, srcId, images, post = null, caption = "") {
   const mark = `max:posted:${srcId}`;
   if (await kvGet(env, mark, null)) return;
 
+  const botLink = await maxBotLink(env).catch(() => "");
   const r = await maxPostToChat(
     env,
     channel,
-    maxPostHtml(car, caption, post ? postLinks(post) : []),
+    maxPostHtml(car, caption, post ? postLinks(post) : [], { botLink }),
     images,
     { format: "html" },
   );
