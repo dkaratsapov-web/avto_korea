@@ -3648,38 +3648,163 @@ async function publishNewsFromPost(env, post, origin) {
   await kvPut(env, "news", news.slice(0, 60));
 }
 
+
+/* ---------- Пост для канала MAX — как в Telegram ---------- */
+
+const MAX_SPEC_RE =
+  /^(модель|год\s*выпуска|пробег|двигатель|мощность|привод|коробка|кпп|трансмиссия|комплектация|кузов|цвет|топливо|руль|состояние|страна|объ[её]м)\s*[:：]\s*(.+)$/i;
+
+const htmlEsc = (v) =>
+  String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
 /**
- * Текст карточки для канала MAX.
+ * Ссылки поста: текст → адрес.
  *
- * Пост Telegram целиком туда не годится: в MAX нет ни таблиц, ни врезок, а
- * подпись поста написана под другую ленту — с призывами, ссылками и
- * оформлением. Собираем короткую карточку из уже разобранных полей: то же
- * самое видит покупатель на сайте.
+ * В посте Telegram «перейти по ссылке» — это текст со спрятанным адресом
+ * (text_link), а в статье адрес лежит рядом с текстом в блоке. Без этой
+ * таблицы в MAX уехали бы слова без ссылок.
  */
-function maxCardText(car) {
-  const specs = [
-    car.year ? `${car.year} г.` : "",
-    car.mileageKm ? `${car.mileageKm.toLocaleString("ru-RU")} км` : "новый, 0 км",
-    car.powerHp ? `${car.powerHp} л.с.` : "",
-    car.gearbox,
-    car.drive ? `${car.drive.toLowerCase()} привод` : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
-  // Описание — то же, что на карточке сайта: «Привезём из … под ключ …».
-  // Готовое кладёт бот при публикации; если его нет, собираем на месте.
-  const about = (car.description || genDescriptionSrv(car) || "").trim();
-
-  const lines = [`🚗 ${car.model}`];
-  if (specs) lines.push(specs);
-  if (car.priceRub) {
-    lines.push(`Под ключ до Москвы — ${car.priceRub.toLocaleString("ru-RU")} ₽`);
+function postLinks(post) {
+  const out = [];
+  const body = String(post?.text ?? post?.caption ?? "");
+  for (const e of [...(post?.entities || []), ...(post?.caption_entities || [])]) {
+    if (e?.type === "text_link" && e.url) {
+      const t = body.substr(e.offset, e.length).trim();
+      if (t) out.push([t, e.url]);
+    }
   }
-  if (about) lines.push("", about);
-  lines.push("", `Каталог: ${SITE_CATALOG_HUMAN}`);
+  const walk = (node, depth) => {
+    if (!node || typeof node !== "object" || depth > 10) return;
+    if (Array.isArray(node)) return node.forEach((x) => walk(x, depth + 1));
+    const url = typeof node.url === "string" ? node.url : typeof node.href === "string" ? node.href : "";
+    if (/^https?:\/\//i.test(url)) {
+      const t = richLines(node, []).join(" ").trim();
+      if (t && t.length <= 80 && t !== url) out.push([t, url]);
+    }
+    for (const v of Object.values(node)) if (v && typeof v === "object") walk(v, depth + 1);
+  };
+  for (const root of richRoots(post)) walk(root, 0);
+  return out;
+}
 
-  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+/** Строка поста в HTML MAX: ссылки, адреса, @ники и домен сайта — кликабельные. */
+function maxLineHtml(line, links) {
+  const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const known = links
+    .map(([t]) => t)
+    .sort((a, b) => b.length - a.length)
+    .map(reEsc);
+  const parts = [
+    ...(known.length ? [`(${known.join("|")})`] : []),
+    "(https?:\\/\\/[^\\s<>\"]+)",
+    "(@[A-Za-z][A-Za-z0-9_]{3,31})",
+    "(автоимпорт-69\\.рф)",
+  ];
+  const re = new RegExp(parts.join("|"), "giu");
+  let out = "";
+  let last = 0;
+  for (const m of line.matchAll(re)) {
+    out += htmlEsc(line.slice(last, m.index));
+    const t = m[0];
+    const mapped = links.find(([lt]) => lt.toLowerCase() === t.toLowerCase());
+    const href = mapped
+      ? mapped[1]
+      : /^https?:/i.test(t)
+        ? t
+        : t.startsWith("@")
+          ? `https://t.me/${t.slice(1)}`
+          : SITE_CATALOG_URL.replace(/\/catalog$/, "");
+    out += `<a href="${htmlEsc(href)}">${htmlEsc(t)}</a>`;
+    last = m.index + t.length;
+  }
+  return out + htmlEsc(line.slice(last));
+}
+
+/**
+ * Пост для канала MAX в том же виде, что в Telegram.
+ *
+ * Раньше в MAX уходила короткая сводка из карточки каталога, и пост выглядел
+ * «кучей»: одна строка характеристик через точки и абзац. Теперь берём сам
+ * пост: таблица характеристик — строками «Ярлык: значение» с жирным ярлыком
+ * (таблиц в MAX нет), цена — цитатой, блок «Свяжитесь с нами» и контакты —
+ * как в оригинале, со ссылками. Если в посте ничего, кроме фото, — прежняя
+ * сводка из карточки.
+ */
+function maxPostHtml(car, text, links = []) {
+  const lines = String(text || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  // «GEELY Emgrand Emgrand»: заголовок статьи и строка «Модель» склеиваются
+  // разборщиком — подряд идущий повтор слова убираем.
+  const model = String(car?.model || "")
+    .trim()
+    .replace(/(?<!\S)(\S+)(?:\s+\1)+(?!\S)/giu, "$1");
+  const specs = [];
+  const rest = [];
+  let price = "";
+  for (const l of lines) {
+    const m = MAX_SPEC_RE.exec(l);
+    if (m) {
+      specs.push([m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(), m[2].trim()]);
+      continue;
+    }
+    if (!price && /(цена|под\s*ключ|до\s+москв|до\s+твер)/i.test(l) && /\d/.test(l)) {
+      price = l;
+      continue;
+    }
+    // Заголовок статьи («HYUNDAI») уже есть в названии модели.
+    if (model && l.length <= 40 && model.toLowerCase().includes(l.toLowerCase())) continue;
+    rest.push(l);
+  }
+
+  if (!specs.length) {
+    if (car?.year) specs.push(["Год выпуска", String(car.year)]);
+    specs.push(["Пробег", car?.mileageKm ? `${car.mileageKm.toLocaleString("ru-RU")} км` : "новый, 0 км"]);
+    if (car?.engine) specs.push(["Двигатель", car.engine]);
+    if (car?.powerHp) specs.push(["Мощность", `${car.powerHp} л.с.`]);
+    if (car?.gearbox) specs.push(["Коробка", car.gearbox]);
+    if (car?.drive) specs.push(["Привод", car.drive.toLowerCase()]);
+  }
+
+  const out = [`<b>🚗 ${htmlEsc(model)}</b>`, ""];
+  for (const [k, v] of specs) out.push(`<b>${htmlEsc(k)}:</b> ${htmlEsc(v)}`);
+
+  // Цена — цитатой, сумма жирным и в одном написании: «1.520.000.₽» → «1 520 000 ₽».
+  const amountRe = /\d[\d\s.,]*\d\s*\.?\s*(?:₽|руб\.?|р\.)?/;
+  let priceHtml = "";
+  if (price) {
+    const m = amountRe.exec(price);
+    const n = m ? Number(m[0].replace(/\D/g, "")) : 0;
+    priceHtml =
+      m && n >= 10000
+        ? htmlEsc(price.slice(0, m.index).replace(/[\s:—.,-]+$/, "")) +
+          `: <b>${n.toLocaleString("ru-RU")} ₽</b>` +
+          htmlEsc(price.slice(m.index + m[0].length).replace(/^[\s!.]+/, " ")).trimEnd()
+        : htmlEsc(price);
+  } else if (car?.priceRub) {
+    priceHtml = `Под ключ до Москвы: <b>${car.priceRub.toLocaleString("ru-RU")} ₽</b>`;
+  }
+  if (priceHtml) out.push("", `<blockquote>${priceHtml}</blockquote>`);
+
+  if (rest.length) {
+    out.push("");
+    for (const l of rest) {
+      const html = maxLineHtml(l, links);
+      // Призыв из поста — жирным, как в Telegram.
+      out.push(/^свяжитесь|^пишите|^звоните/i.test(l) ? `<b>${html}</b>` : html);
+    }
+  } else {
+    const about = (car?.description || genDescriptionSrv(car) || "").trim();
+    if (about) out.push("", htmlEsc(about));
+    out.push("", `Каталог: <a href="${SITE_CATALOG_URL}">${htmlEsc(SITE_CATALOG_HUMAN)}</a>`);
+  }
+
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /**
@@ -3689,7 +3814,7 @@ function maxCardText(car) {
  * Telegram прилетает тем же путём, что и новая публикация, и без этой отметки
  * канал MAX собирал бы по карточке на каждую запятую.
  */
-async function mirrorToMax(env, car, srcId, images) {
+async function mirrorToMax(env, car, srcId, images, post = null, caption = "") {
   const st = await getSettings(env);
   const channel = String(st.maxChannelId || "").trim();
   if (!channel || !env.MAX_BOT_TOKEN || !car) return;
@@ -3697,7 +3822,13 @@ async function mirrorToMax(env, car, srcId, images) {
   const mark = `max:posted:${srcId}`;
   if (await kvGet(env, mark, null)) return;
 
-  const r = await maxPostToChat(env, channel, maxCardText(car), images);
+  const r = await maxPostToChat(
+    env,
+    channel,
+    maxPostHtml(car, caption, post ? postLinks(post) : []),
+    images,
+    { format: "html" },
+  );
   await kvPut(env, mark, { at: Date.now(), ok: !!r.ok });
 
   if (!r.ok && env.TELEGRAM_CHAT_ID) {
@@ -3723,7 +3854,7 @@ async function handleChannelPost(env, post, opts = {}) {
   if (opts.auto) {
     const done = await publishFromPost(env, post, caption, fileIds, groupId, opts.origin, videoId);
     if (done?.isNew) {
-      await mirrorToMax(env, done.car, postSrcId(post, groupId), done.car.images || []);
+      await mirrorToMax(env, done.car, postSrcId(post, groupId), done.car.images || [], post, caption);
     }
     return;
   }

@@ -2918,3 +2918,69 @@ test("клик «Написать менеджеру» считается, а в
     { users: 1, subscribed: 1, leads: 1, manager: 1 },
   );
 });
+
+/**
+ * Пост из канала в том виде, в каком его публикует владелец: таблица,
+ * цена цитатой, призыв и контакты со ссылками.
+ */
+function emgrandPost(chatId, msgId) {
+  return {
+    update_id: 78,
+    channel_post: {
+      message_id: msgId,
+      chat: { id: chatId, type: "channel", title: "Канал" },
+      rich_message: {
+        blocks: [
+          { type: "heading", text: "GEELY Emgrand" },
+          { type: "carousel", media: [{ photo: [{ file_id: "em-1" }] }, { photo: [{ file_id: "em-2" }] }] },
+          {
+            type: "table",
+            rows: [
+              { cells: [{ text: "Модель:" }, { text: "Emgrand" }] },
+              { cells: [{ text: "Год выпуска:" }, { text: "2023" }] },
+              { cells: [{ text: "Пробег:" }, { text: "21.000км" }] },
+              { cells: [{ text: "Двигатель:" }, { text: "1.5L" }] },
+              { cells: [{ text: "Мощность:" }, { text: "110л.с" }] },
+              { cells: [{ text: "Привод:" }, { text: "передний" }] },
+              { cells: [{ text: "Комплектация:" }, { text: "Flagship Edition" }] },
+              { cells: [{ text: "Страна:" }, { text: "Китай" }] },
+            ],
+          },
+          { type: "quote", text: "Цена до Москвы с утильсбором и ЭПТС. 1.520.000.₽" },
+          { type: "paragraph", text: "Свяжитесь с нами, и мы подберем авто именно под Ваш запрос и бюджет!" },
+          {
+            type: "list",
+            items: [
+              { text: "Портфолио: ", link: { text: "перейти по ссылке", url: "https://t.me/diavto_69/12" } },
+              { text: "Сайт: автоимпорт-69.рф" },
+              { text: "Бот: @DI_AVTO_69_BOT" },
+            ],
+          },
+        ],
+      },
+    },
+  };
+}
+
+test("пост в MAX — как в Telegram: ярлыки жирным, цена цитатой, контакты со ссылками", async () => {
+  const store = makeStore({
+    settings: { catalogChatId: "-1002000000030", autoPublish: true, maxChannelId: "77003" },
+  });
+  const calls = stubBoth();
+  const c = makeCtx();
+  await run(emgrandPost("-1002000000030", 91), { store, env: { MAX_BOT_TOKEN: "M" }, ctx: c.ctx });
+  await c.settle();
+
+  const post = calls.find((x) => x.url.includes("botapi.max.ru/messages?chat_id=77003"));
+  assert.ok(post, "пост должен уйти в MAX");
+  const html = post.body.text;
+  assert.equal(post.body.format, "html");
+  assert.match(html, /<b>Модель:<\/b> Emgrand/);
+  assert.match(html, /<b>Комплектация:<\/b> Flagship Edition/);
+  assert.match(html, /<blockquote>[^<]*Цена до Москвы[^<]*<b>1[\s ]520[\s ]000 ₽<\/b><\/blockquote>/);
+  assert.match(html, /<b>Свяжитесь с нами/);
+  assert.match(html, /<a href="https:\/\/t\.me\/diavto_69\/12">перейти по ссылке<\/a>/);
+  assert.match(html, /<a href="https:\/\/t\.me\/DI_AVTO_69_BOT">@DI_AVTO_69_BOT<\/a>/);
+  assert.match(html, /<a href="[^"]+">автоимпорт-69\.рф<\/a>/);
+  assert.ok(!/\n{3,}/.test(html), "без пустых провалов между блоками");
+});

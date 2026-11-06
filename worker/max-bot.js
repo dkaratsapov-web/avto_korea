@@ -124,7 +124,7 @@ export async function maxChatLink(env, chatId, username) {
  * Возвращаем ответ MAX как есть — вызывающему важно отличить «опубликовано»
  * от «бот не админ канала», а не получить голое false.
  */
-export async function maxPostToChat(env, chatId, text, images = []) {
+export async function maxPostToChat(env, chatId, text, images = [], { format } = {}) {
   const attachments = images
     .filter(Boolean)
     .slice(0, 10)
@@ -132,6 +132,8 @@ export async function maxPostToChat(env, chatId, text, images = []) {
 
   return maxCall(env, "POST", `/messages?chat_id=${encodeURIComponent(chatId)}`, {
     text: String(text || "").slice(0, 4000),
+    // html — жирные ярлыки, цитата с ценой и ссылки, как в посте Telegram.
+    ...(format ? { format } : {}),
     ...(attachments.length ? { attachments } : {}),
   });
 }
