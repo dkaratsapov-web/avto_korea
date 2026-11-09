@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   Plus,
@@ -260,7 +261,8 @@ export function TmaAdmin({
     return (
       <DesktopCtx.Provider value>
         <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-          <nav className="rounded-[18px] border border-line-dark bg-graphite-2 p-2 lg:sticky lg:top-20">
+          <div className="space-y-3 lg:sticky lg:top-20">
+          <nav className="rounded-[18px] border border-line-dark bg-graphite-2 p-2">
             <div className="flex gap-1 overflow-x-auto lg:flex-col">
               {visible.map((t) => (
                 <button
@@ -281,6 +283,10 @@ export function TmaAdmin({
               Доступ: {owner ? "владелец" : "админ"}
             </div>
           </nav>
+          {/* Сюда вкладки выводят свои действия — например «Удалить
+              отмеченные» у похожих карточек: под рукой, без прокрутки вниз. */}
+          <div id="admin-side-slot" />
+          </div>
           <section className="min-w-0 rounded-[18px] border border-line-dark bg-graphite p-5">
             {current ? (
               <h2 className="mb-4 flex items-center gap-2 text-[18px] font-extrabold">
@@ -1008,6 +1014,53 @@ function DuplicatePanel({
     () => new Set(suggestedRemovals(groups).map((c) => c.id)),
   );
 
+  const desk = useDesk();
+  // Место под меню разделов (только в CRM на компьютере). Ищем после
+  // отрисовки: панель и меню — в разных ветках дерева.
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setSlot(desk ? document.getElementById("admin-side-slot") : null);
+  }, [desk]);
+
+  const removePicked = () => {
+    if (confirm(`Удалить отмеченные карточки (${picked.size})? Остальные останутся на месте.`)) {
+      onRemove(picked);
+      setPicked(new Set());
+    }
+  };
+
+  /*
+   * «Удалить отмеченные» — всегда под рукой, пока что-то отмечено.
+   * Группы длинные, и кнопка внизу панели уезжала за экран: чтобы удалить,
+   * приходилось листать до конца. На компьютере блок стоит под меню
+   * разделов и прилипает к нему, на телефоне — закреплён внизу экрана.
+   */
+  const actionBar =
+    picked.size > 0 ? (
+      <div
+        className={
+          slot
+            ? "rounded-[18px] border border-bordeaux-bright/50 bg-bordeaux/15 p-3"
+            : "fixed inset-x-3 bottom-3 z-[60] rounded-[16px] border border-bordeaux-bright/50 bg-graphite-2/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,.6)] backdrop-blur"
+        }
+      >
+        <div className="mb-2 text-[13px] font-bold text-white">
+          Отмечено карточек: <span className="font-num">{picked.size}</span>
+        </div>
+        <button type="button" onClick={removePicked} className="btn btn-primary w-full !py-2.5 !text-[13.5px]">
+          <Trash2 className="h-[17px] w-[17px]" />
+          Удалить отмеченные
+        </button>
+        <button
+          type="button"
+          onClick={() => setPicked(new Set())}
+          className="mt-1.5 w-full rounded-[10px] py-1.5 text-[12.5px] font-bold text-chrome hover:text-white"
+        >
+          Снять отметки
+        </button>
+      </div>
+    ) : null;
+
   const toggle = (id: string) =>
     setPicked((prev) => {
       const next = new Set(prev);
@@ -1165,23 +1218,12 @@ function DuplicatePanel({
             ))}
           </div>
 
-          <button
-            type="button"
-            disabled={picked.size === 0}
-            onClick={() => {
-              if (
-                confirm(
-                  `Удалить отмеченные карточки (${picked.size})? Остальные останутся на месте.`,
-                )
-              ) {
-                onRemove(picked);
-              }
-            }}
-            className="btn btn-primary mt-3 w-full disabled:opacity-40"
-          >
-            <Trash2 className="h-[18px] w-[18px]" />
-            Удалить отмеченные ({picked.size})
-          </button>
+          {/* Блок удаления — сбоку (компьютер) или внизу экрана (телефон),
+              пока панель открыта и что-то отмечено. */}
+          {slot ? createPortal(actionBar, slot) : actionBar}
+          {/* Место под закреплённый внизу блок, чтобы он не закрывал
+              последнюю группу на телефоне. */}
+          {!slot && picked.size > 0 ? <div className="h-28" /> : null}
         </div>
       ) : null}
     </div>
