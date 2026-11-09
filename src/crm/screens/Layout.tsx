@@ -35,7 +35,6 @@ const NAV = [
 ];
 
 const OWNER_NAV = [
-  { to: "/crm/bot", label: "Бот", icon: Bot, end: false },
   { to: "/crm/reviews", label: "Отзывы", icon: MessageSquareQuote, end: false },
   { to: "/crm/users", label: "Сотрудники", icon: Users2, end: false },
   { to: "/crm/settings", label: "Реквизиты", icon: Building2, end: false },
@@ -48,6 +47,27 @@ export function Layout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const items = isOwner ? [...NAV, ...OWNER_NAV] : NAV;
+
+  /*
+   * «Каталог и бот» — отдельной яркой кнопкой справа, а не пунктом меню.
+   * Это самый частый раздел владельца (каталог, заявки бота, настройки), и
+   * в ряду одинаковых серых пунктов его было не найти.
+   */
+  const botLink = isOwner ? (
+    <NavLink
+      to="/crm/bot"
+      className={({ isActive }) =>
+        `inline-flex items-center gap-2 rounded-[10px] px-3.5 py-2 text-[13.5px] font-bold text-white shadow-[0_6px_18px_-8px_rgba(156,26,18,.9)] transition-[filter,transform] hover:brightness-110 active:scale-[0.98] ${
+          isActive
+            ? "bg-gradient-to-b from-[#C4281C] to-[#8E1710] ring-2 ring-[#E0574C]/50"
+            : "bg-gradient-to-b from-[#B3231A] to-[#7A1410]"
+        }`
+      }
+    >
+      <Bot className="h-4 w-4" />
+      Каталог и бот
+    </NavLink>
+  ) : null;
 
   const leave = async () => {
     await signOut();
@@ -95,6 +115,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="ml-auto flex flex-none items-center gap-1.5">
+            <span className="mr-2 hidden md:inline-flex">{botLink}</span>
             <ThemeToggle />
 
             <Link
@@ -129,6 +150,11 @@ export function Layout({ children }: { children: ReactNode }) {
         {/* Мобильное меню: на телефоне пункты не помещаются в строку. */}
         {menuOpen ? (
           <nav className="border-t border-crm-line bg-crm-surface px-4 py-2 md:hidden">
+            {botLink ? (
+              <div className="mb-1.5" onClick={() => setMenuOpen(false)}>
+                {botLink}
+              </div>
+            ) : null}
             {items.map(({ to, label, icon: Icon, end }) => (
               <NavLink
                 key={to}

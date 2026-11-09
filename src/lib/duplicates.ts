@@ -49,8 +49,13 @@ export type DuplicateGroup = {
    * «Возможно» — машина новая, пробег нулевой у всех. Тогда совпадение может
    * означать и вторую такую же машину в наличии. Такие группы показываем, но
    * ничего не предлагаем удалять по умолчанию.
+   *
+   * «Похожие» — точного совпадения нет, но модель и год те же, а цена и
+   * пробег почти равны (цену поправили на пару тысяч, комплектацию записали
+   * иначе). Чаще всего это тот же автомобиль, опубликованный повторно, —
+   * показываем как подсказку, удалять не предлагаем.
    */
-  certainty: "sure" | "maybe";
+  certainty: "sure" | "maybe" | "similar";
 };
 
 /** Дата добавления; у старых карточек её может не быть. */
@@ -70,19 +75,91 @@ export function findDuplicates(cars: Car[]): DuplicateGroup[] {
     if (list) list.push(car);
     else byKey.set(key, [car]);
   }
-
   const groups: DuplicateGroup[] = [];
+  const inExact = new Set<string>();
   for (const [key, list] of byKey) {
     if (list.length < 2) continue;
     const sorted = [...list].sort((a, b) => addedAt(b) - addedAt(a));
     const hasMileage = (sorted[0].mileageKm ?? 0) > 0;
     groups.push({ key, cars: sorted, certainty: hasMileage ? "sure" : "maybe" });
+    for (const c of list) inExact.add(c.id);
   }
-
+  groups.push(...findSimilar(cars.filter((c) => !inExact.has(c.id))));
+  const rank = { sure: 0, maybe: 1, similar: 2 } as const;
   return groups.sort((a, b) => {
-    if (a.certainty !== b.certainty) return a.certainty === "sure" ? -1 : 1;
+    if (a.certainty !== b.certainty) return rank[a.certainty] - rank[b.certainty];
     return b.cars.length - a.cars.length;
   });
+}
+
+/** Модель в общем виде: без регистра, пробелов и знаков. */
+function modelKey(car: Car): string {
+  return String(car.model || "").toLowerCase().replace(/[^a-zа-яё0-9]+/gi, "");
+}
+
+/** Почти равны: разница не больше доли от большего. Оба нуля — равны. */
+function near(a: number, b: number, share: number): boolean {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return Math.abs(a - b) <= Math.max(a, b) * share;
+}
+
+/**
+ * Комплектации не противоречат друг другу: совпадают с точностью до
+ * написания, одна продолжает другую («M-SPORT» и «M Sport пакет») или одна
+ * не указана. «BASE» и «M-SPORT» — уже разные машины.
+ */
+function trimsCompatible(a: Car, b: Car): boolean {
+  const k = (c: Car) => String(c.trim || "").toLowerCase().replace(/[^a-zа-яё0-9]+/gi, "");
+  const x = k(a);
+  const y = k(b);
+  return !x || !y || x.includes(y) || y.includes(x);
+}
+
+/**
+ * Похожие карточки: та же модель и год, цена в пределах 3%, пробег в
+ * пределах 2%. Группа собирается цепочкой: если A похожа на B, а B на C —
+ * все трое в одной группе.
+ */
+function findSimilar(cars: Car[]): DuplicateGroup[] {
+  const byModel = new Map<string, Car[]>();
+  for (const c of cars) {
+    const k = `${modelKey(c)}|${c.year ?? 0}`;
+    const list = byModel.get(k);
+    if (list) list.push(c);
+    else byModel.set(k, [c]);
+  }
+  const groups: DuplicateGroup[] = [];
+  for (const [k, list] of byModel) {
+    if (list.length < 2) continue;
+    const used = new Set<string>();
+    for (const seed of list) {
+      if (used.has(seed.id)) continue;
+      const group = [seed];
+      used.add(seed.id);
+      for (let i = 0; i < group.length; i++) {
+        for (const other of list) {
+          if (used.has(other.id)) continue;
+          const x = group[i];
+          const px = x.priceTverRub ?? x.priceRub ?? 0;
+          const po = other.priceTverRub ?? other.priceRub ?? 0;
+          if (
+            trimsCompatible(x, other) &&
+            near(px, po, 0.03) &&
+            near(x.mileageKm ?? 0, other.mileageKm ?? 0, 0.02)
+          ) {
+            group.push(other);
+            used.add(other.id);
+          }
+        }
+      }
+      if (group.length > 1) {
+        const sorted = group.sort((a, b) => addedAt(b) - addedAt(a));
+        groups.push({ key: `~${k}|${sorted[0].id}`, cars: sorted, certainty: "similar" });
+      }
+    }
+  }
+  return groups;
 }
 
 /**

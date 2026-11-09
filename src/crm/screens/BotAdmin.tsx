@@ -26,6 +26,16 @@ export function BotAdmin() {
   const [failed, setFailed] = useState<string | null>(null);
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
+  // Раскладка для компьютера — с 1024 px; уже — мобильная, как в Telegram.
+  const [wide, setWide] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const on = () => setWide(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
 
   // Пока открыт раздел, админка бота ходит через CRM, а не напрямую к боту.
   useEffect(() => {
@@ -61,7 +71,7 @@ export function BotAdmin() {
   if (failed) {
     return (
       <>
-        <PageHead title="Бот" subtitle="Админка Telegram-бота" />
+        <PageHead title="Каталог и бот" subtitle="Админка Telegram-бота" />
         <Card className="p-6 text-center">
           <p className="text-crm-ink-2">{failed}</p>
           <Button className="mt-4" onClick={load}>
@@ -77,7 +87,7 @@ export function BotAdmin() {
   if (!connected) {
     return (
       <>
-        <PageHead title="Бот" subtitle="Админка Telegram-бота — та же, что в мини-аппе" />
+        <PageHead title="Каталог и бот" subtitle="Админка Telegram-бота — та же, что в мини-аппе" />
         <Card className="max-w-xl p-5">
           <div className="mb-3 flex items-center gap-2 font-semibold text-crm-ink">
             <KeyRound className="h-5 w-5" /> Подключение
@@ -112,16 +122,21 @@ export function BotAdmin() {
 
   return (
     <>
-      <PageHead title="Бот" subtitle="Админка Telegram-бота. Изменения сразу видны в мини-аппе." />
-      {/* Админка мини-аппа свёрстана под тёмный экран телефона — даём ей
-          её родной фон, чтобы она выглядела так же, как в Telegram. */}
-      <div className="dark-bot-admin mx-auto max-w-[560px] rounded-[20px] bg-graphite p-4 text-white shadow-lg">
+      <PageHead
+        title="Каталог и бот"
+        subtitle="Та же админка, что в Telegram-боте: изменения сразу видны в мини-аппе и на сайте."
+      />
+      {/* Админка свёрстана в фирменных тёмных цветах бота — даём ей родной
+          фон в любой теме CRM. На компьютере — своя раскладка: меню слева,
+          списки сеткой. */}
+      <div className="rounded-[22px] bg-[#0B0E12] p-3 text-white shadow-lg sm:p-4">
         <TmaAdmin
           tg={null}
           initData="crm"
           owner
           caps={ALL_CAPS.map((c) => c.key)}
           onExit={() => navigate("/crm")}
+          desktop={wide}
         />
       </div>
     </>

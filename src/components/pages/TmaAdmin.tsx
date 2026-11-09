@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Plus,
@@ -46,6 +46,21 @@ import {
   type DuplicateGroup,
 } from "@/lib/duplicates";
 import { displayPrice } from "@/lib/price";
+
+/**
+ * Десктопная вёрстка админки — для раздела «Бот» в CRM.
+ *
+ * Компонент один и тот же, что в мини-аппе: так админка в CRM и в Telegram
+ * не расходятся по возможностям. Меняется только раскладка: меню разделов
+ * слева, списки сеткой, формы ограниченной ширины.
+ */
+const DesktopCtx = createContext(false);
+const useDesk = () => useContext(DesktopCtx);
+/** Список карточек: на телефоне — лента, на компьютере — сетка. */
+const listCls = (desk: boolean, mobile = "space-y-2.5") =>
+  desk ? "grid items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3" : mobile;
+/** Форма: на широком экране — не во всю ширину, иначе строки читать тяжело. */
+const formCls = (desk: boolean, base = "space-y-3") => (desk ? `${base} max-w-3xl` : base);
 
 type Tab =
   | "catalog"
@@ -182,12 +197,15 @@ export function TmaAdmin({
   owner,
   caps,
   onExit,
+  desktop = false,
 }: {
   tg: TG | null;
   initData: string;
   owner: boolean;
   caps: AdminCap[];
   onExit: () => void;
+  /** Раскладка для компьютера (раздел «Бот» в CRM). */
+  desktop?: boolean;
 }) {
   const can = (cap: AdminCap) => owner || caps.includes(cap);
   const tabs: {
@@ -208,6 +226,72 @@ export function TmaAdmin({
   ];
   const visible = tabs.filter((t) => can(t.cap));
   const [tab, setTab] = useState<Tab>(() => visible[0]?.id ?? "catalog");
+
+  const content = (
+    <>
+      {tab === "catalog" && can("catalog") ? (
+        <CatalogTab tg={tg} initData={initData} canEdit />
+      ) : null}
+      {tab === "drafts" && can("catalog") ? (
+        <DraftsTab tg={tg} initData={initData} />
+      ) : null}
+      {tab === "bot" && can("bot") ? (
+        <BotTab tg={tg} initData={initData} canEdit />
+      ) : null}
+      {tab === "leads" && can("leads") ? <LeadsTab initData={initData} /> : null}
+      {tab === "reviews" && can("reviews") ? (
+        <ReviewsTab tg={tg} initData={initData} canEdit />
+      ) : null}
+      {tab === "subs" && can("subs") ? <SubsTab initData={initData} /> : null}
+      {tab === "stats" && can("stats") ? <StatsTab initData={initData} /> : null}
+      {tab === "broadcast" && can("broadcast") ? (
+        <BroadcastTab tg={tg} initData={initData} />
+      ) : null}
+      {tab === "admins" && can("admins") ? (
+        <AdminsTab initData={initData} owner={owner} />
+      ) : null}
+    </>
+  );
+
+  if (desktop) {
+    const current = visible.find((t) => t.id === tab);
+    return (
+      <DesktopCtx.Provider value>
+        <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <nav className="rounded-[18px] border border-line-dark bg-graphite-2 p-2 lg:sticky lg:top-20">
+            <div className="flex gap-1 overflow-x-auto lg:flex-col">
+              {visible.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`flex flex-none items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-left text-[14px] font-bold transition-colors ${
+                    tab === t.id
+                      ? "bg-bordeaux text-white"
+                      : "text-chrome hover:bg-white/[0.05] hover:text-white"
+                  }`}
+                >
+                  <t.icon className="h-[18px] w-[18px] flex-none" />
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 hidden border-t border-line-dark px-3 pt-2 text-[11px] font-bold uppercase tracking-wide text-[#7C8792] lg:block">
+              Доступ: {owner ? "владелец" : "админ"}
+            </div>
+          </nav>
+          <section className="min-w-0 rounded-[18px] border border-line-dark bg-graphite p-5">
+            {current ? (
+              <h2 className="mb-4 flex items-center gap-2 text-[18px] font-extrabold">
+                <current.icon className="h-5 w-5 text-[#E0574C]" />
+                {current.label}
+              </h2>
+            ) : null}
+            {content}
+          </section>
+        </div>
+      </DesktopCtx.Provider>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-md">
@@ -247,33 +331,14 @@ export function TmaAdmin({
         ))}
       </div>
 
-      {tab === "catalog" && can("catalog") ? (
-        <CatalogTab tg={tg} initData={initData} canEdit />
-      ) : null}
-      {tab === "drafts" && can("catalog") ? (
-        <DraftsTab tg={tg} initData={initData} />
-      ) : null}
-      {tab === "bot" && can("bot") ? (
-        <BotTab tg={tg} initData={initData} canEdit />
-      ) : null}
-      {tab === "leads" && can("leads") ? <LeadsTab initData={initData} /> : null}
-      {tab === "reviews" && can("reviews") ? (
-        <ReviewsTab tg={tg} initData={initData} canEdit />
-      ) : null}
-      {tab === "subs" && can("subs") ? <SubsTab initData={initData} /> : null}
-      {tab === "stats" && can("stats") ? <StatsTab initData={initData} /> : null}
-      {tab === "broadcast" && can("broadcast") ? (
-        <BroadcastTab tg={tg} initData={initData} />
-      ) : null}
-      {tab === "admins" && can("admins") ? (
-        <AdminsTab initData={initData} owner={owner} />
-      ) : null}
+      {content}
     </div>
   );
 }
 
 /* ---------- Черновики из канала ---------- */
 function DraftsTab({ tg, initData }: { tg: TG | null; initData: string }) {
+  const desk = useDesk();
   const { cars, setAll } = useCars();
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [editing, setEditing] = useState<{ car: Car; draftId: string } | null>(null);
@@ -337,7 +402,7 @@ function DraftsTab({ tg, initData }: { tg: TG | null; initData: string }) {
       </div>
     );
   return (
-    <div className="space-y-2.5">
+    <div className={listCls(desk)}>
       {drafts.map((d) => (
         <div key={d.id} className="rounded-[16px] border border-line-dark bg-graphite-2 p-2.5">
           <div className="flex gap-3">
@@ -472,6 +537,7 @@ function ReviewsTab({
   initData: string;
   canEdit: boolean;
 }) {
+  const desk = useDesk();
   const [list, setList] = useState<Review[] | null>(null);
   const [editing, setEditing] = useState<Review | null>(null);
   const lab = "mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]";
@@ -509,7 +575,7 @@ function ReviewsTab({
   if (editing) {
     const e = editing;
     return (
-      <div className="space-y-3">
+      <div className={formCls(desk)}>
         <div className="flex items-center justify-between">
           <h2 className="text-[16px] font-extrabold uppercase">
             {e.id ? "Редактирование" : "Новый отзыв"}
@@ -590,9 +656,9 @@ function ReviewsTab({
           <Trash2 className="h-[16px] w-[16px]" /> Удалить все отзывы
         </button>
       ) : null}
-      <div className="space-y-2.5">
+      <div className={listCls(desk)}>
         {list.length === 0 ? (
-          <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
+          <p className="col-span-full rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
             Отзывов пока нет.
           </p>
         ) : (
@@ -633,6 +699,7 @@ function ReviewsTab({
 
 /* ---------- Подписки ---------- */
 function SubsTab({ initData }: { initData: string }) {
+  const desk = useDesk();
   const [subs, setSubs] = useState<Subscription[] | null>(null);
   useEffect(() => {
     adminCall<{ subs: Subscription[] }>(initData, "subs.list").then((r) =>
@@ -647,7 +714,7 @@ function SubsTab({ initData }: { initData: string }) {
       </p>
     );
   return (
-    <div className="space-y-2.5">
+    <div className={listCls(desk)}>
       {subs.map((s, i) => (
         <div key={i} className="rounded-[16px] border border-line-dark bg-graphite-2 p-3">
           <div className="flex items-center justify-between">
@@ -666,6 +733,7 @@ function SubsTab({ initData }: { initData: string }) {
 
 /* ---------- Статистика ---------- */
 function StatsTab({ initData }: { initData: string }) {
+  const desk = useDesk();
   const { cars } = useCars();
   const [stats, setStats] = useState<Stats | null>(null);
   useEffect(() => {
@@ -710,7 +778,7 @@ function StatsTab({ initData }: { initData: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className={desk ? "grid grid-cols-3 gap-3 xl:grid-cols-5" : "grid grid-cols-2 gap-2.5"}>
         {cells.map(([label, v]) => (
           <div key={label} className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
             <div className="font-num text-[26px] font-extrabold text-bordeaux-bright">{v}</div>
@@ -863,6 +931,7 @@ function StatsTab({ initData }: { initData: string }) {
 
 /* ---------- Рассылка ---------- */
 function BroadcastTab({ tg, initData }: { tg: TG | null; initData: string }) {
+  const desk = useDesk();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -884,7 +953,7 @@ function BroadcastTab({ tg, initData }: { tg: TG | null; initData: string }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className={formCls(desk)}>
       <p className="text-[13px] text-[#9AA4B2]">
         Сообщение получат все, кто писал боту или открывал мини-апп.
       </p>
@@ -946,22 +1015,21 @@ function DuplicatePanel({
     });
 
   return (
-    <div className="mb-3 overflow-hidden rounded-[16px] border border-bordeaux-bright/40 bg-bordeaux/10">
+    <div className="mb-3 overflow-hidden rounded-[16px] border border-amber-400/40 bg-amber-400/[0.07]">
       <button
         type="button"
         onClick={onToggle}
         className="flex w-full items-center gap-2.5 px-3.5 py-3 text-left"
       >
-        <Copy className="h-[18px] w-[18px] flex-none text-bordeaux-bright" />
+        <Copy className="h-[18px] w-[18px] flex-none text-amber-300" />
         <span className="min-w-0 flex-1">
           <span className="block text-[14.5px] font-bold text-white">
-            Похоже на повторы: {extra}{" "}
-            {extra === 1 ? "лишняя карточка" : "лишних карточек"}
+            Похожие карточки в каталоге: {groups.length}{" "}
+            {groups.length === 1 ? "группа" : groups.length < 5 ? "группы" : "групп"}
+            {extra ? ` · лишних до ${extra}` : ""}
           </span>
           <span className="block text-[12.5px] text-[#9AA4B2]">
-            {groups.length}{" "}
-            {groups.length === 1 ? "совпадение" : "совпадений"} по модели, году,
-            пробегу и цене
+            Возможно, одна и та же машина опубликована дважды — проверьте и уберите лишнее
           </span>
         </span>
         <ChevronDown
@@ -972,18 +1040,30 @@ function DuplicatePanel({
       {open ? (
         <div className="border-t border-bordeaux-bright/25 px-3.5 py-3">
           <p className="mb-3 text-[12.5px] leading-snug text-[#9AA4B2]">
-            Отмечены только те, где пробег совпал до километра — два разных
-            автомобиля так не совпадают. Новые машины с нулевым пробегом не
-            отмечены: одинаковая цена у них норма, и это может быть второй
-            экземпляр в наличии.
+            «Точно повтор» — пробег совпал до километра, отмечены к удалению.
+            «Похожи» — та же модель и год, цена и пробег почти равны: скорее
+            всего одна машина, но решать вам. «Возможно, разные» — новые машины
+            с нулевым пробегом: это может быть второй экземпляр в наличии.
           </p>
 
           <div className="space-y-3">
             {groups.map((g) => (
               <div key={g.key} className="rounded-[12px] border border-line-dark bg-graphite-2 p-2.5">
                 <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em]">
-                  <span className={g.certainty === "sure" ? "text-bordeaux-bright" : "text-[#9AA4B2]"}>
-                    {g.certainty === "sure" ? "Точно повтор" : "Возможно, разные машины"}
+                  <span
+                    className={
+                      g.certainty === "sure"
+                        ? "text-bordeaux-bright"
+                        : g.certainty === "similar"
+                          ? "text-amber-300"
+                          : "text-[#9AA4B2]"
+                    }
+                  >
+                    {g.certainty === "sure"
+                      ? "Точно повтор"
+                      : g.certainty === "similar"
+                        ? "Похожи: цена и пробег почти совпадают"
+                        : "Возможно, разные машины"}
                   </span>
                   <span className="text-[#6d7681]">{g.cars.length} карточки</span>
                 </div>
@@ -1064,6 +1144,7 @@ function CatalogTab({
   initData: string;
   canEdit: boolean;
 }) {
+  const desk = useDesk();
   const { cars, setAll } = useCars();
   const [editing, setEditing] = useState<Car | null>(null);
   const [saving, setSaving] = useState(false);
@@ -1075,6 +1156,17 @@ function CatalogTab({
    * вторым экземпляром на складе, а не повтором публикации.
    */
   const dupeGroups = useMemo(() => findDuplicates(cars), [cars]);
+  // Для пометки прямо на карточке: с какими ещё карточками она совпадает.
+  const dupeOf = useMemo(() => {
+    const m = new Map<string, { certainty: DuplicateGroup["certainty"]; others: string[] }>();
+    for (const g of dupeGroups)
+      for (const c of g.cars)
+        m.set(c.id, {
+          certainty: g.certainty,
+          others: g.cars.filter((x) => x.id !== c.id).map((x) => x.model),
+        });
+    return m;
+  }, [dupeGroups]);
   const dupeExtra = useMemo(
     () => dupeGroups.reduce((n, g) => n + g.cars.length - 1, 0),
     [dupeGroups],
@@ -1120,7 +1212,7 @@ function CatalogTab({
       {canEdit ? (
         <button
           onClick={() => setEditing(emptyCar())}
-          className="btn btn-primary mb-3 w-full"
+          className={`btn btn-primary mb-3 ${desk ? "" : "w-full"}`}
         >
           <Plus className="h-[18px] w-[18px]" /> Добавить авто
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -1136,7 +1228,7 @@ function CatalogTab({
           onRemove={(ids) => persist(cars.filter((c) => !ids.has(c.id)))}
         />
       ) : null}
-      <div className="space-y-2.5">
+      <div className={listCls(desk)}>
         {cars.map((car) => (
           <div
             key={car.id}
@@ -1156,6 +1248,31 @@ function CatalogTab({
               <div className="font-num text-[14px] font-bold text-bordeaux-bright">
                 {formatPrice(displayPrice(car))} ₽
               </div>
+              {/* Подсказка прямо на карточке: в общем списке её видно сразу,
+                  а не только в свёрнутой панели наверху. */}
+              {dupeOf.get(car.id) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDupes(true);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className={`mt-1 inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                    dupeOf.get(car.id)!.certainty === "sure"
+                      ? "bg-bordeaux/25 text-[#F08A80]"
+                      : "bg-amber-400/15 text-amber-300"
+                  }`}
+                  title={"Похожа на: " + dupeOf.get(car.id)!.others.join(", ")}
+                >
+                  <Copy className="h-3 w-3 flex-none" />
+                  <span className="truncate">
+                    {dupeOf.get(car.id)!.certainty === "sure" ? "Повтор" : "Похожа"} на{" "}
+                    {dupeOf.get(car.id)!.others.length > 1
+                      ? `${dupeOf.get(car.id)!.others.length} карточки`
+                      : "другую карточку"}
+                  </span>
+                </button>
+              ) : null}
             </div>
             {canEdit ? (
               <>
@@ -1197,6 +1314,7 @@ function CarEditor({
   onSave: (car: Car) => void;
   onCancel: () => void;
 }) {
+  const desk = useDesk();
   const [f, setF] = useState<Car>(initial);
   const set = <K extends keyof Car>(k: K, v: Car[K]) =>
     setF((p) => ({ ...p, [k]: v }));
@@ -1208,7 +1326,7 @@ function CarEditor({
         e.preventDefault();
         onSave(f);
       }}
-      className="space-y-3"
+      className={formCls(desk)}
     >
       <div className="flex items-center justify-between">
         <h2 className="text-[16px] font-extrabold uppercase">
@@ -1457,6 +1575,7 @@ function BotTab({
   initData: string;
   canEdit: boolean;
 }) {
+  const desk = useDesk();
   const [s, setS] = useState<BotSettings | null>(null);
   const [linking, setLinking] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1499,7 +1618,7 @@ function BotTab({
   }
 
   return (
-    <div className="space-y-3">
+    <div className={formCls(desk)}>
       {/* Авто-публикация каталога из канала */}
       <div className="rounded-[14px] border border-bordeaux-bright/40 bg-bordeaux/10 p-3.5">
         <label className="flex items-start gap-3">
@@ -1901,6 +2020,7 @@ function AdsBlock({ stats }: { stats: Stats }) {
 
 /* ---------- Заявки ---------- */
 function LeadsTab({ initData }: { initData: string }) {
+  const desk = useDesk();
   const [leads, setLeads] = useState<Lead[] | null>(null);
   useEffect(() => {
     adminCall<{ leads: Lead[] }>(initData, "leads.list").then((r) => {
@@ -1937,7 +2057,7 @@ function LeadsTab({ initData }: { initData: string }) {
       </p>
     );
   return (
-    <div className="space-y-2.5">
+    <div className={listCls(desk)}>
       {leads.map((l, i) => (
         <div
           key={`${keyOf(l)}:${i}`}
@@ -2002,6 +2122,7 @@ function LeadsTab({ initData }: { initData: string }) {
 
 /* ---------- Админы ---------- */
 function AdminsTab({ initData, owner }: { initData: string; owner: boolean }) {
+  const desk = useDesk();
   const [admins, setAdmins] = useState<AdminsMap | null>(null);
   const [owners, setOwners] = useState<string[]>([]);
   const [id, setId] = useState("");
@@ -2084,7 +2205,7 @@ function AdminsTab({ initData, owner }: { initData: string; owner: boolean }) {
   if (!admins) return <Spinner />;
 
   return (
-    <div className="space-y-4">
+    <div className={formCls(desk, "space-y-4")}>
       <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
         <div className={lab}>Добавить админа</div>
         <div className="space-y-2.5">

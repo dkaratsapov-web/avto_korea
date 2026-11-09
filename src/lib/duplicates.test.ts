@@ -118,3 +118,23 @@ test("пустой каталог и каталог без повторов не
   assert.deepEqual(findDuplicates([]), []);
   assert.deepEqual(findDuplicates([car({ id: "one" })]), []);
 });
+
+test("похожие карточки: та же модель и год, цена и пробег почти равны — подсказка, не удаление", () => {
+  const a = car({ id: "a", priceTverRub: 3_450_000, mileageKm: 23_000, trim: "M-SPORT", addedAt: 2 * DAY });
+  const b = car({ id: "b", priceTverRub: 3_470_000, mileageKm: 23_100, trim: "M Sport пакет", addedAt: DAY });
+  const far = car({ id: "c", priceTverRub: 4_200_000, mileageKm: 23_000, trim: "M-SPORT" });
+  const groups = findDuplicates([a, b, far]);
+  const similar = groups.filter((g) => g.certainty === "similar");
+  assert.equal(similar.length, 1);
+  assert.deepEqual(similar[0].cars.map((x) => x.id), ["a", "b"], "свежая первой, дальняя по цене — не в группе");
+  assert.deepEqual(suggestedRemovals(groups), [], "похожие удалять не предлагаем");
+});
+
+test("точный повтор не попадает ещё и в «похожие»", () => {
+  const a = car({ id: "a", addedAt: 2 * DAY });
+  const b = car({ id: "b", addedAt: DAY });
+  const groups = findDuplicates([a, b]);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].certainty, "sure");
+});
+
