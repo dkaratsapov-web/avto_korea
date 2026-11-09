@@ -938,47 +938,141 @@ function StatsTab({ initData }: { initData: string }) {
 }
 
 /* ---------- Рассылка ---------- */
+type Audience = {
+  total: number;
+  blocked: number;
+  new7d: number;
+  active30d: number;
+  segments: { key: string; label: string; count: number }[];
+  last: { at: number; sent: number; total: number; blocked?: number; segment?: string } | null;
+};
+
 function BroadcastTab({ tg, initData }: { tg: TG | null; initData: string }) {
   const desk = useDesk();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [aud, setAud] = useState<Audience | null>(null);
+  const [segment, setSegment] = useState("all");
+
+  // Кто получит — до отправки, чтобы был виден масштаб.
+  const load = () =>
+    adminCall<{ audience: Audience }>(initData, "broadcast.audience").then((r) => {
+      if (r.ok) setAud(r.audience);
+    });
+  useEffect(() => {
+    load();
+  }, [initData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const seg = aud?.segments.find((x) => x.key === segment);
+  const count = seg?.count ?? aud?.total ?? 0;
 
   async function send() {
     if (text.trim().length < 2) return;
-    if (!confirm("Отправить сообщение всем пользователям бота?")) return;
+    if (!count) {
+      showToast("В этом сегменте никого нет", "error");
+      return;
+    }
+    if (!confirm(`Отправить сообщение: ${seg?.label ?? "Все"} — ${count} чел.?`)) return;
     setSending(true);
-    const r = await adminCall<{ sent: number; total: number }>(
+    const r = await adminCall<{ sent: number; total: number; blocked?: number }>(
       initData,
       "broadcast.send",
-      { text: text.trim() },
+      { text: text.trim(), segment },
     );
     setSending(false);
     if (r.ok) {
       haptic(tg, "medium");
-      showToast(`Отправлено: ${r.sent} из ${r.total}`);
+      showToast(
+        `Доставлено: ${r.sent} из ${r.total}` + (r.blocked ? ` · заблокировали бота: ${r.blocked}` : ""),
+      );
       setText("");
+      load();
     } else showToast("Ошибка: " + (r.error || ""), "error");
   }
 
+  const fmtDate = (ts: number) =>
+    new Date(ts).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
   return (
     <div className={formCls(desk)}>
-      <p className="text-[13px] text-[#9AA4B2]">
-        Сообщение получат все, кто писал боту или открывал мини-апп.
-      </p>
+      {/* Сколько получат */}
+      <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
+        {aud ? (
+          <>
+            <div className="flex items-end gap-2">
+              <span className="font-num text-[32px] font-extrabold leading-none text-[#E0574C]">{count}</span>
+              <span className="pb-0.5 text-[13px] text-[#9AA4B2]">
+                {seg && seg.key !== "all" ? `получат · ${seg.label.toLowerCase()}` : "получат сообщение"}
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-[#9AA4B2]">
+              <span>Всего в боте: <b className="font-num text-white">{aud.total}</b></span>
+              <span>Новых за 7 дней: <b className="font-num text-white">{aud.new7d}</b></span>
+              <span>Заходили за 30 дней: <b className="font-num text-white">{aud.active30d}</b></span>
+              {aud.blocked ? (
+                <span>Заблокировали бота: <b className="font-num text-white">{aud.blocked}</b></span>
+              ) : null}
+            </div>
+            {aud.last ? (
+              <div className="mt-2 border-t border-line-dark pt-2 text-[12px] text-[#9AA4B2]">
+                Прошлая рассылка {fmtDate(aud.last.at)}
+                {aud.last.segment ? ` (${aud.last.segment})` : ""}: доставлено{" "}
+                <b className="font-num text-white">{aud.last.sent}</b> из{" "}
+                <b className="font-num text-white">{aud.last.total}</b>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="flex items-center gap-2 text-[13px] text-[#9AA4B2]">
+            <Loader2 className="h-4 w-4 animate-spin" /> Считаем получателей…
+          </div>
+        )}
+      </div>
+
+      {/* Кому отправить */}
+      {aud?.segments?.length ? (
+        <div>
+          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">Кому</div>
+          <div className="flex flex-wrap gap-2">
+            {aud.segments.map((sg) => (
+              <button
+                key={sg.key}
+                type="button"
+                disabled={!sg.count}
+                onClick={() => setSegment(sg.key)}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition-colors disabled:opacity-35 ${
+                  segment === sg.key
+                    ? "border-bordeaux-bright bg-bordeaux text-white"
+                    : "border-line-dark text-chrome hover:text-white"
+                }`}
+              >
+                {sg.label}
+                <span className={`font-num text-[11px] ${segment === sg.key ? "text-white/75" : "text-[#7C8792]"}`}>
+                  {sg.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <textarea
         className="field-dark min-h-[140px]"
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Текст рассылки…"
       />
-      <button onClick={send} className="btn btn-primary w-full">
+      <button onClick={send} disabled={sending} className="btn btn-primary w-full disabled:opacity-60">
         {sending ? (
           <Loader2 className="h-[18px] w-[18px] animate-spin" />
         ) : (
           <Megaphone className="h-[18px] w-[18px]" />
         )}
-        Отправить всем
+        {segment === "all" ? `Отправить всем (${count})` : `Отправить: ${seg?.label ?? ""} (${count})`}
       </button>
+      <p className="text-[12px] text-[#7C8792]">
+        Кто заблокировал бота, в рассылку не попадает. Нажмёт /start снова — вернётся.
+      </p>
     </div>
   );
 }

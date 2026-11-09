@@ -3018,3 +3018,62 @@ test("/crm_admin отвечает владельцу ключом — без Mar
   const deny = calls.filter((x) => x.method === "sendMessage").pop();
   assert.match(String(deny.body.text), /только владельцу/);
 });
+
+test("рассылка: сколько получат, заблокировавших не считаем и больше им не шлём", async () => {
+  const now = Date.now();
+  const store = makeStore({
+    users: {
+      1: { name: "А", ts: now, openedAt: now },
+      2: { name: "Б", ts: now - 40 * 86400000 },
+      3: { name: "В", ts: now, blockedAt: now - 1000 },
+    },
+  });
+  const sent = [];
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init?.body || "{}");
+    sent.push(body.chat_id);
+    // «Б» заблокировал бота — Telegram отвечает 403.
+    if (String(body.chat_id) === "2") return new Response(JSON.stringify({ ok: false }), { status: 403 });
+    return new Response(JSON.stringify({ ok: true, result: {} }), { status: 200 });
+  };
+
+  const before = (await (await admin("broadcast.audience", null, store)).json()).audience;
+  assert.deepEqual(
+    { total: before.total, blocked: before.blocked, new7d: before.new7d, active30d: before.active30d },
+    { total: 2, blocked: 1, new7d: 1, active30d: 1 },
+  );
+
+  const r = await (await admin("broadcast.send", { text: "Привет" }, store)).json();
+  assert.deepEqual({ sent: r.sent, total: r.total, blocked: r.blocked }, { sent: 1, total: 2, blocked: 1 });
+  assert.ok(!sent.includes(3), "заблокировавшему не шлём");
+
+  const after = (await (await admin("broadcast.audience", null, store)).json()).audience;
+  assert.equal(after.total, 1);
+  assert.equal(after.blocked, 2);
+  assert.equal(after.last.sent, 1);
+});
+
+test("рассылка по сегменту: только оставившим заявку", async () => {
+  const now = Date.now();
+  const store = makeStore({
+    users: { 11: { ts: now, src: "tg_clubs" }, 12: { ts: now }, 13: { ts: now - 60 * 86400000 } },
+    leads: [{ name: "А", phone: "+7", ts: now, tgUserId: "11" }],
+  });
+  const to = [];
+  globalThis.fetch = async (url, init) => {
+    to.push(String(JSON.parse(init?.body || "{}").chat_id));
+    return new Response(JSON.stringify({ ok: true, result: {} }), { status: 200 });
+  };
+  const aud = (await (await admin("broadcast.audience", null, store)).json()).audience;
+  const count = (k) => aud.segments.find((x) => x.key === k)?.count;
+  assert.equal(count("all"), 3);
+  assert.equal(count("lead"), 1);
+  assert.equal(count("nolead"), 2);
+  assert.equal(count("sleeping"), 1);
+  assert.equal(count("src:tg_clubs"), 1);
+
+  const r = await (await admin("broadcast.send", { text: "Скидка", segment: "lead" }, store)).json();
+  assert.equal(r.total, 1);
+  assert.deepEqual(to, ["11"]);
+  assert.equal((await admin("broadcast.send", { text: "x", segment: "nope" }, store)).status, 400);
+});

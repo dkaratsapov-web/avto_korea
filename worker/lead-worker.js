@@ -756,6 +756,7 @@ const NEED_CAP = {
   "reviews.clear": "reviews",
   "stats.get": "stats",
   "broadcast.send": "broadcast",
+  "broadcast.audience": "broadcast",
   "webhook.setup": "bot",
   "admins.list": "admins",
   "admins.set": "admins",
@@ -1710,6 +1711,9 @@ export default {
         // Метка из диплинка: вариант А/Б и источник кампании. Фиксируется
         // один раз, чтобы повторный /start не перекинул человека в другую
         // группу теста.
+        // Нажал /start — снова доступен для рассылок, даже если раньше
+        // блокировал бота.
+        delete me.blockedAt;
         const { variant, src } = parseStartPayload(msg.text);
         if (!me.v) me.v = variant;
         if (!me.src && src) me.src = src;
@@ -3945,6 +3949,37 @@ async function handleChannelPost(env, post, opts = {}) {
 }
 
 /* ---------- Обработчики админ-действий ---------- */
+/* ---------- Сегменты рассылки ---------- */
+
+/**
+ * Сегменты получателей рассылки. Строятся из того, что бот и так знает о
+ * человеке: когда пришёл и заходил, с какой рекламной метки, подписан ли на
+ * канал, оставлял ли заявку. Заблокировавшие бота не входят ни в один.
+ */
+function broadcastSegments(users, leads, now = Date.now()) {
+  const DAY = 86400000;
+  const withLead = new Set((leads || []).map((l) => String(l?.tgUserId || "")).filter(Boolean));
+  const seen = (u) => u?.openedAt || u?.ts || 0;
+  const defs = [
+    { key: "all", label: "Все", test: () => true },
+    { key: "new7d", label: "Новые за 7 дней", test: (u) => now - (u?.ts || 0) < 7 * DAY },
+    { key: "active30d", label: "Заходили за 30 дней", test: (u) => now - seen(u) < 30 * DAY },
+    { key: "sleeping", label: "Не заходили больше 30 дней", test: (u) => now - seen(u) >= 30 * DAY },
+    { key: "lead", label: "Оставили заявку", test: (_u, id) => withLead.has(id) },
+    { key: "nolead", label: "Ещё без заявки", test: (_u, id) => !withLead.has(id) },
+    { key: "subscribed", label: "Подписаны на канал", test: (u) => !!u?.subAt },
+  ];
+  const tags = [...new Set(Object.values(users || {}).map((u) => u?.src).filter(Boolean))].sort();
+  for (const tag of tags) defs.push({ key: `src:${tag}`, label: `Реклама: ${tag}`, test: (u) => u?.src === tag });
+
+  const live = Object.entries(users || {}).filter(([, u]) => !u?.blockedAt);
+  return defs.map((d) => ({
+    key: d.key,
+    label: d.label,
+    ids: live.filter(([id, u]) => d.test(u, id)).map(([id]) => id),
+  }));
+}
+
 async function handleAdmin(env, action, payload, perm, user, origin) {
   switch (action) {
     case "me":
@@ -4188,21 +4223,70 @@ async function handleAdmin(env, action, payload, perm, user, origin) {
       });
     }
 
+    /*
+     * Кто получит рассылку — цифры над полем текста, чтобы было видно масштаб
+     * до отправки. Заблокировавшие бота в рассылку не идут: Telegram им всё
+     * равно не доставит, а счёт «отправлено» врал бы.
+     */
+    case "broadcast.audience": {
+      const [users, leads, last] = await Promise.all([
+        kvGet(env, "users", {}),
+        kvGet(env, "leads", []),
+        kvGet(env, "lastBroadcast", null),
+      ]);
+      const now = Date.now();
+      const DAY = 86400000;
+      const list = Object.values(users || {});
+      const blocked = list.filter((u) => u?.blockedAt).length;
+      const segments = broadcastSegments(users, leads, now).map((sg) => ({
+        key: sg.key,
+        label: sg.label,
+        count: sg.ids.length,
+      }));
+      return json({
+        ok: true,
+        audience: {
+          total: list.length - blocked,
+          blocked,
+          new7d: list.filter((u) => !u?.blockedAt && now - (u?.ts || 0) < 7 * DAY).length,
+          active30d: list.filter((u) => !u?.blockedAt && now - (u?.openedAt || u?.ts || 0) < 30 * DAY).length,
+          segments,
+          last: last || null,
+        },
+      });
+    }
+
     case "broadcast.send": {
       const text = String(payload?.text || "").trim();
       if (!text) return json({ ok: false, error: "empty" }, 400);
       const users = (await kvGet(env, "users", {})) || {};
-      const ids = Object.keys(users);
+      const leads = (await kvGet(env, "leads", [])) || [];
+      const segKey = String(payload?.segment || "all");
+      const seg = broadcastSegments(users, leads).find((x) => x.key === segKey);
+      if (!seg) return json({ ok: false, error: "bad_segment" }, 400);
+      const ids = seg.ids;
       let sent = 0;
+      const gone = [];
       for (const id of ids) {
         try {
           const r = await api(env, "sendMessage", { chat_id: id, text });
           if (r.ok) sent++;
+          // 403 — человек заблокировал бота или удалил аккаунт: следующей
+          // рассылке слать ему незачем. Вернётся сам — снова нажав /start.
+          else if (r.status === 403) gone.push(id);
         } catch {
           /* ignore */
         }
       }
-      return json({ ok: true, sent, total: ids.length });
+      if (gone.length) {
+        // Перечитываем: за время рассылки могли прийти новые /start.
+        const fresh = (await kvGet(env, "users", {})) || {};
+        for (const id of gone) if (fresh[id]) fresh[id].blockedAt = Date.now();
+        await kvPut(env, "users", fresh);
+      }
+      const result = { at: Date.now(), sent, total: ids.length, blocked: gone.length, segment: seg.label };
+      await kvPut(env, "lastBroadcast", result);
+      return json({ ok: true, ...result });
     }
 
     case "admins.list": {
