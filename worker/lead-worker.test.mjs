@@ -2990,3 +2990,31 @@ test("пост в MAX — как в Telegram: ярлыки жирным, цен�
   assert.match(html, /Связаться: <a href="https:\/\/max\.ru\/u\/[^"]+">написать менеджеру в MAX<\/a>/);
   assert.ok(!/\n{3,}/.test(html), "без пустых провалов между блоками");
 });
+
+test("/crm_admin отвечает владельцу ключом — без Markdown, который ломает подчёркивание", async () => {
+  const store = makeStore({});
+  const calls = stubTelegram();
+  const c = makeCtx();
+  const send = (from) =>
+    run(
+      {
+        update_id: 95,
+        message: { message_id: 905, text: "/crm_admin", chat: { id: from, type: "private" }, from: { id: from, first_name: "Х" } },
+      },
+      { store, env: { ADMIN_IDS: "777" }, ctx: c.ctx },
+    );
+
+  await send(777);
+  await c.settle();
+  const key = await store.get("crmAdminKey");
+  assert.ok(typeof key === "string" && key.length >= 32, "полный ключ сохранён");
+  const reply = calls.filter((x) => x.method === "sendMessage").pop();
+  assert.ok(String(reply.body.text).includes(`<code>${key}</code>`), "ключ пришёл владельцу");
+  assert.equal(reply.body.parse_mode, "HTML");
+  assert.notEqual(await store.get("crmKey"), key, "ключ отзывов не задет");
+
+  await send(555);
+  await c.settle();
+  const deny = calls.filter((x) => x.method === "sendMessage").pop();
+  assert.match(String(deny.body.text), /только владельцу/);
+});

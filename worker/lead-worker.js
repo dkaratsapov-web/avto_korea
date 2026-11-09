@@ -857,7 +857,13 @@ async function catalogSourceOk(env, post) {
 async function tellAdmins(env, text) {
   for (const chatId of await adminChatIds(env)) {
     try {
-      await api(env, "sendMessage", { chat_id: chatId, text, parse_mode: "Markdown" });
+      const r = await api(env, "sendMessage", { chat_id: chatId, text, parse_mode: "Markdown" });
+      // В текст подставляются названия каналов: «_» или «*» в названии ломают
+      // Markdown, и Telegram отклоняет сообщение целиком. Тогда — простым текстом.
+      const j = await r.json().catch(() => null);
+      if (j && j.ok === false && /parse entities/i.test(String(j.description || ""))) {
+        await api(env, "sendMessage", { chat_id: chatId, text: text.replace(/`/g, "") });
+      }
     } catch {
       /* один недоступный админ не должен ронять обработку */
     }
@@ -1424,7 +1430,14 @@ export default {
        */
       if (msg && typeof msg.text === "string" && /^\/crm_?admin(@\w+)?/i.test(msg.text.trim())) {
         const perm = await permsOf(env, msg.from?.id);
-        if (!perm?.owner) return new Response("ok");
+        if (!perm?.owner) {
+          // Молчание выглядит как поломка бота — говорим прямо.
+          await api(env, "sendMessage", {
+            chat_id: msg.chat.id,
+            text: "Эта команда доступна только владельцу бота.",
+          });
+          return new Response("ok");
+        }
         const rotate = /(нов|new|сброс|reset)/i.test(msg.text);
         let key = String((await kvGet(env, "crmAdminKey", "")) || "");
         if (!key || rotate) {
@@ -1436,13 +1449,16 @@ export default {
           text:
             "🔐 Полный ключ CRM — вся админка бота" +
             (rotate ? " (новый — старый больше не работает)" : "") +
-            ":\n\n`" +
+            ":\n\n<code>" +
             key +
-            "`\n\nОткройте CRM → «Бот» и вставьте его в поле подключения. " +
+            "</code>\n\nОткройте CRM → «Бот» и вставьте его в поле подключения. " +
             "Ключ даёт те же права, что у владельца в админке мини-аппа: каталог, " +
             "заявки, настройки, рассылку, админов. Никому его не пересылайте.\n\n" +
             "Заменить ключ: /crm_admin новый",
-          parse_mode: "Markdown",
+          // HTML, а не Markdown: в Markdown подчёркивание из «/crm_admin»
+          // открывает курсив без пары, Telegram отклоняет сообщение целиком —
+          // и владелец не получал ответа вовсе.
+          parse_mode: "HTML",
         });
         return new Response("ok");
       }
