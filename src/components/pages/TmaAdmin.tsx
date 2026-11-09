@@ -43,6 +43,8 @@ import { haptic, type TG } from "@/lib/telegram";
 import {
   findDuplicates,
   suggestedRemovals,
+  whySimilar,
+  COMPARE_FIELDS,
   type DuplicateGroup,
 } from "@/lib/duplicates";
 import { displayPrice } from "@/lib/price";
@@ -1026,7 +1028,7 @@ function DuplicatePanel({
           <span className="block text-[14.5px] font-bold text-white">
             Похожие карточки в каталоге: {groups.length}{" "}
             {groups.length === 1 ? "группа" : groups.length < 5 ? "группы" : "групп"}
-            {extra ? ` · лишних до ${extra}` : ""}
+            {extra ? ` · отмечено к удалению: ${extra}` : ""}
           </span>
           <span className="block text-[12.5px] text-[#9AA4B2]">
             Возможно, одна и та же машина опубликована дважды — проверьте и уберите лишнее
@@ -1068,6 +1070,26 @@ function DuplicatePanel({
                   <span className="text-[#6d7681]">{g.cars.length} карточки</span>
                 </div>
 
+                {/* Почему группа собралась: что совпало и что разошлось. По этой
+                    строке решают, одна это машина или разные, не открывая карточки. */}
+                {(() => {
+                  const why = whySimilar(g);
+                  return (
+                    <div className="mb-2 space-y-1 rounded-[10px] bg-black/25 px-2.5 py-2 text-[12px] leading-snug">
+                      <div>
+                        <span className="font-bold text-success">Совпадает: </span>
+                        <span className="text-[#C7CFD6]">{why.same.join(", ")}</span>
+                      </div>
+                      {why.diff.length ? (
+                        <div>
+                          <span className="font-bold text-amber-300">Отличается: </span>
+                          <span className="text-[#C7CFD6]">{why.diff.join(", ")}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })()}
+
                 <div className="space-y-1.5">
                   {g.cars.map((car, i) => (
                     <label
@@ -1095,7 +1117,39 @@ function DuplicatePanel({
                             </span>
                           ) : null}
                         </div>
-                        <div className="text-[11.5px] text-[#9AA4B2]">
+                        {/* Характеристики карточки. Жёлтым — то, чем она
+                            отличается от самой свежей в группе. */}
+                        <div className="mt-0.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[12px]">
+                          {COMPARE_FIELDS.map((f) => {
+                            const raw = f.value(car);
+                            const v =
+                              f.key === "country"
+                                ? countries[car.country as CountryCode]?.label || raw
+                                : raw;
+                            if (!v) return null;
+                            const differs =
+                              i > 0 &&
+                              raw.toLowerCase().replace(/\s+/g, " ") !==
+                                f.value(g.cars[0]).toLowerCase().replace(/\s+/g, " ");
+                            return (
+                              <span key={f.key} className="whitespace-nowrap">
+                                <span className="text-[#6d7681]">{f.label}: </span>
+                                <span
+                                  className={
+                                    differs
+                                      ? "font-bold text-amber-300"
+                                      : f.key === "price"
+                                        ? "font-semibold text-white"
+                                        : "text-[#C7CFD6]"
+                                  }
+                                >
+                                  {v}
+                                </span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-0.5 text-[11.5px] text-[#7C8792]">
                           {car.addedAt
                             ? "в каталоге с " +
                               new Date(car.addedAt).toLocaleDateString("ru-RU")
@@ -1161,14 +1215,19 @@ function CatalogTab({
     const m = new Map<string, { certainty: DuplicateGroup["certainty"]; others: string[] }>();
     for (const g of dupeGroups)
       for (const c of g.cars)
-        m.set(c.id, {
+        // Карточка может быть и в точной группе, и в «похожих» — показываем
+        // самое сильное: точный повтор.
+        if (m.get(c.id)?.certainty !== "sure")
+          m.set(c.id, {
           certainty: g.certainty,
           others: g.cars.filter((x) => x.id !== c.id).map((x) => x.model),
         });
     return m;
   }, [dupeGroups]);
+  // Сколько отмечено к удалению — только точные повторы; карточка может
+  // стоять в двух группах сразу, поэтому просто сумма по группам врала.
   const dupeExtra = useMemo(
-    () => dupeGroups.reduce((n, g) => n + g.cars.length - 1, 0),
+    () => suggestedRemovals(dupeGroups).length,
     [dupeGroups],
   );
 

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { carFingerprint, findDuplicates, suggestedRemovals } from "./duplicates";
+import { carFingerprint, findDuplicates, suggestedRemovals, whySimilar } from "./duplicates";
 import type { Car } from "@/data/cars";
 
 const DAY = 86400000;
@@ -136,5 +136,29 @@ test("точный повтор не попадает ещё и в «похож�
   const groups = findDuplicates([a, b]);
   assert.equal(groups.length, 1);
   assert.equal(groups[0].certainty, "sure");
+});
+
+
+test("почему похожи: что совпало и насколько разошлись цена и пробег", () => {
+  const a = car({ id: "a", priceTverRub: 3_450_000, mileageKm: 23_000, trim: "M-SPORT", addedAt: 2 * DAY });
+  const b = car({ id: "b", priceTverRub: 3_470_000, mileageKm: 23_100, trim: "M Sport", addedAt: DAY });
+  const [g] = findDuplicates([a, b]);
+  const why = whySimilar(g);
+  assert.ok(why.same.includes("модель"));
+  assert.ok(why.same.includes("год 2023"));
+  assert.ok(why.diff.some((d) => d.startsWith("цена") && d.includes("0.6%")), why.diff.join("; "));
+  assert.ok(why.diff.some((d) => d.startsWith("пробег")), why.diff.join("; "));
+  assert.ok(why.diff.includes("комплектация"));
+});
+
+test("карточка, похожая на точный повтор, тоже попадает в «похожие»", () => {
+  const a = car({ id: "a", priceTverRub: 3_450_000, mileageKm: 23_000, addedAt: 3 * DAY });
+  const b = car({ id: "b", priceTverRub: 3_450_000, mileageKm: 23_000, addedAt: 2 * DAY });
+  const c = car({ id: "c", priceTverRub: 3_470_000, mileageKm: 23_100, trim: "M Sport", addedAt: DAY });
+  const groups = findDuplicates([a, b, c]);
+  assert.equal(groups[0].certainty, "sure");
+  const similar = groups.find((g) => g.certainty === "similar");
+  assert.ok(similar && similar.cars.some((x) => x.id === "c"), "третья карточка не выпала");
+  assert.deepEqual(suggestedRemovals(groups).map((x) => x.id), ["b"], "к удалению — только точный повтор");
 });
 

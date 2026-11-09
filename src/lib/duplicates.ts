@@ -84,7 +84,17 @@ export function findDuplicates(cars: Car[]): DuplicateGroup[] {
     groups.push({ key, cars: sorted, certainty: hasMileage ? "sure" : "maybe" });
     for (const c of list) inExact.add(c.id);
   }
-  groups.push(...findSimilar(cars.filter((c) => !inExact.has(c.id))));
+  /*
+   * Похожие ищем по ВСЕМУ каталогу: карточка, похожая на точный повтор,
+   * иначе выпадала из поиска — её пары уже «заняты» точной группой. Группу,
+   * которая целиком повторяет точную, второй раз не показываем.
+   */
+  const exactKey = new Map(cars.map((c) => [c.id, carFingerprint(c)]));
+  for (const g of findSimilar(cars)) {
+    const keys = new Set(g.cars.map((c) => exactKey.get(c.id)));
+    if (keys.size === 1 && g.cars.every((c) => inExact.has(c.id))) continue;
+    groups.push(g);
+  }
   const rank = { sure: 0, maybe: 1, similar: 2 } as const;
   return groups.sort((a, b) => {
     if (a.certainty !== b.certainty) return rank[a.certainty] - rank[b.certainty];
@@ -177,4 +187,84 @@ export function suggestedRemovals(groups: DuplicateGroup[]): Car[] {
   return groups
     .filter((g) => g.certainty === "sure")
     .flatMap((g) => g.cars.slice(1));
+}
+
+/** Поле карточки для сравнения в группе: подпись и значение у машины. */
+export type CompareField = { key: string; label: string; value: (c: Car) => string };
+
+const rub = (n: number) => `${new Intl.NumberFormat("ru-RU").format(n)} ₽`;
+const km = (n: number) => (n ? `${new Intl.NumberFormat("ru-RU").format(n)} км` : "без пробега");
+
+/**
+ * Поля, которые показываем у каждой карточки группы — по ним человек и
+ * решает, одна это машина или две. Пустые значения выводятся как «—».
+ */
+export const COMPARE_FIELDS: CompareField[] = [
+  { key: "price", label: "Цена", value: (c) => rub(c.priceTverRub ?? c.priceRub ?? 0) },
+  { key: "trim", label: "Комплектация", value: (c) => String(c.trim || "").trim() },
+  { key: "year", label: "Год", value: (c) => (c.year ? String(c.year) : "") },
+  { key: "mileage", label: "Пробег", value: (c) => km(c.mileageKm ?? 0) },
+  { key: "engine", label: "Двигатель", value: (c) => String(c.engine || "").trim() },
+  { key: "power", label: "Мощность", value: (c) => (c.powerHp ? `${c.powerHp} л.с.` : "") },
+  { key: "color", label: "Цвет", value: (c) => String(c.color || "").trim() },
+  { key: "drive", label: "Привод", value: (c) => String(c.drive || "").trim() },
+  { key: "country", label: "Страна", value: (c) => String(c.country || "") },
+];
+
+/** Насколько различаются два числа, в процентах от большего. */
+function spread(values: number[]): number {
+  const xs = values.filter((v) => v > 0);
+  if (xs.length < 2) return 0;
+  const max = Math.max(...xs);
+  return ((max - Math.min(...xs)) / max) * 100;
+}
+
+/**
+ * Почему карточки группы похожи — и чем отличаются.
+ *
+ * Без этого в группе видны только одинаковые названия, и чтобы решить, что
+ * удалять, приходилось открывать каждую карточку. Здесь — что совпало
+ * (модель, год, комплектация, главное фото, описание) и насколько разошлись
+ * цена и пробег.
+ */
+export function whySimilar(group: DuplicateGroup): { same: string[]; diff: string[] } {
+  const cars = group.cars;
+  const same: string[] = ["модель"];
+  const diff: string[] = [];
+  const all = (f: (c: Car) => string) => {
+    const vals = cars.map(f).map((v) => v.toLowerCase().replace(/\s+/g, " ").trim());
+    return { vals, one: vals.every((v) => v === vals[0]), empty: vals.every((v) => !v) };
+  };
+
+  const year = all((c) => String(c.year || ""));
+  if (year.one && !year.empty) same.push(`год ${cars[0].year}`);
+  else if (!year.empty) diff.push("год");
+
+  const prices = cars.map((c) => c.priceTverRub ?? c.priceRub ?? 0);
+  const ps = spread(prices);
+  if (ps === 0 && prices[0]) same.push(`цена ${rub(prices[0])}`);
+  else if (prices.some(Boolean)) {
+    const lo = Math.min(...prices.filter(Boolean));
+    const hi = Math.max(...prices);
+    diff.push(`цена ${rub(lo)} – ${rub(hi)} (разница ${ps.toFixed(1)}%)`);
+  }
+
+  const kms = cars.map((c) => c.mileageKm ?? 0);
+  const ks = spread(kms);
+  if (kms.every((k) => k === kms[0])) same.push(kms[0] ? `пробег ${km(kms[0])}` : "без пробега");
+  else diff.push(`пробег ${km(Math.min(...kms))} – ${km(Math.max(...kms))} (разница ${ks.toFixed(1)}%)`);
+
+  for (const f of COMPARE_FIELDS.filter((x) => ["trim", "engine", "power", "color", "drive"].includes(x.key))) {
+    const r = all(f.value);
+    if (r.empty) continue;
+    if (r.one) same.push(`${f.label.toLowerCase()}${f.key === "trim" ? ` «${f.value(cars[0])}»` : ""}`);
+    else diff.push(f.label.toLowerCase());
+  }
+
+  const photo = all((c) => String(c.images?.[0] || ""));
+  if (photo.one && !photo.empty) same.push("главное фото");
+  const about = all((c) => String(c.description || ""));
+  if (about.one && !about.empty) same.push("описание");
+
+  return { same, diff };
 }
