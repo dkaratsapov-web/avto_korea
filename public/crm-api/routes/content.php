@@ -16,6 +16,7 @@ declare(strict_types=1);
 
 const CRM_CONTENT_KEY = 'content_plan';
 const CRM_CONTENT_STATUSES = ['idea', 'progress', 'ready', 'published'];
+const CRM_BRIEF_KEY = 'content_brief';
 
 function crm_content_load(): ?array
 {
@@ -27,7 +28,36 @@ function crm_content_load(): ?array
     if (!is_array($data) || !isset($data['posts']) || !is_array($data['posts'])) {
         return null;
     }
-    return ['posts' => $data['posts'], 'updatedAt' => $row['updated_at'], 'updatedBy' => $data['updatedBy'] ?? ''];
+    return [
+        'posts' => $data['posts'],
+        'seed' => (int) ($data['seed'] ?? 1),
+        'updatedAt' => $row['updated_at'],
+        'updatedBy' => $data['updatedBy'] ?? '',
+    ];
+}
+
+/** Запись «ключ → JSON» в crm_settings: вставка или обновление. */
+function crm_content_store(string $key, array $data): void
+{
+    $payload = json_encode($data, JSON_UNESCAPED_UNICODE);
+    $exists = crm_one('SELECT id FROM crm_settings WHERE id = ?', [$key]);
+    if ($exists === null) {
+        crm_exec('INSERT INTO crm_settings (id, data, updated_at) VALUES (?, ?, ?)', [$key, $payload, crm_now()]);
+    } else {
+        crm_exec('UPDATE crm_settings SET data = ?, updated_at = ? WHERE id = ?', [$payload, crm_now(), $key]);
+    }
+}
+
+/** Ответы на бриф: { answers: {id: текст}, updatedBy }. */
+function crm_content_brief(): array
+{
+    $row = crm_one('SELECT data, updated_at FROM crm_settings WHERE id = ?', [CRM_BRIEF_KEY]);
+    $data = $row ? json_decode((string) $row['data'], true) : null;
+    return [
+        'answers' => is_array($data['answers'] ?? null) ? (object) $data['answers'] : new stdClass(),
+        'updatedAt' => $row['updated_at'] ?? null,
+        'updatedBy' => $data['updatedBy'] ?? '',
+    ];
 }
 
 /** Публикация из запроса: только известные поля, с обрезкой длины. */
@@ -56,6 +86,8 @@ function crm_content_clean(array $p, int $i): array
         'hook' => crm_str($p, 'hook', 400),
         'visual' => crm_str($p, 'visual', 800),
         'note' => crm_str($p, 'note', 800),
+        'length' => in_array($p['length'] ?? '', ['short', 'long'], true) ? $p['length'] : '',
+        'size' => crm_str($p, 'size', 80),
         'status' => $status,
     ];
 }
@@ -85,17 +117,39 @@ function crm_route_content(string $method, array $path): void
         }
         usort($clean, fn($a, $b) => strcmp($a['date'], $b['date']) ?: ($a['n'] <=> $b['n']));
 
-        $payload = json_encode(
-            ['posts' => $clean, 'updatedBy' => (string) ($user['name'] ?? '')],
-            JSON_UNESCAPED_UNICODE,
-        );
-        $exists = crm_one('SELECT id FROM crm_settings WHERE id = ?', [CRM_CONTENT_KEY]);
-        if ($exists === null) {
-            crm_exec('INSERT INTO crm_settings (id, data, updated_at) VALUES (?, ?, ?)', [CRM_CONTENT_KEY, $payload, crm_now()]);
-        } else {
-            crm_exec('UPDATE crm_settings SET data = ?, updated_at = ? WHERE id = ?', [$payload, crm_now(), CRM_CONTENT_KEY]);
-        }
+        // seed — версия стартового плана, от которой пошли правки: по ней
+        // интерфейс понимает, что вышел обновлённый план, и предлагает его.
+        crm_content_store(CRM_CONTENT_KEY, [
+            'posts' => $clean,
+            'seed' => max(1, (int) ($body['seed'] ?? 1)),
+            'updatedBy' => (string) ($user['name'] ?? ''),
+        ]);
         crm_json(['ok' => true, 'plan' => crm_content_load()]);
+    }
+
+    if (($path[0] ?? '') === 'brief' && $method === 'GET') {
+        crm_json(['ok' => true, 'brief' => crm_content_brief()]);
+    }
+
+    // Ответ на один вопрос: пишем точечно, чтобы двое отвечающих
+    // одновременно не затирали ответы друг друга.
+    if (($path[0] ?? '') === 'brief' && $method === 'POST') {
+        $body = crm_body();
+        $id = crm_str($body, 'id', 40);
+        if ($id === '' || !preg_match('/^[a-z0-9_]+$/', $id)) {
+            crm_fail(422, 'bad_id', 'Неизвестный вопрос');
+        }
+        $text = crm_str($body, 'answer', 4000);
+        $row = crm_one('SELECT data FROM crm_settings WHERE id = ?', [CRM_BRIEF_KEY]);
+        $data = $row ? (json_decode((string) $row['data'], true) ?: []) : [];
+        $answers = is_array($data['answers'] ?? null) ? $data['answers'] : [];
+        if ($text === '') {
+            unset($answers[$id]);
+        } else {
+            $answers[$id] = $text;
+        }
+        crm_content_store(CRM_BRIEF_KEY, ['answers' => (object) $answers, 'updatedBy' => (string) ($user['name'] ?? '')]);
+        crm_json(['ok' => true, 'brief' => crm_content_brief()]);
     }
 
     crm_fail(404, 'not_found', 'Неизвестный метод раздела «Контент»');

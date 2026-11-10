@@ -5,39 +5,47 @@
  * публикации статус, её можно перенести, поправить, добавить новую. План
  * хранится в базе CRM, поэтому изменения видят все сотрудники.
  *
- * Три вида: календарь месяца, разбивка по направлениям (рубрика × неделя) и
- * общий список. Пока в базе пусто — показываем стартовый план из файла и
- * сохраняем его целиком при первой правке.
+ * Виды: календарь месяца, разбивка по направлениям (рубрика × неделя),
+ * общий список и бриф перед запуском. Пока в базе пусто — показываем
+ * стартовый план из файла и сохраняем его целиком при первой правке. Если
+ * стартовый план обновился (seed.version), а в базе лежит старый — предлагаем
+ * заменить, но сами не заменяем: там могут быть правки.
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { CalendarDays, Columns3, List, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, ClipboardList, Columns3, List, Plus, RefreshCw, Trash2 } from "lucide-react";
 import seed from "../data/content-plan.json";
 import { api, ApiError, type ContentPost } from "../lib/api";
 import { Button, Card, Field, Input, Modal, Select, Spinner, Textarea, useToast } from "../ui";
 import { PageHead } from "./Layout";
+import { ContentBrief } from "./ContentBrief";
 
 const RUBRICS: Record<string, string> = {
   "Авто из каталога": "#9C1A12",
+  "Расчёт онлайн": "#C98A1A",
+  "Разборы": "#6B4FB3",
   "Выдачи и отзывы": "#2E9E5B",
-  "Из чего складывается цена": "#C98A1A",
   "Сравнения и подборки": "#2F6FB3",
-  "Как мы проверяем": "#6B4FB3",
   "Новости рынка": "#0F8F8F",
   "Вопросы и вовлечение": "#5C6D76",
 };
-const FORMATS = ["карусель", "Reels", "опрос", "вопрос-ответ", "пост", "сторис"];
+// Рубрики первой версии плана — чтобы сохранённые раньше публикации не серели.
+const LEGACY: Record<string, string> = { "Из чего складывается цена": "#C98A1A", "Как мы проверяем": "#6B4FB3" };
+const FORMATS = ["карусель", "Reels", "эфир", "опрос", "вопрос-ответ", "пост", "сторис"];
+const LENGTH: Record<"short" | "long", string> = { short: "короткий", long: "длинный" };
+const SEED_VERSION = (seed as { version?: number }).version ?? 1;
+const SEED_POSTS = seed.posts as ContentPost[];
 const STATUS: Record<ContentPost["status"], { label: string; dot: string }> = {
   idea: { label: "Идея", dot: "#9AA4B2" },
   progress: { label: "В работе", dot: "#C98A1A" },
   ready: { label: "Готово", dot: "#2F6FB3" },
   published: { label: "Опубликовано", dot: "#2E9E5B" },
 };
-const STORIES = ["Новое в каталоге", "Выдачи · в пути", "Опрос / угадай цену", "Выдачи · в пути", "Вопрос менеджеру", "Репосты отзывов", "Репосты отзывов"];
+const STORIES = ["Новое в каталоге", "Выдачи · в пути", "Угадай цену → расчёт", "Выдачи · в пути", "Вопрос менеджеру", "Репосты отзывов", "Репосты отзывов"];
 const DOW = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-type View = "calendar" | "rubrics" | "list";
+type View = "calendar" | "rubrics" | "list" | "brief";
 
-const colorOf = (rubric: string) => RUBRICS[rubric] || "#5C6D76";
+const colorOf = (rubric: string) => RUBRICS[rubric] || LEGACY[rubric] || "#5C6D76";
 const parse = (iso: string) => {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d);
@@ -51,7 +59,7 @@ const short = (d: Date) => d.toLocaleDateString("ru-RU", { day: "numeric", month
 function readView(): View {
   try {
     const v = localStorage.getItem("crm.content.view");
-    return v === "rubrics" || v === "list" ? v : "calendar";
+    return v === "rubrics" || v === "list" || v === "brief" ? v : "calendar";
   } catch {
     return "calendar";
   }
@@ -60,7 +68,7 @@ function readView(): View {
 export function ContentPlan() {
   const toast = useToast();
   const [posts, setPosts] = useState<ContentPost[] | null>(null);
-  const [meta, setMeta] = useState<{ updatedAt?: string; updatedBy?: string }>({});
+  const [meta, setMeta] = useState<{ updatedAt?: string; updatedBy?: string; seed?: number }>({});
   const [view, setViewRaw] = useState<View>(readView);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<ContentPost | null>(null);
@@ -79,22 +87,22 @@ export function ContentPlan() {
     api
       .contentPlan()
       .then((r) => {
-        setPosts(r.plan?.posts ?? (seed.posts as ContentPost[]));
-        if (r.plan) setMeta({ updatedAt: r.plan.updatedAt, updatedBy: r.plan.updatedBy });
+        setPosts(r.plan?.posts ?? SEED_POSTS);
+        if (r.plan) setMeta({ updatedAt: r.plan.updatedAt, updatedBy: r.plan.updatedBy, seed: r.plan.seed ?? 1 });
       })
       .catch((e: unknown) => {
         toast(e instanceof ApiError ? e.message : "Не удалось загрузить план", "error");
-        setPosts(seed.posts as ContentPost[]);
+        setPosts(SEED_POSTS);
       });
     // Один раз при открытии раздела.
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function persist(next: ContentPost[]) {
+  async function persist(next: ContentPost[], seedVersion = meta.seed ?? SEED_VERSION) {
     setSaving(true);
     try {
-      const r = await api.saveContentPlan(next);
+      const r = await api.saveContentPlan(next, seedVersion);
       setPosts(r.plan.posts);
-      setMeta({ updatedAt: r.plan.updatedAt, updatedBy: r.plan.updatedBy });
+      setMeta({ updatedAt: r.plan.updatedAt, updatedBy: r.plan.updatedBy, seed: r.plan.seed ?? seedVersion });
       return true;
     } catch (e) {
       toast(e instanceof ApiError ? e.message : "Не удалось сохранить", "error");
@@ -111,6 +119,12 @@ export function ContentPlan() {
 
   if (!posts) return <Spinner />;
 
+  const outdated = !!meta.updatedAt && (meta.seed ?? 1) < SEED_VERSION;
+  const rubricList = [
+    ...Object.keys(RUBRICS),
+    ...[...new Set(posts.map((p) => p.rubric))].filter((r) => !(r in RUBRICS)),
+  ].filter((r) => r in RUBRICS || posts.some((p) => p.rubric === r));
+  const lengths = { long: posts.filter((p) => p.length === "long").length, short: posts.filter((p) => p.length === "short").length };
   const counts = Object.fromEntries(
     (Object.keys(STATUS) as ContentPost["status"][]).map((k) => [k, posts.filter((p) => p.status === k).length]),
   );
@@ -131,6 +145,8 @@ export function ContentPlan() {
       hook: "",
       visual: "",
       note: "",
+      length: "",
+      size: "",
       status: "idea",
     });
 
@@ -145,11 +161,19 @@ export function ContentPlan() {
       style={{ background: colorOf(p.rubric) }}
       title={p.topic}
     >
-      <span className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wide">
+      <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] font-extrabold uppercase tracking-wide">
         <span className="h-2 w-2 flex-none rounded-full ring-1 ring-white/70" style={{ background: STATUS[p.status].dot }} />
         №{p.n} · {p.format}
+        {p.length ? (
+          <span
+            className={`rounded-[4px] px-1 py-px text-[9.5px] normal-case tracking-normal ${p.length === "long" ? "bg-white/90 text-black/80" : "ring-1 ring-white/60"}`}
+            title={p.size || undefined}
+          >
+            {LENGTH[p.length]}
+          </span>
+        ) : null}
       </span>
-      <span className={`mt-0.5 block text-[12px] font-semibold leading-snug ${compact ? "line-clamp-2" : "line-clamp-3"}`}>
+      <span className={`mt-0.5 text-[12px] font-semibold leading-snug ${compact ? "line-clamp-4" : "line-clamp-3"}`}>
         {p.topic}
       </span>
     </button>
@@ -166,28 +190,54 @@ export function ContentPlan() {
             : " · стартовый план, ещё не правился")
         }
         action={
-          <Button variant="primary" onClick={openNew}>
-            <Plus className="h-4 w-4" /> Публикация
-          </Button>
+          view === "brief" ? undefined : (
+            <Button variant="primary" onClick={openNew}>
+              <Plus className="h-4 w-4" /> Публикация
+            </Button>
+          )
         }
       />
 
+      {outdated ? (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-[12px] border border-crm-line bg-crm-surface px-4 py-3">
+          <div className="min-w-0 flex-1 text-[13.5px] text-crm-ink-2">
+            <b className="text-crm-ink">Вышла новая версия плана.</b> В ней длинный и короткий контент, рубрики «Разборы» и
+            «Расчёт онлайн». Сейчас в CRM сохранён старый план с вашими правками.
+          </div>
+          <Button
+            variant="primary"
+            disabled={saving}
+            onClick={async () => {
+              if (!confirm("Заменить текущий план новым? Правки и статусы в текущем плане пропадут.")) return;
+              if (await persist(SEED_POSTS, SEED_VERSION)) toast("План обновлён");
+            }}
+          >
+            <RefreshCw className="h-4 w-4" /> Загрузить новый план
+          </Button>
+        </div>
+      ) : null}
+
       {/* Статусы и вид */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        {(Object.keys(STATUS) as ContentPost["status"][]).map((k) => (
+        {view !== "brief" ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-crm-line bg-crm-surface px-2.5 py-1 text-[12.5px] text-crm-ink-2">
+            Длинных: <b className="text-crm-ink">{lengths.long}</b> · коротких: <b className="text-crm-ink">{lengths.short}</b>
+          </span>
+        ) : null}
+        {(view === "brief" ? [] : (Object.keys(STATUS) as ContentPost["status"][])).map((k) => (
           <span key={k} className="inline-flex items-center gap-1.5 rounded-full border border-crm-line bg-crm-surface px-2.5 py-1 text-[12.5px] text-crm-ink-2">
             <span className="h-2 w-2 rounded-full" style={{ background: STATUS[k].dot }} />
             {STATUS[k].label}: <b className="text-crm-ink">{counts[k]}</b>
           </span>
         ))}
-        <div className="ml-auto inline-flex rounded-[10px] border border-crm-line bg-crm-surface p-0.5">
-          {([["calendar", "Календарь", CalendarDays], ["rubrics", "По направлениям", Columns3], ["list", "Список", List]] as const).map(
+        <div className="ml-auto inline-flex max-w-full overflow-x-auto rounded-[10px] border border-crm-line bg-crm-surface p-0.5">
+          {([["calendar", "Календарь", CalendarDays], ["rubrics", "По направлениям", Columns3], ["list", "Список", List], ["brief", "Бриф", ClipboardList]] as const).map(
             ([v, label, Icon]) => (
               <button
                 key={v}
                 type="button"
                 onClick={() => setView(v)}
-                className={`inline-flex items-center gap-1.5 rounded-[8px] px-3 py-1.5 text-[13px] font-semibold ${
+                className={`inline-flex flex-none items-center gap-1.5 whitespace-nowrap rounded-[8px] px-3 py-1.5 text-[13px] font-semibold ${
                   view === v ? "bg-crm-soft text-crm-ink" : "text-crm-ink-2 hover:text-crm-ink"
                 }`}
               >
@@ -199,8 +249,9 @@ export function ContentPlan() {
       </div>
 
       {/* Направления — легенда и фильтр */}
-      <div className="mb-4 flex flex-wrap gap-1.5">
-        {Object.entries(RUBRICS).map(([name, col]) => {
+      <div className={`mb-4 flex-wrap gap-1.5 ${view === "brief" ? "hidden" : "flex"}`}>
+        {rubricList.map((name) => {
+          const col = colorOf(name);
           const off = hidden.has(name);
           const n = posts.filter((p) => p.rubric === name).length;
           return (
@@ -280,7 +331,7 @@ export function ContentPlan() {
               </tr>
             </thead>
             <tbody>
-              {Object.keys(RUBRICS)
+              {rubricList
                 .filter((r) => !hidden.has(r))
                 .map((r) => {
                   const items = visible.filter((p) => p.rubric === r);
@@ -332,6 +383,7 @@ export function ContentPlan() {
                 <span className="mb-1 inline-flex items-center gap-1.5 text-[11.5px] font-bold" style={{ color: colorOf(p.rubric) }}>
                   <span className="h-2 w-2 rounded-[2px]" style={{ background: colorOf(p.rubric) }} />
                   №{p.n} · {p.rubric} · {p.format}
+                  {p.length ? ` · ${LENGTH[p.length]}${p.size ? `, ${p.size}` : ""}` : ""}
                 </span>
                 <span className="block text-[14px] font-semibold text-crm-ink">{p.topic}</span>
                 {p.hook ? <span className="mt-0.5 block text-[12.5px] text-crm-ink-2">Зацепка: {p.hook}</span> : null}
@@ -344,6 +396,8 @@ export function ContentPlan() {
           ))}
         </Card>
       ) : null}
+
+      {view === "brief" ? <ContentBrief /> : null}
 
       <PostEditor
         post={editing}
@@ -409,7 +463,7 @@ function PostEditor({
           </Field>
           <Field label="Направление">
             <Select value={f.rubric} onChange={(e) => set("rubric", e.target.value)}>
-              {Object.keys(RUBRICS).map((r) => (
+              {[...new Set([...Object.keys(RUBRICS), f.rubric])].map((r) => (
                 <option key={r}>{r}</option>
               ))}
             </Select>
@@ -420,6 +474,18 @@ function PostEditor({
                 <option key={x}>{x}</option>
               ))}
             </Select>
+          </Field>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)]">
+          <Field label="Объём">
+            <Select value={f.length || ""} onChange={(e) => set("length", e.target.value as ContentPost["length"])}>
+              <option value="">не указан</option>
+              <option value="short">Короткий</option>
+              <option value="long">Длинный</option>
+            </Select>
+          </Field>
+          <Field label="Хронометраж или объём">
+            <Input value={f.size || ""} onChange={(e) => set("size", e.target.value)} placeholder="60–90 с, 12 слайдов, эфир 30 мин…" />
           </Field>
         </div>
         <Field label="Тема">

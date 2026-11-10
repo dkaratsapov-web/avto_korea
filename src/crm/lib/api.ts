@@ -32,9 +32,15 @@ export type ContentPost = {
   hook: string;
   visual: string;
   note: string;
+  /** Короткий (охват) или длинный (доверие, сохранения) контент. */
+  length?: "short" | "long" | "";
+  /** Хронометраж или объём: «60–90 с», «12 слайдов». */
+  size?: string;
   status: "idea" | "progress" | "ready" | "published";
 };
-export type ContentPlanData = { posts: ContentPost[]; updatedAt?: string; updatedBy?: string };
+/** seed — версия стартового плана, от которой пошли правки. */
+export type ContentPlanData = { posts: ContentPost[]; seed?: number; updatedAt?: string; updatedBy?: string };
+export type ContentBrief = { answers: Record<string, string>; updatedAt?: string | null; updatedBy?: string };
 
 const BASE = "/crm/api";
 
@@ -301,8 +307,11 @@ export const api = {
 
   // Раздел «Контент»: контент-план Instagram. null — в базе ещё пусто.
   contentPlan: () => request<{ plan: ContentPlanData | null }>("/content"),
-  saveContentPlan: (posts: ContentPost[]) =>
-    request<{ plan: ContentPlanData }>("/content", { body: { posts } }),
+  saveContentPlan: (posts: ContentPost[], seed: number) =>
+    request<{ plan: ContentPlanData }>("/content", { body: { posts, seed } }),
+  contentBrief: () => request<{ brief: ContentBrief }>("/content/brief"),
+  saveBriefAnswer: (id: string, answer: string) =>
+    request<{ brief: ContentBrief }>("/content/brief", { body: { id, answer } }),
 
   // Раздел «Бот»: админка бота целиком, через сервер CRM.
   botStatus: () => request<{ connected: boolean; owner?: boolean }>("/bot"),
