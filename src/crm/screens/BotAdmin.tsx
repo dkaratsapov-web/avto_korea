@@ -23,6 +23,7 @@ export function BotAdmin() {
   const toast = useToast();
   const navigate = useNavigate();
   const [connected, setConnected] = useState<boolean | null>(null);
+  const [owner, setOwner] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,7 +49,10 @@ export function BotAdmin() {
     setConnected(null);
     api
       .botStatus()
-      .then((r) => setConnected(r.connected))
+      .then((r) => {
+        setConnected(r.connected);
+        setOwner(!!r.owner);
+      })
       .catch((e: unknown) => setFailed(e instanceof ApiError ? e.message : "Не удалось связаться с ботом"));
   };
   useEffect(load, []);
@@ -83,6 +87,18 @@ export function BotAdmin() {
   }
 
   if (connected === null) return <Spinner />;
+
+  if (!connected && !owner) {
+    return (
+      <>
+        <PageHead title="Каталог и бот" subtitle="Админка Telegram-бота" />
+        <Card className="max-w-xl p-5 text-[14px] text-crm-ink-2">
+          Раздел ещё не подключён к боту. Подключает владелец CRM — ключом из
+          команды /crm_admin в боте.
+        </Card>
+      </>
+    );
+  }
 
   if (!connected) {
     return (
@@ -133,8 +149,9 @@ export function BotAdmin() {
         <TmaAdmin
           tg={null}
           initData="crm"
-          owner
-          caps={ALL_CAPS.map((c) => c.key)}
+          owner={owner}
+          // Сотрудникам — всё, кроме управления админами бота.
+          caps={ALL_CAPS.map((c) => c.key).filter((k) => owner || k !== "admins")}
           onExit={() => navigate("/crm")}
           desktop={wide}
         />

@@ -10,6 +10,7 @@ import { useState, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   BarChart3,
+  CalendarDays,
   Building2,
   DatabaseBackup,
   KanbanSquare,
@@ -32,6 +33,7 @@ const NAV = [
   { to: "/crm", label: "Сделки", icon: KanbanSquare, end: true },
   { to: "/crm/tasks", label: "Задачи", icon: ListTodo, end: false },
   { to: "/crm/dashboard", label: "Аналитика", icon: BarChart3, end: false },
+  { to: "/crm/content", label: "Контент", icon: CalendarDays, end: false },
 ];
 
 const OWNER_NAV = [
@@ -53,7 +55,9 @@ export function Layout({ children }: { children: ReactNode }) {
    * Это самый частый раздел владельца (каталог, заявки бота, настройки), и
    * в ряду одинаковых серых пунктов его было не найти.
    */
-  const botLink = isOwner ? (
+  // Раздел открыт всем сотрудникам CRM (в нём каталог, заявки бота,
+  // рассылка); подключение ключа и админов бота — только владельцу.
+  const botLink = user ? (
     <NavLink
       to="/crm/bot"
       className={({ isActive }) =>

@@ -25,6 +25,7 @@ import { Users } from "./screens/Users";
 import { SettingsPage } from "./screens/SettingsPage";
 import { Reviews } from "./screens/Reviews";
 import { BotAdmin } from "./screens/BotAdmin";
+import { ContentPlan } from "./screens/ContentPlan";
 import { Backups } from "./screens/Backups";
 import { Profile } from "./screens/Profile";
 import { PrintPage } from "./screens/PrintPage";
@@ -73,6 +74,7 @@ function Guarded() {
         <Route path="users" element={<Users />} />
         <Route path="reviews" element={<Reviews />} />
         <Route path="bot" element={<BotAdmin />} />
+        <Route path="content" element={<ContentPlan />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="backup" element={<Backups />} />
         <Route path="profile" element={<Profile />} />

@@ -100,6 +100,12 @@ try {
             crm_route_reviews($method, array_slice($path, 1));
             break;
 
+        // Контент-план Instagram: календарь публикаций со статусами.
+        case 'content':
+            require __DIR__ . '/routes/content.php';
+            crm_route_content($method, array_slice($path, 1));
+            break;
+
         // Админка бота целиком: те же действия и данные, что в мини-аппе.
         case 'bot':
             require __DIR__ . '/routes/bot.php';

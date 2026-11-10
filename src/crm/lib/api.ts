@@ -20,6 +20,22 @@ import type {
 } from "./types";
 import type { Stage } from "./stages";
 
+/** Публикация контент-плана Instagram. */
+export type ContentPost = {
+  id: string;
+  n: number;
+  date: string;
+  rubric: string;
+  format: string;
+  goal: string;
+  topic: string;
+  hook: string;
+  visual: string;
+  note: string;
+  status: "idea" | "progress" | "ready" | "published";
+};
+export type ContentPlanData = { posts: ContentPost[]; updatedAt?: string; updatedBy?: string };
+
 const BASE = "/crm/api";
 
 /** Потолок вложения. Тот же, что и на сервере (routes/files.php). */
@@ -283,8 +299,13 @@ export const api = {
 
   deleteAllReviews: () => request<ReviewsReply>("/reviews", { method: "DELETE" }),
 
+  // Раздел «Контент»: контент-план Instagram. null — в базе ещё пусто.
+  contentPlan: () => request<{ plan: ContentPlanData | null }>("/content"),
+  saveContentPlan: (posts: ContentPost[]) =>
+    request<{ plan: ContentPlanData }>("/content", { body: { posts } }),
+
   // Раздел «Бот»: админка бота целиком, через сервер CRM.
-  botStatus: () => request<{ connected: boolean }>("/bot"),
+  botStatus: () => request<{ connected: boolean; owner?: boolean }>("/bot"),
   connectBot: (key: string) => request<{ connected: boolean }>("/bot/key", { body: { key } }),
   /**
    * Действие админки бота. Ответ бота возвращается как есть — даже отказ

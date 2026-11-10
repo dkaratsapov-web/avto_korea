@@ -8,8 +8,10 @@
  * месте сразу видна в другом — синхронизировать нечего.
  *
  * Ключ — отдельный от ключа отзывов: тот узкий, этот полный. Владелец берёт
- * его в боте командой /crm_admin. Пользоваться разделом может только
- * владелец CRM: ключ даёт права владельца бота.
+ * его в боте командой /crm_admin.
+ *
+ * Пользоваться разделом может любой сотрудник CRM. Только владельцу —
+ * подключение ключа и управление админами бота: кому доверять бота, решает он.
  */
 
 declare(strict_types=1);
@@ -93,20 +95,22 @@ function crm_bot_call(string $key, string $action, mixed $payload = null): array
 function crm_route_bot(string $method, array $path): void
 {
     $action = $path[0] ?? '';
-    crm_require_owner();
+    $user = crm_require_user();
+    $isOwner = ($user['role'] ?? '') === 'OWNER';
 
     // --- подключено ли ---
     if ($action === '' && $method === 'GET') {
         $key = crm_bot_admin_key();
         if ($key === '') {
-            crm_json(['ok' => true, 'connected' => false]);
+            crm_json(['ok' => true, 'connected' => false, 'owner' => $isOwner]);
         }
         $me = crm_bot_call($key, 'me');
-        crm_json(['ok' => true, 'connected' => ($me['ok'] ?? false) === true]);
+        crm_json(['ok' => true, 'connected' => ($me['ok'] ?? false) === true, 'owner' => $isOwner]);
     }
 
     // --- подключение ключом из бота ---
     if ($action === 'key' && $method === 'POST') {
+        crm_require_owner();
         $key = crm_str(crm_body(), 'key', 190);
         if ($key === '') {
             crm_save_settings(['botAdminKey' => '']);
@@ -131,6 +135,9 @@ function crm_route_bot(string $method, array $path): void
         $name = crm_str($body, 'action', 60);
         if ($name === '' || !preg_match('/^[a-z]+(\.[a-z]+)?$/', $name)) {
             crm_fail(400, 'bad_action', 'Неизвестное действие');
+        }
+        if (!$isOwner && str_starts_with($name, 'admins.')) {
+            crm_fail(403, 'forbidden', 'Админами бота управляет только владелец');
         }
         crm_json(crm_bot_call($key, $name, $body['payload'] ?? null));
     }
