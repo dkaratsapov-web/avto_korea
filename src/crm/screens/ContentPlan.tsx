@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { CalendarDays, ClipboardList, Columns3, List, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Columns3, List, Plus, RefreshCw, Trash2 } from "lucide-react";
 import seed from "../data/content-plan.json";
 import { api, ApiError, type ContentPost } from "../lib/api";
 import { Button, Card, Field, Input, Modal, Select, Spinner, Textarea, useToast } from "../ui";
@@ -54,6 +54,16 @@ const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 const mondayOf = (d: Date) => addDays(d, -((d.getDay() + 6) % 7));
+const monthKey = (isoDate: string) => isoDate.slice(0, 7);
+const monthTitle = (key: string) => {
+  const [y, m] = key.split("-").map(Number);
+  const t = new Date(y, m - 1, 1).toLocaleDateString("ru-RU", { month: "long", year: "numeric" }).replace(" г.", "");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+const shiftMonth = (key: string, by: number) => {
+  const [y, m] = key.split("-").map(Number);
+  return iso(new Date(y, m - 1 + by, 1)).slice(0, 7);
+};
 const short = (d: Date) => d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
 
 function readView(): View {
@@ -73,6 +83,9 @@ export function ContentPlan() {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<ContentPost | null>(null);
   const [saving, setSaving] = useState(false);
+  // Выбранный месяц «ГГГГ-ММ». null — ещё не выбран: возьмём текущий, если
+  // в нём есть публикации, иначе первый месяц плана.
+  const [monthSel, setMonth] = useState<string | null>(null);
 
   const setView = (v: View) => {
     setViewRaw(v);
@@ -124,20 +137,35 @@ export function ContentPlan() {
     ...Object.keys(RUBRICS),
     ...[...new Set(posts.map((p) => p.rubric))].filter((r) => !(r in RUBRICS)),
   ].filter((r) => r in RUBRICS || posts.some((p) => p.rubric === r));
-  const lengths = { long: posts.filter((p) => p.length === "long").length, short: posts.filter((p) => p.length === "short").length };
-  const counts = Object.fromEntries(
-    (Object.keys(STATUS) as ContentPost["status"][]).map((k) => [k, posts.filter((p) => p.status === k).length]),
-  );
   const first = posts.length ? parse([...posts].sort((a, b) => a.date.localeCompare(b.date))[0].date) : new Date();
   const last = posts.length ? parse([...posts].sort((a, b) => b.date.localeCompare(a.date))[0].date) : new Date();
-  const start = mondayOf(first);
-  const weeks = Math.max(1, Math.ceil(((last.getTime() - start.getTime()) / 86400000 + 1) / 7));
 
-  const openNew = () =>
+  // Разбивка по месяцам: календарь, направления и список показывают один месяц.
+  const todayKey = iso(new Date()).slice(0, 7);
+  const planMonths = [...new Set(posts.map((p) => monthKey(p.date)))].sort();
+  const month = monthSel ?? (planMonths.includes(todayKey) ? todayKey : planMonths[0] ?? todayKey);
+  const monthTabs = [...new Set([...planMonths, month])].sort();
+  const monthPosts = posts.filter((p) => monthKey(p.date) === month);
+  const monthVisible = visible.filter((p) => monthKey(p.date) === month);
+  const [my, mm] = month.split("-").map(Number);
+  const monthFirst = new Date(my, mm - 1, 1);
+  const monthLast = new Date(my, mm, 0);
+  const start = mondayOf(monthFirst);
+  const weeks = Math.ceil(((monthLast.getTime() - start.getTime()) / 86400000 + 1) / 7);
+
+  const lengths = {
+    long: monthPosts.filter((p) => p.length === "long").length,
+    short: monthPosts.filter((p) => p.length === "short").length,
+  };
+  const counts = Object.fromEntries(
+    (Object.keys(STATUS) as ContentPost["status"][]).map((k) => [k, monthPosts.filter((p) => p.status === k).length]),
+  );
+
+  const openNew = (date?: string) =>
     setEditing({
       id: "",
       n: Math.max(0, ...posts.map((p) => p.n)) + 1,
-      date: iso(new Date()),
+      date: date ?? (month === todayKey ? iso(new Date()) : `${month}-01`),
       rubric: Object.keys(RUBRICS)[0],
       format: "карусель",
       goal: "",
@@ -191,7 +219,7 @@ export function ContentPlan() {
         }
         action={
           view === "brief" ? undefined : (
-            <Button variant="primary" onClick={openNew}>
+            <Button variant="primary" onClick={() => openNew()}>
               <Plus className="h-4 w-4" /> Публикация
             </Button>
           )
@@ -217,7 +245,47 @@ export function ContentPlan() {
         </div>
       ) : null}
 
-      {/* Статусы и вид */}
+      {/* Месяцы: план показываем помесячно, стрелками можно уйти и в пустой
+          месяц — чтобы планировать вперёд. */}
+      {view !== "brief" ? (
+        <div className="mb-3 flex items-center gap-1.5 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setMonth(shiftMonth(month, -1))}
+            className="inline-flex h-9 w-9 flex-none items-center justify-center rounded-[10px] border border-crm-line bg-crm-surface text-crm-ink-2 hover:text-crm-ink"
+            aria-label="Предыдущий месяц"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          {monthTabs.map((k) => {
+            const n = posts.filter((p) => monthKey(p.date) === k).length;
+            const on = k === month;
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setMonth(k)}
+                className={`inline-flex h-9 flex-none items-center gap-2 whitespace-nowrap rounded-[10px] border px-3.5 text-[14px] font-bold transition-colors ${
+                  on ? "border-crm-accent bg-crm-accent text-white" : "border-crm-line bg-crm-surface text-crm-ink-2 hover:text-crm-ink"
+                }`}
+              >
+                {monthTitle(k)}
+                <span className={`rounded-full px-1.5 text-[12px] ${on ? "bg-white/20" : "bg-crm-soft text-crm-ink-3"}`}>{n}</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setMonth(shiftMonth(month, 1))}
+            className="inline-flex h-9 w-9 flex-none items-center justify-center rounded-[10px] border border-crm-line bg-crm-surface text-crm-ink-2 hover:text-crm-ink"
+            aria-label="Следующий месяц"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
+
+      {/* Статусы месяца и вид */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {view !== "brief" ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-crm-line bg-crm-surface px-2.5 py-1 text-[12.5px] text-crm-ink-2">
@@ -253,7 +321,7 @@ export function ContentPlan() {
         {rubricList.map((name) => {
           const col = colorOf(name);
           const off = hidden.has(name);
-          const n = posts.filter((p) => p.rubric === name).length;
+          const n = monthPosts.filter((p) => p.rubric === name).length;
           return (
             <button
               key={name}
@@ -294,14 +362,34 @@ export function ContentPlan() {
                 {Array.from({ length: 7 }, (_, i) => {
                   const day = addDays(start, w * 7 + i);
                   const key = iso(day);
-                  const inRange = day >= first && day <= last;
-                  const items = visible.filter((p) => p.date === key);
+                  // Дни соседних месяцев — серые и без публикаций: они в своём месяце.
+                  const inRange = day.getMonth() === mm - 1;
+                  const items = inRange ? monthVisible.filter((p) => p.date === key) : [];
+                  const today = key === iso(new Date());
                   return (
                     <div
                       key={key}
-                      className={`flex min-h-[132px] flex-col gap-1.5 border-r border-crm-line p-2 last:border-r-0 ${inRange ? "" : "bg-crm-soft/60"}`}
+                      className={`group flex min-h-[132px] flex-col gap-1.5 border-r border-crm-line p-2 last:border-r-0 ${inRange ? "" : "bg-crm-soft/60"}`}
                     >
-                      <div className={`text-[12.5px] font-bold ${inRange ? "text-crm-ink" : "text-crm-ink-3"}`}>{short(day)}</div>
+                      <div className="flex items-center justify-between">
+                        <span
+                          className={`text-[12.5px] font-bold ${
+                            today ? "rounded-[6px] bg-crm-accent px-1.5 text-white" : inRange ? "text-crm-ink" : "text-crm-ink-3"
+                          }`}
+                        >
+                          {inRange ? short(day) : day.getDate()}
+                        </span>
+                        {inRange ? (
+                          <button
+                            type="button"
+                            onClick={() => openNew(key)}
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-[6px] text-crm-ink-3 opacity-0 transition-opacity hover:bg-crm-soft hover:text-crm-ink focus:opacity-100 group-hover:opacity-100"
+                            title="Публикация на этот день"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
                       {items.map((p) => card(p, true))}
                       {inRange ? <div className="mt-auto text-[11px] text-crm-ink-3">Сторис: {STORIES[i]}</div> : null}
                     </div>
@@ -315,26 +403,28 @@ export function ContentPlan() {
 
       {view === "rubrics" ? (
         <Card className="overflow-x-auto p-0">
-          <table className="w-full min-w-[980px] border-collapse text-left">
+          <table className="w-full min-w-[980px] table-fixed border-collapse text-left">
             <thead>
               <tr className="border-b border-crm-line bg-crm-soft text-[12px] font-bold uppercase tracking-wide text-crm-ink-2">
                 <th className="w-[200px] px-3 py-2">Направление</th>
                 {Array.from({ length: weeks }, (_, w) => {
                   const a = addDays(start, w * 7);
+                  const from = a < monthFirst ? monthFirst : a;
+                  const to = addDays(a, 6) > monthLast ? monthLast : addDays(a, 6);
                   return (
                     <th key={w} className="px-3 py-2">
-                      Нед. {w + 1} · {short(a)}–{short(addDays(a, 6))}
+                      Нед. {w + 1} · {from.getDate()}–{short(to)}
                     </th>
                   );
                 })}
-                <th className="w-[60px] px-3 py-2 text-right">Всего</th>
+                <th className="w-[72px] px-3 py-2 text-right">Всего</th>
               </tr>
             </thead>
             <tbody>
               {rubricList
                 .filter((r) => !hidden.has(r))
                 .map((r) => {
-                  const items = visible.filter((p) => p.rubric === r);
+                  const items = monthVisible.filter((p) => p.rubric === r);
                   return (
                     <tr key={r} className="border-b border-crm-line align-top last:border-0">
                       <td className="px-3 py-2.5" style={{ boxShadow: `inset 4px 0 0 ${colorOf(r)}` }}>
@@ -368,7 +458,10 @@ export function ContentPlan() {
 
       {view === "list" ? (
         <Card className="divide-y divide-crm-line p-0">
-          {visible.map((p) => (
+          {monthVisible.length === 0 ? (
+            <div className="px-4 py-8 text-center text-[14px] text-crm-ink-3">В этом месяце публикаций пока нет</div>
+          ) : null}
+          {monthVisible.map((p) => (
             <button
               key={p.id}
               type="button"
