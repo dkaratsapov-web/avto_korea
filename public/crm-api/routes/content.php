@@ -88,6 +88,7 @@ function crm_content_clean(array $p, int $i): array
         'note' => crm_str($p, 'note', 800),
         'length' => in_array($p['length'] ?? '', ['short', 'long'], true) ? $p['length'] : '',
         'size' => crm_str($p, 'size', 80),
+        'local' => ($p['local'] ?? false) === true,
         'status' => $status,
     ];
 }

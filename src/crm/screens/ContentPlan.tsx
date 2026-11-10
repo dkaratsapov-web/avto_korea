@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Columns3, List, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Columns3, List, MapPin, Plus, RefreshCw, Trash2 } from "lucide-react";
 import seed from "../data/content-plan.json";
 import { api, ApiError, type ContentPost } from "../lib/api";
 import { Button, Card, Field, Input, Modal, Select, Spinner, Textarea, useToast } from "../ui";
@@ -33,6 +33,8 @@ const RUBRICS: Record<string, string> = {
 const LEGACY: Record<string, string> = { "Из чего складывается цена": "#C98A1A", "Как мы проверяем": "#6B4FB3" };
 const FORMATS = ["карусель", "Reels", "эфир", "опрос", "вопрос-ответ", "пост", "сторис"];
 const LENGTH: Record<"short" | "long", string> = { short: "короткий", long: "длинный" };
+/** Reels на ЦА Тверь — правило плана: минимум один в каждую неделю с публикациями. */
+const isTverReels = (p: ContentPost) => !!p.local && /reels/i.test(p.format);
 const SEED_VERSION = (seed as { version?: number }).version ?? 1;
 const SEED_POSTS = seed.posts as ContentPost[];
 const STATUS: Record<ContentPost["status"], { label: string; dot: string }> = {
@@ -153,6 +155,16 @@ export function ContentPlan() {
   const start = mondayOf(monthFirst);
   const weeks = Math.ceil(((monthLast.getTime() - start.getTime()) / 86400000 + 1) / 7);
 
+  // Проверка правила «Reels на Тверь» по неделям сетки месяца (неделя
+  // считается целиком, даже если заходит в соседний месяц).
+  const weekCheck = Array.from({ length: weeks }, (_, w) => {
+    const a = iso(addDays(start, w * 7));
+    const b = iso(addDays(start, w * 7 + 6));
+    const inWeek = posts.filter((p) => p.date >= a && p.date <= b);
+    return { any: inWeek.length > 0, tver: inWeek.filter(isTverReels) };
+  });
+  const tverWeeks = weekCheck.filter((w) => w.any);
+  const tverOk = tverWeeks.filter((w) => w.tver.length > 0).length;
   const lengths = {
     long: monthPosts.filter((p) => p.length === "long").length,
     short: monthPosts.filter((p) => p.length === "short").length,
@@ -175,6 +187,7 @@ export function ContentPlan() {
       note: "",
       length: "",
       size: "",
+      local: false,
       status: "idea",
     });
 
@@ -198,6 +211,11 @@ export function ContentPlan() {
             title={p.size || undefined}
           >
             {LENGTH[p.length]}
+          </span>
+        ) : null}
+        {p.local ? (
+          <span className="inline-flex items-center gap-0.5 rounded-[4px] bg-black/25 px-1 py-px text-[9.5px] normal-case tracking-normal" title="ЦА Тверь">
+            <MapPin className="h-2.5 w-2.5" /> Тверь
           </span>
         ) : null}
       </span>
@@ -229,8 +247,8 @@ export function ContentPlan() {
       {outdated ? (
         <div className="mb-3 flex flex-wrap items-center gap-3 rounded-[12px] border border-crm-line bg-crm-surface px-4 py-3">
           <div className="min-w-0 flex-1 text-[13.5px] text-crm-ink-2">
-            <b className="text-crm-ink">Вышла новая версия плана.</b> В ней длинный и короткий контент, рубрики «Разборы» и
-            «Расчёт онлайн». Сейчас в CRM сохранён старый план с вашими правками.
+            <b className="text-crm-ink">Вышла новая версия плана.</b> В ней длинный и короткий контент, «Разборы», «Расчёт онлайн» и
+            Reels на ЦА Тверь каждую неделю. Сейчас в CRM сохранён старый план с вашими правками.
           </div>
           <Button
             variant="primary"
@@ -290,6 +308,19 @@ export function ContentPlan() {
         {view !== "brief" ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-crm-line bg-crm-surface px-2.5 py-1 text-[12.5px] text-crm-ink-2">
             Длинных: <b className="text-crm-ink">{lengths.long}</b> · коротких: <b className="text-crm-ink">{lengths.short}</b>
+          </span>
+        ) : null}
+        {view !== "brief" && tverWeeks.length ? (
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12.5px] ${
+              tverOk < tverWeeks.length ? "border-amber-500/60 bg-amber-500/10 text-amber-300" : "border-crm-line bg-crm-surface text-crm-ink-2"
+            }`}
+            title="Правило: минимум 1 Reels в неделю на ЦА Тверь"
+          >
+            <MapPin className="h-3.5 w-3.5" /> Reels на Тверь:{" "}
+            <b className={tverOk < tverWeeks.length ? "" : "text-crm-ink"}>
+              {tverOk} из {tverWeeks.length} нед.
+            </b>
           </span>
         ) : null}
         {(view === "brief" ? [] : (Object.keys(STATUS) as ContentPost["status"][])).map((k) => (
@@ -358,7 +389,19 @@ export function ContentPlan() {
               ))}
             </div>
             {Array.from({ length: weeks }, (_, w) => (
-              <div key={w} className="grid grid-cols-7 border-b border-crm-line last:border-0">
+              <div key={w} className="border-b border-crm-line last:border-0">
+                {weekCheck[w].any ? (
+                  weekCheck[w].tver.length ? (
+                    <div className="flex items-center gap-1.5 border-b border-crm-line px-3 py-1 text-[11.5px] text-crm-ink-3">
+                      <MapPin className="h-3 w-3" /> Reels на Тверь: {weekCheck[w].tver.map((p) => `№${p.n}`).join(", ")}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 border-b border-amber-500/40 bg-amber-500/10 px-3 py-1 text-[11.5px] font-semibold text-amber-300">
+                      <AlertTriangle className="h-3 w-3" /> На этой неделе нет Reels на ЦА Тверь — нужен минимум один
+                    </div>
+                  )
+                ) : null}
+              <div className="grid grid-cols-7">
                 {Array.from({ length: 7 }, (_, i) => {
                   const day = addDays(start, w * 7 + i);
                   const key = iso(day);
@@ -396,6 +439,7 @@ export function ContentPlan() {
                   );
                 })}
               </div>
+              </div>
             ))}
           </div>
         </Card>
@@ -414,6 +458,16 @@ export function ContentPlan() {
                   return (
                     <th key={w} className="px-3 py-2">
                       Нед. {w + 1} · {from.getDate()}–{short(to)}
+                      {weekCheck[w].any ? (
+                        <span
+                          className={`mt-0.5 flex items-center gap-1 text-[10.5px] normal-case tracking-normal ${
+                            weekCheck[w].tver.length ? "text-crm-ink-3" : "text-amber-300"
+                          }`}
+                        >
+                          {weekCheck[w].tver.length ? <MapPin className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                          {weekCheck[w].tver.length ? `Тверь: ${weekCheck[w].tver.map((p) => `№${p.n}`).join(", ")}` : "нет Reels на Тверь"}
+                        </span>
+                      ) : null}
                     </th>
                   );
                 })}
@@ -477,6 +531,7 @@ export function ContentPlan() {
                   <span className="h-2 w-2 rounded-[2px]" style={{ background: colorOf(p.rubric) }} />
                   №{p.n} · {p.rubric} · {p.format}
                   {p.length ? ` · ${LENGTH[p.length]}${p.size ? `, ${p.size}` : ""}` : ""}
+                  {p.local ? " · ЦА Тверь" : ""}
                 </span>
                 <span className="block text-[14px] font-semibold text-crm-ink">{p.topic}</span>
                 {p.hook ? <span className="mt-0.5 block text-[12.5px] text-crm-ink-2">Зацепка: {p.hook}</span> : null}
@@ -581,6 +636,20 @@ function PostEditor({
             <Input value={f.size || ""} onChange={(e) => set("size", e.target.value)} placeholder="60–90 с, 12 слайдов, эфир 30 мин…" />
           </Field>
         </div>
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-[10px] border border-crm-line bg-crm-soft/50 px-3 py-2.5">
+          <input
+            type="checkbox"
+            checked={!!f.local}
+            onChange={(e) => set("local", e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[var(--crm-accent)]"
+          />
+          <span className="text-[13.5px] text-crm-ink">
+            <b>ЦА Тверь</b>
+            <span className="block text-[12.5px] text-crm-ink-2">
+              Ролик на тверичей: «Тверь» в первом кадре и первой фразе, город в кадре, геометка. Нужен минимум один такой Reels в неделю.
+            </span>
+          </span>
+        </label>
         <Field label="Тема">
           <Textarea rows={2} value={f.topic} onChange={(e) => set("topic", e.target.value)} required />
         </Field>

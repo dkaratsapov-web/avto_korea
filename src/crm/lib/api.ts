@@ -36,6 +36,8 @@ export type ContentPost = {
   length?: "short" | "long" | "";
   /** Хронометраж или объём: «60–90 с», «12 слайдов». */
   size?: string;
+  /** Нацелен на ЦА Тверь: минимум один такой Reels в неделю. */
+  local?: boolean;
   status: "idea" | "progress" | "ready" | "published";
 };
 /** seed — версия стартового плана, от которой пошли правки. */

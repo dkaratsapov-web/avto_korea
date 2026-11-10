@@ -37,13 +37,14 @@ for (const block of md.split(/\nPOST /).slice(1)) {
     note: field("Примечание"),
     length: /^длинн/i.test(field("Объём")) ? "long" : /^коротк/i.test(field("Объём")) ? "short" : "",
     size: field("Объём").replace(/^(длинный|короткий)\s*—\s*/i, ""),
+    local: /тверь/i.test(field("ЦА")),
     status: "idea",
   });
 }
 if (posts.length === 0) throw new Error("в плане нет блоков POST");
 // version растёт, когда стартовый план меняется по существу: CRM предложит
 // заменить им уже сохранённый план (сама не заменяет — там могут быть правки).
-const version = 2;
+const version = 3;
 await writeFile(
   new URL("../src/crm/data/content-plan.json", import.meta.url),
   JSON.stringify({ version, posts }, null, 2) + "\n",
