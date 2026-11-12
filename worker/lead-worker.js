@@ -3758,12 +3758,31 @@ function maxPostHtml(car, text, links = [], { botLink = "" } = {}) {
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
-  // «Ссылка на новые автомобили:» и адрес следующей строкой — одна мысль:
-  // склеиваем, чтобы подпись не осталась без ссылки, если ссылку уберём.
+  /*
+   * Склейка строк, которые в посте разорваны, а по смыслу — одна:
+   *  - значок-маркер (◾, ▪️ — в Telegram это эмодзи) отдельной строкой и
+   *    пункт под ним;
+   *  - «Портфолио:» / «Сайт:» и ссылка, @ник или домен следующей строкой;
+   *  - «Цена до Москвы с утильсбором и ЭПТС.» и сумма следующей строкой.
+   * Без склейки при выбрасывании ссылок на Telegram в MAX оставались пустые
+   * квадратики и подписи без ссылок, а цена не узнавалась и дублировалась.
+   */
+  const bulletOnly = (l) => l.length <= 4 && !/[\p{L}\p{N}]/u.test(l);
+  const linkish = (l) =>
+    /^https?:\/\/\S+$/i.test(l) ||
+    /^@[A-Za-z][A-Za-z0-9_]{3,31}$/.test(l) ||
+    /^автоимпорт-69\.рф\/?$/i.test(l) ||
+    links.some(([t]) => t.toLowerCase() === l.toLowerCase());
+  const amountOnly = (l) => /^[\d\s.,]*\d[\d\s.,]*\s*(?:₽|руб\.?|р\.)?\s*[!.]?$/i.test(l);
   const lines = [];
   for (const l of raw) {
     const prev = lines[lines.length - 1];
-    if (prev && /[:：]$/.test(prev) && /^https?:\/\/\S+$/i.test(l)) lines[lines.length - 1] = `${prev} ${l}`;
+    const join =
+      prev &&
+      (bulletOnly(prev) ||
+        (/[:：]$/.test(prev) && linkish(l)) ||
+        (/(цена|под\s*ключ)/i.test(prev) && !/\d/.test(prev) && amountOnly(l)));
+    if (join) lines[lines.length - 1] = `${prev} ${l}`;
     else lines.push(l);
   }
   // «GEELY Emgrand Emgrand»: заголовок статьи и строка «Модель» склеиваются
@@ -3785,7 +3804,10 @@ function maxPostHtml(car, text, links = [], { botLink = "" } = {}) {
       continue;
     }
     // Заголовок статьи («HYUNDAI») уже есть в названии модели.
-    if (model && l.length <= 40 && model.toLowerCase().includes(l.toLowerCase())) continue;
+    const bare = l.replace(/^[^\p{L}\p{N}]+/u, "").toLowerCase();
+    if (model && bare && l.length <= 40 && model.toLowerCase().includes(bare)) continue;
+    // Голая сумма без подписи — та же цена, что уйдёт цитатой из карточки.
+    if (amountOnly(l)) continue;
     rest.push(l);
   }
 
@@ -3834,16 +3856,24 @@ function maxPostHtml(car, text, links = [], { botLink = "" } = {}) {
     const m = /^([^:：]{1,30})[:：]/.exec(l);
     return m ? m[1] : "";
   };
-  const shown = [];
-  for (const l of rest) {
-    if (!isTg(l)) {
-      shown.push(l);
-      continue;
-    }
+  // Каждая строка: оставить как есть, заменить на MAX-аналог или выбросить.
+  const plan = rest.map((l) => {
+    if (bulletOnly(l)) return null;
+    if (!isTg(l)) return l;
     const lb = label(l);
-    if (/связ|менеджер|написать/i.test(lb)) shown.push({ html: `${htmlEsc(lb)}: <a href="${MAX_MANAGER_LINK}">написать менеджеру в MAX</a>` });
-    else if (/бот/i.test(lb) && botLink) shown.push({ html: `${htmlEsc(lb)}: <a href="${htmlEsc(botLink)}">чат-бот в MAX</a>` });
-  }
+    if (/связ|менеджер|написать/i.test(lb)) return { html: `${htmlEsc(lb)}: <a href="${MAX_MANAGER_LINK}">написать менеджеру в MAX</a>` };
+    if (/бот/i.test(lb) && botLink) return { html: `${htmlEsc(lb)}: <a href="${htmlEsc(botLink)}">чат-бот в MAX</a>` };
+    return null;
+  });
+  // «Ссылка на проделанную работу:» — подзаголовок списка. Если его первый
+  // пункт (ссылка на Telegram) выброшен, подзаголовок повис бы над чужими
+  // пунктами — убираем и его. Подпись без содержимого («Портфолио:») — тоже.
+  const shown = plan.filter((item, i) => {
+    if (typeof item !== "string") return item !== null;
+    const header = /[:：]$/.test(item);
+    if (header && (i + 1 >= plan.length || plan[i + 1] === null)) return false;
+    return true;
+  });
 
   if (shown.length) {
     out.push("");
