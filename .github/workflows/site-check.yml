@@ -1,0 +1,48 @@
+# Проверка сайта и ссылок снаружи: SSL-сертификат (срок, на какие имена
+# выдан), ответы сайта по https/http и с www, ссылки из постов в MAX.
+#
+# Запускается вручную (Actions → Site check → Run workflow) и при изменении
+# этого файла. Ничего не меняет — только печатает результат в лог.
+
+name: Site check
+
+on:
+  push:
+    branches: [main, claude/beautiful-goodall-irzq2f]
+    paths:
+      - ".github/workflows/site-check.yml"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSL-сертификат
+        run: |
+          for host in xn---69-5cdk0b2aocjmsg.xn--p1ai www.xn---69-5cdk0b2aocjmsg.xn--p1ai; do
+            echo "=== $host"
+            echo | timeout 20 openssl s_client -connect "$host:443" -servername "$host" 2>/dev/null \
+              | openssl x509 -noout -issuer -subject -dates -ext subjectAltName 2>&1 || echo "НЕ УДАЛОСЬ получить сертификат"
+            echo | timeout 20 openssl s_client -connect "$host:443" -servername "$host" -verify_return_error 2>&1 \
+              | grep -E "Verify return code|verify error" | head -3
+          done
+
+      - name: Ответы сайта
+        run: |
+          for url in \
+            https://xn---69-5cdk0b2aocjmsg.xn--p1ai/ \
+            https://www.xn---69-5cdk0b2aocjmsg.xn--p1ai/ \
+            http://xn---69-5cdk0b2aocjmsg.xn--p1ai/ \
+            https://xn---69-5cdk0b2aocjmsg.xn--p1ai/catalog \
+            https://xn---69-5cdk0b2aocjmsg.xn--p1ai/crm/ ; do
+            printf '%-60s ' "$url"
+            curl -sS -o /dev/null --max-time 20 -w '%{http_code} -> %{redirect_url} (ssl_verify=%{ssl_verify_result})\n' "$url" 2>&1 || true
+          done
+
+      - name: Ссылки из постов MAX
+        run: |
+          for url in \
+            "https://max.ru/u/f9LHodD0cOK99itT-N_bHuA1p3GsBqirk2M9jbFjvwmFCq-XGojB1Qb32ic" ; do
+            printf '%-60s ' "$url"
+            curl -sS -o /dev/null -L --max-time 20 -w '%{http_code} final=%{url_effective}\n' "$url" 2>&1 || true
+          done
