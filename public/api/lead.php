@@ -70,8 +70,21 @@ if ($ip !== '') {
 
 // Фото в первичную запись не кладём — файл заявок должен оставаться лёгким,
 // изображение уходит только в уведомление.
-$record = $data;
-unset($record['photo']);
+// В журнал — только короткие простые значения: адрес открыт всем, и без
+// обрезки одна заявка могла весить мегабайты (десять в час с одного адреса —
+// и место на хостинге кончается).
+$record = [];
+foreach ($data as $k => $v) {
+    if ($k === 'photo' || !is_string($k) || count($record) >= 40) {
+        continue;
+    }
+    $key = mb_substr($k, 0, 40);
+    if (is_scalar($v) || $v === null) {
+        $record[$key] = is_string($v) ? mb_substr($v, 0, 1000) : $v;
+    } else {
+        $record[$key] = mb_substr((string) json_encode($v, JSON_UNESCAPED_UNICODE), 0, 1000);
+    }
+}
 $record['ts'] = date('c');
 $record['ip'] = $ip;
 $record['ua'] = substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 300);
@@ -146,7 +159,6 @@ if (function_exists('curl_init')) {
     FILE_APPEND | LOCK_EX,
 );
 
-echo json_encode(
-    ['ok' => true, 'notified' => $notified, 'upstream' => $upstream],
-    JSON_UNESCAPED_UNICODE,
-);
+// Подробности ответа бота (ошибки Telegram) — только в журнал выше:
+// посетителю сайта они ни к чему.
+echo json_encode(['ok' => true, 'notified' => $notified], JSON_UNESCAPED_UNICODE);

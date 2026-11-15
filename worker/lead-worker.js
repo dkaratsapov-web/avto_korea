@@ -128,6 +128,7 @@ async function bindWebhook(env, origin) {
   const r = await api(env, "setWebhook", {
     url: `${origin}/tg`,
     allowed_updates: WEBHOOK_UPDATES,
+    secret_token: await webhookSecret(env, "tg"),
   });
   return r.json().catch(() => ({}));
 }
@@ -715,7 +716,7 @@ async function verifyInitData(initData, botToken) {
     .join("\n");
   const secret = await hmac(enc.encode("WebAppData"), enc.encode(botToken));
   const computed = toHex(await hmac(secret, enc.encode(dataCheckString)));
-  if (computed !== hash) return { ok: false };
+  if (!timingSafeEqual(computed, hash)) return { ok: false };
   const authDate = Number(params.get("auth_date") || 0);
   if (authDate && Date.now() / 1000 - authDate > 86400) return { ok: false };
   let user = null;
@@ -785,6 +786,64 @@ function timingSafeEqual(a, b) {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+/**
+ * Секрет вебхука — чтобы /tg и /max принимали только Telegram и MAX.
+ *
+ * Без него любой мог прислать на адрес воркера выдуманное «обновление»:
+ * сообщение будто бы от владельца (и бот выполнил бы его команды) или пост
+ * канала (и он ушёл бы в каталог и в MAX). Секрет передаём при привязке
+ * вебхука, мессенджер возвращает его в заголовке каждого запроса.
+ *
+ * Отдельный секрет в настройках не заводим: выводим его из токена бота
+ * (HMAC), так он есть всегда и меняется вместе с токеном. Только 0-9a-f —
+ * подходит под ограничения и Telegram, и MAX.
+ */
+const webhookSecretCache = new Map();
+async function webhookSecret(env, kind) {
+  const token = String(env.TELEGRAM_BOT_TOKEN || "");
+  if (!token) return "";
+  const cacheKey = `${kind}:${token}`;
+  if (!webhookSecretCache.has(cacheKey)) {
+    webhookSecretCache.set(
+      cacheKey,
+      toHex(await hmac(enc.encode(token), enc.encode(`webhook:${kind}`))).slice(0, 48),
+    );
+  }
+  return webhookSecretCache.get(cacheKey);
+}
+
+/** Служебные адреса (/setup, /max/setup, /admin/...) — по ключу ?key=, за постоянное время. */
+function serviceKeyOk(env, url) {
+  const token = String(env.TELEGRAM_BOT_TOKEN || "");
+  const key = url.searchParams.get("key") || "";
+  return !!token && !!key && timingSafeEqual(key, token);
+}
+
+/**
+ * Запрос на вебхук без верного секрета.
+ *
+ * Это либо подделка, либо настоящий апдейт, пришедший по старой привязке —
+ * до выкладки секрета не было. Отвечаем 401 (мессенджер повторит доставку
+ * позже) и не чаще раза в 10 минут перепривязываем вебхук уже с секретом:
+ * так всё чинится само, без ручного /setup, а подделка ничего не добьётся —
+ * перепривязка безвредна.
+ */
+async function rejectWebhook(env, ctx, kind, rebind) {
+  const flag = `webhook:rebind:${kind}`;
+  try {
+    const last = Number((await kvGet(env, flag, 0)) || 0);
+    if (Date.now() - last > 10 * 60 * 1000) {
+      await kvPut(env, flag, Date.now());
+      const job = rebind().catch(() => {});
+      if (ctx?.waitUntil) ctx.waitUntil(job);
+      else await job;
+    }
+  } catch {
+    /* хранилище недоступно — просто отклоняем */
+  }
+  return new Response("forbidden", { status: 401 });
 }
 
 // Любой ли это админ (owner из env или запись в KV) — для гейта пересылки постов.
@@ -955,6 +1014,9 @@ export default {
     if (url.pathname === "/setup") {
       if (!env.TELEGRAM_BOT_TOKEN)
         return json({ error: "no TELEGRAM_BOT_TOKEN" }, 400);
+      // Раньше адрес был открыт всем: кто угодно мог перепривязать вебхук.
+      // Из админки то же делает кнопка (webhook.setup) — ключ там не нужен.
+      if (!serviceKeyOk(env, url)) return json({ ok: false, error: "forbidden" }, 403);
       const out = await bindWebhook(env, url.origin);
       // Заодно перевыставляем синюю кнопку меню: её адрес должен приходить
       // из кода, а не из BotFather, иначе правки адреса её не касаются.
@@ -964,6 +1026,10 @@ export default {
 
     // --- Telegram webhook ---
     if (url.pathname === "/tg" && request.method === "POST") {
+      const given = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
+      const expected = await webhookSecret(env, "tg");
+      if (!expected || !timingSafeEqual(given, expected))
+        return rejectWebhook(env, ctx, "tg", () => bindWebhook(env, url.origin));
       let upd;
       try {
         upd = await request.json();
@@ -1001,8 +1067,11 @@ export default {
                     ? "message"
                     : "edited_message",
               chatType: u.chat?.type || null,
-              chatId: u.chat?.id || null,
-              chatTitle: u.chat?.title || null,
+              // id и название — только каналов и групп (их ищут по этой
+              // сводке при настройке). Личный чат — это id живого человека,
+              // а /api/diag открыт всем.
+              chatId: u.chat?.type === "private" ? null : u.chat?.id || null,
+              chatTitle: u.chat?.type === "private" ? null : u.chat?.title || null,
               hasPhoto: Array.isArray(u.photo) && u.photo.length > 0,
               hasCaptionOrText: !!(u.caption || u.text),
               forwarded: !!(u.forward_from_chat || u.forward_origin),
@@ -1627,7 +1696,7 @@ export default {
           return new Response("ok");
         }
 
-        const bound = await maxBind(env, url.origin);
+        const bound = await maxBind(env, url.origin, await webhookSecret(env, "max"));
         const who = bound.me?.data?.name || bound.me?.data?.username || "—";
         const hookOk = bound.hook?.ok;
         await api(env, "sendMessage", {
@@ -1796,16 +1865,25 @@ export default {
       } catch {
         return json({ ok: false, error: "bad_json" }, 400);
       }
+      if (!d || typeof d !== "object" || Array.isArray(d)) return json({ ok: false, error: "bad_json" }, 400);
       if (String(d.phone || "").replace(/\D/g, "").length < 10)
         return json({ ok: false, error: "phone_required" }, 422);
+      // Адрес открыт всем — длинные поля режем: иначе сообщение не влезет
+      // в лимит Telegram и заявка не дойдёт до менеджера.
+      for (const [k, v] of Object.entries(d)) {
+        if (k !== "photo" && typeof v === "string" && v.length > 600) d[k] = v.slice(0, 600) + "…";
+      }
       await storeLead(env, d);
+      // Защита чата заявок от заливки: не больше 40 уведомлений за 10 минут.
+      // Сверх этого заявки сохраняются (их видно в админке), но в чат не идут.
+      const burstKey = `lead:burst:${Math.floor(Date.now() / 600000)}`;
+      const burst = Number((await kvGet(env, burstKey, 0)) || 0);
+      if (burst >= 40) return json({ ok: true, queued: true });
+      later(ctx, kvPut(env, burstKey, burst + 1));
       const sent = await sendLead(env, leadText(d), d.photo);
       // Заявка уже сохранена, поэтому при сбое доставки возвращаем причину —
-      // по ней видно, что не так с чатом.
-      return json(
-        { ok: sent.ok, chatId: sent.chatId, errors: sent.errors },
-        sent.ok ? 200 : 502,
-      );
+      // по ней видно, что не так с чатом. id чата наружу не отдаём.
+      return json({ ok: sent.ok, errors: sent.errors }, sent.ok ? 200 : 502);
     }
 
     // --- Публичный общий каталог ---
@@ -1879,8 +1957,7 @@ export default {
     // /admin/catalog-reset?key=<TELEGRAM_BOT_TOKEN>&keepTg=1 — оставить только
     //   авто, пришедшие из канала (id tg-*), удалить демо-карточки.
     if (url.pathname === "/admin/catalog-reset" && request.method === "GET") {
-      if (!env.TELEGRAM_BOT_TOKEN || url.searchParams.get("key") !== env.TELEGRAM_BOT_TOKEN)
-        return json({ ok: false, error: "forbidden" }, 403);
+      if (!serviceKeyOk(env, url)) return json({ ok: false, error: "forbidden" }, 403);
       const keepTg = url.searchParams.get("keepTg") === "1";
       if (keepTg) {
         const cur = (await kvGet(env, "catalog", [])) || [];
@@ -1900,8 +1977,7 @@ export default {
     // дефолты пустых полей. Исходные посты не хранятся, поэтому марку/цвет,
     // которых не было при создании, восстановить нельзя — только нормализуем.
     if (url.pathname === "/admin/catalog-optimize" && request.method === "GET") {
-      if (!env.TELEGRAM_BOT_TOKEN || url.searchParams.get("key") !== env.TELEGRAM_BOT_TOKEN)
-        return json({ ok: false, error: "forbidden" }, 403);
+      if (!serviceKeyOk(env, url)) return json({ ok: false, error: "forbidden" }, 403);
       let catalog = (await kvGet(env, "catalog", [])) || [];
       if (!Array.isArray(catalog)) catalog = [];
       let changed = 0;
@@ -2148,6 +2224,14 @@ export default {
      */
     if (url.pathname === "/max" && request.method === "POST") {
       if (!env.MAX_BOT_TOKEN) return new Response("max off", { status: 200 });
+      {
+        const given = request.headers.get("X-Max-Bot-Api-Secret") || "";
+        const expected = await webhookSecret(env, "max");
+        if (!expected || !timingSafeEqual(given, expected))
+          return rejectWebhook(env, ctx, "max", async () =>
+            maxBind(env, url.origin, expected),
+          );
+      }
       let upd = null;
       try {
         upd = await request.json();
@@ -2237,14 +2321,12 @@ export default {
     // Привязка вебхука MAX. Ключ — токен телеграмного бота: тот же приём,
     // что и у остальных служебных адресов воркера.
     if (url.pathname === "/max/setup") {
-      if (!env.TELEGRAM_BOT_TOKEN || url.searchParams.get("key") !== env.TELEGRAM_BOT_TOKEN)
-        return json({ ok: false, error: "forbidden" }, 403);
-      return json({ ok: true, ...(await maxBind(env, url.origin)) });
+      if (!serviceKeyOk(env, url)) return json({ ok: false, error: "forbidden" }, 403);
+      return json({ ok: true, ...(await maxBind(env, url.origin, await webhookSecret(env, "max"))) });
     }
 
     if (url.pathname === "/max/diag") {
-      if (!env.TELEGRAM_BOT_TOKEN || url.searchParams.get("key") !== env.TELEGRAM_BOT_TOKEN)
-        return json({ ok: false, error: "forbidden" }, 403);
+      if (!serviceKeyOk(env, url)) return json({ ok: false, error: "forbidden" }, 403);
       return json(await maxDiag(env, kvGet));
     }
 

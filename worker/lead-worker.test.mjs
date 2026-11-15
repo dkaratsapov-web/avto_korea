@@ -1,6 +1,46 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker from "./lead-worker.js";
+import realWorker from "./lead-worker.js";
+
+/*
+ * Настоящие Telegram и MAX подписывают каждый запрос на вебхук секретом, а
+ * служебные адреса открываются с ключом. Тесты ниже проверяют логику бота,
+ * поэтому подписываем за них — как это делает мессенджер. Что запрос без
+ * подписи отклоняется, проверяют отдельные тесты (через realWorker).
+ */
+async function testSecret(token, kind) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(token),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`webhook:${kind}`)));
+  return [...sig].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 48);
+}
+// Не async: остальные запросы уходят в воркер без лишнего круга ожидания —
+// иначе тесты «запись после ответа» видели бы отложенные записи раньше срока.
+const worker = {
+  fetch(req, env, ctx) {
+    const u = new URL(req.url);
+    const token = String(env?.TELEGRAM_BOT_TOKEN || "");
+    if (token && (u.pathname === "/tg" || u.pathname === "/max") && req.method === "POST") {
+      return (async () => {
+        const headers = new Headers(req.headers);
+        const name = u.pathname === "/tg" ? "X-Telegram-Bot-Api-Secret-Token" : "X-Max-Bot-Api-Secret";
+        if (!headers.has(name)) headers.set(name, await testSecret(token, u.pathname.slice(1)));
+        const signed = new Request(req.url, { method: req.method, headers, body: await req.text() });
+        return realWorker.fetch(signed, env, ctx);
+      })();
+    }
+    if (token && (u.pathname === "/setup" || u.pathname.startsWith("/max/")) && !u.searchParams.has("key")) {
+      u.searchParams.set("key", token);
+      req = new Request(u.toString(), req);
+    }
+    return realWorker.fetch(req, env, ctx);
+  },
+};
 
 /** Хранилище-заглушка вместо KV. */
 function makeStore(seed = {}) {
@@ -3076,4 +3116,63 @@ test("рассылка по сегменту: только оставившим 
   assert.equal(r.total, 1);
   assert.deepEqual(to, ["11"]);
   assert.equal((await admin("broadcast.send", { text: "x", segment: "nope" }, store)).status, 400);
+});
+
+
+/* ---------- Безопасность вебхуков и служебных адресов ---------- */
+
+test("вебхук Telegram без секрета отклоняется и ничего не выполняет", async () => {
+  const store = makeStore();
+  const calls = stubTelegram();
+  const c = makeCtx();
+  const res = await realWorker.fetch(
+    new Request("https://w.dev/tg", {
+      method: "POST",
+      body: JSON.stringify({ update_id: 1, message: { message_id: 1, chat: { id: 777, type: "private" }, from: { id: 777 }, text: "/crm_admin" } }),
+    }),
+    { TELEGRAM_BOT_TOKEN: "T", TELEGRAM_CHAT_ID: "-100999", ADMIN_IDS: "777", STORE: store },
+    c.ctx,
+  );
+  await c.settle();
+  assert.equal(res.status, 401);
+  assert.ok(!calls.some((x) => x.method === "sendMessage"), "подделка не должна получить ответа бота");
+  // Самолечение: вебхук перепривязан уже с секретом.
+  const bind = calls.find((x) => x.method === "setWebhook");
+  assert.ok(bind, "должна быть перепривязка вебхука");
+  assert.equal(bind.body.secret_token, await testSecret("T", "tg"));
+});
+
+test("вебхук Telegram с чужим секретом отклоняется", async () => {
+  const store = makeStore();
+  stubTelegram();
+  const res = await realWorker.fetch(
+    new Request("https://w.dev/tg", {
+      method: "POST",
+      headers: { "X-Telegram-Bot-Api-Secret-Token": "guess" },
+      body: JSON.stringify({ update_id: 1 }),
+    }),
+    { TELEGRAM_BOT_TOKEN: "T", STORE: store },
+    makeCtx().ctx,
+  );
+  assert.equal(res.status, 401);
+});
+
+test("вебхук MAX без секрета отклоняется", async () => {
+  const store = makeStore();
+  const res = await realWorker.fetch(
+    new Request("https://w.dev/max", { method: "POST", body: JSON.stringify({ update_type: "message_created" }) }),
+    { TELEGRAM_BOT_TOKEN: "T", MAX_BOT_TOKEN: "M", STORE: store },
+    { waitUntil() {} },
+  );
+  assert.equal(res.status, 401);
+});
+
+test("/setup без ключа закрыт", async () => {
+  stubTelegram();
+  const res = await realWorker.fetch(
+    new Request("https://w.dev/setup"),
+    { TELEGRAM_BOT_TOKEN: "T", STORE: makeStore() },
+    undefined,
+  );
+  assert.equal(res.status, 403);
 });

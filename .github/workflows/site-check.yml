@@ -63,3 +63,9 @@ jobs:
             echo "::error::SSL-сертификат сайта истекает или истёк (осталось дней: $left). Перевыпустите его в панели reg.ru."
             exit 1
           fi
+
+      - name: Вебхук бота (Telegram)
+        run: |
+          curl -sS --max-time 20 https://diauto-bot.d-karatsapov.workers.dev/api/diag \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin); w=d.get("webhook") or {}; print(json.dumps({k: w.get(k) for k in ("url","pending_update_count","last_error_message","last_error_date")}, ensure_ascii=False))' \
+            || echo "не удалось получить /api/diag"

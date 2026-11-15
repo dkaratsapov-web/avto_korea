@@ -540,12 +540,18 @@ const COMMANDS = [
   { name: "reviews", description: "Отзывы клиентов" },
 ];
 
-/** Подписать MAX на наш адрес, выставить команды и проверить токен. */
-export async function maxBind(env, origin) {
+/**
+ * Подписать MAX на наш адрес, выставить команды и проверить токен.
+ *
+ * secret MAX возвращает в заголовке X-Max-Bot-Api-Secret каждого запроса —
+ * по нему воркер отличает MAX от подделки (см. webhookSecret в lead-worker).
+ */
+export async function maxBind(env, origin, secret = "") {
   const me = await maxCall(env, "GET", "/me");
   const hook = await maxCall(env, "POST", "/subscriptions", {
     url: `${origin}/max`,
     update_types: ["message_created", "message_callback", "bot_started", "bot_added"],
+    ...(secret ? { secret } : {}),
   });
   // Команды живут на отдельном эндпоинте /me/commands. С июльского (2026)
   // обновления MAX перестал принимать их через PATCH /me — тот теперь отвечает
