@@ -61,6 +61,11 @@ const profiles = [
   ["mobile", { ...devices["iPhone 13"] }],
 ];
 const rows = [];
+// Первый полный адрес к каждому чужому домену и начало кода чужих скриптов —
+// чтобы по отчёту было видно не только «кто», но и «что именно» грузится.
+const samples = new Map();
+const scriptHeads = new Map();
+const KNOWN = /(^|\.)(yandex\.(ru|com|net)|yastatic\.net|googleapis\.com|gstatic\.com|tgtrack\.ru|telegram\.org|workers\.dev)$/;
 for (const [kind, opts] of profiles) {
   const ctx = await browser.newContext({ ...opts, ignoreHTTPSErrors: true, locale: "ru-RU" });
   for (const p of PAGES) {
@@ -70,7 +75,20 @@ for (const [kind, opts] of profiles) {
     page.on("pageerror", (e) => errors.push(e.message));
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
     page.on("requestfailed", (r) => failed.push(`${r.failure()?.errorText || "fail"} ${r.url()}`));
-    page.on("response", (r) => r.status() >= 400 && failed.push(`${r.status()} ${r.url()}`));
+    page.on("response", (r) => {
+      if (r.status() >= 400) failed.push(`${r.status()} ${r.url()}`);
+      try {
+        const h = new URL(r.url()).host;
+        if (r.request().resourceType() === "script" && !KNOWN.test(h) && h !== new URL(BASE).host && !scriptHeads.has(h)) {
+          scriptHeads.set(h, "…");
+          r.text()
+            .then((t) => scriptHeads.set(h, `${r.url()}\n${t.slice(0, 400)}`))
+            .catch(() => {});
+        }
+      } catch {
+        /* пропускаем */
+      }
+    });
     // Внешние запросы и кто их сделал: адрес скрипта-инициатора из DevTools.
     // Так видно, откуда на сайте берутся чужие пиксели и счётчики.
     const external = new Map();
@@ -91,6 +109,7 @@ for (const [kind, opts] of profiles) {
         const by = frame?.url || ini.url || ini.type || "?";
         const key = `${host} ← ${by.split("?")[0]}`;
         external.set(key, (external.get(key) || 0) + 1);
+        if (!samples.has(host)) samples.set(host, { url: e.request.url, by, type: e.type || "" });
       });
     } catch {
       /* не Chromium — без инициаторов */
@@ -142,6 +161,16 @@ const md = [
       ...[...new Set(r.failed)].slice(0, 15).map((f) => `- запрос: ${f.slice(0, 300)}`),
       "",
     ]),
+  "## Чужие скрипты (не Яндекс, не Google, не наши)",
+  "",
+  ...(scriptHeads.size ? [...scriptHeads.values()].map((t) => "```\n" + t + "\n```") : ["нет"]),
+  "",
+  "## Примеры адресов по доменам",
+  "",
+  ...[...samples.entries()]
+    .filter(([h]) => !KNOWN.test(h))
+    .map(([h, v]) => `- ${h}: ${v.type} ${v.url.slice(0, 250)} ← ${v.by.slice(0, 200)}`),
+  "",
   "## Внешние запросы: домен ← кто его вызвал",
   "",
   ...(() => {
