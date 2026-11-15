@@ -71,6 +71,30 @@ for (const [kind, opts] of profiles) {
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
     page.on("requestfailed", (r) => failed.push(`${r.failure()?.errorText || "fail"} ${r.url()}`));
     page.on("response", (r) => r.status() >= 400 && failed.push(`${r.status()} ${r.url()}`));
+    // Внешние запросы и кто их сделал: адрес скрипта-инициатора из DevTools.
+    // Так видно, откуда на сайте берутся чужие пиксели и счётчики.
+    const external = new Map();
+    const ownHost = new URL(BASE).host;
+    try {
+      const cdp = await ctx.newCDPSession(page);
+      await cdp.send("Network.enable");
+      cdp.on("Network.requestWillBeSent", (e) => {
+        let host = "";
+        try {
+          host = new URL(e.request.url).host;
+        } catch {
+          return;
+        }
+        if (!host || host === ownHost || e.request.url.startsWith("data:")) return;
+        const ini = e.initiator || {};
+        const frame = ini.stack?.callFrames?.find((f) => f.url) || ini.stack?.parent?.callFrames?.find((f) => f.url);
+        const by = frame?.url || ini.url || ini.type || "?";
+        const key = `${host} ← ${by.split("?")[0]}`;
+        external.set(key, (external.get(key) || 0) + 1);
+      });
+    } catch {
+      /* не Chromium — без инициаторов */
+    }
     const started = Date.now();
     let status = "";
     try {
@@ -89,7 +113,7 @@ for (const [kind, opts] of profiles) {
     const overflow = await page
       .evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
       .catch(() => 0);
-    rows.push({ kind, p, status, ms, title, file, errors, failed, overflow });
+    rows.push({ kind, p, status, ms, title, file, errors, failed, overflow, external });
     await page.close();
   }
   await ctx.close();
@@ -118,6 +142,13 @@ const md = [
       ...[...new Set(r.failed)].slice(0, 15).map((f) => `- запрос: ${f.slice(0, 300)}`),
       "",
     ]),
+  "## Внешние запросы: домен ← кто его вызвал",
+  "",
+  ...(() => {
+    const all = new Map();
+    for (const r of rows) for (const [k, n] of r.external) all.set(k, (all.get(k) || 0) + n);
+    return [...all.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `- ${k} (${n})`);
+  })(),
 ].join("\n");
 await writeFile(`${OUT}/README.md`, md);
 console.log(md);
