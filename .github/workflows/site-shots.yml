@@ -1,0 +1,74 @@
+# Браузер для живого сайта на серверах GitHub.
+#
+# Открывает страницы боевого сайта в Chromium (компьютер и телефон), снимает
+# скриншоты и пишет отчёт: ответы, ошибки консоли, упавшие запросы, HTTPS,
+# горизонтальный сдвиг. Результат — в ветке site-shots (README.md и картинки):
+# его видно на GitHub, а Claude забирает его через git.
+#
+# Запуск: Actions → Site shots → Run workflow (можно указать страницы и
+# селектор для клика), либо изменением файла site-shots.txt — в нём список
+# страниц через запятую.
+
+name: Site shots
+
+on:
+  workflow_dispatch:
+    inputs:
+      pages:
+        description: "Страницы через запятую (пусто — основные)"
+        required: false
+        default: ""
+      click:
+        description: "CSS-селектор, по которому кликнуть перед снимком (необязательно)"
+        required: false
+        default: ""
+  push:
+    branches: [claude/beautiful-goodall-irzq2f]
+    paths:
+      - "site-shots.txt"
+      - "scripts/site-shot.mjs"
+      - ".github/workflows/site-shots.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: site-shots
+  cancel-in-progress: false
+
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Chromium
+        run: |
+          npm i --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+
+      - name: Снимки
+        env:
+          IN_PAGES: ${{ github.event.inputs.pages }}
+          IN_CLICK: ${{ github.event.inputs.click }}
+        run: |
+          PAGES="$IN_PAGES"
+          if [ -z "$PAGES" ] && [ -f site-shots.txt ]; then PAGES="$(grep -v '^#' site-shots.txt | tr -d '\n ')"; fi
+          ARGS=(--out out)
+          [ -n "$PAGES" ] && ARGS+=(--pages "$PAGES")
+          [ -n "$IN_CLICK" ] && ARGS+=(--click "$IN_CLICK")
+          node scripts/site-shot.mjs "${ARGS[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: В ветку site-shots
+        run: |
+          cd out
+          git init -q -b site-shots
+          git config user.name "site-shots"
+          git config user.email "site-shots@users.noreply.github.com"
+          git add -A
+          git commit -qm "Снимки сайта: $(date -u +%F\ %H:%M) UTC"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" site-shots

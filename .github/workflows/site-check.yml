@@ -1,8 +1,11 @@
 # Проверка сайта и ссылок снаружи: SSL-сертификат (срок, на какие имена
 # выдан), ответы сайта по https/http и с www, ссылки из постов в MAX.
 #
-# Запускается вручную (Actions → Site check → Run workflow) и при изменении
-# этого файла. Ничего не меняет — только печатает результат в лог.
+# Запускается каждый день, вручную (Actions → Site check → Run workflow) и при
+# изменении этого файла. Ничего не меняет — только проверяет. Если сертификат
+# уже истёк или истекает меньше чем через 14 дней, проверка падает, и GitHub
+# присылает владельцу репозитория письмо: 11.11.2026 сертификат истёк молча,
+# и сайт неделю открывался с предупреждением браузера.
 
 name: Site check
 
@@ -12,6 +15,8 @@ on:
     paths:
       - ".github/workflows/site-check.yml"
   workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * *"
 
 jobs:
   check:
@@ -46,3 +51,15 @@ jobs:
             printf '%-60s ' "$url"
             curl -sS -o /dev/null -L --max-time 20 -w '%{http_code} final=%{url_effective}\n' "$url" 2>&1 || true
           done
+
+      - name: Срок сертификата (падает, если меньше 14 дней)
+        run: |
+          host=xn---69-5cdk0b2aocjmsg.xn--p1ai
+          end=$(echo | timeout 20 openssl s_client -connect "$host:443" -servername "$host" 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
+          [ -n "$end" ] || { echo "::error::Не удалось получить сертификат $host"; exit 1; }
+          left=$(( ($(date -d "$end" +%s) - $(date +%s)) / 86400 ))
+          echo "Сертификат действует до: $end (осталось дней: $left)" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$left" -lt 14 ]; then
+            echo "::error::SSL-сертификат сайта истекает или истёк (осталось дней: $left). Перевыпустите его в панели reg.ru."
+            exit 1
+          fi
