@@ -1,0 +1,97 @@
+{
+ "запрос": {
+  "dimensions": "ym:ad:lastDirectOrder",
+  "metrics": "ym:ad:clicks,ym:ad:RUBAdCost,ym:ad:visits"
+ },
+ "totals": [
+  5735,
+  53331.6859,
+  4227
+ ],
+ "rows": [
+  {
+   "lastDirectOrder": "ПОИСК - Тверь",
+   "clicks": 126,
+   "RUBAdCost": 10377.9229,
+   "visits": 110
+  },
+  {
+   "lastDirectOrder": "РСЯ - Фид",
+   "clicks": 1720,
+   "RUBAdCost": 10051.0353,
+   "visits": 1769
+  },
+  {
+   "lastDirectOrder": "РСЯ - Сразу на ТГ - Бот",
+   "clicks": 670,
+   "RUBAdCost": 9440.5174,
+   "visits": 0
+  },
+  {
+   "lastDirectOrder": "ПОИСК - Сразу на ТГ - Бот",
+   "clicks": 737,
+   "RUBAdCost": 7207.1136,
+   "visits": 43
+  },
+  {
+   "lastDirectOrder": "ЕПК - ТГ через ленд - На ссылку в канал",
+   "clicks": 2021,
+   "RUBAdCost": 4926.4392,
+   "visits": 1992
+  },
+  {
+   "lastDirectOrder": "МК на MarQuiz",
+   "clicks": 127,
+   "RUBAdCost": 3127.5611,
+   "visits": 8
+  },
+  {
+   "lastDirectOrder": "ЕПК - ТГ через ленд - Сразу на бот",
+   "clicks": 193,
+   "RUBAdCost": 2231.5319,
+   "visits": 193
+  },
+  {
+   "lastDirectOrder": "ЕПК - Поиск",
+   "clicks": 20,
+   "RUBAdCost": 1952.4481,
+   "visits": 18
+  },
+  {
+   "lastDirectOrder": "ЕПК - РСЯ - Квиз",
+   "clicks": 47,
+   "RUBAdCost": 1612.042,
+   "visits": 44
+  },
+  {
+   "lastDirectOrder": "РСЯ - MarQuiz - Утиль",
+   "clicks": 9,
+   "RUBAdCost": 965.1176,
+   "visits": 0
+  },
+  {
+   "lastDirectOrder": "Реклама в ТГ",
+   "clicks": 7,
+   "RUBAdCost": 781.3889,
+   "visits": 1
+  },
+  {
+   "lastDirectOrder": "РСЯ - MarQuiz",
+   "clicks": 7,
+   "RUBAdCost": 658.5679,
+   "visits": 1
+  },
+  {
+   "lastDirectOrder": "ЕПК - ТГ через ленд - Через подписку",
+   "clicks": 4,
+   "RUBAdCost": 0,
+   "visits": 2
+  },
+  {
+   "lastDirectOrder": "ТК - По фиду с сайта",
+   "clicks": 47,
+   "RUBAdCost": 0,
+   "visits": 46
+  }
+ ]
+}

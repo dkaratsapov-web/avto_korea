@@ -1,0 +1,186 @@
+{
+ "запрос": {
+  "dimensions": "ym:s:lastDirectPlatformType,ym:s:lastDirectClickOrderName",
+  "metrics": "ym:s:visits,ym:s:bounceRate,ym:s:goal595214375reaches,ym:s:goal590992054reaches,ym:s:goal590796941reaches,ym:s:goal595215428reaches,ym:s:goal600556587reaches,ym:s:goal600463439reaches"
+ },
+ "totals": [
+  4232,
+  53.35538752,
+  0,
+  5,
+  401,
+  424,
+  63,
+  2670
+ ],
+ "rows": [
+  {
+   "lastDirectPlatformType": "Networks",
+   "lastDirectClickOrderName": "ЕПК - ТГ через ленд - На ссылку в канал",
+   "visits": 1854,
+   "bounceRate": 80.52858684,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 294,
+   "goal595215428reaches": 292,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 0
+  },
+  {
+   "lastDirectPlatformType": "Networks",
+   "lastDirectClickOrderName": "РСЯ - Фид",
+   "visits": 1769,
+   "bounceRate": 25.7772753,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 1,
+   "goal590796941reaches": 14,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 1,
+   "goal600463439reaches": 2550
+  },
+  {
+   "lastDirectPlatformType": "Networks",
+   "lastDirectClickOrderName": "ЕПК - ТГ через ленд - Сразу на бот",
+   "visits": 193,
+   "bounceRate": 74.61139896,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 60,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 62,
+   "goal600463439reaches": 0
+  },
+  {
+   "lastDirectPlatformType": "Search",
+   "lastDirectClickOrderName": "ЕПК - ТГ через ленд - На ссылку в канал",
+   "visits": 143,
+   "bounceRate": 68.53146853,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 27,
+   "goal595215428reaches": 132,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 0
+  },
+  {
+   "lastDirectPlatformType": "Search",
+   "lastDirectClickOrderName": "ПОИСК - Тверь",
+   "visits": 110,
+   "bounceRate": 17.27272727,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 1,
+   "goal590796941reaches": 5,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 94
+  },
+  {
+   "lastDirectPlatformType": "Search",
+   "lastDirectClickOrderName": "ТК - По фиду с сайта",
+   "visits": 44,
+   "bounceRate": 22.72727273,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 0,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 19
+  },
+  {
+   "lastDirectPlatformType": "Networks",
+   "lastDirectClickOrderName": "ЕПК - РСЯ - Квиз",
+   "visits": 44,
+   "bounceRate": 50,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 1,
+   "goal590796941reaches": 0,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 1
+  },
+  {
+   "lastDirectPlatformType": "Search",
+   "lastDirectClickOrderName": "ПОИСК - Сразу на ТГ - Бот",
+   "visits": 43,
+   "bounceRate": 16.27906977,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 0,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 0
+  },
+  {
+   "lastDirectPlatformType": "Search",
+   "lastDirectClickOrderName": "ЕПК - Поиск",
+   "visits": 18,
+   "bounceRate": 11.11111111,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 1,
+   "goal590796941reaches": 0,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 0
+  },
+  {
+   "lastDirectPlatformType": "Search",
+   "lastDirectClickOrderName": "МК на MarQuiz",
+   "visits": 8,
+   "bounceRate": 50,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 0,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 0
+  },
+  {
+   "lastDirectPlatformType": "Search",
+   "lastDirectClickOrderName": "ЕПК - ТГ через ленд - Через подписку",
+   "visits": 2,
+   "bounceRate": 100,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 0,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 0
+  },
+  {
+   "lastDirectPlatformType": "Networks",
+   "lastDirectClickOrderName": "ТК - По фиду с сайта",
+   "visits": 2,
+   "bounceRate": 50,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 0,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 2
+  },
+  {
+   "lastDirectPlatformType": "Networks",
+   "lastDirectClickOrderName": "РСЯ - MarQuiz",
+   "visits": 1,
+   "bounceRate": 0,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 1,
+   "goal590796941reaches": 1,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 4
+  },
+  {
+   "lastDirectPlatformType": "Networks",
+   "lastDirectClickOrderName": "Реклама в ТГ",
+   "visits": 1,
+   "bounceRate": 0,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 0,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 0
+  }
+ ]
+}

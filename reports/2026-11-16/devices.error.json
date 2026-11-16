@@ -1,0 +1,14 @@
+{
+ "отчёт": "devices.json",
+ "ошибка": "Метрика 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}",
+ "ответ": {
+  "errors": [
+   {
+    "error_type": "query_error",
+    "message": "Query is too complicated. Please reduce the date interval or sampling."
+   }
+  ],
+  "code": 400,
+  "message": "Query is too complicated. Please reduce the date interval or sampling."
+ }
+}

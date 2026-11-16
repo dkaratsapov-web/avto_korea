@@ -1,0 +1,161 @@
+{
+ "запрос": {
+  "dimensions": "ym:s:visitDurationInterval",
+  "metrics": "ym:s:visits,ym:s:bounceRate,ym:s:goal595214375reaches,ym:s:goal590992054reaches,ym:s:goal590796941reaches,ym:s:goal595215428reaches,ym:s:goal600556587reaches,ym:s:goal600463439reaches"
+ },
+ "totals": [
+  5622,
+  46.81607969,
+  2,
+  119,
+  485,
+  457,
+  77,
+  3712
+ ],
+ "rows": [
+  {
+   "visitDurationInterval": "0 seconds (bounce)",
+   "visits": 1972,
+   "bounceRate": 100,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 3,
+   "goal595215428reaches": 8,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 81
+  },
+  {
+   "visitDurationInterval": "10 – 29 seconds",
+   "visits": 1763,
+   "bounceRate": 1.81508792,
+   "goal595214375reaches": 1,
+   "goal590992054reaches": 12,
+   "goal590796941reaches": 165,
+   "goal595215428reaches": 154,
+   "goal600556587reaches": 35,
+   "goal600463439reaches": 919
+  },
+  {
+   "visitDurationInterval": "1 – 9 seconds",
+   "visits": 643,
+   "bounceRate": 97.66718507,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 1,
+   "goal590796941reaches": 102,
+   "goal595215428reaches": 151,
+   "goal600556587reaches": 8,
+   "goal600463439reaches": 364
+  },
+  {
+   "visitDurationInterval": "30 – 59 seconds",
+   "visits": 364,
+   "bounceRate": 0,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 5,
+   "goal590796941reaches": 79,
+   "goal595215428reaches": 68,
+   "goal600556587reaches": 10,
+   "goal600463439reaches": 318
+  },
+  {
+   "visitDurationInterval": "1 minute",
+   "visits": 292,
+   "bounceRate": 0,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 3,
+   "goal590796941reaches": 39,
+   "goal595215428reaches": 24,
+   "goal600556587reaches": 10,
+   "goal600463439reaches": 457
+  },
+  {
+   "visitDurationInterval": "2 minutes",
+   "visits": 142,
+   "bounceRate": 0,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 4,
+   "goal590796941reaches": 16,
+   "goal595215428reaches": 11,
+   "goal600556587reaches": 4,
+   "goal600463439reaches": 301
+  },
+  {
+   "visitDurationInterval": "5 – 9 minutes",
+   "visits": 131,
+   "bounceRate": 0,
+   "goal595214375reaches": 1,
+   "goal590992054reaches": 18,
+   "goal590796941reaches": 17,
+   "goal595215428reaches": 12,
+   "goal600556587reaches": 2,
+   "goal600463439reaches": 370
+  },
+  {
+   "visitDurationInterval": "10 – 19 minutes",
+   "visits": 85,
+   "bounceRate": 0,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 15,
+   "goal590796941reaches": 10,
+   "goal595215428reaches": 3,
+   "goal600556587reaches": 1,
+   "goal600463439reaches": 297
+  },
+  {
+   "visitDurationInterval": "3 minutes",
+   "visits": 84,
+   "bounceRate": 0,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 11,
+   "goal590796941reaches": 6,
+   "goal595215428reaches": 5,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 177
+  },
+  {
+   "visitDurationInterval": "20 – 29 minutes",
+   "visits": 64,
+   "bounceRate": 0,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 15,
+   "goal590796941reaches": 19,
+   "goal595215428reaches": 3,
+   "goal600556587reaches": 1,
+   "goal600463439reaches": 240
+  },
+  {
+   "visitDurationInterval": "4 minutes",
+   "visits": 46,
+   "bounceRate": 0,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 1,
+   "goal590796941reaches": 4,
+   "goal595215428reaches": 3,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 116
+  },
+  {
+   "visitDurationInterval": "30 – 59 minutes",
+   "visits": 33,
+   "bounceRate": 0,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 33,
+   "goal590796941reaches": 19,
+   "goal595215428reaches": 10,
+   "goal600556587reaches": 6,
+   "goal600463439reaches": 65
+  },
+  {
+   "visitDurationInterval": "1 hour",
+   "visits": 3,
+   "bounceRate": 0,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 1,
+   "goal590796941reaches": 6,
+   "goal595215428reaches": 5,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 7
+  }
+ ]
+}

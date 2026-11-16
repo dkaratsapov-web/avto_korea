@@ -1,0 +1,73 @@
+{
+ "запрос": {
+  "dimensions": "ym:s:lastDirectConditionType",
+  "metrics": "ym:s:visits,ym:s:bounceRate,ym:s:goal595214375reaches,ym:s:goal590992054reaches,ym:s:goal590796941reaches,ym:s:goal595215428reaches,ym:s:goal600556587reaches,ym:s:goal600463439reaches"
+ },
+ "totals": [
+  4232,
+  53.35538752,
+  0,
+  5,
+  401,
+  424,
+  63,
+  2670
+ ],
+ "rows": [
+  {
+   "lastDirectConditionType": "Autotargeting",
+   "visits": 3772,
+   "bounceRate": 55.32873807,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 3,
+   "goal590796941reaches": 372,
+   "goal595215428reaches": 394,
+   "goal600556587reaches": 53,
+   "goal600463439reaches": 2326
+  },
+  {
+   "lastDirectConditionType": "Ad impression criteria",
+   "visits": 187,
+   "bounceRate": 45.98930481,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 18,
+   "goal595215428reaches": 11,
+   "goal600556587reaches": 6,
+   "goal600463439reaches": 143
+  },
+  {
+   "lastDirectConditionType": "Automatically-added phrases",
+   "visits": 144,
+   "bounceRate": 25,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 2,
+   "goal590796941reaches": 6,
+   "goal595215428reaches": 16,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 80
+  },
+  {
+   "lastDirectConditionType": "Product filters",
+   "visits": 73,
+   "bounceRate": 30.1369863,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 0,
+   "goal595215428reaches": 0,
+   "goal600556587reaches": 0,
+   "goal600463439reaches": 106
+  },
+  {
+   "lastDirectConditionType": "Keyword",
+   "visits": 56,
+   "bounceRate": 48.21428571,
+   "goal595214375reaches": 0,
+   "goal590992054reaches": 0,
+   "goal590796941reaches": 5,
+   "goal595215428reaches": 3,
+   "goal600556587reaches": 4,
+   "goal600463439reaches": 15
+  }
+ ]
+}
