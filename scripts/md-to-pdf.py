@@ -80,9 +80,46 @@ MONO = None
 # ------------------------------------------------------------------ разметка
 
 
+# Эмодзи. В Manrope их нет — без подмены вместо 👇 в PDF чёрный квадрат.
+# Рисуем каждый эмодзи цветным шрифтом Noto в картинку и вставляем в строку.
+EMOJI_FONT = "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf"
+EMOJI_RE = re.compile(
+    "[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\u23E9-\u23FA]\uFE0F?"
+)
+
+
+def emoji_img(ch):
+    """Картинка эмодзи из кеша рядом со шрифтами; None — если нарисовать нечем."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        return None
+    if not os.path.exists(EMOJI_FONT):
+        return None
+    path = os.path.join(FONT_DIR, "emoji", "-".join(f"{ord(c):x}" for c in ch) + ".png")
+    if not os.path.exists(path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        font = ImageFont.truetype(EMOJI_FONT, 109)  # у цветного Noto единственный размер
+        im = Image.new("RGBA", (136, 128), (0, 0, 0, 0))
+        ImageDraw.Draw(im).text((0, 0), ch, font=font, embedded_color=True)
+        im.crop(im.getbbox() or (0, 0, 128, 128)).save(path)
+    return path
+
+
+def emoji(text):
+    def sub(m):
+        path = emoji_img(m.group(0))
+        return f'<img src="{path}" width="10" height="10" valign="-1.5"/>' if path else ""
+
+    return EMOJI_RE.sub(sub, text)
+
+
 def inline(text):
-    """Жирное, моноширинное и ссылки — в разметку reportlab."""
+    """Жирное, моноширинное, ссылки и эмодзи — в разметку reportlab."""
     text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    text = emoji(text)
+    # «1 780 000 ₽» не разрываем: пробелы в разрядах и перед ₽ — неразрывные.
+    text = re.sub(r"(?<=\d) (?=\d{3}\b|₽)", "\u00a0", text)
     text = re.sub(r"\*\*(.+?)\*\*", r'<font name="Manrope-800">\1</font>', text)
     text = re.sub(
         r"`(.+?)`",
