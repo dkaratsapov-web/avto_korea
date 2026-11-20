@@ -2,6 +2,8 @@
 
 Прочитать в начале новой сессии. Обновлять, когда меняется что-то из списка ниже.
 
+Подробнее: `CLAUDE.md` (правила, читается автоматически), `docs/PROJECT.md` (устройство), `docs/RUNBOOK.md` (как что делать и частые поломки), `docs/HISTORY.md` (история и решения), `docs/crm.md` (CRM).
+
 ## Проект
 - Клиент: ДиАвто69 (Тверь, Коминтерна, 71) — импорт авто из Кореи, Китая, Японии. Маркетолог — Карацапов (karatsapov.ru).
 - Сайт: https://автоимпорт-69.рф (xn---69-5cdk0b2aocjmsg.xn--p1ai), хостинг reg.ru (ISPmanager, Apache, `public/.htaccess`).
@@ -43,4 +45,4 @@
 - npm audit: esbuild (только dev-сервер) — не трогали.
 
 ## Окружение
-- Скрипт настройки окружения Default ставит плагины: example-skills, marketing-skills, product-skills, a11y-audit, ui-ux-pro-max, superpowers (каталоги anthropics/skills, alirezarezvani/claude-skills, nextlevelbuilder/ui-ux-pro-max-skill, obra/superpowers). Если их нет — `claude plugin list`, поставить командами из скрипта.
+- Скрипт настройки окружения Default ставит плагины (20.11 подтверждено — в новой сессии встали сами): example-skills, marketing-skills, product-skills, a11y-audit, ui-ux-pro-max, superpowers (каталоги anthropics/skills, alirezarezvani/claude-skills, nextlevelbuilder/ui-ux-pro-max-skill, obra/superpowers). Если их нет — `claude plugin list`, поставить командами из скрипта.
