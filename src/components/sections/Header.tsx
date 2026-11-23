@@ -117,7 +117,7 @@ export function Header() {
               className="logo-outline h-7 w-auto shrink-0 sm:h-9"
             />
             <img
-              src="${import.meta.env.BASE_URL}holiday/header-sprig.webp"
+              src={`${import.meta.env.BASE_URL}holiday/header-sprig.webp`}
               alt=""
               aria-hidden="true"
               width={260}
