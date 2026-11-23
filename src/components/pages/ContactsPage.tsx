@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Phone, MapPin, Clock } from "lucide-react";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
-import { MaxIcon } from "@/components/icons/MaxIcon";
 import { LeadForm } from "@/components/LeadForm";
 import { Office } from "@/components/sections/Office";
 import { site } from "@/lib/site";
@@ -25,33 +24,12 @@ function useMeta(title: string, description: string) {
 export function ContactsPage() {
   useMeta(
     "Контакты ДиАвто69 — импорт авто под ключ в Твери",
-    "Свяжитесь с ДиАвто69: телефон, Telegram и MAX. Импорт авто из Кореи, Китая, Японии и ЕС под ключ. Тверь, 69 регион.",
+    "Свяжитесь с ДиАвто69: телефон и Telegram. Импорт авто из Кореи, Китая, Японии и ЕС под ключ. Тверь, 69 регион.",
   );
-
-  /*
-   * Телеграмы обоих — и Дмитрия, и Сергея.
-   *
-   * Раньше на странице был только один контакт, и всё логистическое
-   * направление шло через того же человека, что и подбор. Данные берём из
-   * команды на «О нас», чтобы ник не разъехался с карточкой сотрудника.
-   */
-  const sergey = site.team.find((m) => m.name === "Сергей");
 
   const contacts = [
     { icon: <Phone className="h-5 w-5" />, label: "Телефон", value: site.phone, href: site.phoneHref },
     { icon: <TelegramIcon className="h-5 w-5" />, label: "Telegram · Дмитрий", value: site.telegram, href: site.telegramHref, ext: true },
-    { icon: <MaxIcon className="h-5 w-5" />, label: "MAX", value: "Написать в MAX", href: site.maxHref, ext: true },
-    ...(sergey?.telegramHref
-      ? [
-          {
-            icon: <TelegramIcon className="h-5 w-5" />,
-            label: "Telegram · Сергей",
-            value: sergey.telegram ?? "Написать в Telegram",
-            href: sergey.telegramHref,
-            ext: true,
-          },
-        ]
-      : []),
   ];
 
   return (
@@ -72,7 +50,7 @@ export function ContactsPage() {
           </h1>
           <p className="mt-3 max-w-2xl text-[15px] text-[#C7CFD6]">
             Ответим на вопросы, посчитаем стоимость под ключ и поможем с подбором.
-            Пишите в удобный мессенджер или оставьте заявку — перезвоним в течение
+            Пишите в Telegram или оставьте заявку — перезвоним в течение
             15 минут.
           </p>
         </div>
