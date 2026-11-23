@@ -1,0 +1,6 @@
+User-Agent: *
+Allow: /
+Disallow: /api/
+
+Host: https://diauto69.ru
+Sitemap: https://diauto69.ru/sitemap.xml

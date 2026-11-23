@@ -1,0 +1,57 @@
+{
+  "extraKnownMarketplaces": {
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    },
+    "claude-code-skills": {
+      "source": {
+        "source": "github",
+        "repo": "alirezarezvani/claude-skills"
+      }
+    },
+    "ui-ux-pro-max-skill": {
+      "source": {
+        "source": "github",
+        "repo": "nextlevelbuilder/ui-ux-pro-max-skill"
+      }
+    },
+    "superpowers-dev": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers"
+      }
+    },
+    "frankx-motion": {
+      "source": {
+        "source": "github",
+        "repo": "frankxai/awesome-motion-design-agent-skills"
+      }
+    },
+    "bizarro": {
+      "source": {
+        "source": "github",
+        "repo": "bizarro/skills"
+      }
+    },
+    "skills": {
+      "source": {
+        "source": "github",
+        "repo": "jmrsquared/skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "example-skills@anthropic-agent-skills": true,
+    "marketing-skills@claude-code-skills": true,
+    "product-skills@claude-code-skills": true,
+    "a11y-audit@claude-code-skills": true,
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
+    "superpowers@superpowers-dev": true,
+    "motion-design-studio@frankx-motion": true,
+    "bizarro@bizarro": true,
+    "jmrsquared-standards@skills": true
+  }
+}

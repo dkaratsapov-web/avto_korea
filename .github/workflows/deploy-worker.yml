@@ -1,0 +1,46 @@
+# Автодеплой Telegram-бота (Cloudflare Worker) при изменениях в worker/.
+#
+# Настроить один раз (GitHub → Settings → Secrets and variables → Actions):
+#   Secrets:
+#     CLOUDFLARE_API_TOKEN — токен с правом «Edit Cloudflare Workers»
+#                            (Cloudflare → My Profile → API Tokens →
+#                             Create Token → Edit Cloudflare Workers)
+#     CLOUDFLARE_ACCOUNT_ID — id аккаунта (Cloudflare → Workers → правая колонка)
+#
+# Секреты самого бота (TELEGRAM_BOT_TOKEN, ADMIN_IDS и пр.) живут в панели
+# Cloudflare и деплоем не затрагиваются.
+#
+# Если в Cloudflare уже подключён Workers Builds (деплой из git на их стороне),
+# этот workflow просто продублирует публикацию — конфликта не будет.
+
+name: Deploy Telegram bot (Cloudflare Worker)
+
+on:
+  push:
+    branches: [main, claude/beautiful-goodall-irzq2f]
+    paths:
+      - "worker/**"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Публикация воркера
+        if: env.HAS_TOKEN == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+
+      - name: Токен не задан
+        if: env.HAS_TOKEN != 'true'
+        run: |
+          echo "::warning::CLOUDFLARE_API_TOKEN не задан — деплой воркера пропущен."
+          echo "Добавьте секрет в Settings → Secrets and variables → Actions."

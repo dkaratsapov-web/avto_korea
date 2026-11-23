@@ -1,0 +1,2 @@
+# Страницы для workflow «Site shots» через запятую. Измените и отправьте — снимки обновятся.
+/,/catalog,/reviews,/about,/contacts,/articles,/quiz,/go,/crm/login

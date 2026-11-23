@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#11151A" />
+
+    <!-- Стили заставки. Внутри разметки, а не в файле: пока внешний CSS
+         едет, заставка уже должна быть видна — ради этого всё и затевалось.
+
+         Заставок на глаз должна быть ровно одна. Там, где дальше показывается
+         заставка с глобусом (сайт на широком экране), эта остаётся пустым
+         тёмным фоном: логотип с полосой на её месте читался как отдельный,
+         первый по счёту прелоадер, и человек видел два подряд. Там, где
+         глобуса не будет — телефон, мини-апп, отключённая анимация, — она
+         показывается целиком и остаётся единственной. -->
+    <style>
+      .boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #11151a;
+        color: #e6ebf0;
+        font: 600 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+      }
+      .boot-mark {
+        font-size: 27px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+      .boot-mark span {
+        color: #e2564c;
+      }
+      .boot-bar {
+        width: 132px;
+        height: 3px;
+        overflow: hidden;
+        border-radius: 2px;
+        background: rgba(230, 235, 240, 0.16);
+      }
+      .boot-bar i {
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: 2px;
+        background: #e2564c;
+        animation: boot-slide 1.15s ease-in-out infinite;
+      }
+      @keyframes boot-slide {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(330%); }
+      }
+      .boot-note {
+        font-size: 13px;
+        font-weight: 500;
+        opacity: 0.62;
+      }
+      /* Полоса — единственная анимация на экране; при отключённом движении
+         оставляем её неподвижной, но видимой. */
+      @media (prefers-reduced-motion: reduce) {
+        .boot-bar i { animation: none; width: 100%; }
+      }
+      /* Дальше будет глобус — эта заставка работает только фоном. */
+      html[data-intro="globe"] .boot-mark,
+      html[data-intro="globe"] .boot-bar,
+      html[data-intro="globe"] .boot-note {
+        display: none;
+      }
+    </style>
+
+    <!-- Favicon.
+
+         /favicon.ico лежит в корне отдельным файлом: браузеры и поисковики
+         запрашивают его по этому адресу, минуя разметку, а SPA-фолбэк на
+         такой запрос отдавал бы index.html.
+
+         Порядок ссылок не случаен. Браузер выбирает подходящий размер сам и
+         на порядок не смотрит, а вот роботы часто берут ПЕРВУЮ подходящую
+         ссылку. Раньше первым стоял SVG — формат, который поисковики берут
+         неохотно. Теперь первым идёт растровый значок крупного размера.
+
+         Внутри .ico шесть картинок, от 16 до 256 пикселей. Мелкие нужны
+         вкладке и закладкам, крупные — выдаче: Яндекс рекомендует значок от
+         120×120, а до этой правки самой большой картинкой в файле была 48. -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+    <link rel="icon" type="image/png" sizes="120x120" href="/favicon-120.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <title>ДиАвто69 — Авто из Кореи, Китая и Японии под ключ</title>
+    <meta
+      name="description"
+      content="Импорт и автоподбор авто из Кореи, Китая, Японии и ЕС под ключ. Реальные цены и честный расчёт с доставкой и растаможкой — без накруток. 69 регион, Тверь."
+    />
+    <meta name="keywords" content="авто из Кореи, авто из Китая, авто из Японии, импорт авто под ключ, автоподбор, растаможка авто, ДиАвто69, Тверь" />
+
+    <!-- Подтверждение прав в Яндекс.Вебмастере. Тег ровно один — действующего
+         кабинета. Прежние сняты намеренно: они подтверждали права чужих
+         аккаунтов, и вместе с тегом эти права уходят. -->
+    <meta name="yandex-verification" content="e3d9834ae7f0fab6" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:site_name" content="ДиАвто69" />
+    <meta property="og:title" content="ДиАвто69 — Авто из Кореи, Китая и Японии под ключ" />
+    <meta
+      property="og:description"
+      content="Реальные цены и честный расчёт под ключ — с доставкой и растаможкой, без накруток."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Fonts.
+
+         Подключены так, чтобы НЕ задерживать первую отрисовку. Обычный
+         rel="stylesheet" браузер считает обязательным: пока ответ с
+         fonts.googleapis.com не пришёл, страница остаётся белой. С мобильного
+         в России этот ответ идёт долго, и особенно больно в мини-аппе внутри
+         Telegram — человек нажал «Каталог» и смотрит в пустоту.
+
+         Приём стандартный: грузим как стиль для печати (такой не блокирует
+         отрисовку), а по факту загрузки переключаем на экранный. Текст
+         показывается сразу системным шрифтом и подменяется фирменным, когда
+         тот доедет. Без JS остаётся <noscript> с обычной ссылкой. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Saira:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Saira:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+
+    <!-- Telegram Web App SDK — только для мини-аппа (/tma).
+
+         Раньше скрипт запрашивался из кода приложения: сначала грузился и
+         разбирался бандл, монтировался экран мини-аппа, и ТОЛЬКО потом
+         начиналась загрузка SDK. Лишний круг по сети на самом медленном
+         месте — внутри Telegram на мобильном интернете.
+
+         Теперь запрос уходит из разметки, параллельно с бандлом. На обычных
+         страницах сайта скрипт не нужен и не запрашивается. -->
+    <script>
+      /*
+       * Будет ли дальше заставка с глобусом.
+       *
+       * Условие обязано совпадать с тем, по которому её показывает сайт
+       * (src/lib/intro.ts): разойдутся — человек увидит либо две заставки
+       * подряд, либо пустой тёмный экран вместо одной.
+       */
+      (function () {
+        var p = location.pathname;
+        var apart = ["/tma", "/crm", "/go", "/tg", "/bot", "/quiz", "/admin"];
+        for (var i = 0; i < apart.length; i++) {
+          if (p.indexOf(apart[i]) === 0) return;
+        }
+        var narrow = window.innerWidth < 768;
+        var calm =
+          window.matchMedia &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (!narrow && !calm) {
+          document.documentElement.setAttribute("data-intro", "globe");
+        }
+      })();
+
+      if (location.pathname.indexOf("/tma") === 0) {
+        // Метка осталась для стилей мини-аппа: сама заставка теперь тёмная
+        // везде, но по метке удобно отличать запуск внутри Telegram.
+        document.documentElement.setAttribute("data-boot", "tma");
+        var tgs = document.createElement("script");
+        tgs.src = "https://telegram.org/js/telegram-web-app.js";
+        tgs.async = true;
+        document.head.appendChild(tgs);
+      }
+    </script>
+
+    <!-- JSON-LD -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "AutoDealer",
+        "name": "ДиАвто69",
+        "description": "Импорт и автоподбор авто из Кореи, Китая, Японии и ЕС под ключ.",
+        "url": "https://xn---69-5cdk0b2aocjmsg.xn--p1ai",
+        "telephone": "+74822006969",
+        "areaServed": "RU",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Тверь",
+          "addressCountry": "RU"
+        },
+        "sameAs": ["https://t.me/Dmitriicarexport"]
+      }
+    </script>
+  </head>
+  <body>
+    <!-- Заставка на время загрузки приложения.
+
+         Зачем. До первой отрисовки браузер скачивает около 470 КБ кода и
+         стилей. На домашнем интернете это доли секунды, а на мобильном в
+         400 кбит/с — почти десять секунд, и всё это время человек видит
+         БЕЛЫЙ ЭКРАН. Проверено замером: на таком канале до восьмой секунды
+         на странице нет ни одного символа. Со стороны это выглядит ровно
+         как «не работает», и человек закрывает вкладку, не дождавшись.
+
+         Заставка приезжает вместе с самим HTML — это десяток килобайт,
+         доли секунды на любом канале. Никаких внешних запросов она не
+         делает: стили внутри разметки, шрифт системный, картинок нет.
+         Ждать ей нечего, поэтому она появляется всегда.
+
+         React монтируется через createRoot (не гидратация), поэтому при
+         запуске приложения содержимое #root заменяется целиком — убирать
+         заставку отдельно не нужно. -->
+    <div id="root">
+      <div class="boot" role="status" aria-live="polite">
+        <div class="boot-mark">ДиАвто<span>69</span></div>
+        <div class="boot-bar"><i></i></div>
+        <div class="boot-note">Загружаем каталог…</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Yandex.Metrika counter -->
+    <script type="text/javascript">
+      (function (m, e, t, r, i, k, a) {
+        m[i] =
+          m[i] ||
+          function () {
+            (m[i].a = m[i].a || []).push(arguments);
+          };
+        m[i].l = 1 * new Date();
+        for (var j = 0; j < document.scripts.length; j++) {
+          if (document.scripts[j].src === r) {
+            return;
+          }
+        }
+        k = e.createElement(t);
+        a = e.getElementsByTagName(t)[0];
+        k.async = 1;
+        k.src = r;
+        a.parentNode.insertBefore(k, a);
+      })(window, document, "script", "https://mc.yandex.ru/metrika/tag.js?id=111166439", "ym");
+
+      // Вебвизор пишет видео каждого сеанса — на сайте это полезно, а в
+      // мини-аппе внутри Telegram он только отъедает трафик и процессор
+      // телефона на самом узком месте. Счётчик при этом остаётся включённым:
+      // посещения и цели считаются везде одинаково.
+      ym(111166439, "init", {
+        ssr: true,
+        webvisor: location.pathname.indexOf("/tma") !== 0,
+        clickmap: true,
+        ecommerce: "dataLayer",
+        referrer: document.referrer,
+        url: location.href,
+        accurateTrackBounce: true,
+        trackLinks: true,
+      });
+    </script>
+    <noscript
+      ><div>
+        <img
+          src="https://mc.yandex.ru/watch/111166439"
+          style="position: absolute; left: -9999px"
+          alt=""
+        /></div
+    ></noscript>
+    <!-- /Yandex.Metrika counter -->
+
+    <!--
+      tgtrack — считает переходы в Telegram-канал и связывает подписки с
+      Директом через тот же счётчик Метрики (111166439). Скрипт подменяет
+      ссылки вида t.me на трекинговые, поэтому подключён на всех страницах:
+      кнопки канала есть и в шапке, и на /go, и на «Спасибо».
+
+      Кроме мини-аппа. Там человек УЖЕ внутри Telegram — считать ему переход
+      в Telegram нечего, а подмена ссылок вредна: вместо прямого перехода
+      мини-апп полез бы на сторонний домен. Плюс это минус один внешний
+      запрос на самой медленной площадке.
+    -->
+    <script>
+      if (location.pathname.indexOf("/tma") !== 0) {
+        var tgt = document.createElement("script");
+        tgt.src =
+          "https://api.tgtrack.ru/API/landing_script/v1/?linkID=0aa1a7967c86fc&type=ya&counterID=111166439";
+        tgt.defer = true;
+        document.body.appendChild(tgt);
+      }
+    </script>
+  </body>
+</html>

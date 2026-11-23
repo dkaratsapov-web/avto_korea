@@ -1,0 +1,70 @@
+# Выгрузка рекламной статистики в репозиторий.
+#
+# Зачем. Разбор кампаний делает разработчик, а доступа ни к рекламному
+# кабинету, ни к боевому серверу у него нет — сеть закрыта. Зато есть этот
+# репозиторий: сюда и складываем отчёты. У Actions интернет открыт, токены
+# лежат в секретах и в код не попадают.
+#
+# Настроить один раз (GitHub → Settings → Secrets and variables → Actions):
+#   Secrets:
+#     YANDEX_TOKEN  — один OAuth-токен на оба сервиса. В приложении Яндекса
+#                     доступы складываются: metrika:read + direct:api дают
+#                     токен, который открывает и Метрику, и Директ.
+#     (или раздельно, если кабинеты у разных людей:)
+#     METRIKA_TOKEN, DIRECT_TOKEN
+#   Variables (необязательно):
+#     DIRECT_LOGIN  — логин рекламодателя, если кабинетом управляет агентство
+#
+# Запускается по понедельникам и вручную: Actions → «Выгрузка рекламы» → Run.
+
+name: Выгрузка рекламы
+
+on:
+  schedule:
+    # 06:00 UTC = 09:00 МСК, понедельник.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "За сколько дней собрать"
+        required: false
+        default: "90"
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Собрать отчёты
+        env:
+          YANDEX_TOKEN: ${{ secrets.YANDEX_TOKEN }}
+          METRIKA_TOKEN: ${{ secrets.METRIKA_TOKEN }}
+          DIRECT_TOKEN: ${{ secrets.DIRECT_TOKEN }}
+          # Логин читаем и из переменных, и из секретов: он не тайна, но
+          # добавляют его обычно туда, куда попадётся глаз первым, а разница
+          # между вкладками стоит целого прогона впустую.
+          DIRECT_LOGIN: ${{ vars.DIRECT_LOGIN || secrets.DIRECT_LOGIN }}
+          DAYS: ${{ github.event.inputs.days || '90' }}
+        run: node scripts/ads-report.mjs
+
+      # Отчёты кладём отдельной веткой: в основной на каждый коммит
+      # срабатывает выкладка сайта, а выгрузке статистики деплой не нужен.
+      - name: Сложить в ветку reports
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B reports
+          git add -f reports
+          git commit -m "Выгрузка рекламы $(date +%F)" || {
+            echo "Изменений нет — публиковать нечего"
+            exit 0
+          }
+          git push -f origin reports

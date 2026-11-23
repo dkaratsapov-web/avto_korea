@@ -1,0 +1,2543 @@
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import {
+  ArrowLeft,
+  Plus,
+  Pencil,
+  Trash2,
+  Save,
+  X,
+  Car as CarIcon,
+  Bot,
+  Inbox,
+  Users,
+  Loader2,
+  Star,
+  Bell,
+  Megaphone,
+  BarChart3,
+  FileStack,
+  Upload,
+  Sparkles,
+  Copy,
+  ChevronDown,
+} from "lucide-react";
+import { useCars } from "@/lib/carsStore";
+import { type Car, formatPrice } from "@/data/cars";
+import { countries, type CountryCode } from "@/lib/site";
+import { Flag } from "@/components/icons/Flag";
+import { showToast } from "@/lib/toast";
+import {
+  adminCall,
+  API_BASE,
+  ALL_CAPS,
+  type AdminCap,
+  type BotSettings,
+  type Lead,
+  type AdminsMap,
+  type Review,
+  type Subscription,
+  type Stats,
+  type Draft,
+} from "@/lib/api";
+import { haptic, type TG } from "@/lib/telegram";
+import {
+  findDuplicates,
+  suggestedRemovals,
+  whySimilar,
+  COMPARE_FIELDS,
+  type DuplicateGroup,
+} from "@/lib/duplicates";
+import { displayPrice } from "@/lib/price";
+
+/**
+ * Десктопная вёрстка админки — для раздела «Бот» в CRM.
+ *
+ * Компонент один и тот же, что в мини-аппе: так админка в CRM и в Telegram
+ * не расходятся по возможностям. Меняется только раскладка: меню разделов
+ * слева, списки сеткой, формы ограниченной ширины.
+ */
+const DesktopCtx = createContext(false);
+const useDesk = () => useContext(DesktopCtx);
+/** Список карточек: на телефоне — лента, на компьютере — сетка. */
+const listCls = (desk: boolean, mobile = "space-y-2.5") =>
+  desk ? "grid items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3" : mobile;
+/** Форма: на широком экране — не во всю ширину, иначе строки читать тяжело. */
+const formCls = (desk: boolean, base = "space-y-3") => (desk ? `${base} max-w-3xl` : base);
+
+type Tab =
+  | "catalog"
+  | "drafts"
+  | "bot"
+  | "leads"
+  | "reviews"
+  | "subs"
+  | "stats"
+  | "broadcast"
+  | "admins";
+
+const emptyCar = (): Car => ({
+  id: "",
+  model: "",
+  year: new Date().getFullYear(),
+  country: "kr",
+  engine: "",
+  trim: "",
+  mileage: "Новый, 0 км",
+  gearbox: "АКПП",
+  drive: "Передний",
+  bodyType: "Кроссовер",
+  fuelType: "Бензин",
+  engineCc: 1500,
+  powerHp: 150,
+  mileageKm: 0,
+  color: "",
+  priceRub: 0,
+  priceMoscowRub: 0,
+  priceTverRub: 0,
+  status: "in_stock",
+  isNew: true,
+  images: [],
+  highlights: [],
+  addedAt: Date.now(),
+});
+
+function slug(s: string) {
+  return (
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9а-я]+/gi, "-")
+      .replace(/^-+|-+$/g, "") || `car-${Date.now()}`
+  );
+}
+
+// Запасной разбор строки описания по метке (для черновиков, созданных до
+// появления нового поля в парсере — берём значение прямо из highlights).
+function fromHighlights(highlights: string[] | undefined, re: RegExp): string {
+  const line = (highlights || []).find((l) => re.test(l));
+  if (!line) return "";
+  const m = line.match(new RegExp(re.source + "[а-яё]*\\s*[:：—-]?\\s*(.+)", "i"));
+  return m ? m[1].trim().slice(0, 60) : "";
+}
+
+function carFromDraft(d: Draft): Car {
+  const p = d.parsed;
+  const price = p.price || 0;
+  const base = emptyCar();
+  const mileageKm = p.mileageKm ?? 0;
+  const engineCc = p.engineCc || base.engineCc;
+  const powerHp = p.powerHp || base.powerHp;
+  const engine =
+    [
+      engineCc ? `${(engineCc / 1000).toFixed(1).replace(".", ",")} л` : "",
+      powerHp ? `${powerHp} л.с.` : "",
+    ].filter(Boolean).join(" · ") || base.engine;
+  const car: Car = {
+    ...base,
+    id: "",
+    model: p.model || "Авто из канала",
+    year: p.year || new Date().getFullYear(),
+    country: (p.country as Car["country"]) || base.country,
+    engine,
+    engineCc,
+    powerHp,
+    gearbox: p.gearbox || base.gearbox,
+    drive: p.drive || base.drive,
+    bodyType: p.bodyType || base.bodyType,
+    fuelType: p.fuelType || base.fuelType,
+    steering: p.steering || base.steering,
+    color: p.color || base.color,
+    trim: p.trim || fromHighlights(p.highlights, /комплектац/i) || base.trim,
+    mileageKm,
+    mileage: mileageKm > 0 ? `${mileageKm.toLocaleString("ru-RU")} км` : base.mileage,
+    isNew: !(mileageKm > 0),
+    priceRub: price,
+    priceTverRub: p.priceTver || price,
+    priceMoscowRub: p.priceMoscow || price,
+    status: base.status,
+    images: d.fileIds.map(
+      (fid) => `${API_BASE}/api/tgphoto?id=${encodeURIComponent(fid)}`,
+    ),
+    // Сырые строки поста не тянем в галочки — всё уходит в текстовое описание.
+    highlights: [],
+  };
+  // Сразу кладём готовое текстовое описание — менеджер может поправить.
+  car.description = genDescription(car);
+  return car;
+}
+
+// Собирает связное текстовое описание (абзац) из характеристик авто.
+// Без AI/сети — детерминированно, мгновенно, работает офлайн.
+// Описание НЕ повторяет характеристики: год, пробег, двигатель, коробка,
+// привод, комплектация, цвет, топливо и преимущества уже выводятся отдельными
+// блоками карточки. Здесь — только условия сделки.
+const COUNTRY_FROM: Record<string, string> = {
+  kr: "Кореи",
+  cn: "Китая",
+  jp: "Японии",
+  eu: "Европы",
+};
+
+function genDescription(c: Car): string {
+  const from = COUNTRY_FROM[c.country] ? ` из ${COUNTRY_FROM[c.country]}` : "";
+  const seg: string[] = [
+    `Привезём${from} под ключ: выкуп у проверенного поставщика, доставка, растаможка и оформление включены`,
+    "Итоговая цена фиксируется в договоре — без скрытых наценок и доплат по факту",
+  ];
+  if (c.isNew || !c.mileageKm) {
+    seg.push("Автомобиль новый, на учёте в РФ не стоял");
+  } else {
+    seg.push(
+      "Перед выкупом проверяем историю и состояние, присылаем фото- и видеоотчёт",
+    );
+  }
+  return seg.join(". ") + ".";
+}
+
+export function TmaAdmin({
+  tg,
+  initData,
+  owner,
+  caps,
+  onExit,
+  desktop = false,
+}: {
+  tg: TG | null;
+  initData: string;
+  owner: boolean;
+  caps: AdminCap[];
+  onExit: () => void;
+  /** Раскладка для компьютера (раздел «Бот» в CRM). */
+  desktop?: boolean;
+}) {
+  const can = (cap: AdminCap) => owner || caps.includes(cap);
+  const tabs: {
+    id: Tab;
+    label: string;
+    icon: typeof CarIcon;
+    cap: AdminCap;
+  }[] = [
+    { id: "catalog", label: "Каталог", icon: CarIcon, cap: "catalog" },
+    { id: "drafts", label: "Черновики", icon: FileStack, cap: "catalog" },
+    { id: "bot", label: "Бот", icon: Bot, cap: "bot" },
+    { id: "leads", label: "Заявки", icon: Inbox, cap: "leads" },
+    { id: "reviews", label: "Отзывы", icon: Star, cap: "reviews" },
+    { id: "subs", label: "Подписки", icon: Bell, cap: "subs" },
+    { id: "stats", label: "Статистика", icon: BarChart3, cap: "stats" },
+    { id: "broadcast", label: "Рассылка", icon: Megaphone, cap: "broadcast" },
+    { id: "admins", label: "Админы", icon: Users, cap: "admins" },
+  ];
+  const visible = tabs.filter((t) => can(t.cap));
+  const [tab, setTab] = useState<Tab>(() => visible[0]?.id ?? "catalog");
+
+  const content = (
+    <>
+      {tab === "catalog" && can("catalog") ? (
+        <CatalogTab tg={tg} initData={initData} canEdit />
+      ) : null}
+      {tab === "drafts" && can("catalog") ? (
+        <DraftsTab tg={tg} initData={initData} />
+      ) : null}
+      {tab === "bot" && can("bot") ? (
+        <BotTab tg={tg} initData={initData} canEdit />
+      ) : null}
+      {tab === "leads" && can("leads") ? <LeadsTab initData={initData} /> : null}
+      {tab === "reviews" && can("reviews") ? (
+        <ReviewsTab tg={tg} initData={initData} canEdit />
+      ) : null}
+      {tab === "subs" && can("subs") ? <SubsTab initData={initData} /> : null}
+      {tab === "stats" && can("stats") ? <StatsTab initData={initData} /> : null}
+      {tab === "broadcast" && can("broadcast") ? (
+        <BroadcastTab tg={tg} initData={initData} />
+      ) : null}
+      {tab === "admins" && can("admins") ? (
+        <AdminsTab initData={initData} owner={owner} />
+      ) : null}
+    </>
+  );
+
+  if (desktop) {
+    const current = visible.find((t) => t.id === tab);
+    return (
+      <DesktopCtx.Provider value>
+        <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="space-y-3 lg:sticky lg:top-20">
+          <nav className="rounded-[18px] border border-line-dark bg-graphite-2 p-2">
+            <div className="flex gap-1 overflow-x-auto lg:flex-col">
+              {visible.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`flex flex-none items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-left text-[14px] font-bold transition-colors ${
+                    tab === t.id
+                      ? "bg-bordeaux text-white"
+                      : "text-chrome hover:bg-white/[0.05] hover:text-white"
+                  }`}
+                >
+                  <t.icon className="h-[18px] w-[18px] flex-none" />
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 hidden border-t border-line-dark px-3 pt-2 text-[11px] font-bold uppercase tracking-wide text-[#7C8792] lg:block">
+              Доступ: {owner ? "владелец" : "админ"}
+            </div>
+          </nav>
+          {/* Сюда вкладки выводят свои действия — например «Удалить
+              отмеченные» у похожих карточек: под рукой, без прокрутки вниз. */}
+          <div id="admin-side-slot" />
+          </div>
+          <section className="min-w-0 rounded-[18px] border border-line-dark bg-graphite p-5">
+            {current ? (
+              <h2 className="mb-4 flex items-center gap-2 text-[18px] font-extrabold">
+                <current.icon className="h-5 w-5 text-[#E0574C]" />
+                {current.label}
+              </h2>
+            ) : null}
+            {content}
+          </section>
+        </div>
+      </DesktopCtx.Provider>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-md">
+      <div className="mb-4 flex items-center gap-2">
+        <button
+          onClick={() => {
+            haptic(tg);
+            onExit();
+          }}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-line-dark text-chrome"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <h1 className="text-[18px] font-extrabold uppercase">Админка</h1>
+        <span className="ml-auto rounded-full border border-line-dark px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-chrome">
+          {owner ? "owner" : "admin"}
+        </span>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {visible.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => {
+              haptic(tg);
+              setTab(t.id);
+            }}
+            className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold ${
+              tab === t.id
+                ? "border-bordeaux-bright bg-bordeaux text-white"
+                : "border-line-dark text-chrome"
+            }`}
+          >
+            <t.icon className="h-4 w-4" />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {content}
+    </div>
+  );
+}
+
+/* ---------- Черновики из канала ---------- */
+function DraftsTab({ tg, initData }: { tg: TG | null; initData: string }) {
+  const desk = useDesk();
+  const { cars, setAll } = useCars();
+  const [drafts, setDrafts] = useState<Draft[] | null>(null);
+  const [editing, setEditing] = useState<{ car: Car; draftId: string } | null>(null);
+
+  useEffect(() => {
+    adminCall<{ drafts: Draft[] }>(initData, "drafts.list").then((r) =>
+      setDrafts(r.ok ? r.drafts : []),
+    );
+  }, [initData]);
+
+  async function publish(car: Car, draftId: string) {
+    const id = car.id || slug(car.model);
+    // Сайт показывает московскую цену — её и повторяем в общей.
+    const price = car.priceMoscowRub || car.priceRub || 0;
+    const full = { ...car, id, priceRub: price, priceMoscowRub: price };
+    const next = cars.some((c) => c.id === id)
+      ? cars.map((c) => (c.id === id ? full : c))
+      : [...cars, full];
+    setAll(next);
+    const r = await adminCall(initData, "catalog.save", next);
+    await adminCall(initData, "drafts.remove", { id: draftId });
+    setEditing(null);
+    setDrafts((p) => (p ? p.filter((d) => d.id !== draftId) : p));
+    if (r.ok) {
+      haptic(tg, "medium");
+      showToast("Опубликовано в каталог");
+    } else showToast("Ошибка сохранения", "error");
+  }
+
+  async function remove(id: string) {
+    const r = await adminCall<{ drafts: Draft[] }>(initData, "drafts.remove", { id });
+    if (r.ok) setDrafts(r.drafts);
+  }
+
+  // Редактирование фото черновика (порядок/удаление) — оптимистично + на сервер.
+  async function updatePhotos(draftId: string, fileIds: string[]) {
+    setDrafts((p) =>
+      p ? p.map((d) => (d.id === draftId ? { ...d, fileIds } : d)) : p,
+    );
+    await adminCall(initData, "drafts.update", { id: draftId, fileIds });
+  }
+
+  if (editing)
+    return (
+      <CarEditor
+        initial={editing.car}
+        onCancel={() => setEditing(null)}
+        onSave={(car) => publish(car, editing.draftId)}
+      />
+    );
+  if (drafts === null) return <Spinner />;
+  if (drafts.length === 0)
+    return (
+      <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center">
+        <FileStack className="mx-auto h-8 w-8 text-chrome" />
+        <p className="mt-2 font-bold">Черновиков нет</p>
+        <p className="mt-1 text-[13px] text-[#9AA4B2]">
+          Добавьте бота администратором в ваш канал — новые посты с фото будут
+          падать сюда на проверку, и вы публикуете их в каталог одной кнопкой.
+        </p>
+      </div>
+    );
+  return (
+    <div className={listCls(desk)}>
+      {drafts.map((d) => (
+        <div key={d.id} className="rounded-[16px] border border-line-dark bg-graphite-2 p-2.5">
+          <div className="flex gap-3">
+            <div className="h-[64px] w-[88px] flex-none overflow-hidden rounded-[10px] bg-black">
+              {d.fileIds[0] ? (
+                // eslint-disable-next-line
+                <img
+                  src={`${API_BASE}/api/tgphoto?id=${encodeURIComponent(d.fileIds[0])}`}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : null}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-bold">{d.parsed.model || "—"}</div>
+              <div className="text-[12px] text-[#9AA4B2]">
+                {d.parsed.year} ·{" "}
+                {d.parsed.price ? formatPrice(d.parsed.price) + " ₽" : "цена не распознана"}
+              </div>
+              <div className="text-[11px] text-[#8C97A1]">{d.fileIds.length} фото</div>
+            </div>
+          </div>
+          {d.fileIds.length > 0 ? (
+            <PhotoStrip
+              fileIds={d.fileIds}
+              onChange={(ids) => updatePhotos(d.id, ids)}
+            />
+          ) : null}
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={() => setEditing({ car: carFromDraft(d), draftId: d.id })}
+              className="btn btn-primary flex-1 !py-2"
+            >
+              <Upload className="h-4 w-4" /> Оформить и опубликовать
+            </button>
+            <button
+              onClick={() => remove(d.id)}
+              className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-line-dark text-bordeaux-bright"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Лента фото черновика: перетаскивание для порядка (первое — главное) + удаление.
+function PhotoStrip({
+  fileIds,
+  onChange,
+}: {
+  fileIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [drag, setDrag] = useState<number | null>(null);
+  const [over, setOver] = useState<number | null>(null);
+
+  function move(from: number, to: number) {
+    if (from === to) return;
+    const next = fileIds.slice();
+    const [x] = next.splice(from, 1);
+    next.splice(to, 0, x);
+    onChange(next);
+  }
+
+  return (
+    <div className="mt-2">
+      <div className="mb-1 text-[10px] uppercase tracking-wide text-[#8C97A1]">
+        Фото · перетащите для порядка · первое — главное
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {fileIds.map((fid, i) => (
+          <div
+            key={fid + i}
+            draggable
+            onDragStart={() => setDrag(i)}
+            onDragEnter={() => setOver(i)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => {
+              if (drag !== null) move(drag, i);
+              setDrag(null);
+              setOver(null);
+            }}
+            onDragEnd={() => {
+              setDrag(null);
+              setOver(null);
+            }}
+            className={`group relative h-16 w-16 flex-none cursor-grab overflow-hidden rounded-[8px] bg-black ring-2 transition active:cursor-grabbing ${
+              over === i && drag !== null
+                ? "ring-chrome"
+                : i === 0
+                  ? "ring-bordeaux-bright"
+                  : "ring-transparent"
+            } ${drag === i ? "opacity-40" : ""}`}
+          >
+            {/* eslint-disable-next-line */}
+            <img
+              src={`${API_BASE}/api/tgphoto?id=${encodeURIComponent(fid)}`}
+              alt=""
+              loading="lazy"
+              className="pointer-events-none h-full w-full object-cover"
+            />
+            {i === 0 ? (
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-bordeaux/90 text-center text-[8px] font-bold uppercase text-white">
+                главное
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => onChange(fileIds.filter((_, k) => k !== i))}
+              aria-label="Удалить фото"
+              className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-bl-[8px] bg-black/70 text-white transition-colors hover:bg-bordeaux"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Отзывы ---------- */
+function ReviewsTab({
+  tg,
+  initData,
+  canEdit,
+}: {
+  tg: TG | null;
+  initData: string;
+  canEdit: boolean;
+}) {
+  const desk = useDesk();
+  const [list, setList] = useState<Review[] | null>(null);
+  const [editing, setEditing] = useState<Review | null>(null);
+  const lab = "mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]";
+
+  function load() {
+    adminCall<{ reviews: Review[] }>(initData, "reviews.list").then((r) =>
+      setList(r.ok ? r.reviews : []),
+    );
+  }
+  useEffect(load, [initData]);
+
+  async function save(rev: Review) {
+    const r = await adminCall<{ reviews: Review[] }>(initData, "reviews.save", rev);
+    if (r.ok) {
+      setList(r.reviews);
+      setEditing(null);
+      haptic(tg, "medium");
+      showToast("Отзыв сохранён");
+    } else showToast("Ошибка: " + (r.error || ""), "error");
+  }
+  async function remove(id: string) {
+    const r = await adminCall<{ reviews: Review[] }>(initData, "reviews.remove", { id });
+    if (r.ok) setList(r.reviews);
+  }
+  async function clearAll() {
+    if (!confirm("Удалить все отзывы? Действие необратимо.")) return;
+    const r = await adminCall<{ reviews: Review[] }>(initData, "reviews.clear");
+    if (r.ok) {
+      setList(r.reviews);
+      haptic(tg, "medium");
+      showToast("Все отзывы удалены");
+    } else showToast("Ошибка: " + (r.error || ""), "error");
+  }
+
+  if (editing) {
+    const e = editing;
+    return (
+      <div className={formCls(desk)}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-[16px] font-extrabold uppercase">
+            {e.id ? "Редактирование" : "Новый отзыв"}
+          </h2>
+          <button
+            onClick={() => setEditing(null)}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-line-dark text-chrome"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <label>
+          <span className={lab}>Имя клиента</span>
+          <input
+            className="field-dark"
+            value={e.name}
+            onChange={(ev) => setEditing({ ...e, name: ev.target.value })}
+          />
+        </label>
+        <label>
+          <span className={lab}>Авто (необязательно)</span>
+          <input
+            className="field-dark"
+            value={e.car ?? ""}
+            onChange={(ev) => setEditing({ ...e, car: ev.target.value })}
+          />
+        </label>
+        <div>
+          <span className={lab}>Оценка</span>
+          <div className="flex gap-1.5">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                onClick={() => setEditing({ ...e, rating: n })}
+                className="p-0.5"
+              >
+                <Star
+                  className={`h-7 w-7 ${n <= e.rating ? "fill-bordeaux-bright text-bordeaux-bright" : "text-[#3a424c]"}`}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+        <label>
+          <span className={lab}>Текст отзыва</span>
+          <textarea
+            className="field-dark min-h-[110px]"
+            value={e.text}
+            onChange={(ev) => setEditing({ ...e, text: ev.target.value })}
+          />
+        </label>
+        <button onClick={() => save(e)} className="btn btn-primary w-full">
+          <Save className="h-[18px] w-[18px]" /> Сохранить
+        </button>
+      </div>
+    );
+  }
+
+  if (list === null) return <Spinner />;
+
+  return (
+    <>
+      {canEdit ? (
+        <button
+          onClick={() =>
+            setEditing({ id: "", name: "", text: "", car: "", rating: 5, ts: Date.now() })
+          }
+          className="btn btn-primary mb-3 w-full"
+        >
+          <Plus className="h-[18px] w-[18px]" /> Добавить отзыв
+        </button>
+      ) : null}
+      {canEdit && list.length > 0 ? (
+        <button
+          onClick={clearAll}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-full border border-bordeaux/50 py-2.5 text-[14px] font-bold text-bordeaux-bright"
+        >
+          <Trash2 className="h-[16px] w-[16px]" /> Удалить все отзывы
+        </button>
+      ) : null}
+      <div className={listCls(desk)}>
+        {list.length === 0 ? (
+          <p className="col-span-full rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
+            Отзывов пока нет.
+          </p>
+        ) : (
+          list.map((r) => (
+            <div key={r.id} className="rounded-[16px] border border-line-dark bg-graphite-2 p-3">
+              <div className="flex items-center gap-2">
+                <span className="font-bold">{r.name}</span>
+                <span className="flex">
+                  {Array.from({ length: r.rating }).map((_, i) => (
+                    <Star key={i} className="h-3 w-3 fill-bordeaux-bright text-bordeaux-bright" />
+                  ))}
+                </span>
+                {canEdit ? (
+                  <span className="ml-auto flex gap-1.5">
+                    <button
+                      onClick={() => setEditing(r)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-line-dark text-chrome"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => remove(r.id)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-line-dark text-bordeaux-bright"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-[13px] text-[#C7CFD6]">{r.text}</p>
+            </div>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ---------- Подписки ---------- */
+function SubsTab({ initData }: { initData: string }) {
+  const desk = useDesk();
+  const [subs, setSubs] = useState<Subscription[] | null>(null);
+  useEffect(() => {
+    adminCall<{ subs: Subscription[] }>(initData, "subs.list").then((r) =>
+      setSubs(r.ok ? r.subs : []),
+    );
+  }, [initData]);
+  if (subs === null) return <Spinner />;
+  if (subs.length === 0)
+    return (
+      <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
+        Подписок пока нет.
+      </p>
+    );
+  return (
+    <div className={listCls(desk)}>
+      {subs.map((s, i) => (
+        <div key={i} className="rounded-[16px] border border-line-dark bg-graphite-2 p-3">
+          <div className="flex items-center justify-between">
+            <span className="font-bold">{s.name || "—"}</span>
+            <span className="font-num text-[11px] text-[#8C97A1]">#{s.userId}</span>
+          </div>
+          <div className="mt-1 text-[12.5px] text-[#C7CFD6]">
+            🌍 {s.params.country || "любая"} · 🚙 {s.params.body || "любой"} · 💰{" "}
+            {s.params.budget ? `до ${formatPrice(s.params.budget)} ₽` : "—"}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Статистика ---------- */
+function StatsTab({ initData }: { initData: string }) {
+  const desk = useDesk();
+  const { cars } = useCars();
+  const [stats, setStats] = useState<Stats | null>(null);
+  useEffect(() => {
+    adminCall<{ stats: Stats }>(initData, "stats.get").then((r) =>
+      r.ok ? setStats(r.stats) : null,
+    );
+  }, [initData]);
+  if (!stats) return <Spinner />;
+  const cells: [string, number][] = [
+    ["Заявок всего", stats.leads],
+    ["Заявок сегодня", stats.leadsToday ?? 0],
+    ["Заявок за 7 дней", stats.leads7d ?? 0],
+    ["Пользователей", stats.users],
+    ["Новых за 7 дней", stats.usersNew7d ?? 0],
+    ["Подписок", stats.subs],
+    ["Отзывов", stats.reviews],
+    ["Черновиков", stats.drafts ?? 0],
+    ["Просмотров", stats.totalViews],
+  ];
+  const top = Object.entries(stats.views || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const nameOf = (id: string) => cars.find((c) => c.id === id)?.model || id;
+  const sources = Object.entries(stats.bySource || {}).sort((a, b) => b[1] - a[1]);
+
+  // Сводка по каталогу (из общих данных)
+  const prices = cars.map(displayPrice).filter(Boolean);
+  const byStatus = {
+    in_stock: cars.filter((c) => c.status === "in_stock").length,
+    in_transit: cars.filter((c) => c.status === "in_transit").length,
+    on_order: cars.filter((c) => c.status === "on_order").length,
+  };
+  const fmt = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
+
+  const topFav = Object.entries(stats.favs || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const daily = stats.daily || [];
+  const dailyMax = Math.max(1, ...daily.map((d) => d.count));
+  const convView = stats.totalViews ? (stats.leads / stats.totalViews) * 100 : 0;
+  const convUser = stats.users ? stats.leads / stats.users : 0;
+
+  return (
+    <div className="space-y-4">
+      <div className={desk ? "grid grid-cols-3 gap-3 xl:grid-cols-5" : "grid grid-cols-2 gap-2.5"}>
+        {cells.map(([label, v]) => (
+          <div key={label} className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
+            <div className="font-num text-[26px] font-extrabold text-bordeaux-bright">{v}</div>
+            <div className="text-[12px] text-[#9AA4B2]">{label}</div>
+          </div>
+        ))}
+      </div>
+
+      <AdsBlock stats={stats} />
+
+      {/* Конверсии */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
+          <div className="font-num text-[22px] font-extrabold text-success">
+            {convView.toFixed(1)}%
+          </div>
+          <div className="text-[12px] text-[#9AA4B2]">Просмотр → заявка</div>
+        </div>
+        <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
+          <div className="font-num text-[22px] font-extrabold text-success">
+            {convUser.toFixed(2)}
+          </div>
+          <div className="text-[12px] text-[#9AA4B2]">Заявок на пользователя</div>
+        </div>
+      </div>
+
+      {/* График заявок по дням */}
+      <div>
+        <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+          Заявки за 14 дней
+        </div>
+        <div className="flex h-24 items-end gap-1 rounded-[16px] border border-line-dark bg-graphite-2 p-3">
+          {daily.map((d) => (
+            <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
+              <div className="flex w-full flex-1 items-end">
+                <div
+                  className="w-full rounded-t bg-bordeaux-bright"
+                  style={{ height: `${Math.max(4, (d.count / dailyMax) * 100)}%` }}
+                  title={`${d.date}: ${d.count}`}
+                />
+              </div>
+              <span className="text-[8px] text-[#8C97A1]">{d.date.slice(8)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {stats.lastLeadTs ? (
+        <div className="rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5 text-[12.5px] text-[#C7CFD6]">
+          🕓 Последняя заявка:{" "}
+          {new Date(stats.lastLeadTs).toLocaleString("ru-RU", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </div>
+      ) : null}
+
+      {sources.length ? (
+        <div>
+          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+            Источники заявок
+          </div>
+          <div className="space-y-2">
+            {sources.map(([src, v]) => (
+              <div
+                key={src}
+                className="flex items-center justify-between rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5"
+              >
+                <span className="truncate text-[13.5px]">{src}</span>
+                <span className="font-num text-[13px] text-bordeaux-bright">{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div>
+        <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+          Каталог
+        </div>
+        <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5 text-[13px] text-[#C7CFD6]">
+          <div className="flex justify-between py-0.5">
+            <span>Всего авто</span>
+            <span className="font-num text-white">{cars.length}</span>
+          </div>
+          <div className="flex justify-between py-0.5">
+            <span>В наличии / в пути / под заказ</span>
+            <span className="font-num text-white">
+              {byStatus.in_stock} / {byStatus.in_transit} / {byStatus.on_order}
+            </span>
+          </div>
+          {prices.length ? (
+            <div className="flex justify-between py-0.5">
+              <span>Цены, ₽</span>
+              <span className="font-num text-white">
+                {fmt(Math.min(...prices))} – {fmt(Math.max(...prices))}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      </div>
+      <div>
+        <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+          Топ просматриваемых
+        </div>
+        {top.length === 0 ? (
+          <p className="text-[13px] text-[#8C97A1]">Пока нет данных.</p>
+        ) : (
+          <div className="space-y-2">
+            {top.map(([id, v]) => (
+              <div
+                key={id}
+                className="flex items-center justify-between rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5"
+              >
+                <span className="truncate text-[13.5px] font-semibold">{nameOf(id)}</span>
+                <span className="font-num text-[13px] text-bordeaux-bright">{v}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+          Топ по избранному
+        </div>
+        {topFav.length === 0 ? (
+          <p className="text-[13px] text-[#8C97A1]">Пока нет данных.</p>
+        ) : (
+          <div className="space-y-2">
+            {topFav.map(([id, v]) => (
+              <div
+                key={id}
+                className="flex items-center justify-between rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5"
+              >
+                <span className="truncate text-[13.5px] font-semibold">
+                  ♥ {nameOf(id)}
+                </span>
+                <span className="font-num text-[13px] text-bordeaux-bright">{v}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Рассылка ---------- */
+type Audience = {
+  total: number;
+  blocked: number;
+  new7d: number;
+  active30d: number;
+  segments: { key: string; label: string; count: number }[];
+  last: { at: number; sent: number; total: number; blocked?: number; segment?: string } | null;
+};
+
+function BroadcastTab({ tg, initData }: { tg: TG | null; initData: string }) {
+  const desk = useDesk();
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [aud, setAud] = useState<Audience | null>(null);
+  const [segment, setSegment] = useState("all");
+
+  // Кто получит — до отправки, чтобы был виден масштаб.
+  const load = () =>
+    adminCall<{ audience: Audience }>(initData, "broadcast.audience").then((r) => {
+      if (r.ok) setAud(r.audience);
+    });
+  useEffect(() => {
+    load();
+  }, [initData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const seg = aud?.segments.find((x) => x.key === segment);
+  const count = seg?.count ?? aud?.total ?? 0;
+
+  async function send() {
+    if (text.trim().length < 2) return;
+    if (!count) {
+      showToast("В этом сегменте никого нет", "error");
+      return;
+    }
+    if (!confirm(`Отправить сообщение: ${seg?.label ?? "Все"} — ${count} чел.?`)) return;
+    setSending(true);
+    const r = await adminCall<{ sent: number; total: number; blocked?: number }>(
+      initData,
+      "broadcast.send",
+      { text: text.trim(), segment },
+    );
+    setSending(false);
+    if (r.ok) {
+      haptic(tg, "medium");
+      showToast(
+        `Доставлено: ${r.sent} из ${r.total}` + (r.blocked ? ` · заблокировали бота: ${r.blocked}` : ""),
+      );
+      setText("");
+      load();
+    } else showToast("Ошибка: " + (r.error || ""), "error");
+  }
+
+  const fmtDate = (ts: number) =>
+    new Date(ts).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+  return (
+    <div className={formCls(desk)}>
+      {/* Сколько получат */}
+      <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
+        {aud ? (
+          <>
+            <div className="flex items-end gap-2">
+              <span className="font-num text-[32px] font-extrabold leading-none text-[#E0574C]">{count}</span>
+              <span className="pb-0.5 text-[13px] text-[#9AA4B2]">
+                {seg && seg.key !== "all" ? `получат · ${seg.label.toLowerCase()}` : "получат сообщение"}
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-[#9AA4B2]">
+              <span>Всего в боте: <b className="font-num text-white">{aud.total}</b></span>
+              <span>Новых за 7 дней: <b className="font-num text-white">{aud.new7d}</b></span>
+              <span>Заходили за 30 дней: <b className="font-num text-white">{aud.active30d}</b></span>
+              {aud.blocked ? (
+                <span>Заблокировали бота: <b className="font-num text-white">{aud.blocked}</b></span>
+              ) : null}
+            </div>
+            {aud.last ? (
+              <div className="mt-2 border-t border-line-dark pt-2 text-[12px] text-[#9AA4B2]">
+                Прошлая рассылка {fmtDate(aud.last.at)}
+                {aud.last.segment ? ` (${aud.last.segment})` : ""}: доставлено{" "}
+                <b className="font-num text-white">{aud.last.sent}</b> из{" "}
+                <b className="font-num text-white">{aud.last.total}</b>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="flex items-center gap-2 text-[13px] text-[#9AA4B2]">
+            <Loader2 className="h-4 w-4 animate-spin" /> Считаем получателей…
+          </div>
+        )}
+      </div>
+
+      {/* Кому отправить */}
+      {aud?.segments?.length ? (
+        <div>
+          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">Кому</div>
+          <div className="flex flex-wrap gap-2">
+            {aud.segments.map((sg) => (
+              <button
+                key={sg.key}
+                type="button"
+                disabled={!sg.count}
+                onClick={() => setSegment(sg.key)}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition-colors disabled:opacity-35 ${
+                  segment === sg.key
+                    ? "border-bordeaux-bright bg-bordeaux text-white"
+                    : "border-line-dark text-chrome hover:text-white"
+                }`}
+              >
+                {sg.label}
+                <span className={`font-num text-[11px] ${segment === sg.key ? "text-white/75" : "text-[#7C8792]"}`}>
+                  {sg.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <textarea
+        className="field-dark min-h-[140px]"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Текст рассылки…"
+      />
+      <button onClick={send} disabled={sending} className="btn btn-primary w-full disabled:opacity-60">
+        {sending ? (
+          <Loader2 className="h-[18px] w-[18px] animate-spin" />
+        ) : (
+          <Megaphone className="h-[18px] w-[18px]" />
+        )}
+        {segment === "all" ? `Отправить всем (${count})` : `Отправить: ${seg?.label ?? ""} (${count})`}
+      </button>
+      <p className="text-[12px] text-[#7C8792]">
+        Кто заблокировал бота, в рассылку не попадает. Нажмёт /start снова — вернётся.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Повторы в каталоге: показать и дать убрать руками.
+ *
+ * Появляются, когда одни и те же машины опубликованы в двух каналах — так
+ * бывает при переезде. Для бота это разные посты, и он честно заводит вторые
+ * карточки; понять, что это та же машина, а не ещё одна такая же на складе,
+ * он не может.
+ *
+ * Поэтому здесь ничего не удаляется само. Уверенные повторы (совпал пробег до
+ * километра) отмечены заранее, спорные (новые машины с нулевым пробегом) —
+ * только показаны. Снять и поставить галочку можно у любой строки.
+ */
+function DuplicatePanel({
+  groups,
+  extra,
+  open,
+  onToggle,
+  onRemove,
+}: {
+  groups: DuplicateGroup[];
+  extra: number;
+  open: boolean;
+  onToggle: () => void;
+  onRemove: (ids: Set<string>) => void;
+}) {
+  // Предвыбор — только уверенные повторы, и только лишние копии в каждой
+  // группе. Самая свежая карточка остаётся: она из действующего канала.
+  const [picked, setPicked] = useState<Set<string>>(
+    () => new Set(suggestedRemovals(groups).map((c) => c.id)),
+  );
+
+  const desk = useDesk();
+  // Место под меню разделов (только в CRM на компьютере). Ищем после
+  // отрисовки: панель и меню — в разных ветках дерева.
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setSlot(desk ? document.getElementById("admin-side-slot") : null);
+  }, [desk]);
+
+  const removePicked = () => {
+    if (confirm(`Удалить отмеченные карточки (${picked.size})? Остальные останутся на месте.`)) {
+      onRemove(picked);
+      setPicked(new Set());
+    }
+  };
+
+  /*
+   * «Удалить отмеченные» — всегда под рукой, пока что-то отмечено.
+   * Группы длинные, и кнопка внизу панели уезжала за экран: чтобы удалить,
+   * приходилось листать до конца. На компьютере блок стоит под меню
+   * разделов и прилипает к нему, на телефоне — закреплён внизу экрана.
+   */
+  const actionBar =
+    picked.size > 0 ? (
+      <div
+        className={
+          slot
+            ? "rounded-[18px] border border-bordeaux-bright/50 bg-bordeaux/15 p-3"
+            : "fixed inset-x-3 bottom-3 z-[60] rounded-[16px] border border-bordeaux-bright/50 bg-graphite-2/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,.6)] backdrop-blur"
+        }
+      >
+        <div className="mb-2 text-[13px] font-bold text-white">
+          Отмечено карточек: <span className="font-num">{picked.size}</span>
+        </div>
+        <button type="button" onClick={removePicked} className="btn btn-primary w-full !py-2.5 !text-[13.5px]">
+          <Trash2 className="h-[17px] w-[17px]" />
+          Удалить отмеченные
+        </button>
+        <button
+          type="button"
+          onClick={() => setPicked(new Set())}
+          className="mt-1.5 w-full rounded-[10px] py-1.5 text-[12.5px] font-bold text-chrome hover:text-white"
+        >
+          Снять отметки
+        </button>
+      </div>
+    ) : null;
+
+  const toggle = (id: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  return (
+    <div className="mb-3 overflow-hidden rounded-[16px] border border-amber-400/40 bg-amber-400/[0.07]">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-2.5 px-3.5 py-3 text-left"
+      >
+        <Copy className="h-[18px] w-[18px] flex-none text-amber-300" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14.5px] font-bold text-white">
+            Похожие карточки в каталоге: {groups.length}{" "}
+            {groups.length === 1 ? "группа" : groups.length < 5 ? "группы" : "групп"}
+            {extra ? ` · отмечено к удалению: ${extra}` : ""}
+          </span>
+          <span className="block text-[12.5px] text-[#9AA4B2]">
+            Возможно, одна и та же машина опубликована дважды — проверьте и уберите лишнее
+          </span>
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 flex-none text-[#9AA4B2] transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open ? (
+        <div className="border-t border-bordeaux-bright/25 px-3.5 py-3">
+          <p className="mb-3 text-[12.5px] leading-snug text-[#9AA4B2]">
+            «Точно повтор» — пробег совпал до километра, отмечены к удалению.
+            «Похожи» — та же модель и год, цена и пробег почти равны: скорее
+            всего одна машина, но решать вам. «Возможно, разные» — новые машины
+            с нулевым пробегом: это может быть второй экземпляр в наличии.
+          </p>
+
+          <div className="space-y-3">
+            {groups.map((g) => (
+              <div key={g.key} className="rounded-[12px] border border-line-dark bg-graphite-2 p-2.5">
+                <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em]">
+                  <span
+                    className={
+                      g.certainty === "sure"
+                        ? "text-bordeaux-bright"
+                        : g.certainty === "similar"
+                          ? "text-amber-300"
+                          : "text-[#9AA4B2]"
+                    }
+                  >
+                    {g.certainty === "sure"
+                      ? "Точно повтор"
+                      : g.certainty === "similar"
+                        ? "Похожи: цена и пробег почти совпадают"
+                        : "Возможно, разные машины"}
+                  </span>
+                  <span className="text-[#6d7681]">{g.cars.length} карточки</span>
+                </div>
+
+                {/* Почему группа собралась: что совпало и что разошлось. По этой
+                    строке решают, одна это машина или разные, не открывая карточки. */}
+                {(() => {
+                  const why = whySimilar(g);
+                  return (
+                    <div className="mb-2 space-y-1 rounded-[10px] bg-black/25 px-2.5 py-2 text-[12px] leading-snug">
+                      <div>
+                        <span className="font-bold text-success">Совпадает: </span>
+                        <span className="text-[#C7CFD6]">{why.same.join(", ")}</span>
+                      </div>
+                      {why.diff.length ? (
+                        <div>
+                          <span className="font-bold text-amber-300">Отличается: </span>
+                          <span className="text-[#C7CFD6]">{why.diff.join(", ")}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })()}
+
+                <div className="space-y-1.5">
+                  {g.cars.map((car, i) => (
+                    <label
+                      key={car.id}
+                      className="flex cursor-pointer items-center gap-2.5 rounded-[10px] bg-black/25 p-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={picked.has(car.id)}
+                        onChange={() => toggle(car.id)}
+                        className="h-4 w-4 flex-none accent-[#9C1A12]"
+                      />
+                      <div className="h-10 w-14 flex-none overflow-hidden rounded-[8px] bg-black">
+                        {car.images[0] ? (
+                          // eslint-disable-next-line
+                          <img src={car.images[0]} alt="" className="h-full w-full object-cover" />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13px] font-semibold text-white">
+                          {car.model}
+                          {i === 0 ? (
+                            <span className="ml-1.5 text-[11px] font-bold text-success">
+                              свежая
+                            </span>
+                          ) : null}
+                        </div>
+                        {/* Характеристики карточки. Жёлтым — то, чем она
+                            отличается от самой свежей в группе. */}
+                        <div className="mt-0.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[12px]">
+                          {COMPARE_FIELDS.map((f) => {
+                            const raw = f.value(car);
+                            const v =
+                              f.key === "country"
+                                ? countries[car.country as CountryCode]?.label || raw
+                                : raw;
+                            if (!v) return null;
+                            const differs =
+                              i > 0 &&
+                              raw.toLowerCase().replace(/\s+/g, " ") !==
+                                f.value(g.cars[0]).toLowerCase().replace(/\s+/g, " ");
+                            return (
+                              <span key={f.key} className="whitespace-nowrap">
+                                <span className="text-[#6d7681]">{f.label}: </span>
+                                <span
+                                  className={
+                                    differs
+                                      ? "font-bold text-amber-300"
+                                      : f.key === "price"
+                                        ? "font-semibold text-white"
+                                        : "text-[#C7CFD6]"
+                                  }
+                                >
+                                  {v}
+                                </span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-0.5 text-[11.5px] text-[#7C8792]">
+                          {car.addedAt
+                            ? "в каталоге с " +
+                              new Date(car.addedAt).toLocaleDateString("ru-RU")
+                            : "дата неизвестна"}
+                          {" · "}
+                          {car.images.length} фото
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Блок удаления — сбоку (компьютер) или внизу экрана (телефон),
+              пока панель открыта и что-то отмечено. */}
+          {slot ? createPortal(actionBar, slot) : actionBar}
+          {/* Место под закреплённый внизу блок, чтобы он не закрывал
+              последнюю группу на телефоне. */}
+          {!slot && picked.size > 0 ? <div className="h-28" /> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ---------- Каталог ---------- */
+function CatalogTab({
+  tg,
+  initData,
+  canEdit,
+}: {
+  tg: TG | null;
+  initData: string;
+  canEdit: boolean;
+}) {
+  const desk = useDesk();
+  const { cars, setAll } = useCars();
+  const [editing, setEditing] = useState<Car | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [showDupes, setShowDupes] = useState(false);
+
+  /*
+   * Повторы ищем при каждом изменении каталога, но только считаем — ничего
+   * не удаляем. Решение за человеком: одинаковая новая машина может быть и
+   * вторым экземпляром на складе, а не повтором публикации.
+   */
+  const dupeGroups = useMemo(() => findDuplicates(cars), [cars]);
+  // Для пометки прямо на карточке: с какими ещё карточками она совпадает.
+  const dupeOf = useMemo(() => {
+    const m = new Map<string, { certainty: DuplicateGroup["certainty"]; others: string[] }>();
+    for (const g of dupeGroups)
+      for (const c of g.cars)
+        // Карточка может быть и в точной группе, и в «похожих» — показываем
+        // самое сильное: точный повтор.
+        if (m.get(c.id)?.certainty !== "sure")
+          m.set(c.id, {
+          certainty: g.certainty,
+          others: g.cars.filter((x) => x.id !== c.id).map((x) => x.model),
+        });
+    return m;
+  }, [dupeGroups]);
+  // Сколько отмечено к удалению — только точные повторы; карточка может
+  // стоять в двух группах сразу, поэтому просто сумма по группам врала.
+  const dupeExtra = useMemo(
+    () => suggestedRemovals(dupeGroups).length,
+    [dupeGroups],
+  );
+
+  async function persist(next: Car[]) {
+    setAll(next);
+    setSaving(true);
+    const r = await adminCall(initData, "catalog.save", next);
+    setSaving(false);
+    if (r.ok) {
+      haptic(tg, "medium");
+      showToast("Каталог сохранён — виден всем");
+    } else {
+      showToast("Не удалось сохранить: " + (r.error || ""), "error");
+    }
+  }
+
+  function onSave(car: Car) {
+    const id = car.id || slug(car.model);
+    // Сайт показывает московскую цену — её и повторяем в общей.
+    const price = car.priceMoscowRub || car.priceRub || 0;
+    const full = { ...car, id, priceRub: price, priceMoscowRub: price };
+    const next = cars.some((c) => c.id === id)
+      ? cars.map((c) => (c.id === id ? full : c))
+      : [...cars, full];
+    setEditing(null);
+    persist(next);
+  }
+
+  if (editing) {
+    return (
+      <CarEditor
+        initial={editing}
+        onCancel={() => setEditing(null)}
+        onSave={onSave}
+      />
+    );
+  }
+
+  return (
+    <>
+      {canEdit ? (
+        <button
+          onClick={() => setEditing(emptyCar())}
+          className={`btn btn-primary mb-3 ${desk ? "" : "w-full"}`}
+        >
+          <Plus className="h-[18px] w-[18px]" /> Добавить авто
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        </button>
+      ) : null}
+
+      {canEdit && dupeGroups.length ? (
+        <DuplicatePanel
+          groups={dupeGroups}
+          extra={dupeExtra}
+          open={showDupes}
+          onToggle={() => setShowDupes((v) => !v)}
+          onRemove={(ids) => persist(cars.filter((c) => !ids.has(c.id)))}
+        />
+      ) : null}
+      <div className={listCls(desk)}>
+        {cars.map((car) => (
+          <div
+            key={car.id}
+            className="flex items-center gap-3 rounded-[16px] border border-line-dark bg-graphite-2 p-2.5"
+          >
+            <div className="h-[52px] w-[74px] flex-none overflow-hidden rounded-[10px] bg-black">
+              {car.images[0] ? (
+                // eslint-disable-next-line
+                <img src={car.images[0]} alt="" className="h-full w-full object-cover" />
+              ) : null}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <Flag code={car.country} className="h-3 w-4" />
+                <span className="truncate font-bold">{car.model}</span>
+              </div>
+              <div className="font-num text-[14px] font-bold text-bordeaux-bright">
+                {formatPrice(displayPrice(car))} ₽
+              </div>
+              {/* Подсказка прямо на карточке: в общем списке её видно сразу,
+                  а не только в свёрнутой панели наверху. */}
+              {dupeOf.get(car.id) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDupes(true);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className={`mt-1 inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                    dupeOf.get(car.id)!.certainty === "sure"
+                      ? "bg-bordeaux/25 text-[#F08A80]"
+                      : "bg-amber-400/15 text-amber-300"
+                  }`}
+                  title={"Похожа на: " + dupeOf.get(car.id)!.others.join(", ")}
+                >
+                  <Copy className="h-3 w-3 flex-none" />
+                  <span className="truncate">
+                    {dupeOf.get(car.id)!.certainty === "sure" ? "Повтор" : "Похожа"} на{" "}
+                    {dupeOf.get(car.id)!.others.length > 1
+                      ? `${dupeOf.get(car.id)!.others.length} карточки`
+                      : "другую карточку"}
+                  </span>
+                </button>
+              ) : null}
+            </div>
+            {canEdit ? (
+              <>
+                <button
+                  onClick={() => setEditing(car)}
+                  className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-line-dark text-chrome"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm(`Удалить «${car.model}»?`))
+                      persist(cars.filter((c) => c.id !== car.id));
+                  }}
+                  className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-line-dark text-bordeaux-bright"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </>
+            ) : null}
+          </div>
+        ))}
+        {cars.length === 0 ? (
+          <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
+            Каталог пуст.
+          </p>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+function CarEditor({
+  initial,
+  onSave,
+  onCancel,
+}: {
+  initial: Car;
+  onSave: (car: Car) => void;
+  onCancel: () => void;
+}) {
+  const desk = useDesk();
+  const [f, setF] = useState<Car>(initial);
+  const set = <K extends keyof Car>(k: K, v: Car[K]) =>
+    setF((p) => ({ ...p, [k]: v }));
+  const lab = "block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1] mb-1";
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(f);
+      }}
+      className={formCls(desk)}
+    >
+      <div className="flex items-center justify-between">
+        <h2 className="text-[16px] font-extrabold uppercase">
+          {initial.id ? "Редактирование" : "Новое авто"}
+        </h2>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-line-dark text-chrome"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      <label>
+        <span className={lab}>Модель</span>
+        <input
+          className="field-dark"
+          value={f.model}
+          onChange={(e) => set("model", e.target.value)}
+          required
+        />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label>
+          <span className={lab}>Год</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="field-dark"
+            value={f.year}
+            onChange={(e) => set("year", Number(e.target.value))}
+          />
+        </label>
+        <label>
+          <span className={lab}>Страна</span>
+          <select
+            className="field-dark"
+            value={f.country}
+            onChange={(e) => set("country", e.target.value as CountryCode)}
+          >
+            {Object.entries(countries).map(([code, c]) => (
+              <option key={code} value={code}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className={lab}>Двигатель</span>
+          <input
+            className="field-dark"
+            value={f.engine}
+            onChange={(e) => set("engine", e.target.value)}
+            placeholder="1.5 л · 115 л.с."
+          />
+        </label>
+        <label>
+          <span className={lab}>Комплектация</span>
+          <input
+            className="field-dark"
+            value={f.trim}
+            onChange={(e) => set("trim", e.target.value)}
+          />
+        </label>
+        <label>
+          <span className={lab}>Тип кузова</span>
+          <input
+            className="field-dark"
+            value={f.bodyType ?? ""}
+            onChange={(e) => set("bodyType", e.target.value)}
+            placeholder="Кроссовер / Седан"
+          />
+        </label>
+        <label>
+          <span className={lab}>Топливо</span>
+          <select
+            className="field-dark"
+            value={f.fuelType ?? "Бензин"}
+            onChange={(e) => set("fuelType", e.target.value)}
+          >
+            <option>Бензин</option>
+            <option>Дизель</option>
+            <option>Гибрид</option>
+            <option>Электро</option>
+          </select>
+        </label>
+        <label>
+          <span className={lab}>Объём, см³</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="field-dark"
+            value={f.engineCc ?? 0}
+            onChange={(e) => set("engineCc", Number(e.target.value))}
+          />
+        </label>
+        <label>
+          <span className={lab}>Мощность, л.с.</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="field-dark"
+            value={f.powerHp ?? 0}
+            onChange={(e) => set("powerHp", Number(e.target.value))}
+          />
+        </label>
+        <label>
+          <span className={lab}>Цвет</span>
+          <input
+            className="field-dark"
+            value={f.color ?? ""}
+            onChange={(e) => set("color", e.target.value)}
+          />
+        </label>
+        <label>
+          <span className={lab}>Пробег, км</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="field-dark"
+            value={f.mileageKm ?? 0}
+            onChange={(e) => set("mileageKm", Number(e.target.value))}
+          />
+        </label>
+        <label>
+          <span className={lab}>Коробка</span>
+          <input
+            className="field-dark"
+            value={f.gearbox}
+            onChange={(e) => set("gearbox", e.target.value)}
+          />
+        </label>
+        <label>
+          <span className={lab}>Привод</span>
+          <input
+            className="field-dark"
+            value={f.drive}
+            onChange={(e) => set("drive", e.target.value)}
+          />
+        </label>
+        <label>
+          <span className={lab}>Руль</span>
+          <select
+            className="field-dark"
+            value={f.steering ?? ""}
+            onChange={(e) => set("steering", e.target.value)}
+          >
+            <option value="">—</option>
+            <option value="Левый">Левый</option>
+            <option value="Правый">Правый</option>
+          </select>
+        </label>
+        <label>
+          <span className={lab}>Цена до Твери, ₽ — не показывается</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="field-dark"
+            value={f.priceTverRub || 0}
+            onChange={(e) => set("priceTverRub", Number(e.target.value))}
+          />
+        </label>
+        <label>
+          <span className={lab}>Цена до Москвы, ₽</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="field-dark"
+            value={f.priceMoscowRub || 0}
+            onChange={(e) => set("priceMoscowRub", Number(e.target.value))}
+          />
+        </label>
+        <label>
+          <span className={lab}>Пробег</span>
+          <input
+            className="field-dark"
+            value={f.mileage}
+            onChange={(e) => set("mileage", e.target.value)}
+          />
+        </label>
+        <label>
+          <span className={lab}>Состояние</span>
+          <select
+            className="field-dark"
+            value={f.isNew ? "new" : "used"}
+            onChange={(e) => set("isNew", e.target.value === "new")}
+          >
+            <option value="new">Новый</option>
+            <option value="used">С пробегом</option>
+          </select>
+        </label>
+      </div>
+      <label>
+        <span className={lab}>Фото (по ссылке в строке)</span>
+        <textarea
+          className="field-dark min-h-[80px] font-mono text-[12px]"
+          value={f.images.join("\n")}
+          onChange={(e) =>
+            set("images", e.target.value.split("\n").map((s) => s.trim()).filter(Boolean))
+          }
+          placeholder="/cars/.../1.webp"
+        />
+      </label>
+      <label>
+        <div className="mb-1 flex items-center justify-between">
+          <span className={lab + " mb-0"}>Описание текстом</span>
+          <button
+            type="button"
+            onClick={() => set("description", genDescription(f))}
+            className="flex items-center gap-1 rounded-full border border-bordeaux-bright/60 bg-bordeaux/15 px-2.5 py-1 text-[11px] font-bold text-bordeaux-bright"
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Сгенерировать
+          </button>
+        </div>
+        <textarea
+          className="field-dark min-h-[96px]"
+          value={f.description || ""}
+          onChange={(e) => set("description", e.target.value)}
+          placeholder="Связный текст-описание авто для карточки"
+        />
+      </label>
+      <label>
+        <span className={lab}>Пункты-галочки (по строке, необязательно)</span>
+        <textarea
+          className="field-dark min-h-[64px]"
+          value={f.highlights.join("\n")}
+          onChange={(e) =>
+            set("highlights", e.target.value.split("\n").map((s) => s.trim()).filter(Boolean))
+          }
+        />
+      </label>
+      <button type="submit" className="btn btn-primary w-full">
+        <Save className="h-[18px] w-[18px]" /> Сохранить
+      </button>
+    </form>
+  );
+}
+
+/* ---------- Настройки бота ---------- */
+function BotTab({
+  tg,
+  initData,
+  canEdit,
+}: {
+  tg: TG | null;
+  initData: string;
+  canEdit: boolean;
+}) {
+  const desk = useDesk();
+  const [s, setS] = useState<BotSettings | null>(null);
+  const [linking, setLinking] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const lab = "block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1] mb-1";
+
+  useEffect(() => {
+    adminCall<{ settings: BotSettings }>(initData, "settings.get").then((r) => {
+      if (r.ok) setS(r.settings);
+    });
+  }, [initData]);
+
+  if (!s) return <Spinner />;
+  const set = (k: keyof BotSettings, v: string) =>
+    setS((p) => (p ? { ...p, [k]: v } : p));
+
+  async function save() {
+    setSaving(true);
+    const r = await adminCall<{ settings: BotSettings }>(
+      initData,
+      "settings.save",
+      s,
+    );
+    setSaving(false);
+    if (r.ok) {
+      haptic(tg, "medium");
+      showToast("Настройки бота сохранены");
+    } else showToast("Ошибка: " + (r.error || ""), "error");
+  }
+
+  // Переподписка вебхука. Нужна после обновлений, которые добавляют боту новые
+  // события: Telegram помнит старый список и новых просто не присылает.
+  async function reconnect() {
+    setLinking(true);
+    const r = await adminCall<{ updates: string[] }>(initData, "webhook.setup");
+    setLinking(false);
+    if (r.ok) {
+      haptic(tg, "medium");
+      showToast("Бот переподключён");
+    } else showToast("Ошибка: " + (r.error || ""), "error");
+  }
+
+  return (
+    <div className={formCls(desk)}>
+      {/* Авто-публикация каталога из канала */}
+      <div className="rounded-[14px] border border-bordeaux-bright/40 bg-bordeaux/10 p-3.5">
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            disabled={!canEdit}
+            checked={!!s.autoPublish}
+            onChange={(e) =>
+              setS((p) => (p ? { ...p, autoPublish: e.target.checked } : p))
+            }
+            className="mt-0.5 h-5 w-5 flex-none accent-bordeaux"
+          />
+          <span>
+            <span className="block font-bold text-white">
+              Авто-публикация из канала
+            </span>
+            <span className="mt-0.5 block text-[12px] leading-snug text-[#9AA4B2]">
+              Новые посты канала сразу попадают в каталог (без черновиков).
+              Правки поста обновляют карточку. Удаление поста в канале Telegram
+              не присылает — такие авто убирайте вручную во вкладке «Каталог».
+            </span>
+          </span>
+        </label>
+      </div>
+
+      {/* Гейт подписки — стена перед ботом для рекламного трафика */}
+      <div className="rounded-[14px] border border-line-dark bg-graphite-2 p-3.5">
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            disabled={!canEdit}
+            checked={s.gateEnabled !== false}
+            onChange={(e) =>
+              setS((p) => (p ? { ...p, gateEnabled: e.target.checked } : p))
+            }
+            className="mt-0.5 h-5 w-5 flex-none accent-bordeaux"
+          />
+          <span>
+            <span className="block font-bold text-white">
+              Требовать подписку на канал
+            </span>
+            <span className="mt-0.5 block text-[12px] leading-snug text-[#9AA4B2]">
+              Действует только на переходы по ссылке с меткой «a» — это группа
+              А/Б-теста из Директа. Остальные заходят в бота без стены.
+              Выключите, чтобы снять стену со всех, не трогая рекламу.
+            </span>
+          </span>
+        </label>
+
+        <label className="mt-3 block">
+          <span className={lab}>Канал для гейта</span>
+          <input
+            disabled={!canEdit}
+            className="field-dark"
+            value={s.gateChannelId ?? ""}
+            onChange={(e) => set("gateChannelId", e.target.value)}
+            placeholder="-100…"
+          />
+          <span className="mt-1 block text-[11px] leading-snug text-[#8C97A1]">
+            Отправьте /id в канал — бот пришлёт идентификатор в личку. Бот
+            обязан быть администратором канала, иначе проверка подписки не
+            работает и стена никого не пропустит.
+          </span>
+        </label>
+
+        <label className="mt-3 block">
+          <span className={lab}>Ссылка приглашения</span>
+          <input
+            disabled={!canEdit}
+            className="field-dark"
+            value={s.gateInviteUrl ?? ""}
+            onChange={(e) => set("gateInviteUrl", e.target.value)}
+            placeholder="https://t.me/+…"
+          />
+          <span className="mt-1 block text-[11px] leading-snug text-[#8C97A1]">
+            Только постоянная. Одноразовая или с лимитом переходов сломает
+            гейт на середине кампании.
+          </span>
+        </label>
+
+        <label className="mt-3 block">
+          <span className={lab}>Текст на стене подписки</span>
+          <textarea
+            disabled={!canEdit}
+            className="field-dark min-h-[92px]"
+            value={s.gateText ?? ""}
+            onChange={(e) => set("gateText", e.target.value)}
+          />
+        </label>
+
+        <button
+          type="button"
+          disabled={!canEdit || linking}
+          onClick={reconnect}
+          className="mt-3 w-full rounded-[12px] border border-line-dark bg-graphite px-4 py-3 text-[14px] font-bold text-white disabled:opacity-50"
+        >
+          {linking ? "Подключаю…" : "Переподключить бота"}
+        </button>
+        <span className="mt-1.5 block text-[11px] leading-snug text-[#8C97A1]">
+          Нажмите один раз после обновления бота. Без этого он не узнаёт о
+          вступлении в канал и не сможет вернуть человека сам — останется
+          только кнопка «Я подписался».
+        </span>
+      </div>
+
+      <label>
+        <span className={lab}>Chat id чата для заявок</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.leadChatId ?? ""}
+          onChange={(e) => set("leadChatId", e.target.value)}
+          placeholder="-100…"
+        />
+        <span className="mt-1 block text-[11px] leading-snug text-[#8C97A1]">
+          Куда приходят заявки с сайта и из бота. Добавьте бота в чат и
+          отправьте там команду /id — он ответит идентификатором. Если поле
+          пустое, заявки идут в чат из настроек Cloudflare.
+        </span>
+      </label>
+
+      <label>
+        <span className={lab}>Chat id канала — источника каталога</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.catalogChatId ?? ""}
+          onChange={(e) => set("catalogChatId", e.target.value)}
+          placeholder="-100…"
+        />
+        <span className="mt-1 block text-[11px] leading-snug text-[#8C97A1]">
+          Канал, из которого собираются автомобили. Заполните обязательно, если
+          бот админ больше чем в одном канале: пока поле пустое, каталогом
+          считается любой канал — и посты из публичного канала подписки уедут в
+          каталог карточками авто. Узнать id: отправьте /id в нужном канале.
+        </span>
+      </label>
+
+      <label>
+        <span className={lab}>Chat id канала отзывов</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.reviewsChatId ?? ""}
+          onChange={(e) => set("reviewsChatId", e.target.value)}
+          placeholder="-100…"
+        />
+        <span className="mt-1 block text-[11px] leading-snug text-[#8C97A1]">
+          Посты из этого канала идут в блок «Отзывы» (с фото/видео), а не в
+          каталог. Узнать id: опубликуйте пост в канале и посмотрите
+          lastUpdate.chatId в /api/diag. Бот должен быть админом канала.
+        </span>
+      </label>
+
+      <label>
+        <span className={lab}>Chat id канала новостей</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.newsChatId ?? ""}
+          onChange={(e) => set("newsChatId", e.target.value)}
+          placeholder="-100…"
+        />
+        <span className="mt-1 block text-[11px] leading-snug text-[#8C97A1]">
+          Посты из этого канала идут в раздел «Новости» на сайте. Один канал —
+          один раздел (не указывайте один и тот же id в отзывах и новостях).
+        </span>
+      </label>
+
+      <label>
+        <span className={lab}>Приветствие (Markdown)</span>
+        <textarea
+          disabled={!canEdit}
+          className="field-dark min-h-[120px]"
+          value={s.welcomeText}
+          onChange={(e) => set("welcomeText", e.target.value)}
+        />
+      </label>
+      <label>
+        <span className={lab}>Текст кнопки «Каталог»</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.catalogButtonText}
+          onChange={(e) => set("catalogButtonText", e.target.value)}
+        />
+      </label>
+      <label>
+        <span className={lab}>Текст кнопки «Калькулятор»</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.calcButtonText}
+          onChange={(e) => set("calcButtonText", e.target.value)}
+        />
+      </label>
+      <label>
+        <span className={lab}>Текст кнопки «Квиз/подбор»</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.quizButtonText ?? ""}
+          onChange={(e) => set("quizButtonText", e.target.value)}
+        />
+      </label>
+      <label>
+        <span className={lab}>Текст кнопки «Менеджер»</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.managerButtonText}
+          onChange={(e) => set("managerButtonText", e.target.value)}
+        />
+      </label>
+      <label>
+        <span className={lab}>Ссылка на менеджера</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.managerUrl}
+          onChange={(e) => set("managerUrl", e.target.value)}
+          placeholder="https://t.me/..."
+        />
+      </label>
+      <label>
+        <span className={lab}>Текст кнопки «Как проехать»</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.mapButtonText ?? ""}
+          onChange={(e) => set("mapButtonText", e.target.value)}
+        />
+      </label>
+      <label>
+        <span className={lab}>Ссылка на Яндекс.Карты (как проехать)</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.mapUrl ?? ""}
+          onChange={(e) => set("mapUrl", e.target.value)}
+          placeholder="https://yandex.ru/maps/..."
+        />
+      </label>
+      <p className="text-[11px] text-[#8C97A1]">
+        Кнопка «Как проехать» появится в боте только когда заполнена ссылка.
+      </p>
+      <label>
+        <span className={lab}>URL мини-аппа</span>
+        <input
+          disabled={!canEdit}
+          className="field-dark"
+          value={s.miniAppUrl || ""}
+          onChange={(e) => set("miniAppUrl", e.target.value)}
+          placeholder="https://автоимпорт-69.рф/tma"
+        />
+      </label>
+      {canEdit ? (
+        <button onClick={save} className="btn btn-primary w-full">
+          {saving ? (
+            <Loader2 className="h-[18px] w-[18px] animate-spin" />
+          ) : (
+            <Save className="h-[18px] w-[18px]" />
+          )}{" "}
+          Сохранить
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/* ---------- Реклама: метки бота, UTM сайта, кнопка менеджера ---------- */
+
+const SCREEN_NAMES: Record<string, string> = {
+  home: "Главная",
+  list: "Каталог",
+  car: "Карточка авто",
+  favorites: "Избранное",
+  compare: "Сравнение",
+  calc: "Калькулятор",
+  quiz: "Квиз",
+  subscribe: "Оповещения",
+  reviews: "Отзывы",
+  faq: "Вопросы",
+};
+
+/**
+ * Отдача рекламы — сразу под общими цифрами: пока идёт Telegram Ads, это
+ * главный вопрос — какая метка приводит людей и заявки.
+ *
+ * Строка метки: пришло в бота (за 7 дней) → подписались → заявок → нажали
+ * «Написать менеджеру». Переход в личку — тоже обращение, просто без формы.
+ */
+function AdsBlock({ stats }: { stats: Stats }) {
+  const ads = stats.ads || [];
+  const utm = stats.utm || [];
+  const mc = stats.managerClicks;
+  const head = "mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]";
+  const th = "px-2 py-1.5 text-right text-[10px] font-bold uppercase tracking-wide text-[#8C97A1]";
+  const td = "px-2 py-2 text-right font-num text-[13px]";
+  const mcMax = Math.max(1, ...(mc?.daily || []).map((d) => d.count));
+  const screens = Object.entries(mc?.screens || {}).sort((a, b) => b[1] - a[1]);
+
+  return (
+    <>
+      {mc ? (
+        <div>
+          <div className={head}>Кнопка «Написать менеджеру»</div>
+          <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {([["Всего", mc.total], ["Сегодня", mc.today], ["7 дней", mc.d7]] as const).map(([l, v]) => (
+                <div key={l}>
+                  <div className="font-num text-[22px] font-extrabold text-[#2AABEE]">{v}</div>
+                  <div className="text-[11px] text-[#9AA4B2]">{l}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex h-14 items-end gap-1">
+              {mc.daily.map((d) => (
+                <div
+                  key={d.date}
+                  title={`${d.date}: ${d.count}`}
+                  className="flex-1 rounded-t bg-[#2AABEE]/80"
+                  style={{ height: `${Math.max(4, (d.count / mcMax) * 100)}%` }}
+                />
+              ))}
+            </div>
+            {screens.length ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {screens.map(([k, v]) => (
+                  <span key={k} className="rounded-full border border-line-dark px-2 py-0.5 text-[11.5px] text-[#C7CFD6]">
+                    {SCREEN_NAMES[k] || k}: <span className="font-num text-white">{v}</span>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div>
+        <div className={head}>Метки рекламы бота (/start)</div>
+        {ads.length ? (
+          <div className="overflow-x-auto rounded-[16px] border border-line-dark bg-graphite-2">
+            <table className="w-full min-w-[340px] border-collapse">
+              <thead>
+                <tr className="border-b border-line-dark">
+                  <th className={`${th} text-left`}>Метка</th>
+                  <th className={th}>Пришли</th>
+                  <th className={th}>7 дн</th>
+                  <th className={th}>Подп.</th>
+                  <th className={th}>Заявки</th>
+                  <th className={th}>Менедж.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ads.map((r) => (
+                  <tr key={r.tag} className="border-b border-line-dark/50 last:border-0">
+                    <td className="max-w-[120px] truncate px-2 py-2 text-left text-[12.5px] text-white">{r.tag}</td>
+                    <td className={td}>{r.users}</td>
+                    <td className={`${td} text-[#9AA4B2]`}>{r.users7d}</td>
+                    <td className={td}>{r.subscribed}</td>
+                    <td className={`${td} font-extrabold text-[#E0574C]`}>{r.leads}</td>
+                    <td className={`${td} text-[#2AABEE]`}>{r.manager}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5 text-[12.5px] text-[#9AA4B2]">
+            Пока никто не пришёл по ссылке с меткой. Ссылка для рекламы:
+            t.me/DI_AVTO_69_BOT?start=a-<i>метка</i>
+          </p>
+        )}
+      </div>
+
+      {utm.length ? (
+        <div>
+          <div className={head}>UTM-метки сайта — заявки</div>
+          <div className="space-y-2">
+            {utm.map((r) => (
+              <div
+                key={r.label}
+                className="flex items-center justify-between gap-3 rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5"
+              >
+                <span className="min-w-0 truncate text-[12.5px]">{r.label}</span>
+                <span className="flex-none font-num text-[13px]">
+                  <span className="font-extrabold text-[#E0574C]">{r.leads}</span>
+                  <span className="text-[#8C97A1]"> · 7 дн {r.leads7d}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/* ---------- Заявки ---------- */
+function LeadsTab({ initData }: { initData: string }) {
+  const desk = useDesk();
+  const [leads, setLeads] = useState<Lead[] | null>(null);
+  useEffect(() => {
+    adminCall<{ leads: Lead[] }>(initData, "leads.list").then((r) => {
+      if (r.ok) setLeads(r.leads);
+      else setLeads([]);
+    });
+  }, [initData]);
+  // Какую заявку сейчас подтверждают к удалению. Удаление в два касания:
+  // список длинный, и один промах пальцем не должен стирать живую заявку.
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const keyOf = (l: Lead) => `${l.ts}:${l.phone}`;
+
+  async function remove(l: Lead) {
+    const k = keyOf(l);
+    setBusy(k);
+    const r = await adminCall<{ leads: Lead[]; removed: boolean }>(initData, "leads.remove", {
+      ts: l.ts,
+      phone: l.phone,
+    });
+    setBusy(null);
+    setConfirm(null);
+    if (r.ok) {
+      setLeads(r.leads);
+      showToast(r.removed ? "Заявка удалена" : "Заявка уже удалена", "success");
+    } else showToast(r.error || "Не удалось удалить", "error");
+  }
+
+  if (!leads) return <Spinner />;
+  if (leads.length === 0)
+    return (
+      <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
+        Заявок пока нет.
+      </p>
+    );
+  return (
+    <div className={listCls(desk)}>
+      {leads.map((l, i) => (
+        <div
+          key={`${keyOf(l)}:${i}`}
+          className="rounded-[16px] border border-line-dark bg-graphite-2 p-3"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate font-bold">{l.name || "—"}</span>
+            <span className="flex flex-none items-center gap-1.5">
+              <span className="text-[11px] text-[#8C97A1]">
+                {new Date(l.ts).toLocaleString("ru-RU", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+              {confirm === keyOf(l) ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={busy === keyOf(l)}
+                    onClick={() => remove(l)}
+                    className="rounded-full bg-bordeaux px-2.5 py-1 text-[11.5px] font-bold text-white disabled:opacity-60"
+                  >
+                    {busy === keyOf(l) ? "…" : "Удалить"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirm(null)}
+                    className="rounded-full border border-line-dark px-2.5 py-1 text-[11.5px] font-bold text-chrome"
+                  >
+                    Нет
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  aria-label="Удалить заявку"
+                  onClick={() => setConfirm(keyOf(l))}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-[#8C97A1] hover:text-white active:bg-white/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </span>
+          </div>
+          <a
+            href={`tel:${l.phone.replace(/\D/g, "")}`}
+            className="font-num text-[15px] font-bold text-bordeaux-bright"
+          >
+            {l.phone}
+          </a>
+          {l.car ? (
+            <div className="text-[13px] text-[#C7CFD6]">🔎 {l.car}</div>
+          ) : null}
+          <div className="text-[12px] text-[#8C97A1]">📍 {l.source}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Админы ---------- */
+function AdminsTab({ initData, owner }: { initData: string; owner: boolean }) {
+  const desk = useDesk();
+  const [admins, setAdmins] = useState<AdminsMap | null>(null);
+  const [owners, setOwners] = useState<string[]>([]);
+  const [id, setId] = useState("");
+  const [name, setName] = useState("");
+  const [sel, setSel] = useState<AdminCap[]>(["catalog", "leads"]);
+  const lab = "block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1] mb-1";
+  // Право «Управление админами» может выдавать только владелец.
+  const capList = owner ? ALL_CAPS : ALL_CAPS.filter((c) => c.key !== "admins");
+
+  function load() {
+    adminCall<{ admins: AdminsMap; owners: string[] }>(
+      initData,
+      "admins.list",
+    ).then((res) => {
+      if (res.ok) {
+        setAdmins(res.admins);
+        setOwners(res.owners);
+      } else setAdmins({});
+    });
+  }
+  useEffect(load, [initData]);
+
+  const toggleSel = (c: AdminCap) =>
+    setSel((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c]));
+
+  // Права админа: из caps, либо миграция со старой роли.
+  function recCaps(a: AdminsMap[string]): string[] {
+    if (Array.isArray(a.caps)) return a.caps;
+    if (a.role === "admin")
+      return ALL_CAPS.map((c) => c.key).filter((k) => k !== "admins");
+    if (a.role === "manager") return ["catalog", "leads", "reviews", "subs", "stats", "bot"];
+    if (a.role) return ["leads", "reviews"];
+    return [];
+  }
+
+  async function save(uid: string, caps: string[], nm?: string) {
+    const res = await adminCall<{ admins: AdminsMap; notified?: boolean }>(
+      initData,
+      "admins.set",
+      { id: uid, caps, name: nm },
+    );
+    if (res.ok) {
+      setAdmins(res.admins);
+      return res;
+    }
+    showToast("Ошибка: " + (res.error || ""), "error");
+    return null;
+  }
+
+  async function add() {
+    if (!/^\d+$/.test(id.trim())) {
+      showToast("ID — только цифры (узнать через @userinfobot)", "error");
+      return;
+    }
+    if (!sel.length) {
+      showToast("Отметьте хотя бы одно право", "error");
+      return;
+    }
+    const res = await save(id.trim(), sel, name);
+    if (res) {
+      setId("");
+      setName("");
+      showToast(
+        res.notified
+          ? "Админ добавлен — уведомление отправлено"
+          : "Админ добавлен. Уведомление не дошло: пусть он сначала запустит бота (кнопка «Старт»)",
+      );
+    }
+  }
+
+  async function remove(uid: string) {
+    const res = await adminCall<{ admins: AdminsMap }>(
+      initData,
+      "admins.remove",
+      { id: uid },
+    );
+    if (res.ok) setAdmins(res.admins);
+  }
+
+  if (!admins) return <Spinner />;
+
+  return (
+    <div className={formCls(desk, "space-y-4")}>
+      <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-3.5">
+        <div className={lab}>Добавить админа</div>
+        <div className="space-y-2.5">
+          <input
+            className="field-dark"
+            inputMode="numeric"
+            value={id}
+            onChange={(e) => setId(e.target.value.replace(/\D/g, ""))}
+            placeholder="Telegram ID (цифры)"
+          />
+          <input
+            className="field-dark"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Имя (для себя)"
+          />
+          <div>
+            <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+              Доступ к разделам
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {capList.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => toggleSel(c.key)}
+                  className={`rounded-full border px-3 py-1.5 text-[12.5px] font-bold ${
+                    sel.includes(c.key)
+                      ? "border-bordeaux-bright bg-bordeaux text-white"
+                      : "border-line-dark text-chrome"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button onClick={add} className="btn btn-primary w-full">
+            <Plus className="h-[18px] w-[18px]" /> Добавить
+          </button>
+        </div>
+        <p className="mt-2 text-[11px] text-[#8C97A1]">
+          Отметьте разделы, к которым будет доступ. Управлять админами может
+          только владелец.
+        </p>
+      </div>
+
+      <div>
+        <div className={lab}>Владельцы (из настроек воркера)</div>
+        <div className="space-y-2">
+          {owners.length === 0 ? (
+            <p className="text-[13px] text-[#8C97A1]">
+              Не заданы. Добавьте ADMIN_IDS в переменные воркера.
+            </p>
+          ) : (
+            owners.map((o) => (
+              <div
+                key={o}
+                className="flex items-center justify-between rounded-[14px] border border-line-dark bg-graphite-2 px-3.5 py-2.5"
+              >
+                <span className="font-num">{o}</span>
+                <span className="rounded-full border border-line-dark px-2 py-0.5 text-[11px] font-bold uppercase text-chrome">
+                  owner
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div>
+        <div className={lab}>Добавленные админы</div>
+        <div className="space-y-2">
+          {Object.keys(admins).length === 0 ? (
+            <p className="text-[13px] text-[#8C97A1]">Пока никого.</p>
+          ) : (
+            Object.entries(admins).map(([uid, a]) => {
+              const caps = recCaps(a);
+              return (
+                <div
+                  key={uid}
+                  className="rounded-[14px] border border-line-dark bg-graphite-2 p-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1 truncate font-bold">
+                      {a.name || "—"}{" "}
+                      <span className="font-num text-[12px] text-[#8C97A1]">
+                        #{uid}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => remove(uid)}
+                      className="flex h-8 w-8 flex-none items-center justify-center rounded-full border border-line-dark text-bordeaux-bright"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {/* тумблеры прав — клик меняет доступ сразу */}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {capList.map((c) => {
+                      const on = caps.includes(c.key);
+                      return (
+                        <button
+                          key={c.key}
+                          type="button"
+                          onClick={() =>
+                            save(
+                              uid,
+                              on ? caps.filter((x) => x !== c.key) : [...caps, c.key],
+                              a.name,
+                            )
+                          }
+                          className={`rounded-full border px-2.5 py-1 text-[11.5px] font-bold ${
+                            on
+                              ? "border-bordeaux-bright bg-bordeaux text-white"
+                              : "border-line-dark text-[#8C97A1]"
+                          }`}
+                        >
+                          {c.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <div className="flex justify-center py-10 text-chrome">
+      <Loader2 className="h-6 w-6 animate-spin" />
+    </div>
+  );
+}

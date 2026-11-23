@@ -1,0 +1,48 @@
+# Добавить отзыв на сайт, минуя телеграм.
+#
+# Обычный путь у отзыва один и он правильный: владелец публикует пост в канале
+# отзывов, бот разбирает его и кладёт карточку в хранилище. Эта задача нужна
+# для другого случая — когда карточку собирает разработчик: из его среды
+# закрыты и домен сайта, и домен воркера, и телеграм, а у Actions интернет
+# открыт и ключ от Cloudflare уже лежит рядом, тем же деплоится бот.
+#
+# Фотографии кладутся в public/reviews/… обычным коммитом и уезжают на
+# хостинг вместе с сайтом; сюда передаются только их адреса.
+#
+# Запуск: Actions → «Отзыв на сайт» → Run workflow, в поле — JSON вида
+#   {"id":"site-gac-2026-09-24","text":"Выдача GAC S7\n\nЗабрали…",
+#    "images":["/reviews/gac-2026-09-24/1.webp"]}
+#
+# Повторный запуск с тем же id обновляет карточку, а не создаёт вторую.
+
+name: Отзыв на сайт
+
+on:
+  workflow_dispatch:
+    inputs:
+      review:
+        description: "Отзыв в JSON: id, text, images (и необязательные name, rating, ts)"
+        required: false
+      remove:
+        description: "Удалить карточки: идентификаторы через запятую"
+        required: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Без обоих полей задача просто печатает список: идентификаторы отзывов
+      # человеку негде посмотреть, а удалять надо по ним.
+      - name: Положить отзыв в хранилище
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          REVIEW_JSON: ${{ inputs.review }}
+          REVIEW_REMOVE: ${{ inputs.remove }}
+        run: node scripts/review-add.mjs

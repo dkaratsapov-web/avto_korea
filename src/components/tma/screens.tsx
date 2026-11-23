@@ -1,0 +1,2682 @@
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Heart,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ArrowLeft,
+  Check,
+  SlidersHorizontal,
+  X,
+  Car as CarIcon,
+  Bell,
+  Scale,
+  Star,
+  HelpCircle,
+  Send,
+  Loader2,
+  Maximize2,
+  ClipboardList,
+  Play,
+  Lock,
+  ArrowUpRight,
+  ArrowUp,
+  Camera,
+  ArrowDownUp,
+} from "lucide-react";
+import { Flag } from "@/components/icons/Flag";
+import { brandOf } from "@/lib/brand";
+import { matchQuizCars, relaxedLabel } from "@/lib/quizMatch";
+import { TelegramIcon } from "@/components/icons/TelegramIcon";
+import { useCars } from "@/lib/carsStore";
+import { countries, site, type CountryCode } from "@/lib/site";
+import { type Car, formatPrice } from "@/data/cars";
+import { showToast } from "@/lib/toast";
+import {
+  subscribe as apiSubscribe,
+  fetchReviews,
+  fetchFaq,
+  fetchRates,
+  type Review,
+  type Faq,
+} from "@/lib/api";
+import { displayPrice, PRICE_LABEL, PRICE_LABEL_SHORT } from "@/lib/price";
+function mtoggle<T>(arr: T[], v: T): T[] {
+  return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
+}
+
+// Маска российского номера: +7 (XXX) XXX-XX-XX
+function maskRuPhone(v: string) {
+  let d = v.replace(/\D/g, "");
+  if (d[0] === "8") d = "7" + d.slice(1);
+  else if (d[0] === "9") d = "7" + d;
+  else if (d && d[0] !== "7") d = "7" + d;
+  d = d.slice(0, 11);
+  const r = d.slice(1);
+  if (!r) return d ? "+7" : "";
+  let out = "+7 (" + r.slice(0, 3);
+  if (r.length >= 3) out += ")";
+  if (r.length > 3) out += " " + r.slice(3, 6);
+  if (r.length >= 6) out += "-" + r.slice(6, 8);
+  if (r.length >= 8) out += "-" + r.slice(8, 10);
+  return out;
+}
+
+export function ListView({
+  cars,
+  isFav,
+  onToggleFav,
+  onOpen,
+}: {
+  cars: Car[];
+  isFav: (id: string) => boolean;
+  onToggleFav: (id: string) => void;
+  onOpen: (id: string) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<"all" | CountryCode>("all");
+  const [open, setOpen] = useState(false);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [bodies, setBodies] = useState<string[]>([]);
+  const [fuels, setFuels] = useState<string[]>([]);
+  const [colors, setColors] = useState<string[]>([]);
+  const [drives, setDrives] = useState<string[]>([]);
+  const [gear, setGear] = useState<string[]>([]);
+  const [condition, setCondition] = useState<"all" | "new" | "used">("all");
+  const [priceFrom, setPriceFrom] = useState<number | null>(null);
+  const [priceTo, setPriceTo] = useState<number | null>(null);
+  const [yearFrom, setYearFrom] = useState<number | null>(null);
+  const [yearTo, setYearTo] = useState<number | null>(null);
+  const [powerFrom, setPowerFrom] = useState<number | null>(null);
+  const [powerTo, setPowerTo] = useState<number | null>(null);
+
+  const facets = useMemo(() => {
+    const prices = cars.map(displayPrice);
+    const powers = cars.map((c) => c.powerHp ?? 0).filter(Boolean);
+    return {
+      brands: Array.from(new Set(cars.map((c) => brandOf(c.model)).filter(Boolean))).sort(),
+      bodies: Array.from(new Set(cars.map((c) => c.bodyType).filter(Boolean) as string[])).sort(),
+      fuels: Array.from(new Set(cars.map((c) => c.fuelType).filter(Boolean) as string[])).sort(),
+      colors: Array.from(new Set(cars.map((c) => c.color).filter(Boolean) as string[])).sort(),
+      // Пустые и пробельные значения в фильтр не попадают — иначе появлялась
+      // пустая кнопка без подписи.
+      drives: Array.from(new Set(cars.map((c) => normDrive(c.drive)).filter(Boolean))),
+      gear: Array.from(new Set(cars.map((c) => (c.gearbox || "").trim()).filter(Boolean))),
+      min: prices.length ? Math.min(...prices) : 0,
+      max: prices.length ? Math.max(...prices) : 0,
+      yearMin: cars.length ? Math.min(...cars.map((c) => c.year)) : 2010,
+      yearMax: cars.length ? Math.max(...cars.map((c) => c.year)) : 2026,
+      powerMin: powers.length ? Math.min(...powers) : 0,
+      powerMax: powers.length ? Math.max(...powers) : 0,
+    };
+  }, [cars]);
+
+  const countryTabs = useMemo(() => {
+    const present = Array.from(new Set(cars.map((c) => c.country)));
+    return [
+      { value: "all" as const, label: "Все" },
+      ...present.map((code) => ({ value: code, label: countries[code].label })),
+    ];
+  }, [cars]);
+
+  const activeCount =
+    brands.length + bodies.length + fuels.length + colors.length + drives.length +
+    gear.length + (condition !== "all" ? 1 : 0) +
+    (priceFrom != null || priceTo != null ? 1 : 0) +
+    (yearFrom != null || yearTo != null ? 1 : 0) +
+    (powerFrom != null || powerTo != null ? 1 : 0);
+
+  const filtered = cars.filter((c) => {
+    const price = displayPrice(c);
+    const hp = c.powerHp ?? 0;
+    if (filter !== "all" && c.country !== filter) return false;
+    if (!c.model.toLowerCase().includes(q.toLowerCase())) return false;
+    if (brands.length && !brands.includes(brandOf(c.model))) return false;
+    if (bodies.length && !(c.bodyType && bodies.includes(c.bodyType))) return false;
+    if (fuels.length && !(c.fuelType && fuels.includes(c.fuelType))) return false;
+    if (colors.length && !(c.color && colors.includes(c.color))) return false;
+    if (drives.length && !drives.includes(normDrive(c.drive))) return false;
+    if (gear.length && !gear.includes((c.gearbox || "").trim())) return false;
+    if (condition === "new" && !c.isNew) return false;
+    if (condition === "used" && c.isNew) return false;
+    if (priceFrom != null && price < priceFrom) return false;
+    if (priceTo != null && price > priceTo) return false;
+    if (yearFrom != null && c.year < yearFrom) return false;
+    if (yearTo != null && c.year > yearTo) return false;
+    if (powerFrom != null && hp < powerFrom) return false;
+    if (powerTo != null && hp > powerTo) return false;
+    return true;
+  });
+
+  // Сортировка. По умолчанию — свежие поступления сверху: за ними и
+  // возвращаются в каталог.
+  const [sort, setSort] = useState<SortKey>("fresh");
+  const list = useMemo(() => sortCars(filtered, sort), [filtered, sort]);
+
+  // Сколько машин в каждой стране — цифра прямо на вкладке.
+  const countryCount = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const c of cars) m[c.country] = (m[c.country] || 0) + 1;
+    return m;
+  }, [cars]);
+
+  // Вкладки стран не помещаются в ширину — с компьютера их листает колесо мыши.
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useWheelX(tabsRef);
+
+  // Кнопка «наверх» — когда каталог пролистан на несколько экранов.
+  const [farDown, setFarDown] = useState(false);
+  useEffect(() => {
+    const on = () => setFarDown(window.scrollY > 1400);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
+
+  function resetFilters() {
+    setBrands([]);
+    setBodies([]);
+    setFuels([]);
+    setColors([]);
+    setDrives([]);
+    setGear([]);
+    setCondition("all");
+    setPriceFrom(null);
+    setPriceTo(null);
+    setYearFrom(null);
+    setYearTo(null);
+    setPowerFrom(null);
+    setPowerTo(null);
+  }
+
+  // Пока открыта шторка фильтров, каталог под ней не прокручивается.
+  useEffect(() => {
+    if (!open) return;
+    const root = document.documentElement;
+    const prev = root.style.overflow;
+    root.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = prev;
+    };
+  }, [open]);
+
+  const pill = (active: boolean) =>
+    `flex flex-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold ${
+      active ? "border-bordeaux-bright bg-bordeaux text-white" : "border-line-dark text-chrome"
+    }`;
+
+  return (
+    <>
+      {/* Поиск + табы — фиксируются под шапкой */}
+      {/* Компактно: прилипшая шапка поиска съедала треть экрана телефона. */}
+      <div className="sticky top-[53px] z-30 -mx-4 mb-3 border-b border-line-dark/60 bg-graphite px-4 pb-2 pt-1.5">
+        <div className="mb-2 flex gap-2">
+          <label className="relative block flex-1">
+            <Search className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#8C97A1]" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Марка или модель"
+              enterKeyHint="search"
+              className="field-dark !h-10 pl-10 pr-10 !text-[14.5px]"
+            />
+            {q ? (
+              <button
+                type="button"
+                aria-label="Очистить поиск"
+                onClick={() => setQ("")}
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </label>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className={`relative flex h-10 w-10 flex-none items-center justify-center rounded-[11px] border ${
+              open || activeCount
+                ? "border-bordeaux-bright bg-bordeaux/15 text-bordeaux-bright"
+                : "border-line-dark text-chrome"
+            }`}
+            aria-label="Фильтры"
+          >
+            <SlidersHorizontal className="h-5 w-5" />
+            {activeCount ? (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-bordeaux px-1 font-num text-[11px] font-bold text-white">
+                {activeCount}
+              </span>
+            ) : null}
+          </button>
+        </div>
+
+        <div ref={tabsRef} className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {countryTabs.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setFilter(t.value)}
+              className={`flex flex-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-bold ${
+                filter === t.value
+                  ? "border-bordeaux-bright bg-bordeaux text-white"
+                  : "border-line-dark text-chrome"
+              }`}
+            >
+              {t.value !== "all" ? <Flag code={t.value} className="h-3 w-4" /> : null}
+              {t.label}
+              <span
+                className={`font-num text-[11px] font-bold ${filter === t.value ? "text-white/70" : "text-[#7C8792]"}`}
+              >
+                {t.value === "all" ? cars.length : countryCount[t.value] || 0}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Фильтры — шторка снизу поверх каталога. Раньше блок раскрывался над
+          списком: если человек уже долистал вниз, фильтры открывались где-то
+          за верхним краем экрана и казалось, что кнопка не работает. Шторку
+          видно с любого места, а «Показать» возвращает к началу результатов. */}
+      {open ? (
+        <div className="fixed inset-0 z-[95] flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
+          <div className="relative flex max-h-[88vh] flex-col rounded-t-[20px] border-t border-line-dark bg-graphite-2 animate-fade-up">
+          <div className="flex items-center justify-between border-b border-line-dark/60 px-4 py-3">
+            <span className="text-[15px] font-extrabold uppercase">Фильтры</span>
+            <div className="flex items-center gap-3">
+              {activeCount ? (
+                <button
+                  onClick={resetFilters}
+                  className="flex items-center gap-1 text-[12.5px] font-bold text-bordeaux-bright"
+                >
+                  <X className="h-3.5 w-3.5" /> Сбросить
+                </button>
+              ) : null}
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Закрыть фильтры"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+          <div className="space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
+
+          <FilterRow label="Состояние">
+            {([["all", "Любое"], ["new", "Новые"], ["used", "С пробегом"]] as const).map(([v, l]) => (
+              <button key={v} onClick={() => setCondition(v)} className={pill(condition === v)}>{l}</button>
+            ))}
+          </FilterRow>
+
+          {facets.bodies.length ? (
+            <FilterRow label="Кузов">
+              {facets.bodies.map((b) => (
+                <button key={b} onClick={() => setBodies((p) => mtoggle(p, b))} className={pill(bodies.includes(b))}>
+                  {b}
+                </button>
+              ))}
+            </FilterRow>
+          ) : null}
+
+          {facets.fuels.length ? (
+            <FilterRow label="Топливо">
+              {facets.fuels.map((f) => (
+                <button key={f} onClick={() => setFuels((p) => mtoggle(p, f))} className={pill(fuels.includes(f))}>
+                  {f}
+                </button>
+              ))}
+            </FilterRow>
+          ) : null}
+
+          {facets.colors.length ? (
+            <FilterRow label="Цвет">
+              {facets.colors.map((c) => (
+                <button key={c} onClick={() => setColors((p) => mtoggle(p, c))} className={pill(colors.includes(c))}>
+                  {c}
+                </button>
+              ))}
+            </FilterRow>
+          ) : null}
+
+          <FilterRow label="Привод">
+            {facets.drives.map((d) => (
+              <button key={d} onClick={() => setDrives((p) => mtoggle(p, d))} className={pill(drives.includes(d))}>
+                {d}
+              </button>
+            ))}
+          </FilterRow>
+
+          <FilterRow label="Коробка">
+            {facets.gear.map((g) => (
+              <button key={g} onClick={() => setGear((p) => mtoggle(p, g))} className={pill(gear.includes(g))}>
+                {g}
+              </button>
+            ))}
+          </FilterRow>
+
+          <FilterRow label="Марка">
+            {facets.brands.map((b) => (
+              <button key={b} onClick={() => setBrands((p) => mtoggle(p, b))} className={pill(brands.includes(b))}>
+                {b}
+              </button>
+            ))}
+          </FilterRow>
+
+          <MiniRange label="Год" min={facets.yearMin} max={facets.yearMax} step={1}
+            from={yearFrom} to={yearTo} onFrom={setYearFrom} onTo={setYearTo} fmt={(n) => String(n)} />
+          <MiniRange label="Цена" min={facets.min} max={facets.max} step={10000}
+            from={priceFrom} to={priceTo} onFrom={setPriceFrom} onTo={setPriceTo} fmt={(n) => `${formatPrice(n)} ₽`} />
+          {facets.powerMax > facets.powerMin ? (
+            <MiniRange label="Мощность" min={facets.powerMin} max={facets.powerMax} step={5}
+              from={powerFrom} to={powerTo} onFrom={setPowerFrom} onTo={setPowerTo} fmt={(n) => `${n} л.с.`} />
+          ) : null}
+          </div>
+          <div className="border-t border-line-dark/60 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+            <button
+              onClick={() => {
+                setOpen(false);
+                window.scrollTo({ top: 0, behavior: "instant" });
+              }}
+              className="h-12 w-full rounded-[14px] bg-bordeaux text-[15px] font-extrabold text-white"
+            >
+              {list.length ? `Показать ${list.length} авто` : "Ничего не найдено"}
+            </button>
+          </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Строка результатов: сколько нашлось, сброс фильтров и сортировка.
+          Сортировка — системный список: на телефоне открывается родное
+          колесо выбора, привычное и крупное. */}
+      <div className="mb-2.5 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-[#9AA4B2]">
+          <span>
+            Найдено: <span className="font-num text-white">{list.length}</span>
+          </span>
+          {activeCount ? (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[11.5px] font-bold text-[#E0574C]"
+            >
+              <X className="h-3 w-3" /> Сбросить
+            </button>
+          ) : null}
+        </div>
+        <label className="relative flex flex-none items-center gap-1.5 overflow-hidden rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-2.5 pr-3 text-[12px] font-bold text-chrome">
+          <ArrowDownUp className="h-3.5 w-3.5" />
+          {SORTS.find((x) => x.key === sort)?.short}
+          <select
+            value={sort}
+            onChange={(e) => {
+              setSort(e.target.value as SortKey);
+              window.scrollTo({ top: 0, behavior: "instant" });
+            }}
+            aria-label="Сортировка"
+            // Ширина и высота — строго кнопки. Без них iPhone растягивает
+            // невидимый список до самого длинного пункта, он вылезал за
+            // правый край, и весь экран начинал ездить вбок.
+            className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
+          >
+            {SORTS.map((x) => (
+              <option key={x.key} value={x.key}>
+                {x.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {/* Две колонки, как в каталоге на телефоне: за экран видно вчетверо
+          больше машин, а листать до нужной приходится вчетверо меньше. */}
+      <div className="grid grid-cols-2 gap-2.5">
+        {list.map((car) => (
+          <CarTile
+            key={car.id}
+            car={car}
+            fav={isFav(car.id)}
+            onToggleFav={onToggleFav}
+            onOpen={onOpen}
+          />
+        ))}
+      </div>
+      {list.length === 0 ? (
+        <div className="rounded-[18px] border border-white/10 bg-white/[0.03] px-5 py-8 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06] text-chrome">
+            <Search className="h-5 w-5" />
+          </div>
+          <div className="text-[15px] font-extrabold">Ничего не нашлось</div>
+          <p className="mt-1 text-[13px] text-[#9AA4B2]">
+            Попробуйте убрать часть фильтров — или оставьте заявку, найдём под заказ.
+          </p>
+          {activeCount || q || filter !== "all" ? (
+            <button
+              type="button"
+              onClick={() => {
+                resetFilters();
+                setQ("");
+                setFilter("all");
+              }}
+              className="mt-4 rounded-full bg-bordeaux px-4 py-2 text-[13px] font-bold text-white"
+            >
+              Показать все авто
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* «Наверх» — к поиску и фильтрам, когда каталог пролистан далеко. */}
+      <button
+        type="button"
+        aria-label="Наверх"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        className={`fixed bottom-[88px] right-[22px] z-40 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-graphite-2/90 text-white shadow-[0_10px_30px_rgba(0,0,0,.5)] backdrop-blur transition-[opacity,transform] duration-200 ${
+          farDown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
+        }`}
+      >
+        <ArrowUp className="h-5 w-5" />
+      </button>
+    </>
+  );
+}
+
+/**
+ * Привод в одном написании: в постах встречаются «Задни», «задний», «Полный
+ * привод» — в фильтре это были разные кнопки.
+ */
+function normDrive(v: string | undefined): string {
+  const d = (v || "").trim().toLowerCase();
+  if (!d) return "";
+  if (d.startsWith("задн")) return "Задний";
+  if (d.startsWith("передн")) return "Передний";
+  if (d.startsWith("полн") || d.includes("4wd") || d.includes("awd")) return "Полный";
+  return (v || "").trim();
+}
+
+/**
+ * Горизонтальную ленту на компьютере листает обычное колесо мыши: без этого
+ * её можно было прокрутить только тачпадом, а мышью — никак.
+ */
+function useWheelX(ref: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const on = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const max = el.scrollWidth - el.clientWidth;
+      if (max <= 0) return;
+      const next = el.scrollLeft + e.deltaY;
+      // На краю ленты отдаём колесо странице — иначе её не прокрутить.
+      if ((next <= 0 && el.scrollLeft <= 0) || (next >= max && el.scrollLeft >= max)) return;
+      e.preventDefault();
+      el.scrollLeft = Math.max(0, Math.min(max, next));
+    };
+    el.addEventListener("wheel", on, { passive: false });
+    return () => el.removeEventListener("wheel", on);
+  }, [ref]);
+}
+
+/* ---------- Сортировка каталога ---------- */
+type SortKey = "fresh" | "cheap" | "expensive" | "year" | "power";
+const SORTS: { key: SortKey; label: string; short: string }[] = [
+  { key: "fresh", label: "Сначала новые поступления", short: "Свежие" },
+  { key: "cheap", label: "Сначала дешевле", short: "Дешевле" },
+  { key: "expensive", label: "Сначала дороже", short: "Дороже" },
+  { key: "year", label: "Сначала новее по году", short: "Год" },
+  { key: "power", label: "Сначала мощнее", short: "Мощность" },
+];
+function sortCars(list: Car[], key: SortKey): Car[] {
+  if (key === "fresh") {
+    // Порядок каталога уже «свежие сверху»; addedAt — уточнение, если есть.
+    return list.some((c) => c.addedAt)
+      ? [...list].sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0))
+      : list;
+  }
+  const by: Record<Exclude<SortKey, "fresh">, (c: Car) => number> = {
+    cheap: (c) => displayPrice(c),
+    expensive: (c) => -displayPrice(c),
+    year: (c) => -c.year,
+    power: (c) => -(c.powerHp ?? 0),
+  };
+  const f = by[key];
+  return [...list].sort((a, b) => f(a) - f(b));
+}
+
+/** Цена на тёмном фоне: фирменный бордо слишком тёмный, читается плохо. */
+const PRICE_TXT = "text-[#E0574C]";
+
+/* ---------- Карточка авто в списке ---------- */
+
+/**
+ * Компактная плитка — та же, что в каталоге сайта на телефоне.
+ *
+ * Раньше карточка занимала всю ширину: на экран помещалось полторы машины,
+ * и до нужной приходилось долго листать. В две колонки видно четыре, а выбор
+ * из каталога — это в первую очередь сравнение, ради него сюда и заходят.
+ *
+ * Характеристики убраны намеренно: на узкой карточке они превращаются
+ * в нечитаемую строку и вытесняют цену. Всё, что нужно для выбора на этом
+ * шаге, — машина, год, мощность и цена; остальное открывается по нажатию.
+ */
+function CarTile({
+  car,
+  fav,
+  onToggleFav,
+  onOpen,
+}: {
+  car: Car;
+  fav: boolean;
+  onToggleFav: (id: string) => void;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <article
+      onClick={() => onOpen(car.id)}
+      className="flex cursor-pointer flex-col overflow-hidden rounded-[16px] border border-white/[0.08] bg-graphite-2 shadow-[0_10px_24px_-16px_rgba(0,0,0,.8)] transition-transform duration-150 active:scale-[0.98]"
+    >
+      {/*
+       * Окно под фото задано пропорцией и жёстко обрезает содержимое.
+       *
+       * Само изображение выведено из потока (absolute): пока оно висело
+       * в потоке, его собственные пропорции могли растянуть окно, и у соседних
+       * карточек верх и низ фото расходились на несколько пикселей — ряд
+       * читался как кривой. Теперь размер окна не зависит от того, какое фото
+       * в него попало: вертикальный кадр с площадки и широкий кадр из салона
+       * дают одинаковую рамку.
+       */}
+      <div className="relative aspect-[16/10] overflow-hidden bg-black">
+        {/* eslint-disable-next-line */}
+        <img
+          src={car.images[0]}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        {/* Затемнение по краям: флаг и сердце должны читаться на любом фото. */}
+        <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/25" />
+
+        <span className="absolute left-1.5 top-1.5 flex items-center rounded-full border border-white/25 bg-black/50 px-1.5 py-1 backdrop-blur">
+          <Flag code={car.country} className="h-[11px] w-4" />
+        </span>
+
+        <button
+          type="button"
+          aria-label={fav ? "Убрать из избранного" : "В избранное"}
+          aria-pressed={fav}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFav(car.id);
+          }}
+          className={`absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur ${
+            fav ? "bg-bordeaux text-white" : "border border-white/25 bg-black/50 text-white"
+          }`}
+        >
+          <Heart className={`h-4 w-4 ${fav ? "fill-white" : ""}`} />
+        </button>
+
+        {car.video ? (
+          <span className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded-full border border-white/20 bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+            <Play className="h-2.5 w-2.5 fill-white" />
+            Видео
+          </span>
+        ) : null}
+        {/* Сколько фото — понятно ещё до открытия, есть ли что смотреть. */}
+        {car.images.length > 1 ? (
+          <span className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-full bg-black/55 px-1.5 py-0.5 font-num text-[10px] font-bold text-white backdrop-blur">
+            <Camera className="h-2.5 w-2.5" />
+            {car.images.length}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="flex flex-1 flex-col p-2.5">
+        {/*
+         * Под название всегда отведены две строки, даже если имя короткое.
+         *
+         * Иначе «Kia K3» даёт карточку в одну строку, а «VW Teramont Pro
+         * 450TSI» — в две, ряд становится на 17 пикселей выше соседнего,
+         * и лента карточек идёт рваной лесенкой. Замер это и показал:
+         * 210 против 227 пикселей при одинаковых обложках.
+         */}
+        <h3 className="line-clamp-2 h-8 text-[13px] font-extrabold leading-tight text-white">
+          {car.model}
+        </h3>
+        <div className="mt-0.5 text-[11px] leading-tight text-[#9AA4B2]">
+          {car.year}
+          {car.powerHp ? ` · ${car.powerHp} л.с.` : ""}
+          {car.fuelType && car.fuelType !== "Бензин" ? ` · ${car.fuelType}` : ""}
+        </div>
+
+        {/* mt-auto прижимает цену к низу: у соседних карточек названия разной
+            высоты, и без этого цены не встают в одну линию. */}
+        <div className="mt-auto pt-2">
+          <div className="text-[9px] font-bold uppercase tracking-[0.07em] text-[#8A939C]">
+            {PRICE_LABEL}
+          </div>
+          <div className={`mt-0.5 whitespace-nowrap font-num text-[15px] font-extrabold leading-none ${PRICE_TXT}`}>
+            {formatPrice(displayPrice(car))}
+            <small className="ml-0.5 text-[11px] font-semibold text-[#9AA4B2]">₽</small>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/* ---------- Листаемая лента фото ---------- */
+/**
+ * Фото листаются пальцем: лента — горизонтальный скролл со «щелчком»
+ * (scroll-snap), поэтому кадр едет за пальцем и сам встаёт на место, как в
+ * галерее телефона. Раньше фото менялось только стрелками, а в полноэкранном
+ * режиме — рывком после отпускания пальца, без движения.
+ *
+ * Номер текущего фото считаем по прокрутке; стрелки просто докручивают ленту
+ * на ширину кадра (с последнего — обратно на первый).
+ */
+function SwipeGallery({
+  images,
+  start = 0,
+  onIndex,
+  onTap,
+  full = false,
+  seek,
+}: {
+  images: string[];
+  start?: number;
+  onIndex?: (i: number) => void;
+  onTap?: () => void;
+  full?: boolean;
+  /** Перейти к кадру снаружи (миниатюры). n — счётчик, чтобы повторный тап срабатывал. */
+  seek?: { i: number; n: number };
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [i, setI] = useState(start);
+  const n = images.length;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !seek) return;
+    el.scrollTo({ left: seek.i * el.clientWidth, behavior: "smooth" });
+  }, [seek?.n]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Встаём на стартовый кадр до первой отрисовки — без видимой прокрутки.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el && start) el.scrollLeft = start * el.clientWidth;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onScroll = () => {
+    const el = ref.current;
+    if (!el || !el.clientWidth) return;
+    const k = Math.min(n - 1, Math.max(0, Math.round(el.scrollLeft / el.clientWidth)));
+    if (k !== i) {
+      setI(k);
+      onIndex?.(k);
+    }
+  };
+
+  const go = (k: number) => {
+    const el = ref.current;
+    if (!el) return;
+    const t = ((k % n) + n) % n;
+    el.scrollTo({ left: t * el.clientWidth, behavior: "smooth" });
+  };
+
+  const arrow = full
+    ? "h-11 w-11 bg-white/10"
+    : "h-9 w-9 bg-graphite/80";
+
+  return (
+    <div className="relative h-full w-full">
+      <div
+        ref={ref}
+        onScroll={onScroll}
+        className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {images.map((src, k) => (
+          <div
+            key={k}
+            className={`flex h-full w-full flex-none snap-center snap-always items-center justify-center ${full ? "px-2" : ""}`}
+          >
+            {/* eslint-disable-next-line */}
+            <img
+              src={src}
+              alt=""
+              draggable={false}
+              loading={Math.abs(k - start) <= 1 ? "eager" : "lazy"}
+              onClick={onTap}
+              className={
+                full
+                  ? "max-h-full max-w-full select-none object-contain"
+                  : "h-full w-full cursor-pointer select-none object-cover"
+              }
+            />
+          </div>
+        ))}
+      </div>
+      {n > 1 ? (
+        <>
+          <button
+            type="button"
+            aria-label="Предыдущее фото"
+            onClick={(e) => {
+              e.stopPropagation();
+              go(i - 1);
+            }}
+            className={`absolute left-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-full text-white ${arrow}`}
+          >
+            <ChevronLeft className={full ? "h-6 w-6" : "h-5 w-5"} />
+          </button>
+          <button
+            type="button"
+            aria-label="Следующее фото"
+            onClick={(e) => {
+              e.stopPropagation();
+              go(i + 1);
+            }}
+            className={`absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-full text-white ${arrow}`}
+          >
+            <ChevronRight className={full ? "h-6 w-6" : "h-5 w-5"} />
+          </button>
+          {full ? null : (
+            <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-graphite/80 px-2 py-0.5 font-num text-[12px]">
+              {i + 1}/{n}
+            </div>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/* ---------- Полноэкранный просмотр фото ---------- */
+function Lightbox({
+  images,
+  start = 0,
+  onIndex,
+  onClose,
+}: {
+  images: string[];
+  start?: number;
+  onIndex?: (i: number) => void;
+  onClose: () => void;
+}) {
+  const [i, setI] = useState(start);
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col bg-black/95" onClick={onClose}>
+      <div className="flex items-center justify-between p-3">
+        <span className="rounded-full bg-white/10 px-3 py-1.5 font-num text-[13px] text-white">
+          {i + 1} / {images.length}
+        </span>
+        <button
+          onClick={onClose}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      <div className="relative min-h-0 flex-1 pb-4" onClick={(e) => e.stopPropagation()}>
+        <SwipeGallery
+          images={images}
+          start={start}
+          onIndex={(k) => {
+            setI(k);
+            onIndex?.(k);
+          }}
+          full
+        />
+      </div>
+    </div>
+  );
+}
+
+export function FavView({
+  cars,
+  onOpen,
+  onRemove,
+  onBack,
+}: {
+  cars: Car[];
+  onOpen: (id: string) => void;
+  onRemove: (id: string) => void;
+  onBack: () => void;
+}) {
+  return (
+    <>
+      <Header2 title="Избранное" onBack={onBack} />
+      <div className="space-y-3">
+        {cars.length === 0 ? (
+          <p className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center text-[#9AA4B2]">
+            Здесь пока пусто. Добавляйте авто кнопкой ♥.
+          </p>
+        ) : (
+          cars.map((car) => (
+            <div
+              key={car.id}
+              className="flex items-center gap-3 rounded-[16px] border border-line-dark bg-graphite-2 p-2.5"
+            >
+              <button
+                onClick={() => onOpen(car.id)}
+                className="h-[56px] w-[80px] flex-none overflow-hidden rounded-[10px] bg-black"
+              >
+                {/* eslint-disable-next-line */}
+                <img src={car.images[0]} alt="" className="h-full w-full object-cover" />
+              </button>
+              <button
+                onClick={() => onOpen(car.id)}
+                className="min-w-0 flex-1 text-left"
+              >
+                <div className="truncate font-bold">{car.model}</div>
+                <div className="font-num text-[15px] font-bold text-bordeaux-bright">
+                  {formatPrice(displayPrice(car))} ₽
+                </div>
+              </button>
+              <button
+                onClick={() => onRemove(car.id)}
+                className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-bordeaux text-white"
+              >
+                <Heart className="h-[18px] w-[18px] fill-white" />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+
+export function CarView({
+  car,
+  fav,
+  inCompare,
+  onToggleCompare,
+  onToggleFav,
+  onBack,
+  onLead,
+  onOpen,
+  showInAppCta,
+}: {
+  car: Car;
+  fav: boolean;
+  inCompare: boolean;
+  onToggleCompare: () => void;
+  onToggleFav: () => void;
+  onBack: () => void;
+  onLead: () => void;
+  onOpen?: (id: string) => void;
+  showInAppCta: boolean;
+}) {
+  const { cars } = useCars();
+  const similar = useMemo(() => similarCars(car, cars), [car, cars]);
+  const simRef = useRef<HTMLDivElement>(null);
+  useWheelX(simRef);
+  const [seek, setSeek] = useState<{ i: number; n: number } | undefined>();
+  const thumbs = useRef<HTMLDivElement>(null);
+  useWheelX(thumbs);
+  const [idx, setIdx] = useState(0);
+  // Активная миниатюра всегда в поле зрения ленты.
+  useEffect(() => {
+    // Крутим только саму ленту: scrollIntoView мог бы сдвинуть и страницу.
+    const strip = thumbs.current;
+    const el = strip?.children[idx] as HTMLElement | undefined;
+    if (strip && el)
+      strip.scrollTo({ left: el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2, behavior: "smooth" });
+  }, [idx]);
+  const [lb, setLb] = useState(false);
+  // После полноэкранного просмотра карточка встаёт на то фото, где его закрыли:
+  // ленту пересоздаём со стартом на этом кадре.
+  const [lbGen, setLbGen] = useState(0);
+
+  return (
+    <>
+      {lb ? (
+        <Lightbox
+          images={car.images}
+          start={idx}
+          onIndex={setIdx}
+          onClose={() => {
+            setLb(false);
+            setLbGen((g) => g + 1);
+          }}
+        />
+      ) : null}
+      <Header2 title={car.model} onBack={onBack} />
+      <div className="relative aspect-[16/11] overflow-hidden rounded-[16px] bg-black">
+        <SwipeGallery
+          key={`${car.id}:${lbGen}`}
+          images={car.images}
+          start={idx}
+          onIndex={setIdx}
+          onTap={() => setLb(true)}
+          seek={seek}
+        />
+        <span className="pointer-events-none absolute right-2 top-2 flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
+          <Maximize2 className="h-3 w-3" /> на весь экран
+        </span>
+        {car.isNew ? (
+          <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-bordeaux px-3 py-1 text-[11px] font-extrabold uppercase text-white">
+            Новинка
+          </span>
+        ) : null}
+      </div>
+
+      {/* Миниатюры: к нужному ракурсу — одним тапом, без перелистывания
+          всех фото подряд. */}
+      {car.images.length > 1 ? (
+        <div
+          ref={thumbs}
+          className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {car.images.map((src, k) => (
+            <button
+              key={k}
+              type="button"
+              aria-label={`Фото ${k + 1}`}
+              onClick={() => setSeek((v) => ({ i: k, n: (v?.n ?? 0) + 1 }))}
+              className={`h-[46px] w-[64px] flex-none overflow-hidden rounded-[9px] border-2 transition-[border-color,opacity] duration-200 ${
+                k === idx ? "border-[#E0574C] opacity-100" : "border-transparent opacity-55"
+              }`}
+            >
+              {/* eslint-disable-next-line */}
+              <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {car.video ? (
+        <video
+          src={car.video}
+          poster={car.images[0]}
+          controls
+          playsInline
+          preload="metadata"
+          className="mt-3 aspect-video w-full rounded-[16px] bg-black object-contain"
+        />
+      ) : null}
+
+      <div className="mt-3 flex items-center gap-2">
+        <Flag code={car.country} className="h-4 w-6" />
+        <span className="text-[14px] font-semibold text-chrome">
+          {countries[car.country].label} · {car.trim}
+        </span>
+      </div>
+      <h2 className="mt-1 text-[24px] font-extrabold uppercase leading-none">
+        {car.model}
+      </h2>
+
+      {/* Характеристики — сеткой «название — значение»: сравнивать глазом
+          проще, чем вычитывать строку через точки. Пустые поля не выводим. */}
+      <dl className="mt-3 flex flex-wrap overflow-hidden rounded-[14px] border border-white/[0.07] bg-white/[0.07] [gap:1px]">
+        {specRows(car).map(([k, v], i, all) => {
+          // Неполный последний ряд: ячейки делят ширину поровну и стоят по
+          // центру — без пустых клеток и без «съехавшей» влево одной строки.
+          const tail = all.length % 3;
+          const inTail = tail > 0 && i >= all.length - tail;
+          return (
+            <div
+              key={k}
+              className={`min-w-0 flex-1 bg-graphite-2 px-2.5 py-2 ${
+                inTail ? "basis-[30%] text-center" : "basis-[30%]"
+              }`}
+            >
+              <dt className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-[#7C8792]">{k}</dt>
+              <dd className="mt-0.5 truncate text-[13px] font-semibold text-white">{v}</dd>
+            </div>
+          );
+        })}
+      </dl>
+
+      {/* Цена одна — до Москвы. Две рядом заставляли человека сначала
+          разбираться, какая из них его, вместо того чтобы смотреть машину. */}
+      {/* Цена и действия одной строкой: справа в блоке цены было пусто,
+          а «В избранное» и «Сравнить» стояли отдельным рядом ниже. */}
+      <div className="mt-3 flex items-center gap-2 rounded-[14px] border border-white/[0.07] bg-graphite-2 py-2.5 pl-3 pr-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-[#8C97A1]">
+            под ключ {PRICE_LABEL_SHORT}
+          </div>
+          <div className={`whitespace-nowrap font-num text-[22px] font-extrabold leading-tight ${PRICE_TXT}`}>
+            {formatPrice(displayPrice(car))} ₽
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onToggleFav}
+          aria-pressed={fav}
+          className={`flex w-[62px] flex-none flex-col items-center gap-0.5 rounded-[12px] py-1.5 text-[10.5px] font-bold transition-colors ${
+            fav ? "bg-bordeaux/20 text-white" : "text-chrome active:bg-white/[0.06]"
+          }`}
+        >
+          <Heart className={`h-5 w-5 ${fav ? "fill-[#E0574C] text-[#E0574C]" : ""}`} />
+          {fav ? "В избр." : "В избранное"}
+        </button>
+        <button
+          type="button"
+          onClick={onToggleCompare}
+          aria-pressed={inCompare}
+          className={`flex w-[62px] flex-none flex-col items-center gap-0.5 rounded-[12px] py-1.5 text-[10.5px] font-bold transition-colors ${
+            inCompare ? "bg-bordeaux/20 text-white" : "text-chrome active:bg-white/[0.06]"
+          }`}
+        >
+          <Scale className={`h-5 w-5 ${inCompare ? "text-[#E0574C]" : ""}`} />
+          {inCompare ? "В сравн." : "Сравнить"}
+        </button>
+      </div>
+
+      {car.description ? (
+        <p className="mt-4 text-[14px] leading-relaxed text-[#C7CFD6]">
+          {car.description}
+        </p>
+      ) : null}
+
+      <ul className="mt-4 space-y-1.5">
+        {car.highlights.map((h) => (
+          <li key={h} className="flex items-start gap-2 text-[13.5px] text-[#C7CFD6]">
+            <Check className="mt-0.5 h-4 w-4 flex-none text-success" />
+            {h}
+          </li>
+        ))}
+      </ul>
+
+      {showInAppCta ? (
+        <button onClick={onLead} className="btn btn-primary mt-5 w-full">
+          Оставить заявку
+        </button>
+      ) : null}
+
+      {/* Похожие — чтобы не возвращаться в каталог ради сравнения с
+          соседними вариантами. Та же марка или кузов, близкая цена. */}
+      {similar.length && onOpen ? (
+        <section className="mt-7">
+          {/* Стрелки — для компьютера: мышью ленту не свайпнуть. */}
+          <div className="mb-2.5 flex items-center justify-between">
+            <h3 className="text-[15px] font-extrabold uppercase tracking-[0.02em]">Похожие авто</h3>
+            {similar.length > 2 ? (
+              <div className="flex gap-1.5">
+                {[-1, 1].map((dir) => (
+                  <button
+                    key={dir}
+                    type="button"
+                    aria-label={dir < 0 ? "Назад" : "Дальше"}
+                    onClick={() => {
+                      const el = simRef.current;
+                      if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: "smooth" });
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white transition-colors active:bg-white/[0.12]"
+                  >
+                    {dir < 0 ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <div ref={simRef} className="-mx-4 flex snap-x scroll-px-4 gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {similar.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onOpen(c.id)}
+                className="w-[44%] flex-none snap-start overflow-hidden rounded-[14px] border border-white/[0.08] bg-graphite-2 text-left transition-transform duration-150 active:scale-[0.98]"
+              >
+                <div className="aspect-[16/10] bg-black">
+                  {/* eslint-disable-next-line */}
+                  <img src={c.images[0]} alt="" loading="lazy" className="h-full w-full object-cover" />
+                </div>
+                <div className="p-2">
+                  <div className="truncate text-[12.5px] font-extrabold">{c.model}</div>
+                  <div className="text-[11px] text-[#9AA4B2]">
+                    {c.year}
+                    {c.powerHp ? ` · ${c.powerHp} л.с.` : ""}
+                  </div>
+                  <div className={`mt-1 font-num text-[14px] font-extrabold ${PRICE_TXT}`}>
+                    {formatPrice(displayPrice(c))} ₽
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+/** Строки характеристик для карточки: только заполненные поля. */
+function specRows(car: Car): [string, string][] {
+  const rows: [string, string | undefined | false][] = [
+    ["Год", String(car.year)],
+    ["Состояние", car.isNew ? "Новый" : car.mileage || "С пробегом"],
+    // «1.5 л · 115 л.с.» → «1.5 л»: мощность и так стоит отдельной строкой.
+    ["Двигатель", car.powerHp ? car.engine.replace(/\s*[·,]?\s*\d+\s*л\.?\s*с\.?/i, "").trim() || car.engine : car.engine],
+    ["Мощность", car.powerHp ? `${car.powerHp} л.с.` : undefined],
+    ["Коробка", car.gearbox],
+    ["Привод", car.drive],
+    ["Топливо", car.fuelType],
+    ["Кузов", car.bodyType],
+    ["Цвет", car.color],
+    ["Руль", car.steering],
+  ];
+  return rows.filter((r): r is [string, string] => Boolean(r[1] && String(r[1]).trim()));
+}
+
+/**
+ * Похожие авто: та же марка или тот же кузов, ближе по цене — выше.
+ * Не больше шести, сама машина не входит.
+ */
+function similarCars(car: Car, all: Car[]): Car[] {
+  const brand = brandOf(car.model);
+  const price = displayPrice(car) || 1;
+  return all
+    .filter((c) => c.id !== car.id && Array.isArray(c.images) && c.images[0])
+    .map((c) => {
+      let score = Math.abs(displayPrice(c) - price) / price;
+      if (brandOf(c.model) === brand) score -= 0.6;
+      if (car.bodyType && c.bodyType === car.bodyType) score -= 0.4;
+      return { c, score };
+    })
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 6)
+    .map((x) => x.c);
+}
+
+export function LeadView({
+  car,
+  formRef,
+  onBack,
+  onSubmit,
+  showInAppCta,
+}: {
+  car?: Car;
+  formRef: React.MutableRefObject<{ name: string; phone: string; carId?: string }>;
+  onBack: () => void;
+  onSubmit: (name: string, phone: string) => void;
+  showInAppCta: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+
+  useEffect(() => {
+    formRef.current = { name, phone, carId: car?.id };
+  }, [name, phone, car, formRef]);
+
+
+  return (
+    <>
+      <Header2 title="Заявка на расчёт" onBack={onBack} />
+      {car ? (
+        <div className="mb-4 flex items-center gap-3 rounded-[16px] border border-line-dark bg-graphite-2 p-2.5">
+          {/* eslint-disable-next-line */}
+          <img
+            src={car.images[0]}
+            alt=""
+            className="h-12 w-16 flex-none rounded-[8px] object-cover"
+          />
+          <div>
+            <div className="font-bold">{car.model}</div>
+            <div className="font-num text-[14px] font-bold text-bordeaux-bright">
+              {formatPrice(displayPrice(car))} ₽
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <div className="space-y-3">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Ваше имя"
+          className="field-dark"
+        />
+        <input
+          value={phone}
+          inputMode="tel"
+          onChange={(e) => setPhone(maskRuPhone(e.target.value))}
+          placeholder="+7 (___) ___-__-__"
+          className="field-dark"
+        />
+      </div>
+      <p className="mt-2 text-[12px] text-[#8C97A1]">
+        Нажимая «Отправить», вы соглашаетесь с обработкой персональных данных.
+        Перезвоним в течение 15 минут.
+      </p>
+      {showInAppCta ? (
+        <button
+          onClick={() => onSubmit(name, phone)}
+          className="btn btn-primary mt-4 w-full"
+        >
+          Отправить заявку
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+/* ---------- Примерный калькулятор «под ключ» ---------- */
+// Коэффициенты приблизительные — для предварительной оценки.
+// Точную смету подтверждает менеджер.
+const DELIVERY: Record<CountryCode, number> = {
+  kr: 120000,
+  cn: 90000,
+  jp: 130000,
+  eu: 160000,
+  ae: 140000,
+};
+const DOCS = 60000; // СБКТС / ЭПТС / брокер
+const SERVICE = 80000; // услуги компании
+type Age = "u3" | "a35" | "o5";
+
+function dutyPerCc(cc: number, age: Age) {
+  const base =
+    cc <= 1000 ? 1.5 : cc <= 1500 ? 1.7 : cc <= 1800 ? 2.5 : cc <= 2300 ? 2.7 : cc <= 3000 ? 3.0 : 3.6;
+  const old =
+    cc <= 1000 ? 3.0 : cc <= 1500 ? 3.2 : cc <= 1800 ? 3.5 : cc <= 2300 ? 4.8 : cc <= 3000 ? 5.0 : 5.7;
+  return age === "o5" ? old : base;
+}
+
+// Утильсбор-2026. Льготный (физлицо, личное пользование) — только при
+// двигателе ≤3.0 л и мощности ≤160 л.с.: 3 400 ₽ (до 3 лет) / 5 200 ₽ (старше).
+// Иначе — коммерческий (ориентир, базовая ставка × коэффициент).
+function utilFee(age: Age, eligible: boolean, cc: number) {
+  if (eligible) return age === "u3" ? 3400 : 5200;
+  const t = cc <= 1000 ? 0 : cc <= 2000 ? 1 : cc <= 3000 ? 2 : 3;
+  const commNew = [180000, 600000, 1200000, 2000000];
+  const commOld = [300000, 850000, 1650000, 2700000];
+  return age === "u3" ? commNew[t] : commOld[t];
+}
+
+export function CalcView({ onBack, onLead }: { onBack: () => void; onLead: () => void }) {
+  const [country, setCountry] = useState<CountryCode>("kr");
+  const [priceStr, setPriceStr] = useState("");
+  const [volStr, setVolStr] = useState("");
+  const [powStr, setPowStr] = useState("");
+  const [age, setAge] = useState<Age>("a35");
+  const [electric, setElectric] = useState(false);
+  const [eurRate, setEurRate] = useState<number | null>(null);
+  const [rateDate, setRateDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchRates().then((r) => {
+      if (r?.rates.eur) {
+        setEurRate(r.rates.eur);
+        setRateDate(r.date);
+      }
+    });
+  }, []);
+
+  const EUR_RUB = eurRate ?? 105;
+  const price = Number(priceStr) || 0;
+  const volume = Number(volStr) || 0;
+  const power = Number(powStr) || 0;
+  const delivery = DELIVERY[country];
+  const eligible = electric ? power <= 160 : volume <= 3000 && power <= 160;
+  const util = utilFee(age, eligible, volume);
+  const duty = electric
+    ? Math.round(price * 0.15)
+    : age === "u3"
+      ? Math.round(price * 0.48)
+      : Math.round(volume * dutyPerCc(volume, age) * EUR_RUB);
+  const total = price + delivery + duty + util + DOCS + SERVICE;
+  const ready = price > 0 && power > 0 && (electric || volume > 0);
+
+  const ageBtns: [Age, string][] = [
+    ["u3", "до 3 лет"],
+    ["a35", "3–5 лет"],
+    ["o5", "старше 5"],
+  ];
+
+  return (
+    <>
+      <Header2 title="Калькулятор под ключ" onBack={onBack} />
+      <p className="-mt-2 mb-4 text-[13px] text-[#9AA4B2]">
+        Примерная стоимость авто в РФ: доставка, пошлина, утильсбор, оформление и
+        услуги. Точный расчёт подтвердит менеджер.
+      </p>
+
+      <div className="space-y-3">
+        <div>
+          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+            Страна
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(DELIVERY) as CountryCode[]).map((code) => (
+              <button
+                key={code}
+                onClick={() => setCountry(code)}
+                className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-bold ${
+                  country === code
+                    ? "border-bordeaux-bright bg-bordeaux text-white"
+                    : "border-line-dark text-chrome"
+                }`}
+              >
+                <Flag code={code} className="h-3 w-4" />
+                {countries[code].label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <label>
+          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+            Цена авто в стране, ₽
+          </span>
+          <input
+            value={priceStr}
+            inputMode="numeric"
+            onChange={(e) => setPriceStr(e.target.value.replace(/\D/g, ""))}
+            placeholder="например, 1 500 000"
+            className="field-dark"
+          />
+        </label>
+
+        <div>
+          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+            Возраст авто
+          </span>
+          <div className="flex gap-2">
+            {ageBtns.map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setAge(v)}
+                className={`flex-1 rounded-full border px-2 py-2 text-[13px] font-bold ${
+                  age === v
+                    ? "border-bordeaux-bright bg-bordeaux text-white"
+                    : "border-line-dark text-chrome"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className={electric ? "pointer-events-none opacity-40" : ""}>
+            <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+              Объём, см³
+            </span>
+            <input
+              value={volStr}
+              inputMode="numeric"
+              disabled={electric}
+              onChange={(e) => setVolStr(e.target.value.replace(/\D/g, ""))}
+              placeholder="1600"
+              className="field-dark"
+            />
+          </label>
+          <label>
+            <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+              Мощность, л.с.
+            </span>
+            <input
+              value={powStr}
+              inputMode="numeric"
+              onChange={(e) => setPowStr(e.target.value.replace(/\D/g, ""))}
+              placeholder="150"
+              className="field-dark"
+            />
+          </label>
+        </div>
+
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={electric}
+            onChange={(e) => setElectric(e.target.checked)}
+            className="h-4 w-4 accent-bordeaux"
+          />
+          <span className="text-[14px] font-semibold">Электромобиль</span>
+        </label>
+      </div>
+
+      {/* Результат */}
+      <div className="mt-5 rounded-[18px] border border-line-dark bg-graphite-2 p-4">
+        <CalcRow label="Стоимость авто" value={price} />
+        <CalcRow label={`Доставка (${countries[country].label})`} value={delivery} />
+        <CalcRow label="Таможенная пошлина" value={duty} hint={!ready ? "—" : undefined} />
+        <CalcRow
+          label={`Утильсбор (${eligible ? "льготный" : "коммерческий"})`}
+          value={util}
+        />
+        <CalcRow label="Оформление (СБКТС, ЭПТС, брокер)" value={DOCS} />
+        <CalcRow label="Услуги компании" value={SERVICE} />
+        <div className="mt-3 flex items-center justify-between border-t border-line-dark pt-3">
+          <span className="text-[13px] font-bold uppercase tracking-wide text-chrome">
+            Итого под ключ
+          </span>
+          <span className="font-num text-[22px] font-extrabold text-bordeaux-bright">
+            {ready ? `${formatPrice(total)} ₽` : "—"}
+          </span>
+        </div>
+      </div>
+
+      {ready && !eligible ? (
+        <p className="mt-2 rounded-[12px] border border-bordeaux-bright/30 bg-bordeaux/[0.08] p-2.5 text-[12px] text-[#E7B3AE]">
+          ⚠️ Мощность &gt;160 л.с. или объём &gt;3.0 л — действует{" "}
+          <b>коммерческий</b> утильсбор (ориентир). Точную сумму подтвердит менеджер.
+        </p>
+      ) : null}
+
+      <p className="mt-2 text-[12px] text-[#8C97A1]">
+        Расчёт примерный. Курс €{" "}
+        {eurRate ? `${eurRate.toFixed(2)} ₽ (ЦБ${rateDate ? ", " + rateDate.slice(0, 10) : ""})` : `${EUR_RUB} ₽`}
+        . Утильсбор-2026: льготный 3 400/5 200 ₽ при ≤3.0 л и ≤160 л.с. Итоговую
+        смету фиксирует менеджер.
+      </p>
+
+      <button onClick={onLead} className="btn btn-primary mt-4 w-full">
+        Оставить заявку на точный расчёт
+      </button>
+    </>
+  );
+}
+
+function CalcRow({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: number;
+  hint?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between py-1 text-[13.5px]">
+      <span className="text-[#C7CFD6]">{label}</span>
+      <span className="font-num font-bold text-white">
+        {hint ?? `${formatPrice(value)} ₽`}
+      </span>
+    </div>
+  );
+}
+
+/* ---------- Домашнее меню ---------- */
+type HomeTarget =
+  | "list"
+  | "calc"
+  | "quiz"
+  | "subscribe"
+  | "compare"
+  | "reviews"
+  | "favorites"
+  | "faq";
+
+export function HomeView({
+  go,
+  onLead,
+  onManager,
+  inTg = true,
+}: {
+  // Счётчики избранного и сравнения сюда больше не приходят: эти разделы
+  // живут в шапке мини-аппа, там же и их счётчики.
+  go: (name: HomeTarget) => void;
+  onLead: () => void;
+  /** Личка менеджера — круглая кнопка в ряд с заявкой. */
+  onManager?: () => void;
+  /** Открыт ли мини-апп из Telegram. В MAX часть разделов не работает. */
+  inTg?: boolean;
+}) {
+  /*
+   * Второстепенные разделы. «Сравнить» и «Избранное» сюда не входят
+   * намеренно: они уже стоят в шапке отдельными кнопками со счётчиками,
+   * и вторая копия занимала целый ряд, ничего не добавляя.
+   */
+  const items: {
+    name: HomeTarget;
+    label: string;
+    sub: string;
+    icon: typeof CarIcon;
+  }[] = [
+    /*
+     * «Оповещения» показываем только внутри Telegram.
+     *
+     * Подписка привязана к человеку по подписи Telegram — в другом
+     * мессенджере опознать его нечем. Оставить кнопку значило бы обещать
+     * то, чего не будет: человек заполняет параметры, жмёт «подписаться» и
+     * получает отказ. Лучше не показывать вовсе.
+     */
+    ...(inTg
+      ? [{ name: "subscribe" as HomeTarget, label: "Оповещения", sub: "О новинках", icon: Bell }]
+      : []),
+    { name: "reviews", label: "Отзывы", sub: "Мнения клиентов", icon: Star },
+    { name: "faq", label: "Вопросы", sub: "Частые вопросы", icon: HelpCircle },
+  ];
+  /*
+   * Витрина каталога: за кнопкой «Каталог» по очереди сменяются фото
+   * настоящих машин из каталога. Кнопка перестаёт быть просто красной
+   * плашкой — человек сразу видит, что внутри, и это самое «дорогое» место
+   * экрана. Новинки — первыми.
+   */
+  const { cars } = useCars();
+  const showcase = useMemo(
+    () =>
+      [...cars]
+        .filter((c) => Array.isArray(c.images) && c.images[0])
+        .sort((x, y) => Number(!!y.isNew) - Number(!!x.isNew))
+        .slice(0, 6),
+    [cars],
+  );
+  const [slide, setSlide] = useState(0);
+  // Уходящий кадр продолжает свой «наезд», пока гаснет, — иначе он
+  // отпрыгивал к исходному масштабу прямо во время смены.
+  const [prevSlide, setPrevSlide] = useState(-1);
+  useEffect(() => {
+    if (showcase.length < 2) return;
+    // Тем, кто отключил анимацию в системе, витрину не крутим: первое фото.
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const t = window.setInterval(() => {
+      setSlide((k) => {
+        setPrevSlide(k);
+        return (k + 1) % showcase.length;
+      });
+    }, 4500);
+    return () => window.clearInterval(t);
+  }, [showcase.length]);
+  const current = showcase[slide % Math.max(1, showcase.length)];
+
+  // Появление по очереди: каждый блок выезжает чуть позже предыдущего.
+  // Один раз при входе, сверху вниз по важности. Короткий путь (10 px) и
+  // мягкое торможение — контент «проявляется», а не прилетает.
+  const rise = (i: number) => ({
+    style: { animationDelay: `${60 + i * 60}ms` },
+  });
+
+  return (
+    /*
+     * Первый экран помещается в окно целиком, без прокрутки: все кнопки
+     * должны быть видны сразу. Высота — от окна минус шапка мини-аппа,
+     * свободный остаток забирает отступ перед кнопкой заявки. dvh, а не vh:
+     * в Telegram адресная строка меняет высоту окна.
+     */
+    <div className="relative isolate flex min-h-[calc(100dvh-98px)] flex-col">
+      {/* Фон: два неподвижных мягких пятна света — глубина без движения.
+          Радиальные градиенты, а не blur-фильтр: на телефоне ничего не стоят. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -right-24 -top-28 h-[340px] w-[340px] rounded-full bg-[radial-gradient(circle,rgba(156,26,18,.34),transparent_65%)]" />
+        <div className="absolute -left-32 top-[38%] h-[300px] w-[300px] rounded-full bg-[radial-gradient(circle,rgba(92,109,118,.18),transparent_65%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_60%,rgba(0,0,0,.35))]" />
+      </div>
+
+      <div {...rise(0)} className="animate-rise">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="h-[2px] w-6 rounded-full bg-gradient-to-r from-bordeaux-bright to-transparent" />
+          <span className="text-[10.5px] font-extrabold uppercase tracking-[0.24em] text-chrome">
+            Импорт авто под ключ
+          </span>
+        </div>
+        <h1 className="font-display text-[24px] font-extrabold uppercase leading-[1.02] tracking-[0.01em]">
+          <span className="text-white">Авто из Кореи,</span>
+          <br />
+          <span className="text-shine">Китая, Японии и ЕС</span>
+        </h1>
+        <div className="mt-2.5 flex items-center gap-1.5">
+          {(["kr", "cn", "jp", "eu"] as const).map((c) => (
+            <span
+              key={c}
+              className="flex h-6 w-8 items-center justify-center rounded-[7px] border border-white/10 bg-white/[0.04]"
+            >
+              <Flag code={c} className="h-3 w-[18px] rounded-[2px]" />
+            </span>
+          ))}
+          <span className="ml-1.5 text-[12px] leading-tight text-[#9AA4B2]">
+            Честный расчёт
+            <br />с растаможкой
+          </span>
+        </div>
+      </div>
+
+      {/* Каталог — главная и единственная яркая цель экрана. */}
+      <button
+        onClick={() => go("list")}
+        {...rise(1)}
+        className="animate-rise group relative mt-3 mb-2.5 block h-[clamp(112px,22dvh,178px)] w-full overflow-hidden rounded-[22px] border border-white/10 bg-bordeaux text-left shadow-[0_22px_44px_-22px_rgba(156,26,18,.95)] transition-transform active:scale-[0.985]"
+      >
+        {showcase.map((c, k) => (
+          // eslint-disable-next-line
+          <img
+            key={c.id}
+            src={c.images[0]}
+            alt=""
+            aria-hidden
+            loading={k < 2 ? "eager" : "lazy"}
+            decoding="async"
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ease-out ${
+              k === slide
+                ? "opacity-100 animate-ken-burns"
+                : k === prevSlide
+                  ? "opacity-0 animate-ken-burns"
+                  : "opacity-0"
+            }`}
+          />
+        ))}
+        {/* Затемнение: снизу почти чёрное — под текст, у края — фирменный бордо. */}
+        <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,21,26,.15)_0%,rgba(17,21,26,.35)_45%,rgba(17,21,26,.92)_100%)]" />
+        <span className="absolute inset-0 bg-[linear-gradient(90deg,rgba(122,20,16,.55)_0%,transparent_55%)]" />
+        <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+
+        {current ? (
+          <span
+            key={current.id}
+            className="absolute left-3 top-3 max-w-[70%] animate-rise truncate rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[11px] font-bold text-white/90 backdrop-blur"
+          >
+            {current.model}
+          </span>
+        ) : null}
+
+        <span className="absolute inset-x-4 bottom-3.5 flex items-end justify-between gap-3">
+          <span className="min-w-0">
+            <span className="flex items-center gap-2">
+              <CarIcon className="h-[18px] w-[18px] text-white/80" />
+              <span className="font-display text-[24px] font-extrabold uppercase leading-none text-white">
+                Каталог
+              </span>
+            </span>
+            <span className="mt-1.5 block text-[12.5px] leading-none text-white/75">
+              {cars.length ? `${cars.length} авто · все под заказ` : "Все авто под заказ"}
+            </span>
+          </span>
+          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-white text-bordeaux shadow-[0_6px_18px_rgba(0,0,0,.35)] transition-transform duration-150 group-active:scale-95">
+            <ArrowUpRight className="h-5 w-5" />
+          </span>
+        </span>
+
+        {showcase.length > 1 ? (
+          <span className="absolute right-3 top-3.5 flex gap-1">
+            {showcase.map((c, k) => (
+              <span
+                key={c.id}
+                className={`h-1 rounded-full transition-all duration-500 ${k === slide ? "w-4 bg-white" : "w-1 bg-white/40"}`}
+              />
+            ))}
+          </span>
+        ) : null}
+      </button>
+
+      {/* Квиз — вторым и приглушённым: запасной путь для тех, кто не хочет
+          листать каталог сам. Стекло вместо сплошной плашки. */}
+      <button
+        onClick={() => go("quiz")}
+        {...rise(2)}
+        className="animate-rise mb-2.5 flex w-full items-center gap-3 rounded-[18px] border border-white/10 bg-white/[0.035] p-3 text-left transition-[transform,background-color] duration-150 active:scale-[0.99] active:bg-white/[0.06]"
+      >
+        <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full border border-bordeaux-bright/40 bg-bordeaux/20 text-[#E0574C]">
+          <ClipboardList className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-extrabold">Ответьте на 5 вопросов</span>
+          <span className="block text-[12.5px] text-[#9AA4B2]">
+            Подберём авто и расчёт под ваш бюджет
+          </span>
+        </span>
+        <ChevronRight className="h-5 w-5 flex-none text-[#7C8792]" />
+      </button>
+
+      {/* Колонок столько, сколько разделов: вне Telegram «Оповещений» нет,
+          и в ряду из трёх оставалась дыра. */}
+      <div className={`grid gap-2.5 ${items.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+        {items.map((it, k) => (
+          <button
+            key={it.name}
+            onClick={() => go(it.name)}
+            {...rise(3 + k)}
+            className="animate-rise flex flex-col items-center gap-1.5 rounded-[16px] border border-white/10 bg-white/[0.035] px-2 py-2.5 text-center transition-[transform,background-color] duration-150 active:scale-[0.97] active:bg-white/[0.06]"
+          >
+            {/* Иконки разделов — хром, а не красный: красный на этом экране
+                принадлежит каталогу. */}
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-gradient-to-b from-white/[0.09] to-white/[0.02] text-chrome">
+              <it.icon className="h-[18px] w-[18px]" />
+            </span>
+            <span className="text-[13px] font-extrabold leading-tight text-[#D5DCE2]">
+              {it.label}
+            </span>
+            <span className="text-[10.5px] leading-tight text-[#7C8792]">{it.sub}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* mt-auto прижимает заявку к низу. Блик пробегает по кнопке раз в
+          несколько секунд — заметно, но не мигает баннером. Иконка не
+          сжимается: на экране 360 px длинная подпись съедала её. */}
+      <div {...rise(6)} className="animate-rise mt-auto flex gap-2.5">
+      <button
+        onClick={onLead}
+        className="btn btn-primary min-w-0 flex-1 !px-3 !text-[14px]"
+      >
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/4 -skew-x-12 animate-cta-sheen bg-gradient-to-r from-transparent via-white/30 to-transparent"
+        />
+        <Send className="h-[17px] w-[17px] flex-none" /> Подобрать авто под мой
+        бюджет
+      </button>
+        {onManager ? (
+          <button
+            type="button"
+            onClick={onManager}
+            aria-label="Написать менеджеру в Telegram"
+            className="h-[52px] w-[52px] flex-none rounded-full shadow-[0_10px_24px_-8px_rgba(34,158,217,.7)] transition-transform duration-150 active:scale-95"
+          >
+            <TelegramIcon className="h-[52px] w-[52px]" />
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+
+/**
+ * Строка подобранного авто.
+ *
+ * До отправки контакта — обычный блок без обработчика: фото, модель и цена
+ * видны, но открыть карточку нельзя. Замок в углу объясняет почему; без него
+ * неработающая карточка читается как поломка, а не как условие.
+ */
+function QuizCarRow({ car, onOpen }: { car: Car; onOpen?: (id: string) => void }) {
+  const inner = (
+    <>
+      <div className="h-[52px] w-[74px] flex-none overflow-hidden rounded-[10px] bg-black">
+        {/* eslint-disable-next-line */}
+        <img src={car.images[0]} alt="" className="h-full w-full object-cover" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-bold">{car.model}</div>
+        <div className="font-num text-[14px] font-bold text-bordeaux-bright">
+          {formatPrice(displayPrice(car))} ₽
+        </div>
+      </div>
+      {onOpen ? (
+        <ChevronRight className="h-4 w-4 flex-none text-chrome" />
+      ) : (
+        <Lock className="h-4 w-4 flex-none text-[#6C7681]" />
+      )}
+    </>
+  );
+
+  const cls =
+    "flex w-full items-center gap-3 rounded-[14px] border border-line-dark bg-graphite-2 p-2.5 text-left";
+
+  return onOpen ? (
+    <button onClick={() => onOpen(car.id)} className={cls}>
+      {inner}
+    </button>
+  ) : (
+    <div className={cls}>{inner}</div>
+  );
+}
+
+/* ---------- Квиз: 5 вопросов → подбор под бюджет ---------- */
+type QuizState = {
+  budget?: number; // индекс варианта бюджета
+  body?: string;
+  country?: CountryCode | "any";
+  condition?: "new" | "used" | "any";
+  when?: string;
+};
+const BUDGETS: { label: string; min: number; max: number }[] = [
+  { label: "1,5–2 млн ₽", min: 1_500_000, max: 2_000_000 },
+  { label: "2–2,5 млн ₽", min: 2_000_000, max: 2_500_000 },
+  { label: "2,5 млн ₽ и больше", min: 2_500_000, max: Infinity },
+];
+
+export function QuizView({
+  inTg,
+  onBack,
+  onOpen,
+  haptic: hapticOk,
+}: {
+  inTg: boolean;
+  onBack: () => void;
+  onOpen: (id: string) => void;
+  haptic: () => void;
+}) {
+  const { cars } = useCars();
+  const [step, setStep] = useState(0);
+  const [a, setA] = useState<QuizState>({});
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const steps: {
+    key: keyof QuizState;
+    q: string;
+    opts: { label: string; value: string | number }[];
+  }[] = [
+    {
+      key: "budget",
+      q: "Какой бюджет под ключ?",
+      opts: BUDGETS.map((b, i) => ({ label: b.label, value: i })),
+    },
+    {
+      key: "body",
+      q: "Какой тип кузова?",
+      opts: [
+        { label: "Седан", value: "Седан" },
+        { label: "Кроссовер", value: "Кроссовер" },
+        { label: "Внедорожник", value: "Внедорожник" },
+        { label: "Неважно", value: "any" },
+      ],
+    },
+    {
+      key: "country",
+      q: "Откуда предпочитаете?",
+      opts: [
+        { label: "Корея", value: "kr" },
+        { label: "Китай", value: "cn" },
+        { label: "Япония", value: "jp" },
+        { label: "Европа", value: "eu" },
+        { label: "Неважно", value: "any" },
+      ],
+    },
+    {
+      key: "condition",
+      q: "Новое или с пробегом?",
+      opts: [
+        { label: "Новое", value: "new" },
+        { label: "С пробегом", value: "used" },
+        { label: "Неважно", value: "any" },
+      ],
+    },
+    {
+      key: "when",
+      q: "Когда планируете покупку?",
+      opts: [
+        { label: "Сейчас", value: "Сейчас" },
+        { label: "1–3 месяца", value: "1–3 месяца" },
+        { label: "Просто смотрю", value: "Просто смотрю" },
+      ],
+    },
+  ];
+
+  const total = steps.length;
+  const done = step >= total;
+
+  function choose(key: keyof QuizState, value: string | number) {
+    hapticOk();
+    setA((p) => ({ ...p, [key]: value }));
+    setStep((s) => s + 1);
+  }
+
+  // Подбор под ответы. Жёсткий фильтр по всем четырём сразу почти всегда
+  // давал пусто — теперь условия ослабляются по очереди, от самого гибкого.
+  const budget = typeof a.budget === "number" ? BUDGETS[a.budget] : null;
+  const { cars: matches, exact, relaxed } = matchQuizCars(cars, {
+    budgetMin: budget?.min,
+    budgetMax: budget?.max,
+    body: a.body,
+    country: a.country,
+    condition: a.condition,
+  });
+
+  function summary() {
+    const parts = [
+      budget ? `бюджет ${budget.label}` : "",
+      a.body && a.body !== "any" ? a.body : "",
+      a.country && a.country !== "any" ? countries[a.country as CountryCode].label : "",
+      a.condition === "new" ? "новое" : a.condition === "used" ? "с пробегом" : "",
+    ].filter(Boolean);
+    return parts.join(", ");
+  }
+
+
+  async function submit() {
+    if (name.trim().length < 2 || phone.replace(/\D/g, "").length < 11) {
+      showToast("Заполните имя и телефон", "error");
+      return;
+    }
+    const payload = {
+      type: "lead",
+      name: name.trim(),
+      phone,
+      car: `Квиз: ${summary() || "без уточнений"}`,
+      budget: budget?.label || "",
+      comment: a.when ? `Срок: ${a.when}` : "",
+      source: "Квиз (мини-апп)",
+    };
+    const endpoint = import.meta.env.VITE_LEAD_ENDPOINT as string | undefined;
+    if (!endpoint) {
+      setSent(true);
+      return;
+    }
+    setLoading(true);
+    try {
+      const r = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setLoading(false);
+      if (r.ok) {
+        hapticOk();
+        setSent(true);
+      } else showToast("Не удалось отправить", "error");
+    } catch {
+      setLoading(false);
+      showToast("Ошибка сети", "error");
+    }
+  }
+
+  if (sent) {
+    return (
+      <>
+        <Header2 title="Ваша подборка" onBack={onBack} />
+        <div className="mb-4 rounded-[18px] border border-success/40 bg-success/10 p-5 text-center">
+          <Check className="mx-auto h-8 w-8 text-success" />
+          <p className="mt-2 text-[16px] font-bold">Заявка отправлена!</p>
+          <p className="mt-1 text-[13px] text-[#C7CFD6]">
+            Подготовим расчёт под ваш бюджет и перезвоним в течение 15 минут.
+          </p>
+        </div>
+
+        {/*
+         * Подборка открывается здесь — после того, как человек оставил
+         * контакт. До отправки мы показывали её сразу: то, ради чего он
+         * и оставляет телефон, отдавалось бесплатно, и оставлять его
+         * было незачем.
+         */}
+        {matches.length ? (
+          <>
+            <div className="mb-2 text-[13px] font-semibold text-[#9AA4B2]">
+              {exact ? "Подобрали под ваши параметры: " : "Близкие варианты: "}
+              <span className="font-num text-white">{matches.length}</span>
+            </div>
+            {exact ? null : (
+              <p className="mb-2.5 rounded-[12px] border border-line-dark bg-graphite-2 px-3 py-2 text-[12.5px] leading-snug text-[#9AA4B2]">
+                {relaxedLabel(relaxed)}. Точное — привезём под заказ.
+              </p>
+            )}
+            <div className="space-y-2.5">
+              {matches.slice(0, 5).map((car) => (
+                <QuizCarRow key={car.id} car={car} onOpen={onOpen} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="rounded-[14px] border border-line-dark bg-graphite-2 p-4 text-center text-[13.5px] text-[#9AA4B2]">
+            Под ваши параметры подберём под заказ — менеджер пришлёт варианты.
+          </p>
+        )}
+      </>
+    );
+  }
+
+  // экран вопросов
+  if (!done) {
+    const cur = steps[step];
+    return (
+      <>
+        <Header2 title="Подбор по бюджету" onBack={step === 0 ? onBack : () => setStep((s) => s - 1)} />
+        <div className="mb-4">
+          <div className="mb-1.5 flex justify-between text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]">
+            <span>Вопрос {step + 1} из {total}</span>
+            <span>{Math.round(((step + 1) / total) * 100)}%</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-graphite-2">
+            <div
+              className="h-full rounded-full bg-bordeaux-bright transition-all"
+              style={{ width: `${((step + 1) / total) * 100}%` }}
+            />
+          </div>
+        </div>
+        <h2 className="mb-4 text-[20px] font-extrabold leading-tight">{cur.q}</h2>
+        <div className="space-y-2.5">
+          {cur.opts.map((o) => (
+            <button
+              key={String(o.value)}
+              onClick={() => choose(cur.key, o.value)}
+              className="flex w-full items-center justify-between rounded-[14px] border border-line-dark bg-graphite-2 px-4 py-3.5 text-left text-[15px] font-semibold transition-colors active:border-bordeaux-bright"
+            >
+              {o.label}
+              <ChevronRight className="h-4 w-4 text-chrome" />
+            </button>
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  // экран результата + заявка
+  return (
+    <>
+      <Header2 title="Ваш подбор" onBack={() => setStep(total - 1)} />
+      <div className="mb-4 rounded-[14px] border border-line-dark bg-graphite-2 p-3 text-[13px] text-[#C7CFD6]">
+        🎯 Параметры: <b className="text-white">{summary() || "без уточнений"}</b>
+      </div>
+
+      {/*
+       * До отправки — превью подобранного: фото, модель и цена видны, но
+       * карточки не открываются.
+       *
+       * Показать всё сразу нельзя: то, ради чего человек оставляет телефон,
+       * он получил бы бесплатно. Не показать ничего — тоже плохо: обещание
+       * «мы что-то подобрали» без единой картинки выглядит пустым. Поэтому
+       * машины видно, а открыть их можно после отправки контакта.
+       */}
+      {matches.length ? (
+        <>
+          <div className="mb-2 text-[13px] font-semibold text-[#9AA4B2]">
+            {exact ? "Подобрали под ваши параметры: " : "Близкие варианты: "}
+            <span className="font-num text-white">{matches.length}</span>
+          </div>
+          {exact ? null : (
+            <p className="mb-2.5 rounded-[12px] border border-line-dark bg-graphite-2 px-3 py-2 text-[12.5px] leading-snug text-[#9AA4B2]">
+              {relaxedLabel(relaxed)}. Точное — привезём под заказ.
+            </p>
+          )}
+          <div className="mb-3 space-y-2.5">
+            {matches.slice(0, 5).map((car) => (
+              <QuizCarRow key={car.id} car={car} />
+            ))}
+          </div>
+          <p className="mb-4 flex items-center justify-center gap-1.5 rounded-[12px] border border-bordeaux-bright/40 bg-bordeaux/[0.08] px-3 py-2.5 text-center text-[12.5px] font-semibold leading-snug text-[#C7CFD6]">
+            <Lock className="h-3.5 w-3.5 flex-none text-bordeaux-bright" />
+            Оставьте контакты — откроем карточки и пришлём расчёт под ключ
+          </p>
+        </>
+      ) : (
+        <p className="mb-4 rounded-[14px] border border-line-dark bg-graphite-2 p-4 text-center text-[13.5px] text-[#9AA4B2]">
+          Точного совпадения пока нет — подберём под заказ под ваш бюджет.
+        </p>
+      )}
+
+      <div className="rounded-[18px] border border-bordeaux-bright/40 bg-bordeaux/[0.06] p-4">
+        <p className="mb-3 text-[14px] font-bold">
+          Куда прислать расчёт:
+        </p>
+        <div className="space-y-2.5">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ваше имя"
+            className="field-dark"
+          />
+          <input
+            value={phone}
+            inputMode="tel"
+            onChange={(e) => setPhone(maskRuPhone(e.target.value))}
+            placeholder="+7 (___) ___-__-__"
+            className="field-dark"
+          />
+        </div>
+        {!inTg ? (
+          <p className="mt-2 text-[11px] text-[#8C97A1]">
+            Перезвоним в течение 15 минут.
+          </p>
+        ) : null}
+        <button onClick={submit} className="btn btn-primary mt-3 w-full">
+          {loading ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Send className="h-[18px] w-[18px]" />}
+          Получить расчёт
+        </button>
+      </div>
+    </>
+  );
+}
+
+/* ---------- Подписка на подбор ---------- */
+const SUB_COUNTRIES = [
+  ["", "Любая"],
+  ["Корея", "Корея"],
+  ["Китай", "Китай"],
+  ["Япония", "Япония"],
+  ["Европа", "Европа"],
+] as const;
+const SUB_BODIES = ["", "Седан", "Кроссовер", "Внедорожник", "Хэтчбек", "Минивэн"];
+
+export function SubscribeView({
+  initData,
+  inTg,
+  onBack,
+  haptic: hapticOk,
+}: {
+  initData: string;
+  inTg: boolean;
+  onBack: () => void;
+  haptic: () => void;
+}) {
+  const [country, setCountry] = useState("");
+  const [body, setBody] = useState("");
+  const [budget, setBudget] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const lab = "mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#8C97A1]";
+
+  async function submit() {
+    if (!inTg || !initData) {
+      showToast("Подписка доступна при открытии из Telegram", "error");
+      return;
+    }
+    setLoading(true);
+    const r = await apiSubscribe(initData, {
+      country: country || undefined,
+      body: body || undefined,
+      budget: budget ? Number(budget) : undefined,
+    });
+    setLoading(false);
+    if (r.ok) {
+      hapticOk();
+      setDone(true);
+    } else showToast("Не удалось оформить: " + (r.error || ""), "error");
+  }
+
+  if (done) {
+    return (
+      <>
+        <Header2 title="Подписка" onBack={onBack} />
+        <div className="rounded-[18px] border border-success/40 bg-success/10 p-5 text-center">
+          <Bell className="mx-auto h-8 w-8 text-success" />
+          <p className="mt-2 text-[16px] font-bold">Подписка оформлена!</p>
+          <p className="mt-1 text-[13px] text-[#C7CFD6]">
+            Сообщим в этом боте, как только появится подходящее авто.
+          </p>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Header2 title="Подписка на подбор" onBack={onBack} />
+      <p className="-mt-2 mb-4 text-[13px] text-[#9AA4B2]">
+        Укажите параметры — пришлём уведомление, когда появится подходящее авто.
+      </p>
+      <div className="space-y-3">
+        <div>
+          <span className={lab}>Страна</span>
+          <div className="flex flex-wrap gap-2">
+            {SUB_COUNTRIES.map(([v, label]) => (
+              <button
+                key={label}
+                onClick={() => setCountry(v)}
+                className={`rounded-full border px-3.5 py-2 text-[13px] font-bold ${
+                  country === v
+                    ? "border-bordeaux-bright bg-bordeaux text-white"
+                    : "border-line-dark text-chrome"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <span className={lab}>Тип кузова</span>
+          <div className="flex flex-wrap gap-2">
+            {SUB_BODIES.map((b) => (
+              <button
+                key={b || "any"}
+                onClick={() => setBody(b)}
+                className={`rounded-full border px-3.5 py-2 text-[13px] font-bold ${
+                  body === b
+                    ? "border-bordeaux-bright bg-bordeaux text-white"
+                    : "border-line-dark text-chrome"
+                }`}
+              >
+                {b || "Любой"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label>
+          <span className={lab}>Бюджет до, ₽</span>
+          <input
+            value={budget}
+            inputMode="numeric"
+            onChange={(e) => setBudget(e.target.value.replace(/\D/g, ""))}
+            placeholder="например, 2 500 000"
+            className="field-dark"
+          />
+        </label>
+      </div>
+      <button onClick={submit} className="btn btn-primary mt-4 w-full">
+        {loading ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Bell className="h-[18px] w-[18px]" />}
+        Подписаться
+      </button>
+    </>
+  );
+}
+
+/* ---------- Отзывы ---------- */
+/** Заголовок карточки — какое авто выдано (служебные строки поста убираем). */
+function deliveredTitle(text?: string): string {
+  const lines = (text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  for (const l of lines) {
+    const m = l.match(/выдач[аи]\s*[:—-]?\s*(.+)$/i);
+    if (m) {
+      const model = m[1].replace(/[«»"']/g, "").trim();
+      if (model && model.length <= 60) return model;
+    }
+  }
+  const junk =
+    /клиент\s*[:—-]|пришел|пришёл|по\s*ссылке|хотите\s*такой|напишите|подбер[её]м|@[a-z0-9_]/i;
+  const first = lines.find((l) => !junk.test(l));
+  if (first) {
+    const clean = first.replace(/\s+/g, " ").trim();
+    return clean.length > 70 ? clean.slice(0, 67) + "…" : clean;
+  }
+  // Пусто — значит подписи нет. Придумывать её за владельца нельзя: видео
+  // с выдач присылают без подписи нарочно.
+  return "";
+}
+
+/** Медиа отзыва одним списком: видео вперёд, затем фото. */
+function reviewSlides(r: Review): { type: "video" | "image"; src: string }[] {
+  const videos = r.videos?.length ? r.videos : r.video ? [r.video] : [];
+  const images = r.images?.length ? r.images : r.media ? [r.media] : [];
+  return [
+    ...videos.map((src) => ({ type: "video" as const, src })),
+    ...images.map((src) => ({ type: "image" as const, src })),
+  ];
+}
+
+function ReviewItem({ review }: { review: Review }) {
+  const slides = reviewSlides(review);
+  const [idx, setIdx] = useState(0);
+  const cur = slides[idx] ?? slides[0];
+  // Обложка — фотография с выдачи: на ней клиент и машина. Кадр из видео
+  // (его отдаёт Telegram) идёт только как запасной: там случайный момент.
+  const poster = review.images?.[0] || review.media || review.poster;
+  const title = deliveredTitle(review.text);
+
+  return (
+    <div className="overflow-hidden rounded-[16px] border border-line-dark bg-graphite-2">
+      {cur ? (
+        <div className="relative aspect-video bg-black">
+          {cur.type === "video" ? (
+            <video
+              key={cur.src}
+              src={cur.src}
+              poster={poster}
+              controls
+              playsInline
+              preload="metadata"
+              className="h-full w-full bg-black object-contain"
+            />
+          ) : (
+            // eslint-disable-next-line
+            <img src={cur.src} alt="" className="h-full w-full object-cover" />
+          )}
+          {slides.length > 1 ? (
+            <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 font-num text-[11px] font-bold text-white">
+              {idx + 1}/{slides.length}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {slides.length > 1 ? (
+        <div className="flex gap-2 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {slides.map((sl, i) => (
+            <button
+              key={sl.src + i}
+              onClick={() => setIdx(i)}
+              aria-label={`Медиа ${i + 1}`}
+              className={`relative h-12 w-12 flex-none overflow-hidden rounded-[9px] border ${
+                i === idx ? "border-bordeaux-bright" : "border-line-dark"
+              }`}
+            >
+              {/* eslint-disable-next-line */}
+              <img
+                src={sl.type === "video" ? poster : sl.src}
+                alt=""
+                className="h-full w-full bg-graphite object-cover"
+              />
+              {sl.type === "video" ? (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-white">
+                  ▶
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {title ? (
+        <div className="p-4">
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#8C97A1]">
+            Выдача
+          </div>
+          <div className="mt-0.5 text-[15px] font-extrabold leading-tight text-white">
+            {title}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function ReviewsView({ onBack }: { onBack: () => void }) {
+  const [reviews, setReviews] = useState<Review[] | null>(null);
+  /*
+   * Две породы отзывов, и выбирает между ними человек.
+   *
+   * Видео с выдач снимаем мы — это показ товара лицом. Отзывы на Яндекс.Картах
+   * пишут посторонние люди, и оценку там нельзя ни стереть, ни нарисовать —
+   * это доказательство. Смешивать их в одну ленту нельзя: смотрят их с разными
+   * вопросами в голове.
+   */
+  const [tab, setTab] = useState<"video" | "maps">("video");
+  useEffect(() => {
+    /*
+     * Показываем только отзывы с видео или фото.
+     *
+     * Раньше сюда попадали и записи с одним текстом — на экране получался
+     * список серых плашек «ВЫДАЧА / Добрый день!», по которым непонятно ни
+     * что за машина, ни от кого отзыв. Отзыв без медиа убеждает хуже, чем
+     * его отсутствие.
+     */
+    fetchReviews().then((rs) =>
+      setReviews(rs.filter((r) => r.videos?.length || r.images?.length || r.video || r.media)),
+    );
+  }, []);
+  return (
+    <>
+      <Header2 title="Отзывы клиентов" onBack={onBack} />
+
+      <div className="mb-3 flex rounded-full border border-line-dark bg-graphite-2 p-1">
+        {(
+          [
+            ["video", "Видео-отзывы"],
+            ["maps", "Яндекс.Карты"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`flex-1 rounded-full py-2 text-[13.5px] font-bold transition-colors ${
+              tab === key ? "bg-bordeaux text-white" : "text-[#9AA4B2]"
+            }`}
+          >
+            {label}
+            {key === "video" && reviews?.length ? (
+              <span className="ml-1.5 font-num text-[12px] opacity-70">{reviews.length}</span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+
+      {tab === "maps" ? (
+        <div className="space-y-3">
+          {/* Виджет Яндекса — со своей светлой вёрсткой; заворачиваем в рамку,
+              чтобы белый блок не выглядел дырой в тёмном экране. */}
+          <div className="overflow-hidden rounded-[16px] border border-line-dark bg-white">
+            <iframe
+              title="Отзывы о ДиАвто69 на Яндекс.Картах"
+              src={`https://yandex.ru/maps-reviews-widget/${site.yandexOrgId}?comments`}
+              loading="lazy"
+              className="h-[520px] w-full"
+            />
+          </div>
+          <a
+            href={site.yandexReviewsHref}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary w-full"
+          >
+            Открыть на Яндекс.Картах
+          </a>
+          <p className="px-1 text-center text-[12px] text-[#8C97A1]">
+            Отзывы в справочнике нельзя удалить или подделать — поэтому смотреть
+            их стоит именно там.
+          </p>
+        </div>
+      ) : reviews === null ? (
+        <div className="flex justify-center py-10 text-chrome">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      ) : reviews.length === 0 ? (
+        <div className="rounded-[16px] border border-line-dark bg-graphite-2 p-6 text-center">
+          <p className="text-[#9AA4B2]">Видео с выдач скоро появятся здесь.</p>
+          <button
+            onClick={() => setTab("maps")}
+            className="mt-3 text-[13.5px] font-bold text-bordeaux-bright"
+          >
+            Посмотреть отзывы на Яндекс.Картах →
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {reviews.map((r) => (
+            <ReviewItem key={r.id} review={r} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ---------- FAQ ---------- */
+export function FaqView({ onBack }: { onBack: () => void }) {
+  const [faq, setFaq] = useState<Faq[] | null>(null);
+  const [open, setOpen] = useState<number | null>(0);
+  useEffect(() => {
+    fetchFaq().then(setFaq);
+  }, []);
+  return (
+    <>
+      <Header2 title="Частые вопросы" onBack={onBack} />
+      {faq === null ? (
+        <div className="flex justify-center py-10 text-chrome">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {faq.map((f, i) => (
+            <div key={i} className="overflow-hidden rounded-[14px] border border-line-dark bg-graphite-2">
+              <button
+                onClick={() => setOpen(open === i ? null : i)}
+                className="flex w-full items-center justify-between gap-2 p-3.5 text-left"
+              >
+                <span className="text-[14px] font-bold">{f.q}</span>
+                <ChevronRight
+                  className={`h-4 w-4 flex-none text-chrome transition-transform ${open === i ? "rotate-90" : ""}`}
+                />
+              </button>
+              {open === i ? (
+                <p className="px-3.5 pb-3.5 text-[13px] text-[#C7CFD6]">{f.a}</p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+      <a
+        href={site.telegramHref}
+        target="_blank"
+        rel="noreferrer"
+        className="btn btn-primary mt-4 w-full"
+      >
+        <TelegramIcon className="h-[18px] w-[18px]" /> Задать вопрос менеджеру
+      </a>
+    </>
+  );
+}
+
+/* ---------- Сравнение ---------- */
+export function CompareView({
+  cars,
+  onRemove,
+  onClear,
+  onBack,
+  onOpenCatalog,
+}: {
+  cars: Car[];
+  onRemove: (id: string) => void;
+  onClear: () => void;
+  onBack: () => void;
+  onOpenCatalog: () => void;
+}) {
+  const rows: [string, (c: Car) => string][] = [
+    ["Цена под ключ", (c) => `${formatPrice(displayPrice(c))} ₽`],
+    ["Год", (c) => String(c.year)],
+    ["Страна", (c) => countries[c.country].label],
+    ["Кузов", (c) => c.bodyType || "—"],
+    ["Двигатель", (c) => c.engine],
+    ["Мощность", (c) => (c.powerHp ? `${c.powerHp} л.с.` : "—")],
+    ["Топливо", (c) => c.fuelType || "—"],
+    ["Коробка", (c) => c.gearbox],
+    ["Привод", (c) => c.drive],
+    ["Цвет", (c) => c.color || "—"],
+  ];
+  if (cars.length === 0) {
+    return (
+      <>
+        <Header2 title="Сравнение" onBack={onBack} />
+        <div className="rounded-[18px] border border-line-dark bg-graphite-2 p-6 text-center">
+          <Scale className="mx-auto h-8 w-8 text-chrome" />
+          <p className="mt-2 font-bold">Список сравнения пуст</p>
+          <p className="mt-1 text-[13px] text-[#9AA4B2]">
+            Откройте карточку авто и нажмите «Добавить к сравнению» (до 3 авто).
+          </p>
+          <button onClick={onOpenCatalog} className="btn btn-primary mt-4 w-full">
+            <CarIcon className="h-[18px] w-[18px]" /> В каталог
+          </button>
+        </div>
+      </>
+    );
+  }
+  return (
+    <>
+      <div className="mb-4 flex items-center gap-2">
+        <button
+          onClick={onBack}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-line-dark text-chrome"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <h1 className="truncate text-[18px] font-extrabold uppercase">Сравнение</h1>
+        <button onClick={onClear} className="ml-auto text-[12.5px] font-bold text-bordeaux-bright">
+          Очистить
+        </button>
+      </div>
+      <div className="overflow-x-auto [scrollbar-width:thin]">
+        <table className="w-full border-collapse text-[13px]">
+          <thead>
+            <tr>
+              <th className="sticky left-0 bg-graphite" />
+              {cars.map((c) => (
+                <th key={c.id} className="min-w-[140px] p-2 align-top">
+                  <div className="relative overflow-hidden rounded-[12px] border border-line-dark bg-graphite-2 p-2">
+                    <button
+                      onClick={() => onRemove(c.id)}
+                      className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-graphite/80 text-bordeaux-bright"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                    {/* eslint-disable-next-line */}
+                    <img src={c.images[0]} alt="" className="h-16 w-full rounded-[8px] object-cover" />
+                    <div className="mt-1.5 text-[12.5px] font-bold leading-tight">{c.model}</div>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([label, fn], ri) => (
+              <tr key={label} className={ri % 2 ? "bg-white/[0.02]" : ""}>
+                <td className="sticky left-0 bg-graphite px-2 py-2 text-[11.5px] font-bold uppercase tracking-wide text-[#8C97A1]">
+                  {label}
+                </td>
+                {cars.map((c) => (
+                  <td key={c.id} className="px-2 py-2 font-num text-white">
+                    {fn(c)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function FilterRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 text-[12px] font-bold uppercase tracking-wide text-[#8C97A1]">
+        {label}
+      </div>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+// Диапазон «от/до» на двух ползунках (мини-апп). null = граница не задана.
+function MiniRange({
+  label,
+  min,
+  max,
+  step,
+  from,
+  to,
+  onFrom,
+  onTo,
+  fmt,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  from: number | null;
+  to: number | null;
+  onFrom: (v: number | null) => void;
+  onTo: (v: number | null) => void;
+  fmt: (n: number) => string;
+}) {
+  const lo = from ?? min;
+  const hi = to ?? max;
+  return (
+    <div>
+      <div className="mb-1 flex justify-between text-[12px] font-bold uppercase tracking-wide text-[#8C97A1]">
+        <span>{label}: от <span className="font-num text-bordeaux-bright">{fmt(lo)}</span></span>
+        <span>до <span className="font-num text-bordeaux-bright">{fmt(hi)}</span></span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={lo}
+        onChange={(e) => {
+          const v = Math.min(Number(e.target.value), hi);
+          onFrom(v <= min ? null : v);
+        }}
+        className="w-full accent-bordeaux"
+      />
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={hi}
+        onChange={(e) => {
+          const v = Math.max(Number(e.target.value), lo);
+          onTo(v >= max ? null : v);
+        }}
+        className="w-full accent-bordeaux"
+      />
+    </div>
+  );
+}
+
+function Header2({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <div className="mb-4 flex items-center gap-2">
+      <button
+        onClick={onBack}
+        aria-label="Назад"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-line-dark text-chrome"
+      >
+        <ArrowLeft className="h-5 w-5" />
+      </button>
+      <h1 className="truncate text-[18px] font-extrabold uppercase">{title}</h1>
+    </div>
+  );
+}
+

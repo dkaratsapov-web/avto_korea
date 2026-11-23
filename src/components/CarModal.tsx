@@ -1,0 +1,319 @@
+import { useState } from "react";
+import { Heart, Check, ChevronLeft, ChevronRight, Play, Scale } from "lucide-react";
+import { TelegramIcon } from "@/components/icons/TelegramIcon";
+import { Modal } from "@/components/ui/Modal";
+import { LeadForm } from "@/components/LeadForm";
+import { Button } from "@/components/ui/Button";
+import { Flag } from "@/components/icons/Flag";
+import {
+  EngineIcon,
+  MileageIcon,
+  GearboxIcon,
+  DriveIcon,
+} from "@/components/icons/SpecIcons";
+import { type Car, formatPrice } from "@/data/cars";
+import { countries, site } from "@/lib/site";
+import { splitTrimCountry } from "@/lib/carText";
+import { useUI } from "@/lib/ui";
+import { GOALS, reachGoal } from "@/lib/metrika";
+import { displayPrice, PRICE_LABEL } from "@/lib/price";
+
+export function CarModal({ car, onClose }: { car: Car; onClose: () => void }) {
+  const { isFav, toggleFav, isCompare, toggleCompare } = useUI();
+  const [idx, setIdx] = useState(0);
+  // Комплектация без хвоста «страна …»; страна оттуда правит флаг для авто,
+  // которым бот не распознал страну (ОАЭ попадали под Японию).
+  const { trim: carTrim, country: trimCountry } = splitTrimCountry(car.trim);
+  const countryCode = trimCountry ?? car.country;
+  const country = countries[countryCode];
+  const fav = isFav(car.id);
+  const cmp = isCompare(car.id);
+
+  // images и highlights приводим к массиву до любого обращения. В KV остались
+  // карточки, сохранённые прежней версией бота, где этих полей нет вовсе.
+  // Без защиты `.map` по undefined роняет не модалку, а весь сайт в белый
+  // экран (ошибку некому поймать), и выглядит это как «карточка сломалась».
+  const images = Array.isArray(car.images) ? car.images : [];
+  const highlights = Array.isArray(car.highlights) ? car.highlights : [];
+
+  // Единый список медиа: видео (если есть) первым, затем фото.
+  const media = [
+    ...(car.video ? [{ type: "video" as const, src: car.video }] : []),
+    ...images.map((src) => ({ type: "image" as const, src })),
+  ];
+  const count = media.length || 1;
+  const cur = media[idx] ?? media[0];
+  const poster = images[0];
+  const prev = () => setIdx((i) => (i - 1 + count) % count);
+  const next = () => setIdx((i) => (i + 1) % count);
+
+  return (
+    <Modal onClose={onClose} label={car.model} className="max-w-6xl">
+      <div className="flex max-h-[92vh] flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Фотографии — главное в карточке: колонка с галереей заметно шире
+            текстовой. При равных половинах снимок получался не крупнее, чем
+            в сетке каталога, и открывать карточку было незачем. */}
+        {/* minmax(0, …), а не голые fr: у fr-колонки нижняя граница — ширина
+            содержимого, а лента превью — это ряд из ВСЕХ миниатюр подряд. У
+            машины с двумя десятками фото колонка галереи раздувалась шире самой
+            модалки (2000+ px), и колонку с описанием и ценой выталкивало за
+            правый край: на экране оставалось одно огромное фото. С нулевым
+            минимумом колонки держат пропорцию, а лишние превью уходят в
+            горизонтальную прокрутку ленты, как и задумано. */}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
+          {/* Галерея.
+
+              Кадр показываем целиком (object-contain): фотографии с площадок
+              почти всегда горизонтальные, и растянутый на всю высоту колонки
+              object-cover срезал у машины бока.
+
+              Колонка не растягивается под соседнюю (items-start) и не имеет
+              своей подложки: раньше графитовая панель тянулась до низа окна,
+              и под превью зияло тёмное пустое поле. Теперь галерея просто
+              заканчивается там, где заканчивается контент. */}
+          <div className="relative flex min-w-0 flex-col p-4 sm:p-5">
+            <div className="relative aspect-[16/11] overflow-hidden rounded-[16px] bg-black">
+              {cur?.type === "video" ? (
+                <video
+                  key={cur.src}
+                  src={cur.src}
+                  poster={poster}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="h-full w-full bg-black object-contain"
+                />
+              ) : (
+                // eslint-disable-next-line
+                <img
+                  src={cur?.src}
+                  alt={`${car.model} — фото ${idx + 1}`}
+                  className="h-full w-full object-contain"
+                />
+              )}
+              <span className="pointer-events-none absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[13px] font-bold text-ink">
+                <Flag code={countryCode} className="h-3.5 w-5" />
+                {country.label}
+              </span>
+              {car.isNew ? (
+                <span className="absolute right-3 top-3 rounded-full bg-bordeaux px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.05em] text-white">
+                  Новинка
+                </span>
+              ) : null}
+              {count > 1 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={prev}
+                    aria-label="Предыдущее фото"
+                    className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-graphite/80 text-white backdrop-blur transition-colors hover:bg-bordeaux"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={next}
+                    aria-label="Следующее фото"
+                    className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-graphite/80 text-white backdrop-blur transition-colors hover:bg-bordeaux"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              ) : null}
+            </div>
+
+            {/* Превью — ряд фиксированной ширины, а не сетка на шесть колонок:
+                при четырёх фото сетка растягивала их через весь ряд, и между
+                ними зияли пустые ячейки. */}
+            <div className="mt-2.5 flex flex-none gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {media.map((m, i) => (
+                <button
+                  key={`${m.type}-${i}`}
+                  type="button"
+                  onClick={() => setIdx(i)}
+                  aria-label={m.type === "video" ? "Видео" : `Фото ${i + 1}`}
+                  className={`relative aspect-[4/3] w-[68px] flex-none overflow-hidden rounded-[10px] border-2 transition-colors sm:w-[78px] ${
+                    i === idx
+                      ? "border-bordeaux-bright"
+                      : "border-transparent opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  {/* eslint-disable-next-line */}
+                  <img
+                    src={m.type === "video" ? poster : m.src}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                  {m.type === "video" ? (
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <Play className="h-5 w-5 fill-white text-white" />
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Инфо */}
+          <div className="flex flex-col gap-3 p-5 text-white sm:p-6">
+            <div>
+              <div className="mb-1 text-[13px] font-semibold uppercase tracking-[0.12em] text-chrome">
+                {carTrim}
+              </div>
+              <h3 className="text-[26px] font-extrabold uppercase leading-none text-white">
+                {car.model}
+              </h3>
+              <div className="mt-1.5 text-[14px] font-semibold text-[#9AA4B2]">
+                {car.year} год · {car.mileage}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 rounded-card border border-line-dark bg-white/[0.03] px-4 py-3">
+              <Spec icon={<EngineIcon />} text={car.engine} />
+              <Spec icon={<MileageIcon />} text={car.mileage} />
+              <Spec icon={<GearboxIcon />} text={car.gearbox} />
+              <Spec icon={<DriveIcon />} text={car.drive} />
+            </div>
+
+            {car.description ? (
+              <p className="text-[13.5px] leading-[1.55] text-[#C7CFD6]">
+                {car.description}
+              </p>
+            ) : null}
+
+            {highlights.length ? (
+              <ul className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+                {highlights.map((h) => (
+                  <li
+                    key={h}
+                    className="flex items-start gap-2 text-[13px] text-[#C7CFD6]"
+                  >
+                    <Check className="mt-0.5 h-3.5 w-3.5 flex-none text-success" />
+                    {h}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2">
+              {[
+                car.isNew ? "Новый" : "С пробегом",
+                car.bodyType || "",
+                car.fuelType || "",
+                car.steering ? `${car.steering} руль` : "",
+              ]
+                .filter(Boolean)
+                .map((chip) => (
+                  <span
+                    key={chip}
+                    className="rounded-full border border-line-dark bg-white/[0.04] px-3 py-1 text-[12px] font-semibold text-[#C7CFD6]"
+                  >
+                    {chip}
+                  </span>
+                ))}
+            </div>
+
+            {/* Цена одна — до Москвы. Раньше их было две, рядом, и человек
+                первым делом спрашивал не «сколько», а «а мне какая».
+                Подложка теперь по ширине содержимого: на всю колонку она
+                тянулась полупустой панелью с провалом справа от суммы. */}
+            <div className="mt-auto flex w-fit max-w-full flex-wrap items-baseline gap-x-3 gap-y-0.5 rounded-card border border-line-dark bg-white/[0.03] px-4 py-2.5">
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#9AA4B2]">
+                {PRICE_LABEL}
+              </span>
+              <span className="font-num text-[21px] font-bold text-bordeaux-bright sm:text-[25px]">
+                {formatPrice(displayPrice(car))} ₽
+              </span>
+            </div>
+
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => toggleFav(car.id)}
+                className={`btn flex-1 ${
+                  fav
+                    ? "border border-bordeaux-bright bg-bordeaux/15 text-white"
+                    : "border border-line-dark text-white hover:bg-white/5"
+                }`}
+              >
+                <Heart
+                  className={`h-[18px] w-[18px] ${fav ? "fill-bordeaux-bright text-bordeaux-bright" : ""}`}
+                />
+                {fav ? "В избранном" : "В избранное"}
+              </button>
+              {/* Рядом с избранным — сравнение: оба про выбор между машинами,
+                  и обе кнопки никуда не уводят с карточки. Телеграм стоял
+                  здесь же и уводил в мессенджер ровно в тот момент, когда
+                  человек ещё сравнивает варианты. */}
+              <button
+                type="button"
+                onClick={() => toggleCompare(car.id)}
+                aria-pressed={cmp}
+                className={`btn flex-1 ${
+                  cmp
+                    ? "border border-bordeaux-bright bg-bordeaux/15 text-white"
+                    : "border border-line-dark text-white hover:bg-white/5"
+                }`}
+              >
+                <Scale
+                  className={`h-[18px] w-[18px] ${cmp ? "text-bordeaux-bright" : ""}`}
+                />
+                {cmp ? "В сравнении" : "В сравнение"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Широкая горизонтальная форма снизу */}
+        <div className="border-t border-line-dark bg-graphite-2/50 p-4 sm:px-6 sm:py-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="text-[16px] font-bold text-white">
+                Запросить расчёт по этому авто
+              </div>
+              <div className="text-[13px] text-[#9AA4B2]">
+                Оставьте имя и телефон — перезвоним в течение 15 минут.
+              </div>
+              {/* Телеграм — здесь же, рядом с заявкой: это второй способ
+                  сделать то же самое, а не действие с карточкой. */}
+              <Button
+                href={site.telegramHref}
+                onClick={() => reachGoal(GOALS.telegram, { place: "Карточка авто" })}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="ghost"
+                className="mt-3 w-full sm:w-auto"
+              >
+                <TelegramIcon className="h-[18px] w-[18px]" />
+                Или написать в Telegram
+              </Button>
+            </div>
+            <LeadForm
+              layout="compact"
+              tone="dark"
+              withCar={false}
+              carValue={`${car.model} ${car.year}${carTrim ? ` · ${carTrim}` : ""}`}
+              source={`Каталог — ${car.model}`}
+              submitLabel="Запросить"
+              onSent={onClose}
+              className="lg:flex-none"
+            />
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function Spec({ icon, text }: { icon: React.ReactNode; text: string }) {
+  // Пустое значение не выводим: оставалась иконка без подписи.
+  if (!text) return null;
+  return (
+    <div className="flex items-center gap-2.5 text-[14px] font-semibold text-[#C7CFD6]">
+      <span className="flex-none text-steel [&>svg]:h-[18px] [&>svg]:w-[18px]">
+        {icon}
+      </span>
+      {text}
+    </div>
+  );
+}

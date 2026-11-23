@@ -1,0 +1,10 @@
+# Внутренние файлы API: подключаются из index.php и напрямую не вызываются.
+# Директив две, потому что на Apache 2.2 и 2.4 синтаксис разный, а какая
+# версия стоит на хостинге — заранее неизвестно.
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>

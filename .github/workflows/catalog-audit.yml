@@ -1,0 +1,53 @@
+# Аудит каталога: собрать обложки всех авто в контактные листы для просмотра
+# глазами — и убрать из каталога отбракованные (с чужими водяными знаками и т.п.).
+#
+# Фото в каталог прилетают из постов канала как есть. Отличать «плашку» кодом
+# ненадёжно, а из среды разработчика живые фото недоступны (домены закрыты).
+# У Actions интернет открыт: тут качаем обложки, клеим в листы и кладём их
+# обратно в ветку (в папку audit/) — дальше их смотрят и присылают id на снос.
+#
+# Запуск: Actions → «Аудит каталога» → Run workflow.
+#   поле пустое      — собрать листы обложек (audit/sheet-NN.png + index.json)
+#   id через запятую — удалить эти авто из каталога
+
+name: Аудит каталога
+
+on:
+  workflow_dispatch:
+    inputs:
+      remove:
+        description: "id авто через запятую для удаления (пусто — собрать листы обложек)"
+        required: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Поставить ImageMagick (convert/montage)
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+
+      - name: Запуск аудита
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          REMOVE: ${{ inputs.remove }}
+        run: node scripts/catalog-audit.mjs
+
+      # Листы обложек кладём обратно в ветку, чтобы их можно было открыть и
+      # просмотреть. Только в режиме сборки (когда ничего не удаляем).
+      - name: Выложить листы в ветку
+        if: ${{ inputs.remove == '' }}
+        run: |
+          git config user.name "catalog-audit"
+          git config user.email "noreply@anthropic.com"
+          git add -f audit/
+          git commit -m "chore(аудит): контактные листы обложек каталога" || echo "нечего коммитить"
+          git push

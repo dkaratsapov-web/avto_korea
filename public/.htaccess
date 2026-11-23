@@ -1,0 +1,271 @@
+# reg.ru (Apache) — раздача SPA + кэш + HTTPS.
+
+# --- Принудительный HTTPS ---
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Проверка Let's Encrypt (ACME) — отдаём как есть, без редиректа и SPA-фолбэка.
+  RewriteRule ^\.well-known/acme-challenge/ - [L]
+
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+# --- Переезд: 301 со старого домена ---
+  # Старый домен должен оставаться оплаченным и указывать на этот же хостинг,
+  # иначе редирект умрёт вместе с ним и ссылки станут битыми.
+  RewriteCond %{HTTP_HOST} ^(www\.)?(xn-------43dmrgqjdwfo7afdrp6a6jvg\.xn--p1ai)$ [NC]
+  RewriteRule ^(.*)$ https://xn---69-5cdk0b2aocjmsg.xn--p1ai/$1 [R=301,L]
+
+# --- Одно зеркало: www склеиваем с основным адресом ---
+  # DNS отвечает и на www, и без него, а редиректа между ними не было — сайт
+  # открывался по двум адресам сразу. Для поиска это два разных сайта с
+  # одинаковым содержимым: ссылки и поведенческие делятся пополам, а какой
+  # адрес считать главным, Яндекс решает сам и не всегда так, как нужно.
+  # Правило стоит ДО остальных: склейка должна происходить раньше,
+  # чем запрос уйдёт в SPA или в PHP.
+  RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+  RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
+
+  # --- Данные и медиа бота отдаём со своего домена ---
+  # Домен воркера (*.workers.dev) блокируется в России, поэтому браузер
+  # обращается к сайту, а сервер сам ходит за данными к воркеру.
+  RewriteRule ^api/(catalog|reviews|news|faq|rates|diag|admin|ping|view|fav|subscribe|click)$ /api/proxy.php?p=$1 [L,QSA]
+  # Товарный фид для Яндекса собирается на лету из каталога.
+  # Отдельный адрес для Яндекс.Бизнеса: он берёт одну картинку и режет описание
+  # после 250 символов, поэтому фид под него собирается иначе.
+  RewriteRule ^feed/yandex\.xml$ /feed/yandex.php [L]
+  RewriteRule ^feed/yandex-business\.xml$ /feed/yandex.php?mode=business [L]
+  # 2ГИС: витрина в карточке организации. Формат тот же (YML), но содержимое
+  # собрано под чтение человеком, а не под объявление, — см. feed/2gis-build.php.
+  # Вторым адресом тот же каталог таблицей, если товары придётся заводить файлом.
+  RewriteRule ^feed/2gis\.xml$ /feed/2gis.php [L]
+  RewriteRule ^feed/2gis\.csv$ /feed/2gis.php?format=csv [L]
+  # Marquiz: подборка авто в результатах квиза. Товары он принимает файлом,
+  # поэтому отдаём таблицей — её скачивают и загружают в квиз.
+  RewriteRule ^feed/marquiz\.csv$ /feed/marquiz.php [L]
+  RewriteRule ^feed/marquiz-segments\.csv$ /feed/marquiz.php?mode=segments [L]
+
+  # Сборщики фидов — не страницы: открывать их напрямую незачем, а вот попасть
+  # в поиск они могут, и тогда в выдаче окажется простыня XML вместо сайта.
+  RewriteRule ^feed/(catalog-source|2gis-build|marquiz-build|marquiz-segments-build)\.php$ - [F]
+
+  # Оценка и отзывы компании в 2ГИС. Виджета, который вставляется рамкой,
+  # у 2ГИС нет — карточку рисуем сами, а данные для неё сервер забирает
+  # с их публичного адреса и держит в кэше.
+  RewriteRule ^api/2gis$ /api/2gis.php [L]
+
+  RewriteRule ^api/tgphoto$ /api/media.php [L,QSA]
+  RewriteRule ^api/tgvideo$ /api/media.php?video=1 [L,QSA]
+
+  # Показания приборов по кэшу медиа: сколько файлов лежит, есть ли место на
+  # диске, сколько фотографий каталога придётся качать заново. Нужно ровно
+  # тогда, когда «долго грузится» или «не видно фото»: без сервера отличить
+  # пустой кэш от медленной сети невозможно.
+  RewriteRule ^api/mediadiag$ /api/mediadiag.php [L]
+
+  # --- Пропавший файл в кэше медиа восстанавливаем, а не подменяем страницей ---
+  #
+  # Скачанные фото и видео лежат в /media-cache/ и отдаются оттуда напрямую
+  # Apache, без процесса PHP: адрес постоянный, поэтому и он, и сам файл
+  # кэшируются браузером на год.
+  #
+  # Но файл может исчезнуть — на общем хостинге кончается место, хостер чистит
+  # диск, — а браузер про это не знает и целый год ходит по запомненному
+  # адресу. Раньше такой запрос попадал в общий фолбэк ниже и получал
+  # index.html с кодом 200: браузер считал, что видео успешно загружено, и
+  # показывал чёрный прямоугольник. Обновление страницы не помогало никогда —
+  # до PHP запрос уже не доходил, и скачать файл заново было некому.
+  #
+  # Теперь по этому же адресу отрабатывает media.php: file_id едет в строке
+  # параметров (см. serveStatic в api/media.php), файл скачивается заново и
+  # снова начинает отдаваться статикой. Существующие файлы сюда не попадают —
+  # условие !-f их отсекает, и они по-прежнему идут мимо PHP.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^media-cache/p_[a-f0-9]{64}\.jpg$ /api/media.php [L,QSA]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^media-cache/v_[a-f0-9]{64}\.mp4$ /api/media.php?video=1 [L,QSA]
+  # Всё остальное в этой папке, чего нет на диске, — честный 404. Страницу
+  # сайта вместо картинки отдавать нельзя: для браузера это успешная загрузка.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^media-cache/ - [R=404,L]
+
+  # --- Метка «страница вне поиска» ---
+  # Ставится по исходному адресу, до подмены на index.html. Сам заголовок
+  # X-Robots-Tag выставляется ниже, в блоке mod_headers.
+  # Список сверен с маршрутами в src/App.tsx. В первой версии здесь стоял
+  # /direct, которого не существует, — посадочная под Директ живёт на /go,
+  # и правило её не закрывало. Заодно добавлены /admin и /tma: это внутренние
+  # экраны, в поиске им делать нечего.
+  RewriteRule ^(go|quiz|bot|tg|thanks|crm|admin|tma)(/|$) - [E=DIAUTO_NOINDEX:1]
+  # CRM нельзя показывать во фрейме чужого сайта (защита от кликджекинга).
+  # Мини-апп (/tma) — можно: Telegram Web и MAX открывают его во фрейме.
+  RewriteRule ^crm(/|$) - [E=DIAUTO_NOFRAME:1]
+
+  # --- CRM: отдельное направление со своим API ---
+  # Файлы API лежат в /crm-api/, а не в /crm/api/, хотя обращаются к ним по
+  # второму адресу. Две причины, обе — про Apache:
+  #
+  # 1. Папка /crm/ на диске сделала бы /crm существующим каталогом, а ниже
+  #    стоит правило «запрос указывает на каталог — не трогать». Индексного
+  #    файла там нет, поэтому вместо приложения отдавался бы 403.
+  # 2. Перезапись в файл внутри того же /crm/api/ снова попадала бы под своё
+  #    же правило: после внутренней перезаписи набор правил выполняется
+  #    заново, и [L] это не останавливает.
+  RewriteRule ^crm/api/?$ /crm-api/index.php [L,QSA]
+  RewriteRule ^crm/api/(.+)$ /crm-api/index.php?__route=$1 [L,QSA]
+
+  # Обложки статей переехали из /articles/ в /covers/, чтобы имя папки не
+  # совпадало с маршрутом /articles. Старые адреса ведут на новые: иначе по
+  # ним отдавался бы index.html — картинка, которая внезапно стала страницей.
+  RewriteRule ^articles/([a-z0-9-]+\.jpg)$ /covers/$1 [R=301,L]
+
+  # Остальные адреса /crm — маршруты приложения. Отдаём index.html явно,
+  # не полагаясь на общий фолбэк: если на сервере останется старая папка
+  # /crm/ от прошлой выкладки, каталог снова перехватил бы запрос.
+  RewriteRule ^crm(/.*)?$ index.html [L]
+
+  # --- SPA fallback: любой маршрут → index.html (кроме реальных файлов) ---
+  #
+  # Проверяем только файлы. Каталоги пропускать нельзя: имя папки в public/
+  # совпадает с маршрутом приложения, и тогда каталог перехватывает страницу.
+  # Так было с /articles — рядом лежит public/articles/ с обложками статей:
+  # Apache уводил на /articles/, индексного файла там нет, и хаб статей
+  # отдавался как 404 (в браузере это незаметно из-за ErrorDocument ниже,
+  # но поисковики получали именно 404).
+  #
+  # Файлы внутри таких папок это не задевает: они проходят по условию -f.
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# --- Сжатие ---
+#
+# Самая дорогая строчка во всём файле. До неё сервер отдавал код и стили как
+# есть: 474 КБ до первой отрисовки мини-аппа. На мобильном интернете в
+# 400 кбит/с это почти десять секунд, и всё это время человек смотрел в пустой
+# экран — ровно то, что выглядит как «бот не грузится».
+#
+# В сжатом виде те же файлы весят 127 КБ:
+#   главный код   250 → 79 КБ
+#   код мини-аппа 106 → 26 КБ
+#   стили          99 → 17 КБ
+#   разметка       14 →  5 КБ
+# Втрое меньше, значит и ждать втрое меньше. Ничего перестраивать для этого
+# не нужно — сервер жмёт на лету.
+#
+# Картинки, видео и шрифты в список НЕ входят: они уже сжаты своим форматом,
+# и повторное сжатие только тратит процессор, увеличивая время ответа.
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
+  AddOutputFilterByType DEFLATE text/javascript application/javascript
+  AddOutputFilterByType DEFLATE application/json application/xml
+  AddOutputFilterByType DEFLATE application/rss+xml image/svg+xml
+  AddOutputFilterByType DEFLATE application/manifest+json
+
+  # Кэширующие узлы по пути должны знать, что ответ зависит от того, умеет ли
+  # клиент разжимать: иначе сжатый ответ может достаться тому, кто не умеет.
+  <IfModule mod_headers.c>
+    Header append Vary Accept-Encoding
+  </IfModule>
+</IfModule>
+
+# Если на хостинге включён brotli — он жмёт ещё плотнее. Блок безвреден, когда
+# модуля нет: Apache просто пропускает его.
+<IfModule mod_brotli.c>
+  AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/xml
+  AddOutputFilterByType BROTLI_COMPRESS text/javascript application/javascript
+  AddOutputFilterByType BROTLI_COMPRESS application/json application/xml
+  AddOutputFilterByType BROTLI_COMPRESS image/svg+xml
+</IfModule>
+
+# --- Кэш: ассеты с хэшем — надолго, HTML — без кэша ---
+<IfModule mod_headers.c>
+  # mp4 здесь ради скачанных видео-отзывов: имя у них — хэш от идентификатора
+  # файла в Telegram, содержимое к имени привязано навсегда. Без этой строки
+  # браузер перезапрашивал десятки мегабайт на каждом открытии страницы.
+  <FilesMatch "\.(js|css|woff2?|png|jpe?g|webp|svg|gif|ico|json|mp4)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.(html)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+
+  # Файлы с ПОСТОЯННЫМ именем — исключение из правила выше.
+  #
+  # Год и immutable придуманы для файлов сборки: у них хэш в имени, и новая
+  # версия приходит под новым адресом. У значка, robots и карты сайта адрес
+  # не меняется никогда — им тот же заголовок означает «не спрашивай про этот
+  # файл целый год». Поменяли значок, выложили, а браузеры и поисковики ещё
+  # год показывают прежний, потому что даже не переспрашивают.
+  #
+  # Слово immutable здесь особенно вредно: оно запрещает и условный запрос
+  # «изменился ли файл», то есть отменяет обычную перепроверку по Ctrl+F5.
+  #
+  # Сутки — компромисс: нагрузки почти не добавляет, а правка расходится за
+  # день, а не за год.
+  <FilesMatch "^(favicon.*|apple-touch-icon\.png|robots\.txt|sitemap\.xml|manifest\.webmanifest)$">
+    Header set Cache-Control "public, max-age=86400"
+  </FilesMatch>
+</IfModule>
+
+# assets/ всегда иммутабельны (хэш в имени меняется при сборке)
+<IfModule mod_headers.c>
+  <FilesMatch "^.*$">
+    Header set X-Content-Type-Options "nosniff"
+  </FilesMatch>
+</IfModule>
+
+# --- Рекламные и служебные страницы — вне поиска ---
+# Раньше noindex ставил только скрипт, уже после загрузки страницы. Робот
+# может забрать HTML и не дождаться выполнения скрипта — тогда рекламная
+# посадочная попадает в индекс и начинает конкурировать с основным сайтом
+# по тем же запросам. Заголовок отдаёт сам сервер, до всякого JavaScript.
+#
+# Именно заголовок, а не Disallow в robots.txt: закрытую от обхода страницу
+# не сможет проверить и робот Яндекс.Директа при модерации объявлений.
+# Здесь страница обходится свободно, но в индекс не идёт.
+#
+# Метку ставит mod_rewrite, а не SetEnvIf: в .htaccess SetEnvIf отрабатывает
+# уже ПОСЛЕ переписывания адреса, когда от /quiz остался index.html, и условие
+# не совпадает никогда. Проверено — заголовок не выставлялся ни на одной
+# странице. Сама метка задаётся выше, среди правил перезаписи.
+<IfModule mod_headers.c>
+  # Два имени одной метки: при внутреннем переходе на index.html Apache
+  # переименовывает переменные окружения, добавляя приставку REDIRECT_.
+  Header set X-Robots-Tag "noindex, nofollow" env=DIAUTO_NOINDEX
+  Header set X-Robots-Tag "noindex, nofollow" env=REDIRECT_DIAUTO_NOINDEX
+</IfModule>
+
+# --- Заголовки безопасности ---
+<IfModule mod_headers.c>
+  # Только HTTPS: браузер запоминает это на полгода и не пытается открыть
+  # сайт по http. Без includeSubDomains — поддоменами мы не управляем.
+  # Сертификат после 11.11.2026 проверяется каждый день (workflow Site check),
+  # иначе при новом истечении посетитель не смог бы даже «перейти всё равно».
+  Header always set Strict-Transport-Security "max-age=15552000"
+  # Чужим сайтам — только домен, без адреса страницы и меток.
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  # Камера, микрофон и геолокация сайту не нужны.
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+  # Скрипты — только наши и известных сервисов: Метрика, Telegram, MAX,
+  # tgtrack. Всё остальное браузер не запустит, даже если чужой код
+  # попробуют подгрузить через счётчик или подрядчика (так на сайте
+  # работал пиксель victorycorp.ru, который через Метрику собирал данные
+  # посетителей). Новый внешний сервис со своим скриптом — добавить сюда.
+  # Яндекс.Карта на «Контактах» живёт в своём фрейме, правило её не касается.
+  Header always set Content-Security-Policy "script-src 'self' 'unsafe-inline' https://mc.yandex.ru https://mc.yandex.com https://yastatic.net https://*.yastatic.net https://telegram.org https://st.max.ru https://api.tgtrack.ru https://*.tgtrack.ru; object-src 'none'; base-uri 'self'"
+  Header always set X-Frame-Options "DENY" env=DIAUTO_NOFRAME
+  Header always set X-Frame-Options "DENY" env=REDIRECT_DIAUTO_NOFRAME
+  # Для CRM тот же список плюс запрет фрейма — set заменяет строку выше.
+  Header always set Content-Security-Policy "script-src 'self' 'unsafe-inline' https://mc.yandex.ru https://mc.yandex.com https://yastatic.net https://*.yastatic.net https://telegram.org https://st.max.ru https://api.tgtrack.ru https://*.tgtrack.ru; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" env=DIAUTO_NOFRAME
+  Header always set Content-Security-Policy "script-src 'self' 'unsafe-inline' https://mc.yandex.ru https://mc.yandex.com https://yastatic.net https://*.yastatic.net https://telegram.org https://st.max.ru https://api.tgtrack.ru https://*.tgtrack.ru; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" env=REDIRECT_DIAUTO_NOFRAME
+</IfModule>
+
+# Служебные файлы (если вдруг окажутся в папке сайта) не отдаём.
+<FilesMatch "^\.|\.(sqlite|sqlite3|db|log|jsonl|bak|sql|env|ini|lock)$">
+  Require all denied
+</FilesMatch>
+
+ErrorDocument 404 /index.html

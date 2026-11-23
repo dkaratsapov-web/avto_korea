@@ -1,0 +1,37 @@
+# Точечная правка живых настроек бота (KV воркера), минуя админку.
+#
+# Настройки обычно меняют в мини-аппе (/tma → Настройки). Эта задача нужна,
+# когда правку делает разработчик: из его среды ни админка, ни воркер не
+# доступны, а у Actions интернет открыт и ключ Cloudflare уже лежит в секретах.
+#
+# Патч точечный: читается весь объект настроек, меняются только переданные
+# поля. Без patch задача просто печатает текущие настройки.
+#
+# Запуск: Actions → «Настройки бота» → Run workflow, в поле — JSON вида
+#   {"gateInviteUrl":"https://t.me/diavto_69"}
+
+name: Настройки бота
+
+on:
+  workflow_dispatch:
+    inputs:
+      patch:
+        description: "Патч настроек в JSON (пусто — показать текущие)"
+        required: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Применить патч настроек
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SETTINGS_PATCH: ${{ inputs.patch }}
+        run: node scripts/bot-settings.mjs
