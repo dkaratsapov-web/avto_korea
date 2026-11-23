@@ -117,13 +117,12 @@ export function Header() {
               className="logo-outline h-7 w-auto shrink-0 sm:h-9"
             />
             <img
-              src={`${import.meta.env.BASE_URL}holiday/header-sprig.webp`}
+              src={`${import.meta.env.BASE_URL}holiday/header-lights.svg`}
               alt=""
               aria-hidden="true"
-              width={260}
-              height={124}
-              className="pointer-events-none absolute -right-3 -top-[19px] h-auto w-[61px] -scale-x-100 select-none drop-shadow-[0_2px_3px_rgba(0,0,0,.65)] sm:-top-6 sm:w-[76px]"
-              decoding="async"
+              width={300}
+              height={66}
+              className="pointer-events-none absolute -left-2 top-1/2 h-[calc(100%+24px)] max-w-none w-[calc(100%+16px)] -translate-y-1/2 select-none"
             />
           </div>
         </div>
