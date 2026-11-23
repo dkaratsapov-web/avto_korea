@@ -2,7 +2,6 @@ import { Phone, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Logo } from "@/components/ui/Logo";
 import { TelegramIcon } from "@/components/icons/TelegramIcon";
-import { MaxIcon } from "@/components/icons/MaxIcon";
 import { CarSilhouette } from "@/components/icons/CarSilhouette";
 import { Flag } from "@/components/icons/Flag";
 import { nav, site } from "@/lib/site";
@@ -74,17 +73,6 @@ export function Footer() {
                 className="flex items-center gap-2 transition-colors hover:text-white"
               >
                 <TelegramIcon className="h-4 w-4" /> Telegram
-              </a>
-            </li>
-            <li>
-              <a
-                href={site.maxHref}
-                onClick={() => reachGoal(GOALS.max, { place: "Подвал" })}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 transition-colors hover:text-white"
-              >
-                <MaxIcon className="h-4 w-4" /> MAX
               </a>
             </li>
             <li></li>
