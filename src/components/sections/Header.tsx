@@ -122,7 +122,7 @@ export function Header() {
               aria-hidden="true"
               width={260}
               height={124}
-              className="pointer-events-none absolute -right-1 -top-[19px] h-auto w-[61px] -scale-x-100 select-none drop-shadow-[0_2px_3px_rgba(0,0,0,.65)] sm:-top-6 sm:w-[76px]"
+              className="pointer-events-none absolute -right-3 -top-[19px] h-auto w-[61px] -scale-x-100 select-none drop-shadow-[0_2px_3px_rgba(0,0,0,.65)] sm:-top-6 sm:w-[76px]"
               decoding="async"
             />
           </div>

@@ -48,10 +48,9 @@ const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePa
 
 // HTTPS проверяем отдельно: со строгой проверкой сертификата — так, как
 // откроет сайт обычный браузер. Скриншоты снимаем в любом случае.
-let tls = "ок";
-{
+let tls = PREVIEW ? "локальный HTTP" : "ок";
+if (!PREVIEW) {
   const ctx = await browser.newContext();
-  if (PREVIEW) await isolatePreview(ctx);
   const page = await ctx.newPage();
   try {
     await page.goto(BASE + "/", { timeout: 30000 });
