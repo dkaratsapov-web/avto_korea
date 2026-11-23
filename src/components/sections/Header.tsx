@@ -111,10 +111,59 @@ export function Header() {
       >
         {/* Логотип — только надпись, с белой окантовкой вместо подложки */}
         <div className="flex h-[60px] flex-none items-center">
-          <Logo
-            variant="wordmark"
-            className="logo-outline h-7 w-auto shrink-0 sm:h-9"
-          />
+          <div className="relative flex items-center">
+            <Logo
+              variant="wordmark"
+              className="logo-outline h-7 w-auto shrink-0 sm:h-9"
+            />
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              viewBox="0 0 280 58"
+              preserveAspectRatio="none"
+              className="pointer-events-none absolute left-0 top-1/2 h-[138%] w-full -translate-y-1/2"
+              fill="none"
+            >
+              <defs>
+                <linearGradient id="header-tinsel" x2="0%" y2="100%">
+                  <stop stopColor="#f9edb0" />
+                  <stop offset=".25" stopColor="#c5a051" />
+                  <stop offset=".5" stopColor="#fff2be" />
+                  <stop offset=".76" stopColor="#a16b28" />
+                  <stop offset="1" stopColor="#dfbc68" />
+                </linearGradient>
+              </defs>
+              <g strokeLinecap="round" strokeLinejoin="round">
+                <path
+                  d="M4 25C1 15 13 8 31 8C56 8 71 12 98 9S146 3 171 7S214 12 241 8C258 5 273 10 275 19S272 30 266 34M6 38C9 47 19 49 31 45M253 48C263 52 272 46 275 39"
+                  stroke="#19120d"
+                  strokeWidth="6"
+                />
+                <path
+                  d="M4 25C1 15 13 8 31 8C56 8 71 12 98 9S146 3 171 7S214 12 241 8C258 5 273 10 275 19S272 30 266 34M6 38C9 47 19 49 31 45M253 48C263 52 272 46 275 39"
+                  stroke="url(#header-tinsel)"
+                  strokeWidth="3.5"
+                />
+                <path
+                  d="M4 25C1 15 13 8 31 8C56 8 71 12 98 9S146 3 171 7S214 12 241 8C258 5 273 10 275 19S272 30 266 34M6 38C9 47 19 49 31 45M253 48C263 52 272 46 275 39"
+                  stroke="#ead186"
+                  strokeWidth="7"
+                  strokeDasharray=".15 3.8"
+                  opacity=".72"
+                />
+                <path
+                  d="M16 10l-5 -4m12 3l-1 -5m12 4l4 -4m16 5l-2 4m18 -3l4 -5m19 5l-1 4m17 -7l4 -4m14 3l3 4m26 -5l-1 -4m21 7l5 -4m13 6l3 4m16 -3l4 -5m17 3l-2 4m19 -6l4 -4m10 5l-1 5m13 2l5 -2m-8 16l4 3M9 42l-5 2m14 3l-1 5m10 -6l5 3m227 0l-2 5m10 -7l5 2m0 -7l5 -1"
+                  stroke="#f9dfa0"
+                  strokeWidth="1.2"
+                  opacity=".85"
+                />
+              </g>
+              <path
+                d="M37 4l1.1 3.9L42 9l-3.9 1.1L37 14l-1.1-3.9L32 9l3.9-1.1zM225 5l.9 3.1L229 9l-3.1.9L225 13l-.9-3.1L221 9l3.1-.9zM265 43l1.1 3.9L270 48l-3.9 1.1L265 53l-1.1-3.9L260 48l3.9-1.1z"
+                fill="#fff2cf"
+              />
+            </svg>
+          </div>
         </div>
 
         {/* Каталог — отдельная яркая кнопка (без анимаций) */}
