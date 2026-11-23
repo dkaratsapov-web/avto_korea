@@ -15,6 +15,8 @@
  *   --pages  страницы через запятую (по умолчанию — основные)
  *   --out    папка результата (по умолчанию site-shots)
  *   --wait   сколько мс ждать после загрузки (по умолчанию 2500)
+ *   --selector  CSS-селектор элемента для снимка вместо всей страницы
+ *   --preview   отключить внешние запросы и анимации для локального превью
  *   --click  CSS-селектор: кликнуть перед снимком (для проверки сценария)
  */
 import { mkdir, writeFile } from "node:fs/promises";
@@ -36,6 +38,8 @@ const PAGES = arg("pages", "/,/catalog,/reviews,/about,/contacts,/articles,/quiz
 const OUT = arg("out", "site-shots");
 const WAIT = Number(arg("wait", "2500"));
 const CLICK = arg("click", "");
+const SELECTOR = arg("selector", "");
+const PREVIEW = process.argv.includes("--preview");
 
 const slug = (p) => (p === "/" ? "home" : p.replace(/^\//, "").replace(/[^a-z0-9а-я_-]+/gi, "_")) || "page";
 
@@ -47,6 +51,7 @@ const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePa
 let tls = "ок";
 {
   const ctx = await browser.newContext();
+  if (PREVIEW) await isolatePreview(ctx);
   const page = await ctx.newPage();
   try {
     await page.goto(BASE + "/", { timeout: 30000 });
@@ -54,6 +59,14 @@ let tls = "ок";
     tls = String(e.message || e).split("\n")[0];
   }
   await ctx.close();
+}
+
+async function isolatePreview(context) {
+  await context.route("**/*", (route) =>
+    new URL(route.request().url()).origin === new URL(BASE).origin
+      ? route.continue()
+      : route.fulfill({ status: 204 }),
+  );
 }
 
 const profiles = [
@@ -67,7 +80,13 @@ const samples = new Map();
 const scriptHeads = new Map();
 const KNOWN = /(^|\.)(yandex\.(ru|com|net)|yastatic\.net|googleapis\.com|gstatic\.com|tgtrack\.ru|telegram\.org|workers\.dev)$/;
 for (const [kind, opts] of profiles) {
-  const ctx = await browser.newContext({ ...opts, ignoreHTTPSErrors: true, locale: "ru-RU" });
+  const ctx = await browser.newContext({
+    ...opts,
+    ignoreHTTPSErrors: !PREVIEW,
+    locale: "ru-RU",
+    ...(PREVIEW ? { reducedMotion: "reduce" } : {}),
+  });
+  if (PREVIEW) await isolatePreview(ctx);
   for (const p of PAGES) {
     const page = await ctx.newPage();
     const errors = [];
@@ -127,7 +146,16 @@ for (const [kind, opts] of profiles) {
     }
     const ms = Date.now() - started;
     const file = `${kind}-${slug(p)}.png`;
-    await page.screenshot({ path: `${OUT}/${file}`, fullPage: kind === "desktop" }).catch(() => {});
+    if (SELECTOR) {
+      const element = page.locator(SELECTOR);
+      await element.waitFor({ state: "visible" });
+      await element.locator("img:visible").evaluateAll((images) =>
+        Promise.all(images.map((image) => image.decode())),
+      );
+      await element.screenshot({ path: `${OUT}/${file}`, animations: "disabled" });
+    } else {
+      await page.screenshot({ path: `${OUT}/${file}`, fullPage: kind === "desktop" }).catch(() => {});
+    }
     const title = await page.title().catch(() => "");
     const overflow = await page
       .evaluate(() => document.documentElement.scrollWidth - window.innerWidth)

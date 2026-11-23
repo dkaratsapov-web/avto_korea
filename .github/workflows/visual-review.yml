@@ -1,0 +1,64 @@
+name: Visual review
+
+on:
+  push:
+    branches: ["visual-preview/**"]
+  workflow_dispatch:
+    inputs:
+      pages:
+        description: "Страницы через запятую"
+        default: "/"
+      selector:
+        description: "CSS-селектор для снимка (пусто — вся страница)"
+        default: "header"
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build preview
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Chromium
+        run: |
+          npm i --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+
+      - name: Capture desktop and mobile
+        env:
+          PAGES: ${{ inputs.pages || '/' }}
+          SELECTOR: ${{ inputs.selector }}
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 --strictPort > /tmp/site-preview.log 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:4173/ > /dev/null
+
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            SELECTOR=header
+          fi
+          args=(--base http://127.0.0.1:4173 --pages "$PAGES" --out visual-review --preview --wait 400)
+          if [[ -n "$SELECTOR" ]]; then
+            args+=(--selector "$SELECTOR")
+          fi
+          node scripts/site-shot.mjs "${args[@]}"
+          cat visual-review/README.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visual-review
+          path: visual-review/
+          if-no-files-found: error
+          retention-days: 14
